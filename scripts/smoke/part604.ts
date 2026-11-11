@@ -623,7 +623,6 @@ for (const [mine, label] of [["BS05-049", "狼人ウルフィ"], ["BS16-033", "�
         steps(t) {
             florenceFlow(t)
             t.act("me", { type: "resolveChoice", option: "召喚する" })
-            t.act("me", { type: "resolveChoice", option: "支払う" })
         },
         // 【不死】はコストを支払って召喚する（コスト3）
         expect: ["相手.攻撃役.コア: 7 → 8", "相手.攻撃役.疲労: false → true", `自分.盾.場所: フィールド → なし`, `自分.トラッシュ: 闇騎士フローレンス → ${label}`, "自分.トラッシュのコア: 0 → 3", "自分.リザーブ: 10 → 7",

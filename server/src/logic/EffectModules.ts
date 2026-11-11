@@ -1471,7 +1471,15 @@ export function resolveAction(
     // マジック効果耐性判定用のカード種別（マジックは self=null なので、呼び出し側=resolveMagic が明示的に"magic"を渡す）
     const srcType = sourceType ?? (self ? getCard(self.cardId).type : undefined)
     // マジックの効果を入れ子で解くとき sourceCardId は渡らないので、同じ持ち主の外側の効果の発生源カードを引き継ぐ
-    const srcCardId = sourceCardId ?? (self ? self.cardId : state.currentEffectSource?.pid === owner ? state.currentEffectSource.cardId : undefined)
+    const srcCardId =
+        sourceCardId ??
+        (self
+            ? self.cardId
+            : state.currentEffectSource?.pid === owner
+              ? state.currentEffectSource.cardId
+              : state.currentEffectSource === undefined && state.resumeBurst?.pid === owner
+                ? state.resumeBurst.cardId
+                : undefined)
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する
     const destroyContext: DestroyContext = {

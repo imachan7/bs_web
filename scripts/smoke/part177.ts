@@ -11,7 +11,7 @@
 //
 // 実装は「選ばせたら、そのコスト軸を落とした action で入り直す」形
 // （exhaust の chooserIsTarget と同じ、解決済みの軸を落として再入する書き方）。
-import { act, assert, createGame, createInstance, resolveAction, runTurnStart, playerHas, answerPayConfirm, legacy } from "./helpers"
+import { act, assert, createGame, createInstance, resolveAction, runTurnStart, playerHas, answerPayConfirm, legacy, answerCoreLevel } from "./helpers"
 import type { GameState } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 
@@ -94,6 +94,7 @@ console.log("=== キャストオフ：コストで破壊する「怪虫」を選
     answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.pid === "p1", "コストの犠牲を自分で選ぶ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: give }) === null, "犠牲を選ぶ")
+    answerCoreLevel(s, "p1")
     assert(!alive(s, give), "選んだほうが破壊される")
     assert(alive(s, keep), "選ばなかったほうは残る")
     assert(
@@ -122,6 +123,7 @@ console.log("=== リクラメーション：コストで破壊するネクサス
     assert(s.pendingChoice?.pid === "p1", "コストの犠牲を自分で選ぶ")
     assert(s.pendingChoice?.candidates.length === 2, "自分のネクサス2つが候補")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: give.instanceId }) === null, "犠牲を選ぶ")
+    answerCoreLevel(s, "p1")
     assert(
         s.players.p1.field.nexuses.length === 1 && s.players.p1.field.nexuses[0]?.instanceId === keep.instanceId,
         "選んだネクサスだけが壊れる（以前はコア最少が勝手に選ばれた）",

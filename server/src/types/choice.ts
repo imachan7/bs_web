@@ -137,7 +137,10 @@ export interface PendingChoice {
         need: number
         sourceCardId: string
         targetInstanceId?: string // then に渡すイベント対象（「そのスピリット」）
+        keepByOption?: number[] // 置くコアの数（Lv）を選ばせる待ち。options と同じ並びで、選ばれた位置の値が keep になる
+        tollKeep?: number // ボイドの通行料（リザーブから後で払う）のぶん。選ばれた置くコアの数に足して keep にする
         keep?: number // 払ったあとリザーブに残さなければならない数（余分のあと召喚で置くコア）。支払いはこれを割り込めない
+        reserveOnly?: true // フィールドのコアを支払い元にできない（paySources 付きの答えは拒否する）
         surcharge?: true // 召喚の余分（転召の祭壇など。logic/summonSurcharge.ts）の支払い。ログの文面だけが変わる
     }
     braveKeep?: {

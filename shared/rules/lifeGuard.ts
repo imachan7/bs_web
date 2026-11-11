@@ -70,10 +70,20 @@ export function lifeGuardBounds(board: Board, q: LifeLossQuery): { max: number; 
     let floor = 0
     for (const g of lifeGuardsApplying(board, q)) {
         if (g.max !== undefined) {
-            const dealt = g.per === "spirit" ? (q.sourceInstance?.lifeDealtThisTurn?.[q.pid] ?? 0) : 0
+            const dealt = g.total ? (g.used ?? 0) : g.per === "spirit" ? (q.sourceInstance?.lifeDealtThisTurn?.[q.pid] ?? 0) : 0
             max = Math.min(max, Math.max(0, g.max - dealt))
         }
         if (g.floor !== undefined) floor = Math.max(floor, g.floor)
     }
     return { max, floor }
+}
+
+// アタックで実際に減ったぶんを、記録してからの合計（total）の lifeGuard に足す。通常のアタック以外の減少で total を使うカードは無いので、呼ぶのはアタックの解決だけ。
+// 足すのは期間つきの記録だけ（場のカードの lifeGuard はカードデータそのものなので書き換えない）
+export function noteLifeGuardTotal(board: Board, q: LifeLossQuery, dealt: number): void {
+    if (dealt <= 0) return
+    const spirit = q.sourceInstance && card(q.sourceInstance.cardId).type === "spirit" ? q.sourceInstance : undefined
+    for (const rule of timedPlayerRules(board, q.pid)) {
+        if (rule.type === "lifeGuard" && rule.total && appliesTo(board, rule, q, spirit)) rule.used = (rule.used ?? 0) + dealt
+    }
 }

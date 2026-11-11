@@ -183,6 +183,7 @@ export type EffectDefTrigger =
           winnerMinCores?: number
           winnerFamilyFilter?: FamilyFilter
           winnerKeywordFilter?: Keyword | Keyword[]
+          winnerExcludeSelf?: true // 勝ったのが発生源自身なら発火しない（自身を名指しする別エントリと二重にならないように。BS15-036）
           // 配列＝OR。
           // ⚠️ ORをエントリ2つに分けて書かないこと。両方持つスピリットで二重に発火する
           winnerIsLentBuffTarget?: true // 同じマジックの直前の効果でBP増加した1体のときのみ。lentOnly とセットで使う

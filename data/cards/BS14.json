@@ -5402,70 +5402,12 @@
     ],
     "turn": "opponent",
     "subjectFilter": {
-     "color": "red"
-    },
-    "refreshSourceTypeFilter": [
-     "spirit",
-     "magic"
-    ],
-    "action": {
-     "type": "destroy",
-     "target": "self",
-     "count": 1
-    }
-   },
-   {
-    "id": "BS14-085-e2g",
-    "kind": "fieldEvent",
-    "event": "anySpiritRefreshed",
-    "levels": [
-     2
-    ],
-    "turn": "opponent",
-    "subjectFilter": {
-     "color": "green"
-    },
-    "refreshSourceTypeFilter": [
-     "spirit",
-     "magic"
-    ],
-    "action": {
-     "type": "destroy",
-     "target": "self",
-     "count": 1
-    }
-   },
-   {
-    "id": "BS14-085-e2w",
-    "kind": "fieldEvent",
-    "event": "anySpiritRefreshed",
-    "levels": [
-     2
-    ],
-    "turn": "opponent",
-    "subjectFilter": {
-     "color": "white"
-    },
-    "refreshSourceTypeFilter": [
-     "spirit",
-     "magic"
-    ],
-    "action": {
-     "type": "destroy",
-     "target": "self",
-     "count": 1
-    }
-   },
-   {
-    "id": "BS14-085-e2b",
-    "kind": "fieldEvent",
-    "event": "anySpiritRefreshed",
-    "levels": [
-     2
-    ],
-    "turn": "opponent",
-    "subjectFilter": {
-     "color": "blue"
+     "color": [
+      "red",
+      "green",
+      "white",
+      "blue"
+     ]
     },
     "refreshSourceTypeFilter": [
      "spirit",

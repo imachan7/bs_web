@@ -528,6 +528,17 @@ export function lockedFor(state: GameState, pid: PlayerId, lock: "flash" | "burs
 }
 export type { GameAction, GameState, PlayerId }
 
+// 効果召喚の「置くコアの数（Lv）」の待ちが出ていたら options[0]（Lv1）で答える。答えたら true
+export function answerCoreLevel(state: GameState, pid: PlayerId): boolean {
+    const pc = state.pendingChoice
+    if (pc && pc.kind === "option" && (pc.options ?? [])[0]?.startsWith("Lv")) {
+        const err = act(state, pid, { type: "resolveChoice", option: pc.options![0]! })
+        if (err) throw new Error(`置くコアの数への応答に失敗: ${err}`)
+        return true
+    }
+    return false
+}
+
 // 「〜することで〜する」(pay)の払う確認が出ていたら「発動する」で答える（出ていなければ何もしない）
 export function answerPayConfirm(state: GameState, pid: PlayerId): void {
     const pc = state.pendingChoice
