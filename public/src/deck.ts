@@ -568,6 +568,21 @@ function hideDetail(): void {
 
 const isTouchOnly = (): boolean => matchMedia("(hover: none)").matches
 
+// タッチ端末：スクロールを始めたら閉じる（2026-11-12 ユーザー要望）。詳細の中のスクロールでは閉じない。
+// scroll はバブリングしないので、一覧・デッキ欄・ページのどこが動いても拾えるよう capture で受ける
+function setupHideDetailOnScroll(): void {
+    document.addEventListener(
+        "scroll",
+        (e) => {
+            if (!isTouchOnly()) return
+            const target = e.target
+            if (target instanceof Node && $("detail-panel").contains(target)) return
+            hideDetail()
+        },
+        { capture: true, passive: true },
+    )
+}
+
 // タッチ端末：表示中のカードをもう一度タップしたら閉じる（2026-11-12 ユーザー要望）
 let detailCardId: string | null = null
 function toggleDetail(card: CardData, anchor: HTMLElement): void {
@@ -1395,6 +1410,7 @@ async function init(): Promise<void> {
 
     setupFilterChips()
     setupPoolGridEvents()
+    setupHideDetailOnScroll()
     setupDeckIo()
     renderSavedDecks()
     renderAll()
