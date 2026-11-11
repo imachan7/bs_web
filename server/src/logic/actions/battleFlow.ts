@@ -666,6 +666,12 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
         // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
         // interactiveTargetsでも選択式にはしない（この経路は自動選択のみ）
         if (action.count !== undefined) {
+            // 召喚の途中で置くコアの待ちなどが立ったら、残りは再開スタックへ（立った待ちを上書きしない）
+            const resumeAfterPending = (next: typeof action): boolean => {
+                if (!state.pendingChoice) return false
+                pushResumeFrames(state, [{ kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: next }])
+                return true
+            }
             // alsoFrom:"trash"：手札とトラッシュの合計でcount枚まで、1枚ずつどちらの場所かを選べる（X05）
             if (action.alsoFrom === "trash") {
                 const matchesTrashId = (candidateId: string): boolean =>
@@ -758,6 +764,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                     if (action.pendingZone === "trash") summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, summonOpts)
                     else summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
                     if (state.winner) return
+                    if (resumeAfterPending({ ...action, count: action.count - 1 })) return
                     askPick(action.count - 1)
                     return
                 }
@@ -773,6 +780,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                 if (chosenCardIndex !== undefined) {
                     summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
                     if (state.winner) return
+                    if (resumeAfterPending({ ...action, count: action.count - 1 })) return
                 }
                 const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
                 const indices: number[] = []
@@ -801,6 +809,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                 if (chosenCardIndex !== undefined) {
                     summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
                     if (state.winner) return
+                    if (resumeAfterPending({ ...action, count: action.count - 1 })) return
                 }
                 const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
                 const indices: number[] = []

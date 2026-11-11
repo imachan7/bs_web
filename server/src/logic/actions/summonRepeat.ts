@@ -178,16 +178,16 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
         summonAll(idx, true, pk, lv)
     }
 
+    // 払い待ちから戻ってきた（払い済み。手札はその間動かない）
+    if (action.prepaid) {
+        summonAll(chosen, false, picks, action.lvCores)
+        return
+    }
+
     // 置くコアの数を選んで戻ってきた
     if (action.lvAsk) {
         const cores = Number(/コア(\d+)個/.exec(ctx.chosenOption ?? "")?.[1])
         finish(chosen, picks, [...(action.lvCores ?? []), Number.isFinite(cores) ? cores : minLevelCores(getCard(player.hand[chosen[(action.lvCores ?? []).length]!]!))])
-        return
-    }
-
-    // 払い待ちから戻ってきた（払い済み。手札はその間動かない）
-    if (action.prepaid) {
-        summonAll(chosen, false, picks, action.lvCores)
         return
     }
 

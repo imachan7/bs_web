@@ -94,6 +94,15 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
     const player = state.players[owner]
     const cardId = action.cardId
     const card = getCard(cardId)
+    // Lv の待ちの間は公開ゾーンに残す（どのゾーンにも無い状態を作らない）。置く数が決まった再開で抜く
+    const zone = state.revealedCards
+    const keepWhileAsking = (): void => {
+        if (zone && !zone.cardIds.includes(cardId)) zone.cardIds.push(cardId)
+    }
+    if (action.placeCores !== undefined && zone) {
+        const at = zone.cardIds.indexOf(cardId)
+        if (at >= 0) zone.cardIds.splice(at, 1)
+    }
     // 「召喚/配置できる」：ネクサスは配置、それ以外は召喚
     const dest: RevealDest = action.dest === "summonOrPlace" ? (card.type === "nexus" ? "placeNexus" : "summon") : (action.dest ?? "hand")
     switch (dest) {
@@ -135,7 +144,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             const maintain = action.placeCores ?? minLevelCores(card)
             const fullCost = action.pay === "cost" ? effectiveCost(state, owner, card) : 0
             const cost = action.placeCores !== undefined ? 0 : fullCost
-            if (action.placeCores === undefined && askSummonCores(state, owner, card, fullCost, action)) return
+            if (action.placeCores === undefined && askSummonCores(state, owner, card, fullCost, action)) return keepWhileAsking()
             if (player.reserve < maintain + cost + summonVoidToll(state, card)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を配置できなかった。`)
                 player.trashCards.push(cardId)
@@ -182,7 +191,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             if (action.surchargePrepaid) state.summonSurchargePaid = owner
             const owed = action.pay === "cost" ? fullCost : surchargeOwed(state, owner, card, true)
             const surchargeOnly = action.pay !== "cost" && owed > 0
-            if (action.placeCores === undefined && askSummonCores(state, owner, card, owed, surchargeOnly ? { ...action, surchargePrepaid: true } : action, surchargeOnly)) return
+            if (action.placeCores === undefined && askSummonCores(state, owner, card, owed, surchargeOnly ? { ...action, surchargePrepaid: true } : action, surchargeOnly)) return keepWhileAsking()
             if (action.pay === "cost" ? player.reserve < maintain + cost + summonVoidToll(state, card) : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
                 failDest(ctx, action.orHand, cardId)
