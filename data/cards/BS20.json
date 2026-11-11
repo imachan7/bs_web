@@ -4779,15 +4779,20 @@
     "subjectSide": "opponent",
     "action": {
      "type": "removeCores",
-     "side": "own",
+     "side": "opponent",
+     "from": [
+      "spirit"
+     ],
      "to": "trash",
-     "count": 1
+     "count": 1,
+     "chooser": "owner"
     },
     "phase": "attack",
     "turn": "opponent",
     "subjectFilter": {
      "maxBp": 6000
-    }
+    },
+    "selfMode": "source"
    }
   ]
  },

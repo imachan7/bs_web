@@ -13,5 +13,7 @@ export type LifeGuardDef = {
     effectSource?: { sourceTypes?: CardType[] } // from:"effect" のとき、効果の発生源のカード種別
     max?: number // 減らせる量の上限。0＝減らない
     per?: "attack" | "spirit" // max の数え方。attack（既定）＝1回の減少ごと。spirit＝減らすスピリット1体のそのターンの累計（CardInstance.lifeDealtThisTurn）
+    total?: true // max を、記録してから（期間つき効果として積まれてから）の合計の上限にする。playerRule だけで意味を持つ（2026-11-11 ユーザー確認：SD01-039）
+    used?: number // total のとき、記録に持つ消費量。ターン終了で記録ごと消える
     floor?: number // この値を下回らない（0にならない＝1）
 }

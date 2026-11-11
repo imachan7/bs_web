@@ -283,6 +283,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `lifeGuardsApplying`（fn）：この減少に当たる lifeGuard を集める。アタックでは sourceInstance がアタッカー
 - `lifeGuardBounds`（fn）：当たった lifeGuard 全部を畳んだ「減らせる量」の上限と、下回れない値
+- `noteLifeGuardTotal`（fn）：アタックで実際に減ったぶんを、記録してからの合計（total）の lifeGuard に足す。通常のアタック以外の減少で total を使うカードは無いので、呼ぶのはアタックの解決…
 
 ## shared/rules/resistance.ts
 

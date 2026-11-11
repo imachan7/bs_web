@@ -29,6 +29,7 @@ export type { GameState } from "./types/gameState"
 export type { GlobalConstraintDef } from "./types/globalConstraint"
 export type { LifeGuardDef } from "./types/lifeGuard"
 import type { LifeGuardDef } from "./types/lifeGuard"
+import type { GlobalConstraintDef } from "./types/globalConstraint"
 export type { TargetFilter } from "./types/targetFilter"
 
 // プレイヤーIDやステップ名を厳格に定義（タイポを防ぎます）
@@ -319,6 +320,7 @@ export type PlayerRuleDef =
     | { type: "summonPayByNexusExhaustForPid" } // このターン、スピリット/ブレイヴ**1枚**の召喚で、回復状態の自分のネクサスを好きなだけ疲労させ、1つにつき1コスト払ったことにできる（Q25253〜Q25255。使ったら使い切り）
     | { type: "armorDisabledForPid" } // スピリットの【装甲】が働かない（持っている分もこのターンに得た分も。2026-08-16 ユーザー判断）
     | { type: "freeFushiSummonForPid" } // このターン最初の【不死】召喚だけコストが0（維持コアは要る）。使ったら記録を消す
+    | Extract<GlobalConstraintDef, { type: "millCap" }> // 記録してから合計 maxCount 枚まで（total:true）。相手の効果による破棄だけを数える（BS05-076）
     | LifeGuardDef // ライフを減らす処理への制限（このターンの間の写し。timedEffect の playerRule。守られるのは積まれた側）
     | { type: "bounceToDeckTopForPid" } // このプレイヤーの効果で手札に戻すスピリットは、手札の代わりにデッキの上へ
     | { type: "nexusEffectsDisabledForPid" } // ネクサスすべての効果が発揮されない

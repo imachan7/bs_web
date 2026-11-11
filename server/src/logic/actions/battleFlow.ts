@@ -74,7 +74,7 @@ import {
 import { flushBraveKeeps } from "../brave"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { lastTargetsOf } from "../record"
 
@@ -1294,6 +1294,7 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId, destroyContext } = ctx
     const oppPlayer = state.players[opp]
     const types = action.types ?? ["spirit", "brave", "nexus"]
+    const op = action.mode === "destroy" ? "destroy" : "bounce"
     const collect = (): { candidates: CardInstance[]; spirits: CardInstance[]; braves: CardInstance[] } => {
         // types:["brave"]のみ（"spirit"を含まない）指定時は、field.spiritsのうち**ブレイヴカードだけ**
         // （スピリット状態のブレイヴ）を候補に含める。"spirit"も指定されていれば従来どおり全スピリットが
@@ -1315,9 +1316,16 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
                 (c) => !nexusIds.has(c.instanceId) && effectiveBp(state, opp, c) <= selfBp,
             )
         }
+        // 【装甲】・「相手の効果を受けない」などで届かないものは候補にしない（2026-11-11 監査で発見。候補列挙では支払いを伴う耐性を聞かない）
+        candidates = candidates.filter((c) => resistanceAgainst(state, opp, c, { ...attemptOf(ctx, op, "targeted"), probing: true }) === null)
         return { candidates, spirits, braves }
     }
     const removeOne = (chosen: CardInstance, spirits: CardInstance[], braves: CardInstance[]): void => {
+        const resisted = resistanceAgainst(state, opp, chosen, attemptOf(ctx, op, "targeted"))
+        if (resisted) {
+            log(state, `${sourceName}：${getCard(chosen.cardId).name}は${resisted.label}により効果を受けない。`)
+            return
+        }
         if (spirits.some((s) => s.instanceId === chosen.instanceId)) {
             if (action.mode === "destroy") destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext)
             else if (action.mode === "toDeckBottom") returnSpiritToDeckBottom(state, opp, chosen, sourceName)
