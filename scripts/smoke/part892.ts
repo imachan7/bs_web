@@ -18,15 +18,15 @@ const GATE = "BS15-064" // 冥府へ続く魔門（紫ネクサス・コスト4�
 console.log("=== 前提: カードの機械確認 ===")
 {
     const b = getCard(BELD)
-    assert(b.name === "魔界七将ベルドゴール" && b.type === "spirit" && b.cost === 3 && b.levels.length === 2 && b.levels[0].cores === 1 && b.levels[1].cores === 3, "BELDはコスト3・Lv1=1/Lv2=3コア（Lv3なし）")
+    assert(b.name === "魔界七将ベルドゴール" && b.type === "spirit" && b.cost === 3 && b.levels.length === 2 && b.levels[0]!.cores === 1 && b.levels[1]!.cores === 3, "BELDはコスト3・Lv1=1/Lv2=3コア（Lv3なし）")
     assert(b.effects.some((e: any) => e.keyword === "fushi"), "BELDは【不死】持ち")
-    assert(getCard(VICTIM).name === "デュアルド" && getCard(VICTIM).cost === 5 && getCard(VICTIM).levels[0].bp === 5000, "VICTIMはコスト5・BP5000")
-    assert(getCard(BOSS).name === "マタンゴル" && getCard(BOSS).levels[0].bp === 6000, "BOSSはBP6000")
+    assert(getCard(VICTIM).name === "デュアルド" && getCard(VICTIM).cost === 5 && getCard(VICTIM).levels[0]!.bp === 5000, "VICTIMはコスト5・BP5000")
+    assert(getCard(BOSS).name === "マタンゴル" && getCard(BOSS).levels[0]!.bp === 6000, "BOSSはBP6000")
     assert(getCard(ROKU).name === "ロクケラトプス" && getCard(IBAN).name === "アイバーン" && getCard(IBAN).cost === 2, "ROKU・IBAN")
     assert(getCard(HELL).name === "ヘルズバースディ" && getCard(HELL).type === "magic" && getCard(HELL).cost === 4, "HELLはコスト4のマジック")
     assert(getCard(REPAIR).name === "ネクサスリペアー" && getCard(REPAIR).type === "magic" && getCard(REPAIR).cost === 4, "REPAIRはコスト4のマジック")
     const g = getCard(GATE)
-    assert(g.name === "冥府へ続く魔門" && g.type === "nexus" && g.levels[0].cores === 0 && g.levels[1].cores === 2, "GATEはLv1=0/Lv2=2コアのネクサス")
+    assert(g.name === "冥府へ続く魔門" && g.type === "nexus" && g.levels[0]!.cores === 0 && g.levels[1]!.cores === 2, "GATEはLv1=0/Lv2=2コアのネクサス")
 }
 
 function game(seed: string, interactive: boolean): GameState {

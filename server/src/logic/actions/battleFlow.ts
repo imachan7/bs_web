@@ -9,6 +9,7 @@ import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { summonBurstCardFreeHandler } from "./control"
 import { summonDenial } from "../summonGate"
+import { askSummonCores } from "../summonCores"
 import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -380,15 +381,19 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             if (action.nameContains !== undefined && !c.name.includes(action.nameContains)) return false
             return action.colors === undefined || action.colors.some((col) => cardHasColor(c, col))
         }
-        const deployFromIndex = (idx: number): void => {
+        // asking＝置くコアの選択待ちを立ててよい経路（複数枚を一度に置く all は立てない）
+        const deployFromIndex = (idx: number, placeCores?: number, asking = true): void => {
             const zone = action.from === "hand" ? player.hand : player.trashCards
             const cardId = zone[idx]
             if (cardId === undefined) {
                 log(state, `${sourceName}：対象がいなかった。`)
                 return
             }
+            if (placeCores === undefined && asking && askSummonCores(state, owner, getCard(cardId), 0, { ...action, deployIndex: idx })) return
             zone.splice(idx, 1)
-            const maintain = minLevelCores(getCard(cardId))
+            const maintain = placeCores ?? minLevelCores(getCard(cardId))
+            // 選んだ数はリザーブから置く。選ばない経路は従来どおり（リザーブを減らさない）
+            if (placeCores !== undefined) player.reserve -= placeCores
             const inst = createInstance(cardId, state.turn, maintain)
             player.field.nexuses.push(inst)
             log(
@@ -396,6 +401,10 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
             )
             fireNexusDeployed(state, owner, inst)
+        }
+        if (action.deployIndex !== undefined) {
+            deployFromIndex(action.deployIndex, action.placeCores)
+            return
         }
         if (action.all) {
             // 該当するネクサスカードをすべて配置する（選択の余地がないためinteractiveTargets/chosenCardIndexは無関係）
@@ -410,7 +419,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             }
             // 後ろのインデックスから順に配置（splice後もインデックスがずれないように）
             for (let i = indices.length - 1; i >= 0; i--) {
-                deployFromIndex(indices[i]!)
+                deployFromIndex(indices[i]!, undefined, false)
             }
             return
         }
@@ -440,41 +449,23 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             }
         }
         // 既存の決定的自動選択（手札は先頭、トラッシュは末尾＝新しい方から）
-        let cardId: string | undefined
+        let idx = -1
         if (action.from === "hand") {
-            const idx = player.hand.findIndex(isMatch)
-            if (idx === -1) {
-                log(state, `${sourceName}：手札に対象のネクサスがなかった。`)
-                return
-            }
-            cardId = player.hand[idx]
-            player.hand.splice(idx, 1)
+            idx = player.hand.findIndex(isMatch)
         } else {
             // トラッシュは末尾（新しい方）から最初の一致を選ぶ（本来は好きな1枚を選べる簡略化）
-            let idx = -1
             for (let j = player.trashCards.length - 1; j >= 0; j--) {
                 if (isMatch(player.trashCards[j]!)) {
                     idx = j
                     break
                 }
             }
-            if (idx === -1) {
-                log(state, `${sourceName}：トラッシュに対象のネクサスがなかった。`)
-                return
-            }
-            cardId = player.trashCards[idx]
-            player.trashCards.splice(idx, 1)
         }
-        if (cardId === undefined) return
-        const maintain = minLevelCores(getCard(cardId))
-        const inst = createInstance(cardId, state.turn, maintain)
-        player.field.nexuses.push(inst)
-        log(
-            state,
-            `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
-        )
-        fireNexusDeployed(state, owner, inst)
-        return
+        if (idx === -1) {
+            log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象のネクサスがなかった。`)
+            return
+        }
+        deployFromIndex(idx)
 }
 
 function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectAction, { type: "summon"; from: "hand" }>): void {

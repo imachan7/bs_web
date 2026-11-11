@@ -346,7 +346,9 @@ function resolveChoiceInner(
         if (option === undefined || !(pending.options ?? []).includes(option)) return "支払ってください"
         const info = pending.effectCostPay
         const soul = paySoulCoreFromReserve === true
-        const keep = info.keep ?? 0
+        const chosenAt = (pending.options ?? []).indexOf(option)
+        const placeCores = info.keepByOption?.[chosenAt]
+        const keep = placeCores ?? info.keep ?? 0
         // 後で置くコア（keep）もフィールドから払える。フィールドから置くコアに回したぶんはいったんリザーブへ戻し、続きがリザーブから置く
         const auto = paySources === undefined && !soul ? autoPayPlan(state, info.pid, info.need + keep, true) : null
         if (paySources === undefined && !soul && auto === null) return "コアが足りません"
@@ -356,9 +358,10 @@ function resolveChoiceInner(
         state.pendingChoice = null
         const placed = payCost(state, info.pid, info.need, plan.paySources, keep, plan.soulFromReserve)
         state.players[info.pid].reserve += placed
-        log(state, info.surcharge ? `${state.players[info.pid].name}：転召の祭壇により${info.need}コスト余分に支払った。` : `${getCard(info.sourceCardId).name}：${info.need}コストを支払った。`)
+        if (info.need > 0) log(state, info.surcharge ? `${state.players[info.pid].name}：転召の祭壇により${info.need}コスト余分に支払った。` : `${getCard(info.sourceCardId).name}：${info.need}コストを支払った。`)
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type)
+        const resume = placeCores === undefined ? pending.action : ({ ...pending.action, placeCores } as typeof pending.action)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, resume, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

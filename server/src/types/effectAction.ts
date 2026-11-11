@@ -153,7 +153,7 @@ export type EffectAction =
  | { type: "resumeMagicEntry"; cardId: string; effectId: string } // **内部専用**。選択待ちで止まったマジックの残りのエントリ1つを、条件の判定から解決し直す
  | { type: "magicMirrorRepeat" } // 相手が直前に使用したマジックの効果を自分が使用したものとして解決し直す（対象・コストは無償の再現。GameState.lastMagicCast。相手の使用でなければ不発。[マジックミラー]自身は対象にできない＝連鎖ミラー防止）
  | { type: "magicFreeUseFromHandOrTegamoto"; colorFilter?: Color; familyFilter?: FamilyFilter; handOnly?: true } // 手札/手元(tegamoto。要tegamotoPlayable)のマジック1枚をコストを支払わずに使用（任意。候補0なら不発）。自動選択は手札→手元の順でコスト最大（決定的簡略化）。paidCost=false で解決するので ownMagicUsed の paidCostOnly は連鎖しない。カード側で optional:true と併用する。handOnly＝手元を候補から外す。familyFilter の配列＝OR
- | { type: "deployNexus"; from: "hand" | "trash"; colors?: Color[]; all?: boolean; nameContains?: string; optional?: boolean } // 手札またはトラッシュから、指定色のネクサスカード1枚をコストを支払わず自分のフィールドに配置。nameContains と colors は AND。colors省略時は色を問わない。該当なしはno-op。all＝該当するネクサスカードをすべて配置。optional＝印刷テキストが「配置できる」の札に付ける（候補が1枚でも「配置しない」を選べる）
+ | { type: "deployNexus"; from: "hand" | "trash"; colors?: Color[]; all?: boolean; nameContains?: string; optional?: boolean; deployIndex?: number; placeCores?: number } // deployIndex・placeCores は内部専用（置くコアの選択待ちからの再開。logic/summonCores.ts）。手札またはトラッシュから、指定色のネクサスカード1枚をコストを支払わず自分のフィールドに配置。nameContains と colors は AND。colors省略時は色を問わない。該当なしはno-op。all＝該当するネクサスカードをすべて配置。optional＝印刷テキストが「配置できる」の札に付ける（候補が1枚でも「配置しない」を選べる）
  | { type: "levelOverrideOpponentNexuses"; level: number } // 相手の全ネクサスの timedLevel を level に設定（このターンの間）
  | { type: "levelAsSelfThisBattle"; level: number } // 発生源個体（self）をこのバトルの間 level として扱う（timedLevel への書き込み。BPもそのレベルの表になる。26系【レベルアップ】）
  | { type: "returnLastUsedMagicToHand" } // 直前に自分が使用したマジック（GameState.lastMagicUsed）がトラッシュにあれば手札に戻す。ownMagicUsed の中で使う＝効果発揮後に戻る（タイミングはバトル終了時ではない。2026-10-11 ユーザー確認）
@@ -246,8 +246,8 @@ export type EffectAction =
  | { type: "trashReturnToHandInternal"; cardId: string; onceEffectId?: string; ask?: true } // **内部専用**：トラッシュの自分のカードを手札に戻す。ask＝持ち主に「戻しますか？」を聞く（非対話なら戻す）。trashReturnOnOwnSpiritDestroyed／trashReturnOnOwnHeavyExhaust の「手札に戻せる」（任意。2026-10-11 ユーザー確認）。onceEffectId＝同名ターン1回の枠（戻したときに取る）
  | { type: "summonFreeFromTrashIndexInternal"; trashIndex: number } // **内部専用**：トラッシュの指定位置のカードを、コストを支払わずに召喚する。trashSummonOnNameSummoned の確認に答えたときの解決に使う
  | { type: "resshinsokuFinishInternal"; handIndex: number; cardId: string; selfCores: number } // 【烈神速】の割り振りの後、余分の支払い待ちから召喚を再開する内部専用
- | { type: "trashSummonPaidInternal"; via: "fushi" | "fushiFree" | "mill"; cardId: string; trashIndex: number; freeNexusInstanceId?: string } // 【不死】（fushiFree＝魔門で無償）・ミノガメンの支払い待ち（effectCostPay）から、払い済みとして召喚を再開する内部専用
- | { type: "summonFreeIndexInternal"; zone: "hand" | "trash"; index: number; skipTensho?: true; skipOnSummon?: true; summonedBy?: string; destroyAtBattleEnd?: true; braveTargetInstanceId?: string } // **内部専用**：召喚の余分の支払い待ちを挟んだ無償召喚の続き（summonSurcharge.ts）。払い済みとして手札／トラッシュの指定位置を召喚する
+ | { type: "trashSummonPaidInternal"; via: "fushi" | "fushiFree" | "mill"; cardId: string; trashIndex: number; freeNexusInstanceId?: string; placeCores?: number } // 【不死】（fushiFree＝魔門で無償）・ミノガメンの支払い待ち（effectCostPay）から、払い済みとして召喚を再開する内部専用
+ | { type: "summonFreeIndexInternal"; zone: "hand" | "trash"; index: number; skipTensho?: true; skipOnSummon?: true; summonedBy?: string; destroyAtBattleEnd?: true; braveTargetInstanceId?: string; placeCores?: number } // **内部専用**：召喚の余分の支払い待ちを挟んだ無償召喚の続き（summonSurcharge.ts）。払い済みとして手札／トラッシュの指定位置を召喚する
  // count＝costBudgetの代わりに**枚数指定**（costFilterはcostBudget指定時と違い有効に効く。コスト最大から貪欲に選ぶ決定的簡略化、足りなければ可能な分だけ）
  // skipOnSummon指定時は召喚時効果を発揮させない
  // 自分のトラッシュのスピリットカード1枚をコストを支払わずに召喚（コスト最大、同コストは末尾＝新しい方から自動選択。決定的簡略化）。whileCombinedFilter＝【合体時】効果を持つカードのみ（静的に判定）。payCost＝**通常の召喚コストを支払う**（支払い元はリザーブ＋フィールドのコア＝paySources。払えないカードは候補にも出さない）。colorFilter省略時は色不問。維持コアはリザーブから置き、不足なら不発。この効果で召喚されたスピリットのonSummon効果は発揮されない。costBudget＝costFilterを省略でき、コスト合計がbudget以下で複数枚を召喚（コスト最大から貪欲、維持コアが払えなくなった時点で打ち切り）
