@@ -21,6 +21,17 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：効果による召喚・配置でも、置くコアの数（Lv）を通常の召喚と同じく選ぶ（2026-11-11 確定。`feat/effect-summon-cores`）
+
+- **きっかけ**：【不死】（ベルドゴール・インフェルドハデス）が必ず Lv1 で出る報告。効果の召喚はどこも維持コアだけ置いていた
+- **ユーザー決定**：通常の召喚と同じにする。**選ぶ時点は支払いの時（場に出す・【転召】・召喚時効果より前）**。置くコアはリザーブとフィールドのコアから。**手動で選べば味方のスピリットを消滅させてもよい**（通常の召喚と同じ。自動払いは消滅させない）
+- **部品**：新ファイル `server/src/logic/summonCores.ts`。①`summonCoreOptions(state,pid,card,cost)`＝リザーブ（ソウル除く）＋フィールドの全コア（消滅込み）で cost+置くコア を賄える Lv の一覧 ②`askSummonCores(state,pid,card,cost,resume)`＝対話時、選べる Lv が2つ以上か、リザーブだけで足りないとき `effectCostPay` を立てる（options＝`Lv1（コア1個）`…、`keepByOption: number[]`＝各 option の置くコア数）
+- **effectCostPay の拡張**（`types/choice.ts`）：`keepByOption?: number[]`。`choice.ts` の解決で、選んだ option の keep で払い、`pending.action` に `placeCores: keep` を足して解決する。続きのアクションは `placeCores` があれば `minLevelCores` の代わりに使い、支払い済みとして扱う
+- **払えるかの判定**は消滅込みの合計で見る（【不死】の `fushiPayable` など、`autoPayPlan(...,true)` で見ている所を ① に寄せる）
+- **対象**（11か所）：`summon.ts` summonFreeFromHandIndex・summonFreeFromTrashIndex／`revive.ts` applyFushiSummon・applySpiritMillFreeSummon／`revealAction.ts` applyPicked の2か所／`battleFlow.ts` deployNexus の2か所（ネクサス）／`moveCards.ts` deployByFieldCores／`summonRepeat.ts`（同時召喚。1体ずつ聞く）／`control.ts` summonBurstCardFreeHandler。**対象外**：入れ替え召喚（ルールで Lv1 固定）・手札からの通常の召喚（済み）
+- **クライアント**：`main.ts` の effectCostPay の自動送信（自動払い・リザーブで足りる）は、`keepByOption` があって選択肢が2つ以上なら送らない。option を押したときの必要数は、選んだ option の keep を使う
+- 非対話（AI・テスト）は従来どおり維持コアだけ
+
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
 - **対象**：BS13-038 魔女タランダ（手札のスピリット）・BS10-046 龍仙公主（手札のマジック）。「好きなだけ破棄、**破棄した1枚につき**破壊された体を1体戻す」。#423（perDestroyed）の置き換え（#423 は閉じる）
