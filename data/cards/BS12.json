@@ -5279,7 +5279,8 @@
          "keyword": "fushi"
         },
         "count": 1,
-        "pay": "cost"
+        "pay": "cost",
+        "reserveOnly": true
        }
       }
     ]

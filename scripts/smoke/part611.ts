@@ -1,5 +1,5 @@
 // smoke パート611（BS17部品バッチ10：noBurstEffectForPid／cantUseMagicForPid／opponentLifeCoreFromVoid）
-import { assert, createGame, createInstance, getCard, handleAction, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, getCard, handleAction, refreshLevelAsOverrides, resolveAction, runTurnStart, answerCoreLevel } from "./helpers"
 import type { EffectDef } from "../../server/src/type"
 import type { GameState, PlayerId } from "./helpers"
 import { activateBurstCard, finishSummonEffect } from "../../server/src/logic/keywords/burst"
@@ -64,6 +64,7 @@ console.log("=== 084: 宣言したコストのバースト効果が飛ぶ（発�
     assert(s.players.p2.trashCards.includes(BURST_MAGIC3) && s.players.p2.burst === null, "発動は成立しトラッシュへ行く")
 
     activateBurstCard(s, "p2", BURST_SPIRIT4)
+    answerCoreLevel(s, "p2")
     assert(s.players.p2.field.spirits.length === 1 && s.players.p2.burst === null, "コスト4は宣言外なので通常どおり召喚される")
 }
 {

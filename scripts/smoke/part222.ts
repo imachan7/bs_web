@@ -7,7 +7,7 @@
 //
 // pendingChoice をこのテスト自身が検査するため、選択を自動応答する act ラッパーではなく
 // handleAction を直接呼ぶ（helpers.act は対話モードで pendingChoice を先に消化してしまう）
-import { assert, createGame, createInstance, getCard, handleAction, runTurnStart } from "./helpers"
+import { answerCoreLevel, assert, createGame, createInstance, getCard, handleAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 
 // BS08-034 空帝竜騎プラチナム：Lv1-3『自分のメインステップ』ターンに1回、手札の【転召】持ちを
@@ -70,6 +70,7 @@ console.log("=== 起動：選んで召喚したら従来どおり消費する ==
     assert(activate(s, platinumId) === null, "起動できる")
     const idx = s.pendingChoice!.cardIndices![0]!
     assert(handleAction(s, "p1", { type: "resolveChoice", cardIndex: idx }) === null, "手札を選べる")
+    answerCoreLevel(s, "p1")
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === ZABURUGAN),
         "選んだスピリットが召喚される",

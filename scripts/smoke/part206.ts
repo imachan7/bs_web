@@ -4,7 +4,7 @@
 // エンジン側は対応済み（interactiveTargets時のみ確認。非対話＝smokeでは従来どおり自動発動）ため、
 // カード側に optional:true を足すだけでよい。ここでは代表3枚（BS02-013／BS02-034／BS05-066）で、
 // 非対話では挙動が変わらないこと、対話では発動確認→スキップ/発動の両方を確認する。
-import { act, assert, createGame, createInstance, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, runTurnStart, answerCoreLevel } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
@@ -131,6 +131,7 @@ console.log("=== BS02-034 老賢樹トレントン：対話時に発動を選ぶ
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "老賢樹トレントンを召喚")
     assert(s.pendingChoice?.confirm === true, "発動確認が立つ")
     assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
+    answerCoreLevel(s, "p1")
     assert(s.pendingChoice === null, "候補1件のため選択なしで解決される")
     assert(
         s.players.p1.field.spirits.some((i) => i.cardId === "BS01-061"),

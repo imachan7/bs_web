@@ -24,6 +24,7 @@ export interface PendingChoice {
     burst?: { pid: PlayerId; cardId: string } // 中断した効果がバースト効果そのものだったか（再開時に GameState.resumeBurst へ戻す）
     flashEffect?: true // 中断した効果がフラッシュ効果だったか（再開時に GameState.flashEffect へ戻す）
     confirmTargetInstanceId?: string // confirm を承認したら resolveAction に渡す効果の対象（イベント対象）
+    sourceCardId?: string // 画面で「どのカードの効果か」を出して効果文を見られるようにするため（選ぶ本人にだけ送る。2026-11-12 ユーザー要望）
     effectSource?: { type?: CardType; colors?: Color[] } // 中断した効果の発生源の種別・色。再開時に渡し直す（渡さないとマジックの効果が種別なしで続き、耐性や封印された魔導書が効かない）
     kind: "target" | "option" | "card" // target=フィールド上のインスタンスから選択／option=固定の選択肢ラベルから選択／card=自分の手札かトラッシュのカードから選択
     prompt: string // クライアント表示用の説明文（日本語）
@@ -136,7 +137,10 @@ export interface PendingChoice {
         need: number
         sourceCardId: string
         targetInstanceId?: string // then に渡すイベント対象（「そのスピリット」）
+        keepByOption?: number[] // 置くコアの数（Lv）を選ばせる待ち。options と同じ並びで、選ばれた位置の値が keep になる
+        tollKeep?: number // ボイドの通行料（リザーブから後で払う）のぶん。選ばれた置くコアの数に足して keep にする
         keep?: number // 払ったあとリザーブに残さなければならない数（余分のあと召喚で置くコア）。支払いはこれを割り込めない
+        reserveOnly?: true // フィールドのコアを支払い元にできない（paySources 付きの答えは拒否する）
         surcharge?: true // 召喚の余分（転召の祭壇など。logic/summonSurcharge.ts）の支払い。ログの文面だけが変わる
     }
     braveKeep?: {

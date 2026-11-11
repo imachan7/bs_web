@@ -15,7 +15,8 @@ import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
-import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll } from "../summonSurcharge"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "../summonSurcharge"
+import { askSummonCores } from "../summonCores"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { summonDenial } from "../summonGate"
 import { stayOnFieldRevived } from "../revive"
@@ -375,17 +376,22 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     }
     const combineHostId =
         card.type === "brave" ? braveCombineCandidates(state, owner, cardId)[0] : undefined
-    const maintain = combineHostId !== undefined ? 0 : minLevelCores(card)
+    // placeCores が付いていれば、置くコアの選択待ちで payCost のコストと余分は払い済み（summonCores.ts）
+    const maintain = combineHostId !== undefined ? 0 : action.placeCores ?? minLevelCores(card)
     // payCost（BS15-004ハンゾウ・シノビ・ドラゴン）：通常の召喚コストも支払う（効果文に「コストを支払わずに」が
     // 無いカード）。バースト確認では paySources を渡せないため、支払い元はリザーブのみ（決定的簡略化）
     // payCost でなくても、相手の転召の祭壇などの余分は払う（2026-10-15）
     if (action.surchargePrepaid) state.summonSurchargePaid = owner
-    const cost = action.payCost ? effectiveCost(state, owner, card, false, [], false, false) : 0
+    const fullCost = action.payCost ? effectiveCost(state, owner, card, false, [], false, false) : 0
+    const cost = action.placeCores !== undefined ? 0 : fullCost
+    const owed = action.payCost ? fullCost : surchargeOwed(state, owner, card, true)
+    const surchargeOnly = !action.payCost && owed > 0
+    if (combineHostId === undefined && action.placeCores === undefined && askSummonCores(state, owner, card, owed, surchargeOnly ? { ...action, surchargePrepaid: true } : action, surchargeOnly)) return
     if (action.payCost ? normalReserveOf(player) < maintain + cost + summonVoidToll(state, card) : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
-    if (!action.payCost && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
+    if (!action.payCost && action.placeCores === undefined && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
     player.burst = null
     player.burstSet = false
     if (action.payCost) payVoidToll(state, owner, card)
@@ -402,7 +408,7 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     log(
         state,
         `${player.name}はバーストとして${combineHost !== undefined ? `${getCard(combineHost.cardId).name}に合体させて` : ""}${card.name}を` +
-            (action.payCost ? `コスト${cost}を支払って召喚した。` : "召喚した。"),
+            (action.payCost ? `コスト${fullCost}を支払って召喚した。` : "召喚した。"),
     )
     if (!state.winner) resolveTensho(state, owner, inst, true)
     if (!state.winner) fireSummonSequence(state, owner, inst)

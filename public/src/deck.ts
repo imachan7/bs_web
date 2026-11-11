@@ -350,14 +350,20 @@ function setupPoolGridEvents(): void {
             return
         }
 
-        renderDetail(master(cardId), cardEl)
         // タッチ端末では本体タップは効果の表示だけにし、追加は＋ボタンに限る（誤追加を防ぐ）
-        if (!matchMedia("(hover: none)").matches) addCard(cardId)
+        if (isTouchOnly()) {
+            toggleDetail(master(cardId), cardEl)
+            return
+        }
+        renderDetail(master(cardId), cardEl)
+        addCard(cardId)
     })
 
     // mouseenter/mouseleave はバブリングしないため、委譲には mouseover/mouseout を使う。
     // カード内の子要素間の移動では発火させない（relatedTarget が同じカード内かで判定）
     grid.addEventListener("mouseover", (e) => {
+        // タッチ端末はタップの前に mouseover も届くので、開いた直後に click の切り替えで閉じてしまう
+        if (isTouchOnly()) return
         const cardEl = (e.target as HTMLElement).closest<HTMLElement>(".pool-card")
         if (!cardEl) return
         const related = e.relatedTarget as Node | null
@@ -367,6 +373,7 @@ function setupPoolGridEvents(): void {
         renderDetail(master(cardId), cardEl)
     })
     grid.addEventListener("mouseout", (e) => {
+        if (isTouchOnly()) return
         const cardEl = (e.target as HTMLElement).closest<HTMLElement>(".pool-card")
         if (!cardEl) return
         const related = e.relatedTarget as Node | null
@@ -404,6 +411,7 @@ function updatePoolBadges(): void {
 
 // カード詳細（効果テキスト全文）の表示
 function renderDetail(card: CardData, anchor?: HTMLElement): void {
+    detailCardId = card.cardId
     const panel = $("detail-panel")
     panel.textContent = ""
 
@@ -558,6 +566,33 @@ function hideDetail(): void {
     $("detail-panel").classList.add("hidden")
 }
 
+const isTouchOnly = (): boolean => matchMedia("(hover: none)").matches
+
+// タッチ端末：スクロールを始めたら閉じる（2026-11-12 ユーザー要望）。詳細の中のスクロールでは閉じない。
+// scroll はバブリングしないので、一覧・デッキ欄・ページのどこが動いても拾えるよう capture で受ける
+function setupHideDetailOnScroll(): void {
+    document.addEventListener(
+        "scroll",
+        (e) => {
+            if (!isTouchOnly()) return
+            const target = e.target
+            if (target instanceof Node && $("detail-panel").contains(target)) return
+            hideDetail()
+        },
+        { capture: true, passive: true },
+    )
+}
+
+// タッチ端末：表示中のカードをもう一度タップしたら閉じる（2026-11-12 ユーザー要望）
+let detailCardId: string | null = null
+function toggleDetail(card: CardData, anchor: HTMLElement): void {
+    if (!$("detail-panel").classList.contains("hidden") && detailCardId === card.cardId) {
+        hideDetail()
+        return
+    }
+    renderDetail(card, anchor)
+}
+
 // ---- デッキ面 ----
 
 function addCard(cardId: string): void {
@@ -701,9 +736,13 @@ function renderDeck(): void {
         row.appendChild(minus)
 
         // ホバーおよびクリックで詳細表示
-        row.addEventListener("mouseenter", () => renderDetail(card, row))
-        row.addEventListener("mouseleave", () => hideDetail())
-        row.addEventListener("click", () => renderDetail(card, row))
+        row.addEventListener("mouseenter", () => {
+            if (!isTouchOnly()) renderDetail(card, row)
+        })
+        row.addEventListener("mouseleave", () => {
+            if (!isTouchOnly()) hideDetail()
+        })
+        row.addEventListener("click", () => (isTouchOnly() ? toggleDetail(card, row) : renderDetail(card, row)))
 
         list.appendChild(row)
     }
@@ -1371,6 +1410,7 @@ async function init(): Promise<void> {
 
     setupFilterChips()
     setupPoolGridEvents()
+    setupHideDetailOnScroll()
     setupDeckIo()
     renderSavedDecks()
     renderAll()

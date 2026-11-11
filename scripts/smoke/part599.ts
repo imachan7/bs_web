@@ -2,7 +2,7 @@
 //
 // 1体目の召喚時効果で場が変わってから2体目が出ることはない。順番はターンプレイヤーが選ぶ（同じカードだけなら聞かない）。
 // 効果文に「召喚時効果は発揮されない」と書いていないカード（ハイドランディア・銀狼角）は召喚時効果を発揮する
-import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart, answerCoreLevel } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import type { CardInstance, EffectAction } from "../../server/src/type"
 
@@ -76,9 +76,13 @@ console.log("=== 2. 違うカードを同時に召喚したら、召喚時効果
     const self = put(s, "p1", HYDRA, 1)
     resolveAction(s, "p1", self, actionOf(HYDRA))
     // 3枚を1枚ずつ選ぶ
-    for (let i = 0; i < 3 && s.pendingChoice?.cardIndices; i++) {
+    for (let i = 0; i < 3 && s.pendingChoice; ) {
+        if (answerCoreLevel(s, "p1")) continue
+        if (!s.pendingChoice?.cardIndices) break
         act(s, "p1", { type: "resolveChoice", cardIndex: s.pendingChoice.cardIndices[0]! })
+        i++
     }
+    answerCoreLevel(s, "p1")
     assert(s.players.p1.field.spirits.length === 4, `3体とも場に出ている（場 ${s.players.p1.field.spirits.length}体）`)
     assert(s.pendingChoice?.triggerOrder !== undefined, "召喚時効果の解決順を聞かれる")
     assert(s.pendingChoice?.pid === s.turnPlayer, "聞かれるのはターンプレイヤー")

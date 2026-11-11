@@ -108,6 +108,8 @@ console.log("=== §C 無償召喚を選ぶと、魔門が疲労し、召喚時�
     const handBefore = s.players.p1.hand.length
     fushiSummonOrConfirm(s, "p1", 0)
     assert(act(s, "p1", { type: "resolveChoice", option: "魔門を疲労させて無償で召喚する" }) === null, "無償で召喚するを選ぶ")
+    // 置くコアの数（Lv）を聞かれる（2026-11-11）。Lv1 を選ぶ
+    assert(s.pendingChoice?.effectCostPay?.keepByOption !== undefined && act(s, "p1", { type: "resolveChoice", option: s.pendingChoice.options![0]! }) === null, "Lv1を選ぶ")
     assert(meimon.isRested, "魔門が疲労する")
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-021"), "コストを支払わずに召喚された")
     assert(s.players.p1.reserve === 0, "維持コア1個ぶんだけリザーブが減る（召喚コストは0）")
@@ -123,8 +125,8 @@ console.log("=== 対照: 通常どおりコストを支払って召喚すると�
     const handBefore = s.players.p1.hand.length
     fushiSummonOrConfirm(s, "p1", 0)
     assert(act(s, "p1", { type: "resolveChoice", option: "コストを支払って召喚する" }) === null, "コストを支払って召喚するを選ぶ")
-    // 魔門のコアも支払いに使えるので支払い元を聞かれる（2026-10-15）。リザーブから払う
-    assert(s.pendingChoice?.effectCostPay !== undefined && act(s, "p1", { type: "resolveChoice", option: "支払う" }) === null, "支払い元を聞かれ、リザーブから払う")
+    // 魔門のコアも支払いに使えるので、置くコアの数（Lv）と支払い元を聞かれる（2026-10-15・11-11）。Lv1 を選んでリザーブから払う
+    assert(s.pendingChoice?.effectCostPay?.keepByOption !== undefined && act(s, "p1", { type: "resolveChoice", option: s.pendingChoice.options![0]! }) === null, "Lv1を選び、リザーブから払う")
     assert(!meimon.isRested, "対照：通常召喚では魔門は疲労しない")
     assert(s.players.p1.hand.length === handBefore + 1, "対照：『召喚時』効果（Lv1ぶん1枚ドロー）が発揮される")
 }

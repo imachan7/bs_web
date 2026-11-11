@@ -73,7 +73,7 @@ function answerAll(t: Parameters<Parameters<typeof scenario>[0]["steps"]>[0], pa
 console.log("=== 2. 対話・paySources でフィールドの個体を指定 → その個体のコアが減る ===")
 scenario({
     name: "field-chosen",
-    start: { interactive: true, me: START, opp: OPP },
+    start: { interactive: true, manualCoreLevel: true, me: START, opp: OPP },
     steps(t) {
         t.act("me", { type: "summon", handIndex: 0 })
         const r = answerAll(t, { label: "ロクケラトプス", count: 1 })
@@ -85,7 +85,7 @@ scenario({
 console.log("=== 3. 対話・リザーブで足りる → 待ちは出る。paySources なしで答えればリザーブから払う ===")
 scenario({
     name: "reserve-chosen",
-    start: { interactive: true, me: { ...START, reserve: 11 }, opp: OPP },
+    start: { interactive: true, manualCoreLevel: true, me: { ...START, reserve: 11 }, opp: OPP },
     steps(t) {
         t.act("me", { type: "summon", handIndex: 0 })
         const r = answerAll(t, null)

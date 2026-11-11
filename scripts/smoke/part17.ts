@@ -153,6 +153,8 @@ console.log("=== [interactiveTargets] summonFromHandFree：手札の緑スピリ
         act(s, "p1", { type: "resolveChoice", cardIndex: 0 }) === null,
         "p1がインデックス0（エイプウィップ）を選んで無料召喚",
     )
+    // 置くコアの数（Lv）を選ぶ待ち（2026-11-11）。Lv1 を選ぶ
+    assert(s.pendingChoice?.effectCostPay?.keepByOption !== undefined && act(s, "p1", { type: "resolveChoice", option: "Lv1（コア1個）" }) === null, "置くコアの数（Lv1）を選ぶ")
     assert(s.pendingChoice === null, "選択後pendingChoiceは解消される")
     assert(
         s.players.p1.field.spirits.some((i) => i.cardId === "BS01-061"),

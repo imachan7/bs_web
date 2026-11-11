@@ -10,7 +10,7 @@ import { destroyCombinedBrave } from "./brave"
 import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
 import type { EffectAttempt } from "../../../shared/rules"
-import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, bravesOf, effectiveBp } from "../../../shared/rules"
+import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, noteLifeGuardTotal, bravesOf, effectiveBp } from "../../../shared/rules"
 import {
     activeConstraints,
     destroySpirit,
@@ -121,6 +121,7 @@ function applyNormalLifeDamage(state: GameState, attackerPid: PlayerId, attacker
     const toTrash = !toVoid && lifeDamageToTrashByOwnerSource(state, attackerPid, attacker)
     defender.life -= dealt
     recordLifeLoss(state, defenderPid, dealt, attacker)
+    noteLifeGuardTotal(state, { pid: defenderPid, amount: dealt, cause: "attack", actorPid: attackerPid, sourceInstance: attacker }, dealt)
     if (toVoid) {
         log(
             state,
