@@ -887,7 +887,7 @@ scenario({
     steps(t) {
         t.act("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("的") })
         t.closeFlash()
-        answers(t, "me", ["発動する", "発動する"]) // 発動 → コストを支払う
+        answers(t, "me", ["発動する", "発動する", "支払う"]) // 発動 → コストを支払う → 支払い元（場のコアもあるので聞かれる）
     },
     expect: [
         ...warBurstCommon, "自分.トラッシュ: なし → " + L("ウォークライ", "ロクケラトプス"),
