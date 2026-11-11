@@ -493,6 +493,8 @@ export function render(view: GameView, ui: UiState): void {
             const b = document.createElement("button")
             b.dataset.cardIndex = String(idx)
             b.textContent = master(cardId).name
+            b.classList.add("tip-card")
+            b.dataset.cardId = cardId
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
@@ -506,6 +508,8 @@ export function render(view: GameView, ui: UiState): void {
             const b = document.createElement("button")
             b.dataset.cardIndex = String(idx)
             b.textContent = `${card.name}（${CARD_TYPE_LABELS[card.type]}）`
+            b.classList.add("tip-card")
+            b.dataset.cardId = cardId
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
@@ -647,6 +651,14 @@ export function render(view: GameView, ui: UiState): void {
     // 選択待ちの文言ではなく支払いの案内を優先して出す（2026-08-23）
     if (myPendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
         $("targeting-info").textContent = `⚡ ${myPendingChoice.prompt}`
+        // どのカードの効果かを小さく出し、カーソル（スマホは長押し）で効果文を見られるようにする
+        if (myPendingChoice.sourceCardId !== undefined) {
+            const chip = document.createElement("span")
+            chip.className = "tip-card source-card-chip"
+            chip.dataset.cardId = myPendingChoice.sourceCardId
+            chip.textContent = master(myPendingChoice.sourceCardId).name
+            $("targeting-info").append(" ", chip)
+        }
     } else if (oppPendingChoice) {
         $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`
     } else if (ui.paying !== null) {
