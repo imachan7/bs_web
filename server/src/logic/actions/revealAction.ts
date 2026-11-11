@@ -94,15 +94,24 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
     const player = state.players[owner]
     const cardId = action.cardId
     const card = getCard(cardId)
-    // Lv の待ちの間は公開ゾーンに残す（どのゾーンにも無い状態を作らない）。置く数が決まった再開で抜く
+    // Lv の待ちの間は公開ゾーンに残す（どのゾーンにも無い状態を作らない）。待ちを立てる前に戻し、立たなければ抜き直す
+    // （立てた後に戻すと、smoke の中断ガードが「中断後に盤面が変化した」と落とす）
     const zone = state.revealedCards
-    const keepWhileAsking = (): void => {
-        if (zone && !zone.cardIds.includes(cardId)) zone.cardIds.push(cardId)
+    // 同名のカードが公開ゾーンに複数あり得るので、有無ではなく「末尾に積む／末尾のものを抜く」で対にする
+    const putBack = (): void => {
+        zone?.cardIds.push(cardId)
     }
-    if (action.placeCores !== undefined && zone) {
-        const at = zone.cardIds.indexOf(cardId)
-        if (at >= 0) zone.cardIds.splice(at, 1)
+    const takeOut = (): void => {
+        const at = zone ? zone.cardIds.lastIndexOf(cardId) : -1
+        if (zone && at >= 0) zone.cardIds.splice(at, 1)
     }
+    const askCores = (cost: number, resume: typeof action, surcharge = false): boolean => {
+        putBack()
+        if (askSummonCores(state, owner, card, cost, resume, surcharge)) return true
+        takeOut()
+        return false
+    }
+    if (action.placeCores !== undefined) takeOut()
     // 「召喚/配置できる」：ネクサスは配置、それ以外は召喚
     const dest: RevealDest = action.dest === "summonOrPlace" ? (card.type === "nexus" ? "placeNexus" : "summon") : (action.dest ?? "hand")
     switch (dest) {
@@ -144,7 +153,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             const maintain = action.placeCores ?? minLevelCores(card)
             const fullCost = action.pay === "cost" ? effectiveCost(state, owner, card) : 0
             const cost = action.placeCores !== undefined ? 0 : fullCost
-            if (action.placeCores === undefined && askSummonCores(state, owner, card, fullCost, action)) return keepWhileAsking()
+            if (action.placeCores === undefined && askCores(fullCost, action)) return
             if (player.reserve < maintain + cost + summonVoidToll(state, card)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を配置できなかった。`)
                 player.trashCards.push(cardId)
@@ -191,7 +200,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             if (action.surchargePrepaid) state.summonSurchargePaid = owner
             const owed = action.pay === "cost" ? fullCost : surchargeOwed(state, owner, card, true)
             const surchargeOnly = action.pay !== "cost" && owed > 0
-            if (action.placeCores === undefined && askSummonCores(state, owner, card, owed, surchargeOnly ? { ...action, surchargePrepaid: true } : action, surchargeOnly)) return keepWhileAsking()
+            if (action.placeCores === undefined && askCores(owed, surchargeOnly ? { ...action, surchargePrepaid: true } : action, surchargeOnly)) return
             if (action.pay === "cost" ? player.reserve < maintain + cost + summonVoidToll(state, card) : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
                 failDest(ctx, action.orHand, cardId)

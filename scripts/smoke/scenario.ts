@@ -47,7 +47,8 @@ export interface ScenarioCtx {
 export interface ScenarioSpec {
     name: string
     // interactive：選択を PendingChoice で止める（順番選択・対象選択を steps で答える）。既定は自動で選ぶ
-    start: { turn?: Side; phase?: "main" | "attack"; interactive?: boolean; me?: SideSpec; opp?: SideSpec }
+    // manualCoreLevel：効果召喚の「置くコアの数（Lv）」の待ちを自動で答えない（その待ちで支払い元を選ぶ場面用）
+    start: { turn?: Side; phase?: "main" | "attack"; interactive?: boolean; manualCoreLevel?: true; me?: SideSpec; opp?: SideSpec }
     steps: (t: ScenarioCtx) => void
     // 1行＝「キー: 前 → 後」。キーは写像のもの（例「自分.レオ.疲労」）。並びは問わない
     expect: string[]
@@ -200,7 +201,7 @@ function runOnce(spec: ScenarioSpec, me: PlayerId): void {
             const err = act(s, pidOf(side), action)
             assert(err === null, `${tag} ${sideName(side)}の ${action.type} が通る${err === null ? "" : `（拒否: ${err}）`}`)
             // 効果召喚の「置くコアの数（Lv）」の待ちは、場面の本題ではないので Lv1 で自動的に答える
-            while (err === null && s.pendingChoice?.kind === "option" && s.pendingChoice.options?.[0]?.startsWith("Lv")) {
+            while (err === null && !spec.start.manualCoreLevel && s.pendingChoice?.kind === "option" && s.pendingChoice.options?.[0]?.startsWith("Lv")) {
                 const e2 = act(s, s.pendingChoice.pid, { type: "resolveChoice", option: s.pendingChoice.options[0] })
                 assert(e2 === null, `${tag} 置くコアの数（Lv）に答える${e2 === null ? "" : `（拒否: ${e2}）`}`)
             }

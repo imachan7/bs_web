@@ -30,7 +30,7 @@ console.log("=== 1. ベルゼビートで2体を同時に召喚：支払い待�
     let costPays = 0
     for (let i = 0; i < 12 && s.pendingChoice; i++) {
         const pc = s.pendingChoice
-        if (pc.effectCostPay) costPays++
+        if (pc.effectCostPay && pc.effectCostPay.need > 0) costPays++ // 置くコアの数だけを選ぶ待ち（need 0）は数えない
         const ans = pc.candidates?.length ? { instanceId: pc.candidates[0]! } : pc.cardIndices?.length ? { cardIndex: pc.cardIndices[0]! } : { option: pc.options?.[0] ?? "" }
         assert(act(s, pc.pid, { type: "resolveChoice", ...ans }) === null, `選択待ちに答える（${pc.prompt}）`)
     }
