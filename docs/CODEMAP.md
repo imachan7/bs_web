@@ -895,6 +895,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/magic/resolve.ts
 
 - `resolveMagicEffects`（fn）：マジックの効果本体の解決。resolveMagic から（無効化されなかったときに）呼ぶ。
+- `resumeMagicAfterEffectsHandler`（const）
 - `findMagicRepeatGrantSource`（fn）：使用者pidのフィールドにある、kind:"magicRepeatGrant" の有効な発生源を返す（BS07大天使イスフィール）。
 - `consumeMagicRepeatGrant`（fn）：上で見つけた発生源を「このバトルで使い切った」として記録する（oncePerBattle のときだけ）
 - `MAGIC_REPEAT_OPTIONS`（const）：再発揮の確認の選択肢。**この並び順に GameEngine.doResolveChoice が依存する**（0=発揮する / 1=しない）

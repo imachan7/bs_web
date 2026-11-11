@@ -783,6 +783,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["exhaustPayDecide", "kind:\"exhaustPreventByPay\" の「払って疲労を防ぐか」の確認に答えたときの解決（exhaustSpirit が内部で出す。BS18-014）"],
     ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
     ["finishMagicUse", "選択待ちで止まったマジックを、解決し終えた時点でトラッシュへ置くために使用の入口が積む（magic/inUse.ts。2026-11-05）"],
+    ["resumeMagicAfterEffects", "選択待ちで止まったマジックの、再発揮の確認と「マジックを使用したとき」の誘発を残りのエントリの後に行うために積む（2026-11-11）"],
     ["resumeMagicEntry", "選択待ちで止まったマジックの残りのエントリを、条件の判定から解決し直すために runMagicActions が積む（2026-11-05）"],
     ["resolveOwnBattleLoseTriggers", "BPを比べて破壊された敗者の『バトル時』破壊されたときを、破壊待機の列の1件として destroySpirit が積む（TIMING_CHART ＞６-1。2026-11-05）"],
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
