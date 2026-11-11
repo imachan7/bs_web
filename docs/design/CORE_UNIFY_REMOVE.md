@@ -60,6 +60,8 @@
 | §2項目数 | 5件（上位3件：①spread系の自動選択順が逆、②「相手は」の選択者がカード側設定に依存、③removeCores系を通らない4 type） |
 | 相談事項 | (a) coreRemoveDistributed既定時の自動選択（コア最少）とcoreRemove spread（コア最多）のどちらが正か、(b) SD01-013にchooserIsTargetが付いているかはカードデータ側で別途確認要、(c) coreToVoidOwn/voidCoresAndMillByCost/moveCoresLeavingOne/swapOpponentCoresの「バトル中保護を見ない」を統合後も踏襲するか |
 
+- **「相手のスピリットのコアN個を置く」（N≧2、「1体の」と書いていないもの）は何体からでも合計N個＝`target:"spread"`**（2026-11-11 ユーザー確認。トーテンタンツの裁定、グリーディコア Q26083）。`from:["spirit"]` だけ書くと既定が `"one"` になるので、明示する（smoke part891）
+
 ## §3 確定スキーマ `removeCores`（2026-09-26。名前を変えない）
 
 ```ts
