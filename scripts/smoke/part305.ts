@@ -110,6 +110,8 @@ console.log("=== §1 #27：BS13-034（相手のデッキ破棄効果で破棄さ
     millDeck(s, "p1", 1, "p2") // 相手の効果によるミル（actorPid !== pid）
     assert(s.pendingChoice?.spiritMillFreeSummon?.cardId === "BS13-034", "無償召喚の確認が出る")
     assert(act(s, "p1", { type: "resolveChoice", option: "召喚する" }) === null, "召喚することを選ぶ")
+    // 置くコアの数（Lv）を聞かれる（2026-11-11）。Lv1 を選ぶ
+    assert(s.pendingChoice?.effectCostPay?.keepByOption !== undefined && act(s, "p1", { type: "resolveChoice", option: s.pendingChoice.options![0]! }) === null, "Lv1を選ぶ")
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === "BS13-034"),
         "コストを支払わず召喚された",

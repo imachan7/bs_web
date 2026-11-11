@@ -4,6 +4,7 @@
 // BS15-082神閃月下（toDeck）。2026-09-28ユーザー決定：対話時は0〜Nの好きな数、途中でやめられる。非対話は従来どおり選べるだけ選ぶ
 import {
     act,
+    answerCoreLevel,
     assert,
     createGame,
     createInstance,
@@ -114,6 +115,7 @@ console.log("=== 6. アルカナキング・カール summonFromHandFree upTo：
     resolveAction(s, "p1", null, { type: "summon", from: "hand", nameIncludes: "アルカナ", count: 4, upTo: true })
     assert(s.pendingChoice?.kind === "card" && s.pendingChoice.cardIndices?.length === 2, "1回目は候補2枚")
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
+    answerCoreLevel(s, "p1")
     assert(s.players.p1.field.spirits.length === 1, "1枚目を召喚した")
     assert(s.pendingChoice?.kind === "card" && s.pendingChoice.cardIndices?.length === 1, "残り候補1枚でも聞く")
     // ここで選ばずにやめる（スキップ＝cardIndexなし）
@@ -150,8 +152,10 @@ console.log("=== 9. スカルザード summonFromTrashFree upTo：対話でNま�
     s.players.p1.trashCards = [GOLADON, GOLADON]
     resolveAction(s, "p1", self, { type: "summonFromTrashFree", count: 2, costFilter: { max: 1 }, upTo: true })
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
+    answerCoreLevel(s, "p1")
     assert(s.pendingChoice?.kind === "card", "2枚目も聞く")
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
+    answerCoreLevel(s, "p1")
     assert(!s.pendingChoice, "候補が尽きて終わる")
     assert(s.players.p1.field.spirits.length === 3, "self含め3体（2体召喚）")
     assert(s.players.p1.trashCards.length === 0, "トラッシュは空になる")
@@ -176,6 +180,7 @@ console.log("=== 11. 神閃月下 toDeck upTo：対話で途中までやめら�
     s.players.p1.trashCards = [VANILLA, VANILLA, VANILLA]
     resolveAction(s, "p1", null, { type: "toDeck", from: "trash", position: "bottom", count: 10, upTo: true })
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
+    answerCoreLevel(s, "p1")
     assert(s.pendingChoice?.kind === "card", "2枚目も聞く")
     // ここで2枚目以降はやめる
     act(s, "p1", { type: "resolveChoice" })
