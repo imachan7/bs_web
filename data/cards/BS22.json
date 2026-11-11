@@ -6583,7 +6583,7 @@
           "spirit"
          ],
          "to": "trash",
-         "target": "one",
+         "target": "spread",
          "count": 2
         }
        }
@@ -6627,7 +6627,7 @@
           "spirit"
          ],
          "to": "trash",
-         "target": "one",
+         "target": "spread",
          "count": 2
         }
        }

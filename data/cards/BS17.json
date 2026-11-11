@@ -3784,7 +3784,7 @@
         "spirit"
        ],
        "to": "reserve",
-       "target": "one",
+       "target": "spread",
        "count": 2
       },
       {
