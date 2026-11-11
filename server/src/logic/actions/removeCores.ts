@@ -100,6 +100,19 @@ function soulFor(ctx: ActionCtx, resume: RemoveCoresAction, pid: PlayerId, inst:
     return soulCoreInclusionDecision(ctx.state, ctx.owner, pid, inst, to, resume, ctx.self, ctx.sourceName, ctx.chosenOption)
 }
 
+// この効果でスピリットのコアが0個になったことを記録し、相手のスピリットなら「コアが0個になったとき」を起こす。
+// 1体から取る経路と合計N個（spread）の経路の両方が通る
+function noteEmptied(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, before: number): void {
+    const { state, owner, srcType } = ctx
+    if (before === 0 || inst.cores !== 0) return
+    recordEmptiedSpirits(state, lastEmptiedSpiritsOf(state) + 1)
+    if (pid !== owner && srcType !== undefined && state.coresEmptiedNotifiedPid !== owner) {
+        // 効果1回の解決につき1回（印は一番外側の効果を解決し終えた時点で消える。EffectModules の resolveAction）
+        state.coresEmptiedNotifiedPid = owner
+        fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid, inst }, undefined, undefined, undefined, { causeType: srcType })
+    }
+}
+
 // スピリット／ネクサス1体から amount 個取る（スピリットは保護・下限・維持コア割れを見る removeCores* を通す。
 // ネクサスは装甲・維持コアの概念が無いので直接動かす＝bothSidesCoreToVoid等と同じ扱い）
 function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest, includeSoul = false): void {
@@ -107,12 +120,7 @@ function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, am
     if (state.players[pid].field.spirits.includes(inst)) {
         const before = inst.cores
         applyToSpirit(ctx, pid, inst, amount, to, includeSoul)
-        if (before > 0 && inst.cores === 0) recordEmptiedSpirits(state, lastEmptiedSpiritsOf(state) + 1)
-        if (pid !== owner && before > 0 && inst.cores === 0 && srcType !== undefined && state.coresEmptiedNotifiedPid !== owner) {
-            // 効果1回の解決につき1回（印は一番外側の効果を解決し終えた時点で消える。EffectModules の resolveAction）
-            state.coresEmptiedNotifiedPid = owner
-            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid, inst }, undefined, undefined, undefined, { causeType: srcType })
-        }
+        noteEmptied(ctx, pid, inst, before)
         return
     }
     const taken = Math.min(amount, inst.cores)
@@ -548,18 +556,26 @@ function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest, includeSou
     }
     const sp = player.field.spirits.find((x) => x.instanceId === s.inst!.instanceId)
     if (!sp) return 0
-    if (to === "void") return removeCoresToVoid(state, s.pid, sp, 1, owner, srcType)
-    if (to === "trash") return removeCoresToTrash(state, s.pid, sp, 1, owner, includeSoul, srcType)
+    const before = sp.cores
+    const taken = takeOneFromSpirit(ctx, s.pid, sp, to, includeSoul)
+    noteEmptied(ctx, s.pid, sp, before)
+    return taken
+}
+
+function takeOneFromSpirit(ctx: ActionCtx, pid: PlayerId, sp: CardInstance, to: Dest, includeSoul: boolean): number {
+    const { state, owner, srcType } = ctx
+    if (to === "void") return removeCoresToVoid(state, pid, sp, 1, owner, srcType)
+    if (to === "trash") return removeCoresToTrash(state, pid, sp, 1, owner, includeSoul, srcType)
     if (to === "life") {
-        const taken = removeCores(state, s.pid, sp, 1, owner, srcType, undefined, true)
+        const taken = removeCores(state, pid, sp, 1, owner, srcType, undefined, true)
         if (taken > 0) {
-            const moved = Math.min(taken, state.players[s.pid].reserve)
-            state.players[s.pid].reserve -= moved
-            state.players[s.pid].life += moved
+            const moved = Math.min(taken, state.players[pid].reserve)
+            state.players[pid].reserve -= moved
+            state.players[pid].life += moved
         }
         return taken
     }
-    return removeCores(state, s.pid, sp, 1, owner, srcType, includeSoul)
+    return removeCores(state, pid, sp, 1, owner, srcType, includeSoul)
 }
 
 // target:"spread" と downTo（1個ずつ委譲された結果）の共通解決。pids/from/to/filter/leaveAtLeast/chooserは

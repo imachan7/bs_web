@@ -29,7 +29,7 @@ import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, ac
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { canDiscardHand, costExhaustLocked, coreIntakeRefused, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
-import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
+import { blockDestroyCandidates, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
@@ -1320,7 +1320,7 @@ export function validateBlock(
     for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
         if (c.cost === "destroyOwnSpirit") {
-            if (!state.players[pid].field.spirits.some((sp) => sp.instanceId !== instanceId)) return "破壊するスピリットがいないためブロックできません"
+            if (blockDestroyCandidates(state, pid, instanceId, costAttacker).length === 0) return "破壊できるスピリットがいないためブロックできません"
             continue
         }
         if (c.cost === "reserveCoreToTrash" && normalReserveOf(state.players[pid]) < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`

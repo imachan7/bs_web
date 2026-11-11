@@ -35,7 +35,7 @@ import { resolveBlockDeclared } from "./blockDeclared"
 import { finishSummonEffect } from "./keywords/burst"
 import { markPayConfirmed } from "./actions/pay"
 import { doUseHandBurstEffect } from "./handBurstEffect"
-import { blockDestroyOwnSpiritRequired, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
+import { blockDestroyCandidates, blockDestroyOwnSpiritRecord, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
 import {
     AWAKEN_FROM_RESERVE,
     timedContentsOn,
@@ -1290,8 +1290,9 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string, paySources
     }
     // blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリット1体を破壊する。
     // ponytail: blockExhaustSpirit の選択待ちと両方が掛かると、破壊の選択は出さずに先頭を破壊する
-    if (blockDestroyOwnSpiritRequired(state, findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId))) {
-        const candidates = state.players[pid].field.spirits.filter((sp) => sp.instanceId !== instanceId)
+    const destroyAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
+    if (blockDestroyOwnSpiritRecord(state, destroyAttacker)) {
+        const candidates = blockDestroyCandidates(state, pid, instanceId, destroyAttacker)
         if (state.interactiveTargets && candidates.length > 1) {
             state.pendingChoice = {
                 pid,
@@ -1310,9 +1311,16 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string, paySources
     return continueBlockDeclaration(state, pid, instanceId)
 }
 
+// 破壊はアタッカー側の効果（相手によって破壊された扱い。Q4429 で破壊時効果も発揮する）
 export function destroyBlockToll(state: GameState, pid: PlayerId, sp: CardInstance): void {
     log(state, `${state.players[pid].name}はブロックのため${getCard(sp.cardId).name}を破壊した。`)
-    destroySpirit(state, pid, sp.instanceId)
+    const rec = state.battle ? blockDestroyOwnSpiritRecord(state, findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)) : undefined
+    destroySpirit(state, pid, sp.instanceId, "destroy", {
+        sourcePid: opponentOf(pid),
+        ...(rec?.sourceType !== undefined ? { sourceType: rec.sourceType } : {}),
+        ...(rec?.sourceColors !== undefined ? { sourceColors: rec.sourceColors } : {}),
+        ...(rec?.sourceInstanceId !== undefined ? { sourceInstanceId: rec.sourceInstanceId } : {}),
+    })
 }
 
 export function exhaustBlockToll(state: GameState, pid: PlayerId, sp: CardInstance): void {

@@ -892,13 +892,13 @@ scenario({
 })
 scenario({
     name: "084-バースト：コストを払えなければコア2個だけで、フラッシュ効果は発揮しない",
-    start: legionBurstStart(3),
+    start: legionBurstStart(1),
     steps: legionTrigger,
     expect: [
         "自分.ライフ: 3 → 2",
         "自分.バースト: ディクタトールレギオン → なし",
         "自分.トラッシュ: なし → ディクタトールレギオン",
-        "自分.リザーブ: 3 → 4",
+        "自分.リザーブ: 1 → 2",
         "自分.聖堂.コア: 0 → 2",
         "相手.ロク.疲労: false → true",
     ],
