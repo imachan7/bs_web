@@ -4,6 +4,9 @@ import { master, COLOR_SYMBOLS, escapeHtml } from "../renderer"
 
 export let currentHoverCard: HTMLElement | null = null
 
+// 効果を出す対象。.tip-card は選択待ちのカードの選択肢・発生源の表示（2026-11-12 ユーザー要望）
+const TIP_SELECTOR = ".card, .brave-combined, .log-card-name, .tip-card"
+
 // 支払いモード中はホバーの効果ツールチップを出さない（2026-10-06 ユーザー要望。
 // コスト支払いでフィールドをクリックするときにチラつくため）
 let effectTooltipSuppressed = false
@@ -169,7 +172,7 @@ export function setupEffectTooltip(): void {
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
         if (effectTooltipSuppressed) return // 支払いモード中は出さない
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .brave-combined, .log-card-name")
+        const card = (e.target as HTMLElement).closest<HTMLElement>(TIP_SELECTOR)
         if (card && card !== currentHoverCard) {
             currentHoverCard = card
             showFor(card)
@@ -178,8 +181,8 @@ export function setupEffectTooltip(): void {
     document.addEventListener("mouseout", (e) => {
         // セレクタは合体ブレイヴを足した側（このブランチ）、関数名は hideEffectTooltip へ
         // 改名された側（origin/main の再描画時クリア）を採る。**どちらも必要**
-        const from = (e.target as HTMLElement).closest(".card, .brave-combined, .log-card-name")
-        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card, .brave-combined, .log-card-name")
+        const from = (e.target as HTMLElement).closest(TIP_SELECTOR)
+        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(TIP_SELECTOR)
         if (from && from !== to) hideEffectTooltip()
     })
 
@@ -189,7 +192,7 @@ export function setupEffectTooltip(): void {
     let longPressed = false
     document.addEventListener("pointerdown", (e) => {
         if (e.pointerType !== "touch") return
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .brave-combined, .log-card-name")
+        const card = (e.target as HTMLElement).closest<HTMLElement>(TIP_SELECTOR)
         window.clearTimeout(pressTimer)
         if (!card) {
             hideEffectTooltip()

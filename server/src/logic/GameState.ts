@@ -272,7 +272,8 @@ export function suspend(state: GameState, choice: PendingChoice): void {
         src !== undefined && choice.effectSource === undefined && (src.type !== undefined || src.colors !== undefined)
             ? { ...choice, effectSource: { ...(src.type !== undefined ? { type: src.type } : {}), ...(src.colors !== undefined ? { colors: src.colors } : {}) } }
             : choice
-    const withBurst: PendingChoice = src?.burst && src.cardId !== undefined && withSource.burst === undefined ? { ...withSource, burst: { pid: src.pid, cardId: src.cardId } } : withSource
+    const withCard: PendingChoice = src?.cardId !== undefined && withSource.sourceCardId === undefined ? { ...withSource, sourceCardId: src.cardId } : withSource
+    const withBurst: PendingChoice = src?.burst && src.cardId !== undefined && withCard.burst === undefined ? { ...withCard, burst: { pid: src.pid, cardId: src.cardId } } : withCard
     const withScope = state.recordScope !== undefined && withBurst.recordScope === undefined ? { ...withBurst, recordScope: state.recordScope } : withBurst
     state.pendingChoice = state.flashEffect && withScope.flashEffect === undefined ? { ...withScope, flashEffect: true } : withScope
     // 新しい中断の始まり。ここから積まれるフレームは、既にスタックにある古いフレームより前に入る
@@ -776,7 +777,7 @@ function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState)
 function maskPendingChoiceForOpponent(pc: NonNullable<GameState["pendingChoice"]>): NonNullable<GameState["pendingChoice"]> {
     const isCard = pc.kind === "card"
     // 発動確認の時点ではバーストはまだ非公開（断れば公開されない）ので、カードIDを相手に渡さない
-    const { burstActivate: _hidden, counter: _counter, ...rest } = pc
+    const { burstActivate: _hidden, counter: _counter, sourceCardId: _source, ...rest } = pc
     return {
         ...rest,
         candidates: [],
@@ -785,6 +786,13 @@ function maskPendingChoiceForOpponent(pc: NonNullable<GameState["pendingChoice"]
         ...(pc.selectedCardIndices ? { selectedCardIndices: [] } : {}),
         prompt: isCard ? "相手がカードを選択中…" : "相手が対象を選択中…",
     }
+}
+
+// 選択待ちを直接立てる経路もあるので、送る時点で発生源のカードを補う
+function withChoiceSourceCard(state: GameState, pc: NonNullable<GameState["pendingChoice"]>): NonNullable<GameState["pendingChoice"]> {
+    const self = pc.selfInstanceId ? findInstanceAnywhere(state, pc.selfInstanceId) : undefined
+    const cardId = pc.sourceCardId ?? pc.fushiSummon?.cardId ?? pc.burstActivate?.cardId ?? pc.effectCostPay?.sourceCardId ?? self?.cardId
+    return cardId !== undefined ? { ...pc, sourceCardId: cardId } : { ...pc }
 }
 
 export function viewFor(state: GameState, viewer: PlayerId): GameView {
@@ -818,7 +826,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         ...(state.selfSummonCostUsedNames ? { selfSummonCostUsedNames: state.selfSummonCostUsedNames } : {}),
         pendingChoice: state.pendingChoice
             ? viewer === state.pendingChoice.pid
-                ? { ...state.pendingChoice }
+                ? withChoiceSourceCard(state, state.pendingChoice)
                 : maskPendingChoiceForOpponent(state.pendingChoice)
             : null,
         events: [...state.events],

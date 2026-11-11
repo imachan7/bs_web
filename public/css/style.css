@@ -711,6 +711,20 @@ button:active {
     border-color: rgba(59, 130, 246, 0.7);
 }
 
+/* 選択待ちの文面の横に出す発生源のカード名（ホバーで効果文） */
+.source-card-chip {
+    display: inline-block;
+    padding: 1px 6px;
+    margin-left: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+    color: var(--text-muted, #aaa);
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    border-radius: 4px;
+    cursor: help;
+}
+
 #global-tooltip {
     position: fixed;
     pointer-events: none;
