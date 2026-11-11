@@ -22,6 +22,7 @@ import {
     refreshLevelAsOverrides,
     runTurnStart,
     takeLifeAndResolve,
+    answerCoreLevel,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
@@ -385,6 +386,7 @@ console.log("=== BS08聖なる柱状彫刻：fieldEvent.optional（ownLifeDamage
         "確認待ち中はまだ召喚されていない",
     )
     assert(act(s2, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
+    answerCoreLevel(s2, "p1")
     assert(
         s2.players.p1.field.spirits.some((sp) => sp.cardId === tenshoCard.cardId),
         "発動を選ぶと【転召】持ちが手札から召喚される",

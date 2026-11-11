@@ -1,5 +1,5 @@
 // smoke パート602（沈黙していた効果節の場面テストC：賛美するパイプオルガン ほか21枚）
-import { act, assert, createGame, createInstance, getCard, handleAction, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, handleAction, refreshLevelAsOverrides, runTurnStart, answerCoreLevel } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { scenario } from "./scenario"
 
@@ -763,6 +763,7 @@ console.log("=== 46. ペンタン: 相手のデッキ破棄で破棄されたと
     const s = pentanGame("pentan-summon", PENTAN)
     assert(s.pendingChoice?.pid === "p1", "召喚の確認が自分に出る")
     ok(act(s, "p1", { type: "resolveChoice", option: "召喚する" }), "召喚する")
+    answerCoreLevel(s, "p1")
     assert(s.players.p1.field.spirits.some((x) => x.cardId === PENTAN), "執事ペンタンが場に出る")
     assert(s.players.p1.deck.length === 39, `残りの破棄は止まる（デッキ ${s.players.p1.deck.length}枚）`)
     ok(act(s, "p2", { type: "castMagic", handIndex: 0 }), "もう一度デッキ破棄")

@@ -1,6 +1,7 @@
 // smoke パート439（BS16バッチ3・組D：atTurnEnd／burstMagicFreeEffect／summonFromHandFreeのalsoFrom・nameExcludes）
 import {
     assert,
+    answerCoreLevel,
     createGame,
     createInstance,
     getCard,
@@ -118,6 +119,7 @@ console.log("=== 4. summonFromHandFree：alsoFrom:trash＋nameExcludes＋upTo（
     assert(handIdxs.every((i) => s.players.p1.hand[i] !== ARCANA_KEN), "nameExcludesで除いたカードは候補に出ない")
     const piyonIdx = handIdxs.find((i) => s.players.p1.hand[i] === PIYON)!
     handleAction(s, "p1", { type: "resolveChoice", cardIndex: piyonIdx })
+    answerCoreLevel(s, "p1")
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === PIYON), "手札から1体目（ピヨン）を無償召喚した")
 
     assert(s.pendingChoice?.kind === "option", "残り2枚まで、続けてゾーンを選ばせる")
@@ -127,6 +129,7 @@ console.log("=== 4. summonFromHandFree：alsoFrom:trash＋nameExcludes＋upTo（
     assert(trashIdxs.every((i) => s.players.p1.trashCards[i] !== ARCANA_KEN), "トラッシュ側もnameExcludesで除かれる")
     const koristalIdx = trashIdxs.find((i) => s.players.p1.trashCards[i] === KORISTAL)!
     handleAction(s, "p1", { type: "resolveChoice", cardIndex: koristalIdx })
+    answerCoreLevel(s, "p1")
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === KORISTAL), "トラッシュから2体目（コリスタル）を無償召喚した")
 
     // 残り1枚：この時点でトラッシュ側の候補は尽きている（アルカナは除外）ので、ゾーン選択を挟まず手札のカード選択になる
@@ -134,6 +137,7 @@ console.log("=== 4. summonFromHandFree：alsoFrom:trash＋nameExcludes＋upTo（
     const lastIdxs = s.pendingChoice?.cardIndices ?? []
     const chunpopoIdx = lastIdxs.find((i) => s.players.p1.hand[i] === CHUNPOPO)!
     handleAction(s, "p1", { type: "resolveChoice", cardIndex: chunpopoIdx })
+    answerCoreLevel(s, "p1")
     assert(s.players.p1.field.spirits.filter((sp) => [PIYON, KORISTAL, CHUNPOPO].includes(sp.cardId)).length === 3, "合計3体（手札2＋トラッシュ1）を無償召喚した")
     assert(s.players.p1.hand.includes(ARCANA_KEN) && s.players.p1.trashCards.includes(ARCANA_KEN), "除外したカードは手札・トラッシュにそのまま残る")
 }

@@ -181,9 +181,10 @@ export function startChoicePaying(cardIndex: number): boolean {
     if (!view || !view.pendingChoice) return false
     // 既にこの選択の支払い中なら、クリックでは何もしない（割り当てをリセットさせない）
     if (ui.paying?.forChoiceCardIndex !== undefined) return true
-    const action = view.pendingChoice.action as { type?: string; from?: string; payCost?: true; pay?: string } | undefined
+    const action = view.pendingChoice.action as { type?: string; pay?: string; dest?: string } | undefined
     const zone = view.pendingChoice.cardZone === "trash" ? "trash" : "hand"
-    const paysCost = (action?.type === "summon" && action.from === "hand" && action.payCost === true) || (action?.type === "moveCards" && action.pay === "cost")
+    // 召喚の支払いは、カードを選んだあとにサーバーが置くコアの待ち（effectCostPay）で聞く。ここで先に払うのはマジックの使用だけ
+    const paysCost = action?.type === "moveCards" && action.pay === "cost" && action.dest !== "summon"
     if (!paysCost) return false
     const player = view.players[view.you]
     const cardId = zone === "trash" ? player.trashCards[cardIndex] : player.hand?.[cardIndex]

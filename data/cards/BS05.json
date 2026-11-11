@@ -4617,17 +4617,15 @@
     "timing": "flash",
     "mainForbidden": true,
     "action": {
-     "type": "lendSelfThisTurn"
-    }
-   },
-   {
-    "id": "BS05-076-e2",
-    "kind": "globalConstraint",
-    "levels": null,
-    "constraint": {
-     "type": "millCap",
-     "sourceTypes": ["spirit", "nexus", "magic"],
-     "maxCount": 5
+     "type": "timedEffect",
+     "duration": "turn",
+     "side": "own",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": { "type": "millCap", "maxCount": 5, "total": true, "sourceTypes": ["spirit", "nexus", "magic"] }
+      }
+     ]
     }
    }
   ]

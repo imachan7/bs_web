@@ -12,7 +12,7 @@
 // （フィールドのコアはコスト優先で充当し、支払い元が維持コア割れしたら消滅する）。
 // 起動能力は handleAction を直接呼ぶ（helpers.act は対話モードで pendingChoice を先に消化してしまい、
 // 選択待ちが立ったことを確かめられないため。part223 と同じ理由）
-import { assert, createGame, createInstance, effectiveCost, getCard, handleAction, runTurnStart } from "./helpers"
+import { answerCoreLevel, assert, createGame, createInstance, effectiveCost, getCard, handleAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 const PLATINUM = "BS08-034" // 空帝竜騎プラチナム：Lv1=1コア。起動＝手札の【転召】持ちを召喚（コストは支払う）
@@ -123,6 +123,7 @@ console.log("=== 従来どおり：リザーブだけで払えるなら paySourc
         "起動できる",
     )
     assert(handleAction(s, "p1", { type: "resolveChoice", cardIndex: 0 }) === null, "paySources なしで解決できる")
+    answerCoreLevel(s, "p1")
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === TENSHO),
         "【転召】持ちが召喚された",

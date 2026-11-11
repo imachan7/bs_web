@@ -481,49 +481,7 @@
         ],
         "turn": "opponent",
         "subjectFilter": {
-          "color": "red"
-        },
-        "refreshSourceTypeFilter": [
-          "spirit",
-          "magic"
-        ],
-        "action": {
-          "type": "destroy",
-          "target": "self",
-          "count": 1
-        }
-      },
-      {
-        "id": "BSC05-020-e3",
-        "kind": "fieldEvent",
-        "event": "anySpiritRefreshed",
-        "levels": [
-          2
-        ],
-        "turn": "opponent",
-        "subjectFilter": {
-          "color": "green"
-        },
-        "refreshSourceTypeFilter": [
-          "spirit",
-          "magic"
-        ],
-        "action": {
-          "type": "destroy",
-          "target": "self",
-          "count": 1
-        }
-      },
-      {
-        "id": "BSC05-020-e4",
-        "kind": "fieldEvent",
-        "event": "anySpiritRefreshed",
-        "levels": [
-          2
-        ],
-        "turn": "opponent",
-        "subjectFilter": {
-          "color": "blue"
+          "color": ["red", "green", "blue"]
         },
         "refreshSourceTypeFilter": [
           "spirit",

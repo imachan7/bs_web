@@ -236,8 +236,11 @@ socket.on("state", (v: GameView) => {
     // 支払い「自動」なら、効果のコストを[ソウルコア]以外のリザーブだけで払えるときは聞かずに払う（「手動」なら毎回支払い元を選ぶ）
     const costPay = v.pendingChoice?.pid === v.you ? v.pendingChoice.effectCostPay : undefined
     const me = v.players[v.you]
-    if (costPay && ui.payMode === "auto" && me.reserve - (me.soulCore?.zone === "reserve" ? 1 : 0) >= costPay.need + (costPay.keep ?? 0)) {
-        send({ type: "resolveChoice", option: "支払う" })
+    // 置くコアの数（Lv）を選ぶ待ち（keepByOption）は選ぶのが目的なので、2つ以上あれば自動では送らない
+    const pcOptions = v.pendingChoice?.options ?? []
+    const choosingLv = costPay?.keepByOption !== undefined && pcOptions.length >= 2
+    if (costPay && !choosingLv && ui.payMode === "auto" && me.reserve - (me.soulCore?.zone === "reserve" ? 1 : 0) >= costPay.need + (costPay.keep ?? 0)) {
+        send({ type: "resolveChoice", option: costPay.keepByOption !== undefined ? pcOptions[0] ?? "支払う" : "支払う" })
     }
 })
 
@@ -850,11 +853,11 @@ async function init(): Promise<void> {
             // そのまま確定すればリザーブから払われる
             // 【迷彩】・効果のコスト。リザーブだけで払えて[ソウルコア]の選択も無いなら、そのまま送る（サーバーが自動で払う）
             const pc = view?.pendingChoice
-            const meisai = pc?.meisaiPay ? { cardId: pc.meisaiPay.targetCardId, need: pc.meisaiPay.need, effectCost: false } : pc?.effectCostPay ? { cardId: pc.effectCostPay.sourceCardId, need: pc.effectCostPay.need + (pc.effectCostPay.keep ?? 0), effectCost: true } : undefined
+            const meisai = pc?.meisaiPay ? { cardId: pc.meisaiPay.targetCardId, need: pc.meisaiPay.need, effectCost: false } : pc?.effectCostPay ? { cardId: pc.effectCostPay.sourceCardId, need: pc.effectCostPay.need + (pc.effectCostPay.keepByOption?.[(pc.options ?? []).indexOf(option)] ?? pc.effectCostPay.keep ?? 0), effectCost: true } : undefined
             if (meisai && view) {
                 const me = view.players[view.you]
                 const soulSelectable = me.soulCore !== null && me.soulCore.zone !== "trash"
-                if (!soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need) {
+                if (pc?.effectCostPay?.reserveOnly || (!soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need)) {
                     send({ type: "resolveChoice", option })
                     return
                 }

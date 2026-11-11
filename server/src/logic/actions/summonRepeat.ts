@@ -11,6 +11,7 @@ import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { dumpAllCoresTensho, tenshoCandidates, tenshoSelfCostBonus, tenshoSpecOf } from "../keywords/tensho"
 import { effectiveCost, summonSurcharge } from "../../../../shared/cost"
 import { fireSummonSequence } from "../summon"
+import { summonCoreOptions } from "../summonCores"
 
 type Repeat = Extract<EffectAction, { type: "summonBatchPaidInternal" }>
 
@@ -42,10 +43,11 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
     // 余分を除いたコスト（余分は全体で1回だけ払うので、カードごとには数えない）。
     // 破壊待機の発動元のシンボルは、破壊時効果の軽減に使える（RULES_BATSPI_WIKI §破壊待機）
     const baseCost = (c: CardData): number => Math.max(0, effectiveCost(state, owner, c) - summonSurcharge(state, owner, c))
-    const totals = (idx: number[]): { cost: number; keep: number; toll: number } => {
+    // lv＝体ごとに選んだ置くコアの数（idx と同じ並び。未選択の体は最小レベルの数）
+    const totals = (idx: number[], lv: number[] = []): { cost: number; keep: number; toll: number } => {
         const cards = idx.map((i) => getCard(player.hand[i]!))
         const surcharge = Math.max(0, ...cards.map((c) => summonSurcharge(state, owner, c)))
-        return { cost: cards.reduce((sum, c) => sum + baseCost(c), 0) + surcharge, keep: cards.reduce((sum, c) => sum + minLevelCores(c), 0), toll: cards.reduce((sum, c) => sum + summonVoidToll(state, c), 0) }
+        return { cost: cards.reduce((sum, c) => sum + baseCost(c), 0) + surcharge, keep: cards.reduce((sum, c, k) => sum + (lv[k] ?? minLevelCores(c)), 0), toll: cards.reduce((sum, c) => sum + summonVoidToll(state, c), 0) }
     }
     const affordable = (idx: number[]): boolean => {
         const t = totals(idx)
@@ -54,8 +56,8 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
     const matching = (): number[] => player.hand.map((_, i) => i).filter((i) => matches(player.hand[i]!))
 
     // 払い済みの続き、または払い待ちを立てずに払えるときの召喚
-    const summonAll = (idx: number[], payNow: boolean, pk: (string | null)[]): void => {
-        const t = totals(idx)
+    const summonAll = (idx: number[], payNow: boolean, pk: (string | null)[], lv: number[] = []): void => {
+        const t = totals(idx, lv)
         const cards = idx.map((i) => player.hand[i]!)
         let placed = 0
         if (payNow) {
@@ -73,7 +75,7 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
         }
         for (const i of [...idx].sort((a, b) => b - a)) player.hand.splice(i, 1)
         player.reserve -= t.keep - placed
-        const insts = cards.map((id) => ({ ...createInstance(id, state.turn, minLevelCores(getCard(id))), noOnSummon: true as const }))
+        const insts = cards.map((id, k) => ({ ...createInstance(id, state.turn, lv[k] ?? minLevelCores(getCard(id))), noOnSummon: true as const }))
         player.field.spirits.push(...insts)
         log(state, `${player.name}は${sourceName}の効果で「${cards.map((id) => getCard(id).name).join("、")}」をコスト${t.cost}を支払い召喚した。（このスピリットの召喚時効果は発揮されない）`)
         // 【転召】は無償召喚でも必ず行う（公式Q&A 2024-10-31）。対象は支払いの前に選んである
@@ -136,21 +138,56 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
         )
     }
 
-    const finish = (idx: number[], pk: (string | null)[]): void => {
+    // 1体ずつ置くコアの数（Lv）を聞く。全員の分が決まってから finish が一括で払う（2026-11-11 ユーザー決定）
+    const askLevels = (idx: number[], pk: (string | null)[], lv: number[]): boolean => {
+        const t = totals(idx, lv)
+        const rest = idx.slice(lv.length + 1).reduce((sum, i) => sum + minLevelCores(getCard(player.hand[i]!)), 0)
+        const done = lv.reduce((sum, n) => sum + n, 0)
+        const card = getCard(player.hand[idx[lv.length]!]!)
+        // 味方を消滅させる払い方も含めて選べる Lv を出す（単体の召喚と同じ。summonCores.ts）
+        const options = summonCoreOptions(state, owner, card, t.cost + t.toll - summonVoidToll(state, card) + done + rest)
+        if (options.length < 2) {
+            lv.push(options[0]?.cores ?? minLevelCores(card))
+            return false
+        }
+        suspend(state, {
+            pid: owner,
+            kind: "option",
+            prompt: `${card.name}：置くコアの数（Lv）を選んでください`,
+            candidates: [],
+            options: options.map((o) => `Lv${o.level}（コア${o.cores}個）`),
+            optional: false,
+            action: { ...action, choosing: true, chosenIdx: idx, tenshoPicks: pk, lvCores: lv, lvAsk: true },
+            selfInstanceId: ctx.self ? ctx.self.instanceId : null,
+        })
+        return true
+    }
+
+    const finish = (idx: number[], pk: (string | null)[], lv: number[] = []): void => {
         if (idx.length === 0) {
             log(state, `${sourceName}：召喚できる対象がいなかった。`)
             return
         }
-        const t = totals(idx)
+        if (state.interactiveTargets) {
+            while (lv.length < idx.length) if (askLevels(idx, pk, lv)) return
+        }
+        const t = totals(idx, lv)
         const sourceCardId = ctx.sourceCardId ?? ctx.self?.cardId
-        const resume: EffectAction = { ...action, choosing: true, chosenIdx: idx, prepaid: true, tenshoPicks: pk }
+        const resume: EffectAction = { ...action, choosing: true, chosenIdx: idx, prepaid: true, tenshoPicks: pk, lvCores: lv }
         if (sourceCardId !== undefined && askCostPay(state, owner, t.cost, t.keep, `${sourceName}：${t.cost}コストを支払ってください`, sourceCardId, resume)) return
-        summonAll(idx, true, pk)
+        summonAll(idx, true, pk, lv)
     }
 
     // 払い待ちから戻ってきた（払い済み。手札はその間動かない）
     if (action.prepaid) {
-        summonAll(chosen, false, picks)
+        summonAll(chosen, false, picks, action.lvCores)
+        return
+    }
+
+    // 置くコアの数を選んで戻ってきた
+    if (action.lvAsk) {
+        const cores = Number(/コア(\d+)個/.exec(ctx.chosenOption ?? "")?.[1])
+        finish(chosen, picks, [...(action.lvCores ?? []), Number.isFinite(cores) ? cores : minLevelCores(getCard(player.hand[chosen[(action.lvCores ?? []).length]!]!))])
         return
     }
 

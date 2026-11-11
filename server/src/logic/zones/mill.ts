@@ -3,7 +3,7 @@ import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import { recordMoved } from "../record"
 import { canPayLife, lifeCostQuery, recordLifeLoss } from "../lifeGate"
-import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
+import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId, PlayerRuleDef } from "../../type"
 import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"
 import { returnSpiritToDeckBottom } from "../removal"
 import { spiritMillFreeSummonOrConfirm } from "../revive"
@@ -112,13 +112,18 @@ export function millCapPerTurnRemaining(state: GameState, pid: PlayerId, sourceT
     return Math.max(remaining, 0)
 }
 
+// 期間つきの millCap（記録してからの合計）。消費量は記録の中の rule に足していく
+function recordedMillCaps(state: GameState, pid: PlayerId, sourceType: CardType | undefined): Extract<PlayerRuleDef, { type: "millCap" }>[] {
+    return timedPlayerRules(state, pid).filter((r): r is Extract<PlayerRuleDef, { type: "millCap" }> => r.type === "millCap" && capCoversType(r.sourceTypes, sourceType))
+}
+
 // デッキの破棄の問い合わせ（EFFECT_GATE.md §4 の 5h）：pid のデッキを count 枚破棄してよい枚数（0〜count）。
 // 「〜することで」のコストは効果の一部なので、actorPid／sourceType は効果と同じに渡す（10-30）
 export function millAllowed(state: GameState, a: { pid: PlayerId; count: number; actorPid?: PlayerId | undefined; sourceType?: CardType | undefined }): number {
     const byOpponent = a.actorPid !== undefined && a.actorPid !== a.pid
     if (millBlockReason(state, a.pid, byOpponent)) return 0
     let n = a.count
-    if (byOpponent) n = Math.min(n, millCapFor(state, a.pid, a.sourceType), millCapPerTurnRemaining(state, a.pid, a.sourceType))
+    if (byOpponent) n = Math.min(n, millCapFor(state, a.pid, a.sourceType), millCapPerTurnRemaining(state, a.pid, a.sourceType), ...recordedMillCaps(state, a.pid, a.sourceType).map((r) => r.maxCount - (r.used ?? 0)))
     return Math.max(0, Math.min(n, mutualMillCapRemainingFor(state, a.pid)))
 }
 
@@ -133,6 +138,7 @@ export function noteMilled(state: GameState, pid: PlayerId, n: number, actorPid:
     if (n <= 0) return
     state.millCountThisTurnMutual[pid] = (state.millCountThisTurnMutual[pid] ?? 0) + n
     if (actorPid === undefined || actorPid === pid) return
+    for (const r of recordedMillCaps(state, pid, sourceType)) r.used = (r.used ?? 0) + n
     state.millCountThisTurn[pid] = (state.millCountThisTurn[pid] ?? 0) + n
     if (sourceType === "brave") {
         state.millCountThisTurnBrave ??= { p1: 0, p2: 0 }

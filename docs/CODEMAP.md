@@ -283,6 +283,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `lifeGuardsApplying`（fn）：この減少に当たる lifeGuard を集める。アタックでは sourceInstance がアタッカー
 - `lifeGuardBounds`（fn）：当たった lifeGuard 全部を畳んだ「減らせる量」の上限と、下回れない値
+- `noteLifeGuardTotal`（fn）：アタックで実際に減ったぶんを、記録してからの合計（total）の lifeGuard に足す。通常のアタック以外の減少で total を使うカードは無いので、呼ぶのはアタックの解決…
 
 ## shared/rules/resistance.ts
 
@@ -1085,6 +1086,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
 - `fchangeCostAs`（fn）：summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
 - `summonFromHandFreeCandidateMatches`（fn）
+
+## server/src/logic/summonCores.ts
+
+- `summonCoreOptions`（fn）：支払い元はリザーブ（ソウルコアを除く）とフィールドの全コア（reserveOnly＝リザーブだけ。「リザーブから使用することで」）。味方を0個にして消滅させる払い方も含める（通常の…
+- `askSummonCores`（fn）：Lv が2つ以上選べる、またはリザーブだけでは足りないとき、支払い待ち（effectCostPay）を立てて true。
 
 ## server/src/logic/summonCostRules.ts
 

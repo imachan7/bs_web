@@ -84,7 +84,7 @@ scenario({
     name: "ant-pay-all-own-cores",
     mirror: false,
     start: {
-        turn: "opp", phase: "attack", interactive: true,
+        turn: "opp", phase: "attack", interactive: true, manualCoreLevel: true,
         me: { reserve: 1, hand: [FLY], spirits: [{ card: ANT, cores: 2 }] },
         opp: { spirits: [{ card: BOSS, cores: 1 }] },
     },
@@ -104,7 +104,7 @@ scenario({
     name: "ant-tensho-choose",
     mirror: false,
     start: {
-        turn: "opp", phase: "attack", interactive: true,
+        turn: "opp", phase: "attack", interactive: true, manualCoreLevel: true,
         me: { reserve: 10, hand: [QUEEN], spirits: [{ card: ANT, cores: 2 }, { card: FLY, cores: 1 }, { card: SRC, cores: 1 }] },
         opp: { spirits: [{ card: BOSS, cores: 1 }] },
     },
@@ -136,7 +136,7 @@ scenario({
     name: "ant-tensho-auto",
     mirror: false,
     start: {
-        turn: "opp", phase: "attack", interactive: true,
+        turn: "opp", phase: "attack", interactive: true, manualCoreLevel: true,
         me: { reserve: 10, hand: [QUEEN], spirits: [{ card: ANT, cores: 2 }] },
         opp: { spirits: [{ card: BOSS, cores: 1 }] },
     },
@@ -173,7 +173,7 @@ const FUSHI_ME = [
     "自分.トラッシュのコア: 0 → 2",
 ]
 const fushiStart = (interactive: boolean) => ({
-    turn: "opp" as const, phase: "attack" as const, interactive,
+    turn: "opp" as const, phase: "attack" as const, interactive, manualCoreLevel: true as const,
     me: { reserve: 0, trash: [GAHERIS], spirits: [{ card: FLY, cores: 1 }, { card: ROKU, cores: 3 }] },
     opp: { spirits: [{ card: BOSS, cores: 1 }] },
 })
@@ -210,7 +210,7 @@ scenario({
     name: "mino-altar-field",
     mirror: false,
     start: {
-        turn: "opp", phase: "main", interactive: true,
+        turn: "opp", phase: "main", interactive: true, manualCoreLevel: true,
         me: { reserve: 1, deck: [MINO, ROKU, ROKU, ROKU, ROKU, ROKU], spirits: [{ card: ROKU, cores: 3 }] },
         opp: { reserve: 10, hand: [STATUE], nexuses: [{ card: ALTAR, cores: 1 }] },
     },

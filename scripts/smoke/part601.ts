@@ -808,8 +808,11 @@ console.log("=== BS13-034 ミノガメン ===")
                 t.act("opp", { type: "nextPhase" })
                 t.act("opp", { type: "attack", instanceId: t.id("攻") })
                 assert(t.state.pendingChoice?.pid === t.me, `${name}: 召喚するかは自分に聞く`)
-                if (summon) t.act("me", { type: "resolveChoice", option: "召喚する" })
-                else t.act("me", { type: "resolveChoice" })
+                if (summon) {
+                    t.act("me", { type: "resolveChoice", option: "召喚する" })
+                    // 置くコアの数（Lv）を聞かれる（2026-11-11）。Lv1 を選ぶ
+                    if (t.state.pendingChoice?.effectCostPay?.keepByOption) t.act("me", { type: "resolveChoice", option: t.state.pendingChoice.options![0]! })
+                } else t.act("me", { type: "resolveChoice" })
                 t.closeFlash()
                 t.act("me", { type: "takeLife" })
             },

@@ -509,6 +509,8 @@ play("016 バースト：紫2枚を戻して召喚→召喚時に疲労コスト
     answer(t, { by: "me", card: victimLabel(HEL) }, "戻す1枚目")
     answer(t, { by: "me", card: victimLabel(HEL) }, "戻す2枚目")
     if (t.s.pendingChoice?.kind === "card") t.act("me", { type: "resolveChoice" }) // 選択の確定
+    // 置くコアの数（Lv）を選ぶ待ち（2026-11-11）。Lv1 を選ぶ
+    if (t.s.pendingChoice?.effectCostPay?.keepByOption) t.act("me", { type: "resolveChoice", option: t.s.pendingChoice.options![0]! })
     const pc = answer(t, { by: "me", target: "疲労4" }, "破壊する疲労状態のスピリットを選ぶ")
     assert(!!pc && pc.candidates.length === 2, `${t.tag} 候補は疲労状態のコスト5以下の2体だけ（回復中・コスト6は除く）`)
     assert(!!pc && pc.candidates.includes(t.inst("疲労5").instanceId), `${t.tag} 疲労状態のコスト5が候補`)
@@ -871,6 +873,7 @@ play("076 バースト：コスト5以下を召喚→支払ってフラッシュ
     answer(t, { by: "me", yes: true }, "バースト発動の確認")
     const pc = answer(t, { by: "me", card: victimLabel(GAHERIS) }, "召喚するスピリットを選ぶ")
     assert(!!pc && (pc.cardIndices ?? []).length === 2, `${t.tag} 候補はコスト5以下の2枚だけ（コスト6は除く）`)
+    if (t.s.pendingChoice?.effectCostPay?.keepByOption) answer(t, { by: "me", yes: true }, "置くコアの数（Lv1）を選ぶ（2026-11-11）")
     assert(t.fieldCount("me", GAHERIS) === 1, `${t.tag} 闇騎士ガヘリスが召喚される`)
     answer(t, { by: "me", yes: true }, "フラッシュ効果のコスト支払い確認")
     answer(t, { by: "me", target: "狙い" }, "コアを置かせる相手のスピリットを選ぶ")
@@ -881,6 +884,7 @@ play("076 バースト：支払いを断ればフラッシュ効果は発揮し�
     hitLife(t, "opp", attackerLabel)
     answer(t, { by: "me", yes: true }, "バースト発動の確認")
     answer(t, { by: "me", card: victimLabel(GAHERIS) }, "召喚するスピリットを選ぶ")
+    if (t.s.pendingChoice?.effectCostPay?.keepByOption) answer(t, { by: "me", yes: true }, "置くコアの数（Lv1）を選ぶ（2026-11-11）")
     answer(t, { by: "me", yes: false }, "フラッシュ効果のコスト支払い確認")
     noPending(t, "断ったあと")
     assert(t.fieldCount("me", GAHERIS) === 1 && t.inst("狙い").cores === 4, `${t.tag} 召喚は済み、コアは動かない`)
