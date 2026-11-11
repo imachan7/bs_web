@@ -8,7 +8,7 @@ import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { summonDenial } from "../summonGate"
-import { notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
+import { handImmuneFor, notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
 import { handGainDenial } from "../handGate"
 import { canDiscardHand, instMinLevelCores, isTrashCardProtected, timedMagicLocked, magicColorBanned, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
@@ -467,6 +467,12 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, chosenCardIndex } = ctx
     if (action.from === "revealed") {
         moveRevealed(ctx, action)
+        return
+    }
+    // 相手の手札を動かす効果は、手札が「相手の効果を受けない」なら発揮しない（drawDiscard の手札破棄と同じ判定。2026-11-11 監査で発見）
+    if (action.from === "hand" && action.side === "opponent" && handImmuneFor(state, opp, srcType)) {
+        recordMoved(state, [])
+        log(state, `${sourceName}：${state.players[opp].name}の手札は効果を受けなかった。`)
         return
     }
     // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない

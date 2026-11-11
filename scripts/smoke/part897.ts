@@ -107,7 +107,7 @@ console.log("=== 8. BS05-076 エターナルシールド：使ってからの合
     assert(p1.deck.length === 33, "相手の効果で2枚＋2枚＝4枚破棄（ここまでは上限未満）")
     destroySpirit(s, "p2", clays[2]!.instanceId, "destroy")
     assert(p1.deck.length === 32, "3回目は残り1枚だけ破棄される（使ってからの合計5枚で止まる）")
-    assert(p1.trashCards.length === 2 + 1 + 5, "トラッシュは使う前の2枚＋自分の1枚＋相手の効果の5枚")
+    assert(p1.trashCards.length === 2 + 1 + 5 + 2, "トラッシュは使う前の2枚＋自分の1枚＋相手の効果の5枚＋使ったマジック2枚（エターナルシールド・ドラゴニックハウル）")
 }
 {
     const s = game("shield-none", "p1")

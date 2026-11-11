@@ -1799,7 +1799,8 @@
     "action": {
      "type": "refresh",
      "target": "self"
-    }
+    },
+    "phase": "attack"
    },
    {
     "id": "BS21-026-e2",
@@ -1816,7 +1817,8 @@
     "action": {
      "type": "refresh",
      "target": "self"
-    }
+    },
+    "phase": "attack"
    }
   ]
  },

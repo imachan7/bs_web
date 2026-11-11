@@ -172,8 +172,10 @@ console.log("=== 4. BS12-003 ガストン：相手が装甲：赤のスピリッ
     const lob = put(s, "p2", LOBSTER, 1)
     const van = put(s, "p2", VAN, 1)
     destroySpirit(s, "p1", g.instanceId, "destroy")
+    // 候補が1体なら選択は出さずに解決する（tryInteractiveTargetChoice の既存の決まり）。選べる対象から外れたかは結果で見る
     const cand = (s.pendingChoice as { candidates?: string[] } | null)?.candidates ?? []
-    assert(!cand.includes(lob.instanceId) && cand.includes(van.instanceId), "選べる対象に装甲持ちのロブスタークは入らない")
+    settle(s, [van.instanceId])
+    assert(!cand.includes(lob.instanceId) && !s.players.p2.field.spirits.includes(van) && s.players.p2.field.spirits.includes(lob), "選べる対象に装甲持ちのロブスタークは入らない")
     settle(s, [lob.instanceId, van.instanceId])
     assert(s.players.p2.field.spirits.includes(lob) && !s.players.p2.field.spirits.includes(van), "装甲の無いロクケラトプスだけが破壊される")
 }

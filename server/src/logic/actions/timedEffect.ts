@@ -520,7 +520,8 @@ function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
         .filter((c): c is Extract<Content, { type: "playerRule" }> => c !== null)
         .map((c) => (c.rule.type === "effectTaxForPid" && c.rule.source === undefined ? { ...c, rule: { ...c.rule, source: sourceName } } : c))
     if (rules.length === 0) return
-    for (const pid of pids) recordTimed(state, { content: rules, target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
+    // 消費量（used）を記録ごとに持つので、カードデータと両陣営で共有しない
+    for (const pid of pids) recordTimed(state, { content: rules.map((c) => ({ ...c, rule: { ...c.rule } })), target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
     const period = action.duration === "battle" ? "このバトルの間" : action.duration === "step" ? "このステップの間" : action.duration === "beforeBlock" ? "ブロック前のフラッシュタイミングの間" : action.duration === "nextRefresh" ? "次のターンの間" : "このターンの間"
     log(state, `${sourceName}：${period}、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
 }

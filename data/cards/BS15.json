@@ -2673,7 +2673,8 @@
      "type": "lifeCrush",
      "count": 1,
      "dest": "trash"
-    }
+    },
+    "winnerExcludeSelf": true
    }
   ]
  },
@@ -3288,7 +3289,8 @@
      3
     ],
     "subjectFilter": {
-     "keyword": "seimei"
+     "keyword": "seimei",
+     "excludeSelf": true
     },
     "optional": true,
     "action": {
