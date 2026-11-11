@@ -17,6 +17,7 @@ import {
     resolveSelfRelative,
     timedPlayerRules,
     timedContentsOn,
+    timedRecordsOn,
     canBlockWhileRestedThisTurn,
     currentLevel,
     effectiveBp,
@@ -79,10 +80,28 @@ export function blockReserveToTrashCount(board: Board, attackerPid: PlayerId, at
     return activeConstraints(board, attackerPid, attackerInst).reduce((n, c) => n + (c.type === "blockReserveToTrash" ? c.count : 0), 0)
 }
 
-// blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリット1体を破壊しなければブロックできないか
-export function blockDestroyOwnSpiritRequired(board: Board, attackerInst: CardInstance | undefined): boolean {
-    if (!attackerInst) return false
-    return timedContentsOn(board, attackerInst).some((c) => c.type === "blockCost" && c.cost === "destroyOwnSpirit")
+// blockCost destroyOwnSpirit を掛けた記録（無ければ undefined）
+export function blockDestroyOwnSpiritRecord(board: Board, attackerInst: CardInstance | undefined): Board["timedEffects"][number] | undefined {
+    if (!attackerInst) return undefined
+    return timedRecordsOn(board, attackerInst).find((r) => r.content.some((c) => c.type === "blockCost" && c.cost === "destroyOwnSpirit"))
+}
+
+// blockCost destroyOwnSpirit で破壊できるスピリット。破壊はアタッカー側の効果なので、【装甲】などで効果を受けない個体は選べず、
+// 1体もいなければブロックできない（BS22-X02 Q4430〜Q4432）。選ぶのは防御側で効果の対象指定ではないので scope は area とした
+export function blockDestroyCandidates(board: Board, blockerPid: PlayerId, blockerInstanceId: string, attackerInst: CardInstance | undefined): CardInstance[] {
+    const rec = blockDestroyOwnSpiritRecord(board, attackerInst)
+    if (!rec) return []
+    return board.players[blockerPid].field.spirits.filter(
+        (sp) =>
+            sp.instanceId !== blockerInstanceId &&
+            boardResistanceAgainst(board, blockerPid, sp, {
+                op: "destroy",
+                scope: "area",
+                actorPid: rec.ownerPid,
+                ...(rec.sourceType !== undefined ? { sourceType: rec.sourceType } : {}),
+                ...(rec.sourceColors !== undefined ? { sourceColors: rec.sourceColors } : {}),
+            }) === null,
+    )
 }
 
 // このアタッカーをブロックするのに、ブロックするスピリット以外の回復状態のスピリット1体を疲労させる必要があるか（制約 blockExhaustSpirit）

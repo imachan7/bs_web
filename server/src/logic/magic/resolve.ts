@@ -31,8 +31,32 @@ export function resolveMagicEffects(
     // 「発揮後にもう1度」は約束どおり行う）
     const repeatSource = findMagicRepeatGrantSource(state, owner)
     runMagicActions(state, owner, cardId, timing, targetInstanceId)
-    // 選択待ちで中断したときは、残りの効果を pendingChoice の queue が引き継いでいるのでここで抜ける
-    if (state.pendingChoice) return
+    // 選択待ちで中断したら、残りのエントリ（runMagicActions が積んだ）の後に再発揮の確認と誘発を積む。
+    // 積まないと選択のあるマジックで「マジックを使用したとき」が発火しなかった（BS09-X39 の報告。2026-11-11）
+    if (state.pendingChoice) {
+        pushMagicAfterEffects(state, owner, cardId, timing, targetInstanceId, paidCost, repeatSource)
+        return
+    }
+    finishMagicEffects(state, owner, cardId, timing, targetInstanceId, paidCost, repeatSource)
+}
+
+function pushMagicAfterEffects(state: GameState, owner: PlayerId, cardId: string, timing: "main" | "flash", targetInstanceId: string | undefined, paidCost: boolean, repeatSource: CardInstance | null): void {
+    pushResumeFrames(state, [
+        {
+            kind: "action",
+            selfInstanceId: null,
+            actorPid: owner,
+            action: { type: "resumeMagicAfterEffects", cardId, timing, paidCost, ...(targetInstanceId !== undefined ? { targetInstanceId } : {}), ...(repeatSource ? { repeatSourceId: repeatSource.instanceId } : {}) },
+        },
+    ])
+}
+
+export const resumeMagicAfterEffectsHandler: ActionHandler<"resumeMagicAfterEffects"> = (ctx, action) => {
+    const repeatSource = action.repeatSourceId !== undefined ? (findInstanceAnywhere(ctx.state, action.repeatSourceId) ?? null) : null
+    finishMagicEffects(ctx.state, ctx.owner, action.cardId, action.timing, action.targetInstanceId, action.paidCost, repeatSource)
+}
+
+function finishMagicEffects(state: GameState, owner: PlayerId, cardId: string, timing: "main" | "flash", targetInstanceId: string | undefined, paidCost: boolean, repeatSource: CardInstance | null): void {
     if (repeatSource && !state.winner) {
         // 「もう1度だけ発揮**できる**」＝任意なので、1周目が解決しきってから聞く（2026-08-15 ユーザー確認）。
         // 非対話（テスト・自動解決）では従来どおり自動で2周目を走らせる
@@ -60,7 +84,10 @@ export function resolveMagicEffects(
         consumeMagicRepeatGrant(state, repeatSource)
         log(state, `${getCard(cardId).name}の効果をもう1度発揮する。`)
         runMagicActions(state, owner, cardId, timing, targetInstanceId)
-        if (state.pendingChoice) return
+        if (state.pendingChoice) {
+            pushMagicAfterEffects(state, owner, cardId, timing, targetInstanceId, paidCost, null)
+            return
+        }
     }
     fireMagicUsedTriggers(state, owner, getCard(cardId), timing, paidCost)
 }
@@ -119,7 +146,10 @@ export function applyMagicRepeatChoice(
         if (source) consumeMagicRepeatGrant(state, source)
         log(state, `${card.name}の効果をもう1度発揮する。`)
         runMagicActions(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
-        if (state.pendingChoice) return
+        if (state.pendingChoice) {
+            pushMagicAfterEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost, null)
+            return
+        }
         if (state.winner) return
     } else {
         log(state, `${card.name}の効果をもう1度は発揮しなかった。`)
