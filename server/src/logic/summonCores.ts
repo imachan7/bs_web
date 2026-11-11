@@ -3,12 +3,15 @@ import type { CardData, EffectAction, GameState, PlayerId } from "../type"
 import { coreRemovalAllowed } from "./coreGate"
 import { suspend } from "./GameState"
 import { normalReserveOf, soulCoreOnInstance } from "./soulCore"
+import { summonVoidToll } from "../../../shared/rules/summonToll"
 
 // 支払い元はリザーブ（ソウルコアを除く）とフィールドの全コア。味方を0個にして消滅させる払い方も含める（通常の召喚と同じ）。
-// ponytail: ボイドの通行料（BS22-012）は数えない。通行料があるときは askSummonCores が待ちを立てず従来の経路に任せる
+// ボイドの通行料（BS22-012）はリザーブから払うので、合計から引き、リザーブが足りなければ候補なし
 export function summonCoreOptions(state: GameState, pid: PlayerId, card: CardData, cost: number): { level: number; cores: number }[] {
     const player = state.players[pid]
-    let total = normalReserveOf(player)
+    const toll = summonVoidToll(state, card)
+    if (normalReserveOf(player) < toll) return []
+    let total = normalReserveOf(player) - toll
     for (const inst of [...player.field.nexuses, ...player.field.spirits]) {
         const own = inst.cores - (soulCoreOnInstance(player, inst.instanceId) ? 1 : 0)
         total += Math.min(own, coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: own, cause: "cost", actorPid: pid }))
@@ -23,7 +26,8 @@ export function askSummonCores(state: GameState, pid: PlayerId, card: CardData, 
     const options = summonCoreOptions(state, pid, card, cost)
     const first = options[0]
     if (first === undefined) return false
-    if (options.length < 2 && normalReserveOf(state.players[pid]) >= cost + first.cores) return false
+    const toll = summonVoidToll(state, card)
+    if (options.length < 2 && normalReserveOf(state.players[pid]) >= cost + first.cores + toll) return false
     suspend(state, {
         pid,
         kind: "option",
@@ -33,7 +37,7 @@ export function askSummonCores(state: GameState, pid: PlayerId, card: CardData, 
         optional: false,
         action: resume,
         selfInstanceId: null,
-        effectCostPay: { pid, need: cost, sourceCardId: card.cardId, keep: first.cores, keepByOption: options.map((o) => o.cores), ...(surcharge ? { surcharge: true as const } : {}) },
+        effectCostPay: { pid, need: cost, sourceCardId: card.cardId, keep: first.cores, keepByOption: options.map((o) => o.cores), ...(toll > 0 ? { tollKeep: toll } : {}), ...(surcharge ? { surcharge: true as const } : {}) },
     })
     return true
 }

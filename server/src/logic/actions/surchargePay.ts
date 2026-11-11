@@ -33,7 +33,7 @@ const summonFreeIndexInternalHandler: ActionHandler<"summonFreeIndexInternal"> =
 
 const trashSummonPaidInternalHandler: ActionHandler<"trashSummonPaidInternal"> = (ctx, action) => {
     const info = { pid: ctx.owner, cardId: action.cardId, trashIndex: action.trashIndex }
-    if (action.via === "mill") applySpiritMillFreeSummon(ctx.state, info, true)
+    if (action.via === "mill") applySpiritMillFreeSummon(ctx.state, info, true, action.placeCores)
     else applyFushiSummon(ctx.state, { ...info, ...(action.freeNexusInstanceId !== undefined ? { freeNexusInstanceId: action.freeNexusInstanceId } : {}) }, action.via === "fushiFree" ? true : undefined, true, action.placeCores)
 }
 

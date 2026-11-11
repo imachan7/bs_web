@@ -348,7 +348,7 @@ function resolveChoiceInner(
         const soul = paySoulCoreFromReserve === true
         const chosenAt = (pending.options ?? []).indexOf(option)
         const placeCores = info.keepByOption?.[chosenAt]
-        const keep = placeCores ?? info.keep ?? 0
+        const keep = (placeCores ?? info.keep ?? 0) + (info.tollKeep ?? 0)
         // 後で置くコア（keep）もフィールドから払える。フィールドから置くコアに回したぶんはいったんリザーブへ戻し、続きがリザーブから置く
         const auto = paySources === undefined && !soul ? autoPayPlan(state, info.pid, info.need + keep, true) : null
         if (paySources === undefined && !soul && auto === null) return "コアが足りません"

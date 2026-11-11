@@ -1079,6 +1079,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fchangeCostAs`（fn）：summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
 - `summonFromHandFreeCandidateMatches`（fn）
 
+## server/src/logic/summonCores.ts
+
+- `summonCoreOptions`（fn）：支払い元はリザーブ（ソウルコアを除く）とフィールドの全コア。味方を0個にして消滅させる払い方も含める（通常の召喚と同じ）。
+- `askSummonCores`（fn）：Lv が2つ以上選べる、またはリザーブだけでは足りないとき、支払い待ち（effectCostPay）を立てて true。
+
 ## server/src/logic/summonCostRules.ts
 
 - `consumeSummonCostSetOnce`（fn）：召喚の宣言で対象が決まる（Q4458）ので、該当するカードを召喚した時点で使い切る

@@ -46,17 +46,20 @@ console.log("=== deployNexus.optional：選べば配置される（SD02-006） =
     const idx = s.pendingChoice?.cardIndices?.[0]
     assert(idx !== undefined, "選択待ちのcardIndicesが立っている")
     assert(act(s, "p1", { type: "resolveChoice", cardIndex: idx! }) === null, "選んで配置できる")
+    // 置くコアの数（Lv）を選ぶ待ち（2026-11-11）。Lv1 を選ぶ
+    assert(s.pendingChoice?.effectCostPay?.keepByOption !== undefined && act(s, "p1", { type: "resolveChoice", option: s.pendingChoice.options![0]! }) === null, "置くコアの数（Lv1）を選ぶ")
     assert(s.players.p1.field.nexuses.some((n) => n.cardId === "BS01-098"), "フィールドに配置される")
     assert(!s.players.p1.trashCards.includes("BS01-098"), "トラッシュから消える")
 }
 
-console.log("=== deployNexus（optional無し）：候補1枚のときは従来どおり自動で配置される（BS10-112相当） ===")
+console.log("=== deployNexus（optional無し）：候補1枚のときはカードの選択なしで、置くコアの数（Lv）だけ聞かれる（BS10-112相当） ===")
 {
     const s = base("deploy-auto")
     s.players.p1.trashCards.push("BS01-098")
     resolveAction(s, "p1", null, { type: "deployNexus", from: "trash" })
-    assert(s.pendingChoice === null, "選択待ちにならない")
-    assert(s.players.p1.field.nexuses.some((n) => n.cardId === "BS01-098"), "自動で配置される")
+    assert(s.pendingChoice?.kind === "option" && s.pendingChoice.effectCostPay?.keepByOption !== undefined, "Lv を選ぶ待ちが立つ（カードの選択は出ない）")
+    assert(act(s, "p1", { type: "resolveChoice", option: s.pendingChoice!.options![0]! }) === null, "Lv1 を答える")
+    assert(s.players.p1.field.nexuses.some((n) => n.cardId === "BS01-098"), "Lv1 で配置される")
 }
 
 console.log("=== BS14-064：バーストのsequence内で4回deployNexusを呼ぶ。途中で選択が入っても再開して最後まで解決される ===")
@@ -72,6 +75,10 @@ console.log("=== BS14-064：バーストのsequence内で4回deployNexusを呼�
     let loops = 0
     while (s.pendingChoice && loops < 20) {
         loops++
+        if (s.pendingChoice.effectCostPay?.keepByOption !== undefined) {
+            assert(handleAction(s, "p1", { type: "resolveChoice", option: s.pendingChoice.options![0]! }) === null, "Lv1 を選ぶ")
+            continue
+        }
         const idx = s.pendingChoice.cardIndices?.[0]
         const cardId = idx !== undefined ? p1.trashCards[idx] : undefined
         // ⚠️ ここは act() ではなく handleAction() を直接使う。smoke の保存則チェック（countCards）は

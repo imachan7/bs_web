@@ -3,7 +3,7 @@ import { beginMagicUse, finishMagicUseOrDefer } from "../magic/inUse"
 import { coreRemovalAllowed } from "../coreGate"
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
-import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "../GameState"
+import { getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "../GameState"
 import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
@@ -14,7 +14,6 @@ import { canDiscardHand, instMinLevelCores, isTrashCardProtected, timedMagicLock
 import { effectiveCost } from "../RuleValidator"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalCoresOn } from "../soulCore"
-import { fireNexusDeployed } from "../fieldEventTriggers"
 import { recordMagicUsed } from "../record"
 import { countedAmount } from "../counted"
 import { matchesPick } from "./revealAction"
@@ -183,7 +182,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number): b
         return true
     }
     if (action.dest === "cast" && action.pay === "cost") return castWithCost(ctx, pid, zone, j)
-    if (action.dest === "placeNexus" && action.pay === "fieldCoresOnly") return deployByFieldCores(ctx, pid, zone, j)
+    if (action.dest === "placeNexus" && action.pay === "fieldCoresOnly") return deployByFieldCores(ctx, pid, zone, j, action.from === "hand" ? "hand" : "trash")
     // コストを支払わない配置／使用：オープンしたカードと同じ送り先の処理に渡す
     if (card.type !== (action.dest === "cast" ? "magic" : "nexus") || !affordable(state, pid, action, cardId)) return false
     zone.splice(j, 1)
@@ -193,7 +192,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number): b
 
 // BS09-065名工集いし大工房Lv2：**自分のフィールドのコアだけ**を使ってコストを支払って配置する（リザーブは使わない。2026-08-14 ユーザー確認）。
 // 取るのはネクサス上→コアの多いスピリットの順で、**維持コアを割る個体からは取らない**（決定的簡略化）
-function deployByFieldCores(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number): boolean {
+function deployByFieldCores(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number, from: "hand" | "trash"): boolean {
     const { state, sourceName } = ctx
     const player = state.players[pid]
     const cardId = zone[j]!
@@ -211,11 +210,9 @@ function deployByFieldCores(ctx: ActionCtx, pid: PlayerId, zone: string[], j: nu
         player.trashCores += take
         remaining -= take
     }
-    zone.splice(j, 1)
-    const inst = createInstance(cardId, state.turn, minLevelCores(getCard(cardId)))
-    player.field.nexuses.push(inst)
-    log(state, `${player.name}はフィールドのコア${String(cost)}個を支払い、トラッシュから${getCard(cardId).name}を配置した。`)
-    fireNexusDeployed(state, pid, inst)
+    log(state, `${player.name}はフィールドのコア${String(cost)}個を支払った。`)
+    // 置くコアの数（Lv）の選択と配置は、コストを払わない配置と同じ（deployNexus）。カードは選択待ちのあいだ元のゾーンに残る
+    ctx.resolve({ type: "deployNexus", from, deployIndex: j })
     return true
 }
 

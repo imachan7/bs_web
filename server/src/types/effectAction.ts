@@ -51,7 +51,7 @@ export type EffectAction =
 
  | { type: "destroyDuplicateNames"; choosing?: true; keptIds?: string[] } // カード名1つにつき1体だけ残して残りを破壊する。**どれを残すかは持ち主が選ぶ**（効果文に主語が無いので発生源の持ち主。2026-08-24）。choosing / keptIds は内部フィールド
  | { type: "activateBurstIgnoringCondition"; from: "set" | "revealed"; filter?: CardPick; optional?: true; confirmed?: true } // バースト条件を無視してバーストを発動する（BS18）。きっかけの出来事に依存する参照は不発。confirmed は確認済みの再入印で内部用
- | { type: "summon"; from: "burst"; payCost?: true; thenBuffSelf?: number; surchargePrepaid?: true } // payCost＝通常の召喚コストも支払う（リザーブのみ）。バースト専用：発動中のバーストのカード自身を召喚する（スピリット/ネクサスのみ）。維持コア不足なら不発
+ | { type: "summon"; from: "burst"; payCost?: true; thenBuffSelf?: number; surchargePrepaid?: true; placeCores?: number } // placeCores＝置くコアの選択待ちで選ばれた数（内部用。付いていれば payCost のコストと余分は待ちで払い済み）。 payCost＝通常の召喚コストも支払う（リザーブのみ）。バースト専用：発動中のバーストのカード自身を召喚する（スピリット/ネクサスのみ）。維持コア不足なら不発
 
 
 
@@ -203,7 +203,7 @@ export type EffectAction =
  | { type: "skipDrawStep" } // このドローステップのドローを行わない（「ドローしないことで」の支払い。step.beforeDraw から呼ぶ）
  | { type: "designate"; side?: "own" | "opponent"; filter?: TargetFilter; count?: number; upTo?: true; add?: true; chosen?: string[]; awaiting?: true } // 選んだ個体を直前の対象（recordTargets）に書き、後ろの効果は filter.lastTarget で使う。相手側は装甲などの「指定されない」を通す。add＝直前の指定を消さずに足す。chosen／awaiting は内部用
  | { type: "revealOpen"; from?: "ownDeck" | "opponentDeck" | "burst"; count?: number; countCounter?: EffectCounter; countPer?: { ownColorTotal: Color } | { ownNexuses: true } | { ownSymbols: Color } | { keishoExcluded: true }; countFromSelfLevel?: true; destroySelfIf?: CardPick } // デッキの上からオープンするだけ（バーストならバーストをオープン）。公開ゾーン（GameState.revealedCards）に置き、lastMoved に書く。選ぶ・残りを送るのは moveCards from:"revealed"
- | { type: "revealApplyOne"; cardId: string; srcPid: PlayerId; dest?: "hand" | "summon" | "summonOrPlace" | "cast" | "placeNexus" | "tegamoto" | "deckBottom" | "activateBurst" | "trash"; ignoreBurstCondition?: true; tensho?: "asIfDone" | "none"; noSummonEffects?: true; orHand?: true; returnToDeckBottomAtEndStep?: true; destroyAtBattleEnd?: true; pay?: "cost"; surchargePrepaid?: true } // surchargePrepaid＝召喚の余分の支払いを払い済み（内部用）。pay:"cost"＝dest:"summon" で通常の召喚コストも支払う（リザーブだけ）。内部専用：revealで選ばれた1枚（元のゾーンから取り除き済み）を dest へ送る。【転召】の対象選択から再開する経路もここを通る
+ | { type: "revealApplyOne"; cardId: string; srcPid: PlayerId; dest?: "hand" | "summon" | "summonOrPlace" | "cast" | "placeNexus" | "tegamoto" | "deckBottom" | "activateBurst" | "trash"; ignoreBurstCondition?: true; tensho?: "asIfDone" | "none"; noSummonEffects?: true; orHand?: true; returnToDeckBottomAtEndStep?: true; destroyAtBattleEnd?: true; pay?: "cost"; surchargePrepaid?: true; placeCores?: number } // placeCores＝置くコアの選択待ちで選ばれた数（内部用。付いていれば pay:"cost" のコストと余分は待ちで払い済み。summonCores.ts）。surchargePrepaid＝召喚の余分の支払いを払い済み（内部用）。pay:"cost"＝dest:"summon" で通常の召喚コストも支払う（リザーブだけ）。内部専用：revealで選ばれた1枚（元のゾーンから取り除き済み）を dest へ送る。【転召】の対象選択から再開する経路もここを通る
  | { type: "revealRest"; destPid: PlayerId; rest?: "trash" | "deckTop" | "deckBottom" | "deckTopOrBottom" | "hand"; pool?: string[]; placed?: number } // 内部専用：revealで選ばれなかった残りをrest先へ送る。デッキへ戻すときは1枚ずつ順番を選ばせる（destPidが持ち主。相手のデッキでも選ぶのはctx.owner）
  | { type: "summonBatchFlush" } // 内部専用：オープンから複数体を同時に召喚し終えたあと、後回しにした召喚時効果をまとめて発揮する（summon.ts flushSummonBatch）
  | { type: "revealFinishSummon"; noSummonEffects?: true } // 内部専用：revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き。selfが召喚済みのインスタンス
@@ -260,6 +260,8 @@ export type EffectAction =
  // choosing/chosenIdx/prepaid は選択の途中経過。prepaid＝合計コストを支払い待ちで払い済み
  choosing?: true
  chosenIdx?: number[]
+ lvCores?: number[] // 体ごとに選んだ置くコアの数。lvAsk＝その途中の質問の答えを受けて再開する
+ lvAsk?: true
  prepaid?: true
  // 【転召】の対象は決定のあと・支払いの前に選ぶ（2026-10-15 ユーザー確認）。confirmed＝決定済み、tenshoPicks＝chosenIdx と同じ並びの対象（null＝転召なし・対象なし）、tenshoRest＝召喚後に残っている転召
  confirmed?: true

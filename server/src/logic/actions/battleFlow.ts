@@ -381,15 +381,15 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             if (action.nameContains !== undefined && !c.name.includes(action.nameContains)) return false
             return action.colors === undefined || action.colors.some((col) => cardHasColor(c, col))
         }
-        // asking＝置くコアの選択待ちを立ててよい経路（複数枚を一度に置く all は立てない）
-        const deployFromIndex = (idx: number, placeCores?: number, asking = true): void => {
+        // 置くコアの選択待ちを立てたら true（all は1枚ずつ聞くので、待ちが立ったらそこで止める）
+        const deployFromIndex = (idx: number, placeCores?: number): boolean => {
             const zone = action.from === "hand" ? player.hand : player.trashCards
             const cardId = zone[idx]
             if (cardId === undefined) {
                 log(state, `${sourceName}：対象がいなかった。`)
-                return
+                return false
             }
-            if (placeCores === undefined && asking && askSummonCores(state, owner, getCard(cardId), 0, { ...action, deployIndex: idx })) return
+            if (placeCores === undefined && askSummonCores(state, owner, getCard(cardId), 0, { ...action, deployIndex: idx })) return true
             zone.splice(idx, 1)
             const maintain = placeCores ?? minLevelCores(getCard(cardId))
             // 選んだ数はリザーブから置く。選ばない経路は従来どおり（リザーブを減らさない）
@@ -401,10 +401,12 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
             )
             fireNexusDeployed(state, owner, inst)
+            return false
         }
         if (action.deployIndex !== undefined) {
             deployFromIndex(action.deployIndex, action.placeCores)
-            return
+            // all の続き：残りの該当カードを、次の1枚から聞き直す
+            if (!action.all || state.pendingChoice) return
         }
         if (action.all) {
             // 該当するネクサスカードをすべて配置する（選択の余地がないためinteractiveTargets/chosenCardIndexは無関係）
@@ -414,12 +416,12 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 if (isMatch(zone[i]!)) indices.push(i)
             }
             if (indices.length === 0) {
-                log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象のネクサスがなかった。`)
+                if (action.deployIndex === undefined) log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象のネクサスがなかった。`)
                 return
             }
             // 後ろのインデックスから順に配置（splice後もインデックスがずれないように）
             for (let i = indices.length - 1; i >= 0; i--) {
-                deployFromIndex(indices[i]!, undefined, false)
+                if (deployFromIndex(indices[i]!)) return
             }
             return
         }

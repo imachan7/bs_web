@@ -491,13 +491,13 @@ export function applyFushiSummon(
         return
     }
     if (!prepaid) {
-        const payable = state.interactiveTargets && voidToll === 0 ? summonCoreOptions(state, info.pid, card, cost).length > 0 : autoPayPlan(state, info.pid, cost + maintain + voidToll, true) !== null
+        const payable = state.interactiveTargets ? summonCoreOptions(state, info.pid, card, cost).length > 0 : autoPayPlan(state, info.pid, cost + maintain + voidToll, true) !== null
         if (!payable) {
             log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
             return
         }
         const resume = { type: "trashSummonPaidInternal", via: freeNexus ? "fushiFree" : "fushi", cardId: info.cardId, trashIndex: index, ...(freeNexus ? { freeNexusInstanceId: freeNexus.instanceId } : {}) } as const
-        const asked = voidToll === 0 && askSummonCores(state, info.pid, card, cost, resume, freeNexus !== undefined)
+        const asked = askSummonCores(state, info.pid, card, cost, resume, freeNexus !== undefined)
             ? true
             : freeNexus
             ? askSurchargePay(state, info.pid, card, false, maintain, resume)
@@ -585,6 +585,7 @@ export function applySpiritMillFreeSummon(
     info: NonNullable<PendingChoice["spiritMillFreeSummon"]>,
     // 余分を支払い待ち（effectCostPay）で払い済み
     prepaid?: true,
+    placeCores?: number,
 ): void {
     const player = state.players[info.pid]
     const index =
@@ -593,8 +594,15 @@ export function applySpiritMillFreeSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const maintain = minLevelCores(card)
-    if (!prepaid && askSurchargePay(state, info.pid, card, false, maintain, { type: "trashSummonPaidInternal", via: "mill", cardId: info.cardId, trashIndex: index })) return
+    const maintain = placeCores ?? minLevelCores(card)
+    const resume = { type: "trashSummonPaidInternal", via: "mill", cardId: info.cardId, trashIndex: index } as const
+    if (!prepaid) {
+        const owed = surchargeOwed(state, info.pid, card, false)
+        if (askSummonCores(state, info.pid, card, owed, resume, owed > 0)) return
+        if (askSurchargePay(state, info.pid, card, false, maintain + summonVoidToll(state, card), resume)) return
+    }
+    // 待ちで払い済みのときも、通行料はここでリザーブから払う（待ちが置くコアと一緒に取り置いてある）
+    if (prepaid) payVoidToll(state, info.pid, card)
     const placed = prepaid ? 0 : payFreeSummonSurchargeKeeping(state, info.pid, card, false, maintain)
     if (placed === null) {
         log(state, `${card.name}：転召の祭壇などの余分のコストを払えず、召喚できなかった。`)

@@ -148,6 +148,8 @@ console.log("=== BS14-098：対話モードの確認プロンプトもコスト0
     assert(s.pendingChoice?.fushiSummon !== undefined, "【不死】の召喚確認が立つ")
     assert((s.pendingChoice?.prompt ?? "").includes("コスト0"), "確認文はコスト0と出す")
     assert(act(s, "p1", { type: "resolveChoice", option: "召喚する" }) === null, "召喚するを選ぶ")
+    // 置くコアの数（Lv）を聞かれる（2026-11-11）。Lv1 を選ぶ
+    assert(s.pendingChoice?.effectCostPay?.keepByOption !== undefined && act(s, "p1", { type: "resolveChoice", option: s.pendingChoice.options![0]! }) === null, "Lv1を選ぶ")
     assert(ON_FIELD(s, "p1", FUSHI.cardId), "召喚されている")
 }
 

@@ -783,7 +783,7 @@ function fushiCase(card: string, cost: number, lv: number, bp: number, mode: "ac
                 assert(t.state.pendingChoice !== null && t.state.pendingChoice.pid === t.me, `${name}：自分に召喚の確認が出る`)
                 if (mode === "accept") {
                     t.act("me", { type: "resolveChoice", option: "召喚する" })
-                    t.act("me", { type: "resolveChoice", option: "支払う" })
+                    t.act("me", { type: "resolveChoice", option: "Lv1（コア1個）" })
                 } else t.act("me", { type: "resolveChoice" })
             }
         },

@@ -3,7 +3,8 @@
 import { beginMagicUse, finishMagicUseOrDefer } from "../magic/inUse"
 import { handGainDenial } from "../handGate"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
-import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll } from "../summonSurcharge"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "../summonSurcharge"
+import { askSummonCores } from "../summonCores"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardPick, EffectAction, Keyword, PlayerId, PlayerState } from "../../type"
 import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames } from "../GameState"
@@ -130,8 +131,11 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 player.trashCards.push(cardId)
                 return
             }
-            const maintain = minLevelCores(card)
-            const cost = action.pay === "cost" ? effectiveCost(state, owner, card) : 0
+            // placeCores が付いていれば、置くコアの選択待ちで pay:"cost" のコストは払い済み（summonCores.ts）
+            const maintain = action.placeCores ?? minLevelCores(card)
+            const fullCost = action.pay === "cost" ? effectiveCost(state, owner, card) : 0
+            const cost = action.placeCores !== undefined ? 0 : fullCost
+            if (action.placeCores === undefined && askSummonCores(state, owner, card, fullCost, action)) return
             if (player.reserve < maintain + cost + summonVoidToll(state, card)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を配置できなかった。`)
                 player.trashCards.push(cardId)
@@ -142,7 +146,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             player.reserve -= maintain
             const inst = createInstance(cardId, state.turn, maintain)
             player.field.nexuses.push(inst)
-            log(state, `${player.name}は${sourceName}の効果で、${card.name}を${action.pay === "cost" ? `コスト${cost}を支払って` : "コストを支払わずに"}配置した。`)
+            log(state, `${player.name}は${sourceName}の効果で、${card.name}を${action.pay === "cost" ? `コスト${fullCost}を支払って` : "コストを支払わずに"}配置した。`)
             notifyNexusDeployed(state, owner)
             return
         }
@@ -171,15 +175,20 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 failDest(ctx, action.orHand, cardId)
                 return
             }
-            const maintain = minLevelCores(card)
-            const cost = action.pay === "cost" ? effectiveCost(state, owner, card, false, [], false, false) : 0
+            // placeCores が付いていれば、置くコアの選択待ちで pay:"cost" のコストと余分は払い済み（summonCores.ts）
+            const maintain = action.placeCores ?? minLevelCores(card)
+            const fullCost = action.pay === "cost" ? effectiveCost(state, owner, card, false, [], false, false) : 0
+            const cost = action.placeCores !== undefined ? 0 : fullCost
             if (action.surchargePrepaid) state.summonSurchargePaid = owner
+            const owed = action.pay === "cost" ? fullCost : surchargeOwed(state, owner, card, true)
+            const surchargeOnly = action.pay !== "cost" && owed > 0
+            if (action.placeCores === undefined && askSummonCores(state, owner, card, owed, surchargeOnly ? { ...action, surchargePrepaid: true } : action, surchargeOnly)) return
             if (action.pay === "cost" ? player.reserve < maintain + cost + summonVoidToll(state, card) : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
                 failDest(ctx, action.orHand, cardId)
                 return
             }
-            if (action.pay !== "cost" && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
+            if (action.pay !== "cost" && action.placeCores === undefined && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
             const placedFromField = action.pay !== "cost" ? payFreeSummonSurchargeKeeping(state, owner, card, true, maintain) ?? 0 : 0
             if (action.pay === "cost") payVoidToll(state, owner, card)
             payCost(state, owner, cost, undefined, maintain)
@@ -188,7 +197,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             if (action.returnToDeckBottomAtEndStep) inst.returnToDeckBottomAtEndStep = true
             if (action.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
             player.field.spirits.push(inst)
-            log(state, `${player.name}は${sourceName}の効果で、${card.name}を${action.pay === "cost" ? `コスト${cost}を支払って` : "コストを支払わずに"}召喚した。`)
+            log(state, `${player.name}は${sourceName}の効果で、${card.name}を${action.pay === "cost" ? `コスト${fullCost}を支払って` : "コストを支払わずに"}召喚した。`)
             if (action.tensho === undefined) {
                 if (!state.winner) resolveTensho(state, owner, inst)
                 if (state.pendingChoice) {
