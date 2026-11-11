@@ -857,7 +857,7 @@ async function init(): Promise<void> {
             if (meisai && view) {
                 const me = view.players[view.you]
                 const soulSelectable = me.soulCore !== null && me.soulCore.zone !== "trash"
-                if (!soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need) {
+                if (pc?.effectCostPay?.reserveOnly || (!soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need)) {
                     send({ type: "resolveChoice", option })
                     return
                 }

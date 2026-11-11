@@ -156,7 +156,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number): b
     if (action.dest === "summon" && action.from === "hand") {
         const before = zone.length
         summonFreeFromHandIndex(state, pid, sourceName, j, action.skipTensho, {
-            ...(action.pay === "cost" ? { payCost: true as const, ...(ctx.paySources ? { paySources: ctx.paySources } : {}) } : {}),
+            ...(action.pay === "cost" ? { payCost: true as const, ...(ctx.paySources ? { paySources: ctx.paySources } : {}), ...(action.reserveOnly ? { reserveOnly: true as const } : {}) } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: true as const } : {}),
             summonedBy: action.summonedBy ?? "freeEffect",
             surchargeBatch: true,
@@ -168,7 +168,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number): b
         const before = zone.length
         summonFreeFromTrashIndex(state, pid, sourceName, j, {
             ...(action.summonedBy ? { summonedBy: action.summonedBy } : {}),
-            ...(action.pay === "cost" ? { payCost: true as const, ...(ctx.paySources ? { paySources: ctx.paySources } : {}) } : {}),
+            ...(action.pay === "cost" ? { payCost: true as const, ...(ctx.paySources ? { paySources: ctx.paySources } : {}), ...(action.reserveOnly ? { reserveOnly: true as const } : {}) } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: true as const } : {}),
             ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
             surchargeBatch: true,

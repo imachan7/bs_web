@@ -14,6 +14,8 @@ const summonFreeIndexInternalHandler: ActionHandler<"summonFreeIndexInternal"> =
     if (zoneCard !== undefined && summonSurcharge(state, owner, getCard(zoneCard)) > 0) state.summonSurchargePaid = owner
     const opts = {
         surchargeBatch: true as const,
+        ...(action.payCost ? { payCost: true as const } : {}),
+        ...(action.costPaid ? { costPaid: true as const } : {}),
         ...(action.placeCores !== undefined ? { placeCores: action.placeCores } : {}),
         ...(action.skipOnSummon ? { skipOnSummon: true as const } : {}),
         ...(action.summonedBy !== undefined ? { summonedBy: action.summonedBy } : {}),

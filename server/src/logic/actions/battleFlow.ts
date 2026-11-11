@@ -504,6 +504,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
             ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
+            ...(action.reserveOnly ? { reserveOnly: true as const } : {}),
             // 召喚経路の記録（CardInstance.summonedBy）。未指定なら「その他の効果による無償召喚」
             summonedBy: action.summonedBy ?? "freeEffect",
             surchargeBatch: true as const,

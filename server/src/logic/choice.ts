@@ -345,6 +345,7 @@ function resolveChoiceInner(
     if (pending.effectCostPay) {
         if (option === undefined || !(pending.options ?? []).includes(option)) return "支払ってください"
         const info = pending.effectCostPay
+        if (info.reserveOnly && paySources !== undefined && paySources.length > 0) return "この支払いはリザーブからだけ行えます"
         const soul = paySoulCoreFromReserve === true
         const chosenAt = (pending.options ?? []).indexOf(option)
         const placeCores = info.keepByOption?.[chosenAt]
