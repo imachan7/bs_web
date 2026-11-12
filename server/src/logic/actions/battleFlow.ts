@@ -1,5 +1,6 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { takeFromTrash, trashTakeableByEffect } from "../zones/trash"
 import { flushSummonBatch } from "../summon"
 import { resolveSummonRepeatPaid } from "./summonRepeat"
 import { summonSurcharge } from "../../../../shared/cost"
@@ -373,6 +374,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             const c = getCard(cardId)
             // colors 省略時は色を問わない（SD02-006 鼬の暗殺者ウィゼーブ）
             if (c.type !== "nexus") return false
+            if (action.from === "trash" && !trashTakeableByEffect(state, cardId)) return false
             if (action.nameContains !== undefined && !c.name.includes(action.nameContains)) return false
             return action.colors === undefined || action.colors.some((col) => cardHasColor(c, col))
         }
@@ -385,7 +387,8 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 return false
             }
             if (placeCores === undefined && askSummonCores(state, owner, getCard(cardId), 0, { ...action, deployIndex: idx })) return true
-            zone.splice(idx, 1)
+            if (action.from === "hand") zone.splice(idx, 1)
+            else if (takeFromTrash(state, owner, idx, "effect") === null) return false
             const maintain = placeCores ?? minLevelCores(getCard(cardId))
             // 選んだ数はリザーブから置く。選ばない経路は従来どおり（リザーブを減らさない）
             if (placeCores !== undefined) player.reserve -= placeCores

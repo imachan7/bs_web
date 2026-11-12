@@ -1,4 +1,5 @@
 // 【光芒】の判定と解決
+import { takeFromTrash } from "../zones/trash"
 import { handGainDenial } from "../handGate"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
@@ -68,7 +69,7 @@ export function resolveKoboOnBattleEnd(
         if (handGainDenial(state, { pid: attackerPid, from: "trash", cause: "effect" })) break
         const idx = player.trashCards.lastIndexOf(cardId)
         if (idx === -1) continue
-        player.trashCards.splice(idx, 1)
+        if (takeFromTrash(state, attackerPid, idx, "effect") === null) continue
         player.hand.push(cardId)
         recovered++
         log(state, `【${keywordLabel}】${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)

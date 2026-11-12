@@ -1,4 +1,5 @@
 // デッキ破棄（mill）の上限とデッキ破棄の実行
+import { takeFromTrash } from "./trash"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import { recordMoved } from "../record"
@@ -271,7 +272,7 @@ export function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, mi
         if (getCard(cardId).type !== "magic") continue
         const idx = player.trashCards.lastIndexOf(cardId)
         if (idx === -1) continue // onMilledFromDeck が先に取り除いたカード
-        player.trashCards.splice(idx, 1)
+        if (takeFromTrash(state, pid, idx, "effect") === null) continue
         noteCoverage(effectSources(state, pid).flatMap((s) => getCard(s.cardId).effects).find((e) => e.kind === "milledMagicToTegamoto"), "milledMagicToTegamoto")
         player.tegamoto.push(cardId)
         player.tegamotoPlayable.push(cardId)
@@ -499,7 +500,7 @@ export function resolveMilledFromDeck(
                 resolveAction(state, pid, null, { type: "lifeCrush", count: 1, dest: "void" }, undefined, getCard(cardId).colors, "spirit")
                 break
             }
-            player.trashCards.splice(idx, 1)
+            if (takeFromTrash(state, pid, idx, "effect") === null) break
             noteCoverage(effect, "onMilledFromDeck")
             const name = getCard(cardId).name
             if (effect.then === "deployThisNexusFree") {

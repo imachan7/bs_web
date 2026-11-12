@@ -1,4 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
+import { takeFromTrash } from "./zones/trash"
 import { settleAllLifeZero } from "./lifeGate"
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { askSurchargePay, payFreeSummonSurcharge, payVoidToll } from "./summonSurcharge"
@@ -580,8 +581,8 @@ export function doSummon(
         const excluded: string[] = []
         exReductionSymbols = exReductionTrashIndices.flatMap((idx) => exSymbolsOfTrashCard(state, pid, idx))
         for (const idx of [...exReductionTrashIndices].sort((a, b) => b - a)) {
-            const [id] = player.trashCards.splice(idx, 1)
-            if (id !== undefined) excluded.unshift(id)
+            const id = takeFromTrash(state, pid, idx, "rule")
+            if (id !== null) excluded.unshift(id)
         }
         player.excludedCards.push(...excluded)
         state.keishoExcludedCardIds = excluded

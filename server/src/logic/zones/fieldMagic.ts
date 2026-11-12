@@ -1,5 +1,6 @@
 // 場に残るマジック（BS19-099 等）の配置と破棄。置き場所は PlayerState.field.magics、
 // 中身の継続効果・fieldEvent は effectSources() がこの配列を返すことで効く（shared/rules/level.ts）
+import { takeFromTrash } from "./trash"
 import { redirectMagicInUse } from "../magic/inUse"
 import type { ActionRegistry } from "../actions/types"
 import type { CardInstance, GameState, PlayerId } from "../../type"
@@ -34,7 +35,7 @@ const handlers = {
             log(state, `${sourceName}：トラッシュにこのカードが見つからなかった。`)
             return
         }
-        player.trashCards.splice(index, 1)
+        takeFromTrash(state, owner, index, "rule")
         player.field.magics.push(createInstance(sourceCardId, state.turn, 0))
         log(state, `${sourceName}は${player.name}のフィールドに置かれた。`)
     },

@@ -1185,6 +1185,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `declineDeckMillNegate`（fn）：同上、断られたときの処理。見送っていた破棄をここで行う（skipNegate で確認の再入を防ぐ）
 - `resolveMilledFromDeck`（fn）：破棄されたカードのうち kind:"onMilledFromDeck" を持つものを解決する。
 
+## server/src/logic/zones/trash.ts
+
+- `TrashTakeBy`（型）：effect＝効果で動かす（保護を見る）。rule＝効果の対象にしない動き（《継召》のコストとして除外する・使ったマジックを場に残す）
+- `trashTakeableByEffect`（fn）：効果がトラッシュから動かせるカードか（候補を作るときに使う。選ばせてから取り出せない、を避けるため）
+- `takeFromTrash`（fn）：index のカードを取り出して返す。無い・保護されていて取り出せないときは null（トラッシュはそのまま。保護のときはログを出す）
+
 ## server/src/logic/zones/underCards.ts
 
 - `trashUnderCards`（fn）：下のカードを持ち主のトラッシュへ破棄する。場を離れるとき（全枚）とコスト支払い（count 枚）の共用。
