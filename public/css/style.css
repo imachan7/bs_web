@@ -2147,3 +2147,25 @@ button:active {
 body:has(#notice-banner:not(.hidden)) {
     padding-top: 34px;
 }
+
+/* デッキ欄の「スタートデッキを表示」の切り替え（.lobby-form label の縦並びより強く指定する） */
+.lobby-form label.starter-toggle,
+.starter-toggle {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    opacity: 0.85;
+    cursor: pointer;
+}
+.starter-toggle input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+.lobby-form .starter-toggle input[type="checkbox"] {
+    padding: 0;
+}
+.lobby-section .starter-toggle {
+    margin-bottom: 12px;
+}
