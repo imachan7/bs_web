@@ -370,12 +370,13 @@ console.log("--- SD01-032 機械神の加護：白のネクサスは相手の赤
     const attacker = put(s, "p2", VANILLA, 1)
     // 相手（p2）の赤のスピリットの効果でネクサスを破壊しようとする
     resolveAction(s, "p2", attacker, { type: "destroy", nexus: "only", count: 1 }, undefined, ["red"], "spirit")
+    // 加護自身も白のネクサスなので守られる（以前は発生源の色がネクサスの破壊に渡らず、加護が先に壊れてこの確認を偶然通っていた。#437 色F3）
     assert(
-        s.players.p1.field.nexuses.some((n) => n.instanceId === guarded.instanceId),
-        "相手の赤のスピリットの効果では破壊されない",
+        s.players.p1.field.nexuses.length === 2 && s.players.p1.field.nexuses.some((n) => n.instanceId === guarded.instanceId),
+        "相手の赤のスピリットの効果では破壊されない（加護自身も）",
     )
     // 青の効果なら通る（発生源の色で絞れていることの確認）
-    resolveAction(s, "p2", attacker, { type: "destroy", nexus: "only", count: 1 }, undefined, ["blue"], "spirit")
+    resolveAction(s, "p2", attacker, { type: "destroy", nexus: "only", count: 2 }, undefined, ["blue"], "spirit")
     assert(
         !s.players.p1.field.nexuses.some((n) => n.instanceId === guarded.instanceId && !n.pendingDestruction),
         "赤以外の効果では守られない",

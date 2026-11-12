@@ -68,7 +68,7 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
             // （ヴィクトリーファイアで「スピリット1体とネクサス1つ」を選ぶと、
             // スピリットの対象選択で中断してネクサスが壊れなかった。2026-08-17）
             resolveInOrder(state, mode.actions, {
-                resolve: (a) => ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType }),
+                resolve: (a) => ctx.resolve(a),
                 frame: (a) => ({
                     kind: "action" as const,
                     selfInstanceId: self ? self.instanceId : null,
@@ -119,7 +119,7 @@ const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
         resolveInOrder(state, action.actions, {
             resolve: (a) => {
                 state.recordScope = scope
-                ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType, ...(action.passEventTarget && ctx.targetInstanceId !== undefined ? { targetInstanceId: ctx.targetInstanceId } : {}) })
+                ctx.resolve(a, { ...(action.passEventTarget && ctx.targetInstanceId !== undefined ? { targetInstanceId: ctx.targetInstanceId } : {}) })
             },
             frame: (a) => ({
                 kind: "action" as const,
@@ -303,10 +303,10 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     // 【連鎖】の[色]の節が発揮したら、解決後に「【連鎖】が発揮したとき」を起こす（027・033）
     const rensaColor = met && cond !== undefined && "count" in cond && typeof cond.count === "object" && "ownColorSymbols" in cond.count ? cond.count.ownColorSymbols : undefined
     if (rensaColor !== undefined && self !== null && isRensaClause(state, owner, self, action)) {
-        ctx.resolve({ type: "sequence", actions: [branch, { type: "rensaActivated", color: rensaColor, drawFrom: state.drawCount?.[owner] ?? 0 }] }, { sourceColors: srcColors, sourceType: srcType })
+        ctx.resolve({ type: "sequence", actions: [branch, { type: "rensaActivated", color: rensaColor, drawFrom: state.drawCount?.[owner] ?? 0 }] })
         return
     }
-    ctx.resolve(branch, { sourceColors: srcColors, sourceType: srcType })
+    ctx.resolve(branch)
 }
 
 // 器AK：発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める
@@ -527,7 +527,7 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
     const found = findSpiritAny(state, action.targetInstanceId)
     if (!found) {
         // 聞いている間に対象が場を離れた。払わせずに元の処理へ戻す（そちらが「対象がいない」を出す）
-        ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId, sourceColors: ctx.srcColors, sourceType: ctx.srcType })
+        ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId })
         return
     }
     const defender = state.players[found.pid]
@@ -546,7 +546,7 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
     // **対象を明示的に渡し直す**（ctx.resolve は targetInstanceId を暗黙には引き継がない。
     // 渡さないと元のアクションが「対象指定なし」の経路に落ちて、別のスピリットを巻き込む）
     // 発生源の種別・色も渡し直す（落とすと耐性判定が発生源種別を見られず、払ったのに効果を受ける）
-    ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId, sourceColors: ctx.srcColors, sourceType: ctx.srcType })
+    ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId })
     return
 }
 

@@ -277,7 +277,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             log(state, `${sourceName}：【暴風】で疲労させる相手のスピリットを自分で指定する。`)
             // targetInstanceId（excludeTarget が除外に使うブロッカー）と発生源の色・種別は
             // 明示的に引き継ぐ（ctx.resolve は省略すると undefined を渡す設計のため）
-            ctx.resolve(rest, { targetInstanceId, sourceColors: srcColors, sourceType: srcType })
+            ctx.resolve(rest, { targetInstanceId })
             return
         }
         const matchesLevel = (s: CardInstance) =>
@@ -302,7 +302,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             // excludeIds 付き＝count 体を1体ずつ選んでいる途中。この1体の処理が済んだら（受けなかった場合も含め）残りを選び直す
             const chainNext = (): void => {
                 if (action.excludeIds === undefined || action.count <= 1) return
-                ctx.resolve({ ...action, count: action.count - 1, excludeIds: [...action.excludeIds, found.inst.instanceId] }, { sourceColors: srcColors, sourceType: srcType })
+                ctx.resolve({ ...action, count: action.count - 1, excludeIds: [...action.excludeIds, found.inst.instanceId] })
             }
             // 「手札を破棄することで効果を受けない」は払うかを守る側に聞いてから判定する（BS08竜騎集う円卓Lv2）
             if (askPayToNegateIfNeeded(state, found.pid, found.inst, exhaustAttempt, action, self, sourceName)) return

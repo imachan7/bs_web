@@ -522,7 +522,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 action.drawPerDestroyed && victim.pid === opp
                     ? { actorPid: owner, action: { type: "draw" as const, count: action.drawPerDestroyed } }
                     : undefined
-            if (destroyNexus(state, victim.pid, victim.n.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) }, drawAfter)) {
+            if (destroyNexus(state, victim.pid, victim.n.instanceId, ctx.destroyContext, drawAfter)) {
                 recordMoved(state, [victim.n.cardId], scope)
             }
             return
@@ -533,7 +533,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
             const pid = opp
             if (targetInstanceId !== undefined) {
                 const nexus = state.players[pid].field.nexuses.find((n) => n.instanceId === targetInstanceId)
-                if (nexus) destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+                if (nexus) destroyNexus(state, pid, nexus.instanceId, ctx.destroyContext)
                 else log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                 return
             }
@@ -558,7 +558,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                 return
             }
-            destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+            destroyNexus(state, pid, nexus.instanceId, ctx.destroyContext)
             return
         }
         // side:"own" の1つ破壊は持ち主が選ぶ。非対話は旧サクリファイスと同じくコア最少（同数は先頭）
@@ -589,7 +589,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                     return
                 }
                 const scope = currentRecordScope(state)
-                if (destroyNexus(state, owner, picked.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+                if (destroyNexus(state, owner, picked.instanceId, ctx.destroyContext)) {
                     recordMoved(state, [picked.cardId], scope)
                     recordNexusCost(state, getCard(picked.cardId).cost, scope)
                 }
@@ -610,7 +610,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
             // 破壊したネクサスを lastMoved に書く（「破壊したネクサスのコストと同じ枚数」＝カウンタlastCostが読む。060）
             const scope = currentRecordScope(state)
             const leftCost = instBaseCost(victim)
-            if (destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+            if (destroyNexus(state, owner, victim.instanceId, ctx.destroyContext)) {
                 recordMoved(state, [victim.cardId], scope)
                 recordLeftCost(state, victim.cardId, leftCost, scope)
             }
@@ -634,7 +634,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                     log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                     return
                 }
-                destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+                destroyNexus(state, pid, nexus.instanceId, ctx.destroyContext)
                 const remaining = action.count - 1
                 if (remaining > 0) {
                     const nextCandidates = candidatesIn()
@@ -666,7 +666,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         let destroyed = prog?.d ?? 0
         const gone: string[] = prog !== undefined ? [...lastMovedOf(state)] : []
         const scope = currentRecordScope(state)
-        const destroyOpts = { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) }
+        const destroyOpts = ctx.destroyContext
         for (let s = prog?.s ?? 0; s < sides.length; s++) {
             const pid = sides[s]!
             // all指定時はcountを無視し、開始時点で条件に一致するネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
@@ -860,7 +860,7 @@ const destroySelfHandler = (ctx: ActionCtx): void => {
         }
         // 自分のネクサス自身（26RSD02-010「このネクサスを破壊する▶」）
         if (state.players[owner].field.nexuses.some((n) => n.instanceId === self.instanceId)) {
-            destroyNexus(state, owner, self.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+            destroyNexus(state, owner, self.instanceId, ctx.destroyContext)
             return
         }
         // fieldEvent で相手側のスピリットがイベント対象のとき、self の持ち主は実行者（owner）と異なる
@@ -1297,7 +1297,7 @@ function destroyOwnNexusesAny(ctx: ActionCtx, action: DestroyNexusAction): void 
     const destroyed: string[] = []
     for (const id of chosen) {
         const nexus = state.players[owner].field.nexuses.find((n) => n.instanceId === id)
-        if (nexus && destroyNexus(state, owner, id, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) destroyed.push(nexus.cardId)
+        if (nexus && destroyNexus(state, owner, id, ctx.destroyContext)) destroyed.push(nexus.cardId)
     }
     recordMoved(state, destroyed, scope)
     log(state, destroyed.length > 0 ? `${sourceName}：自分のネクサス${destroyed.length}つを破壊した。` : `${sourceName}：ネクサスを破壊しなかった。`)

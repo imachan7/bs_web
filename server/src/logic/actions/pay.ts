@@ -764,7 +764,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
         resolve: (a) => {
             state.recordScope = scope
             const target = a === action.then ? eventTargetId : undefined
-            ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType, ...(target !== undefined ? { targetInstanceId: target } : {}) })
+            ctx.resolve(a, { ...(target !== undefined ? { targetInstanceId: target } : {}) })
         },
         frame: (a) => ({
             kind: "action" as const,

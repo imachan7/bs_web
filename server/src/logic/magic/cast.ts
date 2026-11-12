@@ -1,7 +1,7 @@
 // マジックの使用（コスト支払いから解決まで）
 import type { CardData, Color, GameState, PlayerId, EffectAction, PaySource, PendingChoice, EffectDef } from "../../type"
 import { getCard, opponentOf, suspend, findInstanceAnywhere, log } from "../GameState"
-import { findMagicFreeGrantSource, hasMagicRestriction, effectiveCost, exSymbolsOfTrashCard } from "../../../../shared/cost"
+import { findMagicFreeGrantSource, hasMagicRestriction, effectiveCost, exSymbolsOfTrashCard, magicEffectiveColors } from "../../../../shared/cost"
 import { moveSoulCore, normalReserveOf, wouldDepleteOf } from "../soulCore"
 import { recordMagicUsed } from "../record"
 import { emitEvent, payCost, resolveAction } from "../EffectModules"
@@ -453,5 +453,6 @@ export function applyProvocationUse(state: GameState, entry: NonNullable<Pending
     const effect = card.effects.find(
         (e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd === true,
     )
-    if (effect) resolveAction(state, entry.pid, null, markPayConfirmed(effect.action))
+    // 発生源（色・種別）を渡す。渡さないと【装甲】や「マジックの効果を受けない」を素通りした（#437 R4-2 色F1）
+    if (effect) resolveAction(state, entry.pid, null, markPayConfirmed(effect.action), undefined, magicEffectiveColors(state, entry.pid, card), "magic", undefined, undefined, card.cardId)
 }

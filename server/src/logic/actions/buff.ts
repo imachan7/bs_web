@@ -71,7 +71,7 @@ const bpMinus: ActionHandler<"bpMinus"> = (ctx, action) => {
     // count 体を1体ずつ、選んだ個体を除いて繰り返す（exhaust と同じ形）
     const next = (t: CardInstance): void => {
         const { chosenByPlayer: _c, ...rest } = action
-        if ((action.count ?? 1) > 1) ctx.resolve({ ...rest, count: action.count! - 1, excludeIds: [...excluded, t.instanceId] }, { sourceColors: srcColors, sourceType: srcType })
+        if ((action.count ?? 1) > 1) ctx.resolve({ ...rest, count: action.count! - 1, excludeIds: [...excluded, t.instanceId] })
     }
     // マジックは使用時に対象を指定してくる（castMagic の targetInstanceId）。誘発の targetInstanceId は出来事の個体なので使わない
     const preChosen = (action.chosenByPlayer || (srcType === "magic" && excluded.length === 0)) && targetInstanceId !== undefined
