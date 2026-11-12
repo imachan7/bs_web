@@ -8,7 +8,7 @@ import { burstActivationFee, burstFeeUnpayable, payBurstActivationFee } from "..
 import { withEffectTax } from "../effectTax"
 import { canPayBurstThenPay, payBurstThenPay } from "../burstThenPay"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
-import type { Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
+import type { CardInstance, Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
 import { burstActivationForbidden, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
@@ -235,12 +235,18 @@ export function fireOwnBurstActivated(
     )
 }
 
+// 召喚時効果を発揮した印（効果を解決した・確認で「発動する」を押した）。入れ子のどの段でも、その発生源の分に付ける
+export function markSummonEffectResolved(state: GameState, self: CardInstance): void {
+    for (const src of state.summonEffectSources ?? []) if (src.instanceId === self.instanceId) src.resolved = true
+}
+
 // 召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 // 実際に発揮していたら、召喚した側の相手に【相手の『召喚時』発揮後】を発火する（2026-09-27 ユーザー確認。BURST.md §10 C）
+// 内側（末尾）から1つずつ閉じる。選択待ちが残っていれば何もしない
 export function finishSummonEffect(state: GameState): void {
-    const src = state.summonEffectSource
-    if (src === undefined || state.pendingChoice) return
-    delete state.summonEffectSource
+    if (state.pendingChoice) return
+    const src = state.summonEffectSources?.pop()
+    if (src === undefined) return
     if (!src.resolved || state.winner) return
     if (src.cardId !== undefined && src.level !== undefined) state.lastOpponentSummonEffect = { cardId: src.cardId, level: src.level }
     fireFieldEventTriggers(state, opponentOf(src.pid), "opponentSummonEffectResolved", undefined, src.colors, undefined, undefined, { costs: [src.cost] })

@@ -1,5 +1,6 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { finishSummonSequence } from "../summon"
 import { takeFromTrash, trashTakeableByEffect } from "../zones/trash"
 import { flushSummonBatch } from "../summon"
 import { resolveSummonRepeatPaid } from "./summonRepeat"
@@ -1020,7 +1021,8 @@ const summonSequenceHandler: ActionHandler<"summonSequence"> = (ctx, action) => 
     const { state, owner, self } = ctx
     if (!self) return
     // triggerOnly：召喚時と「召喚されたとき」の列が止まったあと、召喚時だけを再開する
-    if (action.triggerOnly) fireSummonTrigger(state, owner, self, action.byFushi === true)
+    if (action.tail) finishSummonSequence(state, owner, self, action.tail)
+    else if (action.triggerOnly) fireSummonTrigger(state, owner, self, action.byFushi === true)
     else fireSummonSequence(state, owner, self, action.byFushi === true)
 }
 

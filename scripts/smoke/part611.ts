@@ -108,7 +108,7 @@ function scenario083(seed: string, colors: ("red" | "blue")[]): GameState {
     s.players.p2.burst = BURST_BLUE_MAGIC
     s.players.p2.burstSet = true
     s.turnPlayer = "p1"
-    s.summonEffectSource = { pid: "p1", instanceId: "x", cost: 3, colors, resolved: true }
+    s.summonEffectSources = [{ pid: "p1", instanceId: "x", cost: 3, colors, resolved: true }]
     finishSummonEffect(s)
     return s
 }
