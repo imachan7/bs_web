@@ -13,7 +13,7 @@ import { markPays } from "./actions/pay"
 import { wrapWithRepeat } from "./actions/combinedAttackRepeat"
 import type {
     CardInstance, EffectAction, EffectDef, GameState, PlayerId,
-    ResolvedTargetFilter, TimedContent,
+    ResolvedTargetFilter, ResumeFrame, TimedContent,
     TriggerEvent
 } from "../type"
 import {
@@ -565,28 +565,40 @@ export function fireTrigger(
             delete state.effectFizzled
         }
     }
+    // 後で解決するエントリのフレーム。並べ替えの列（collect）と、選択待ちで中断した残り（下のループ）の両方がこれを使う
+    // （#437 F3：以前は残りを効果の中身だけのフレームで積み、発動確認・誰の効果か・対象・ターン1回の記録・対象の付け替えが落ちた）。
+    // 「ターンに1回」はフレームを作る時点で消費済みにする（run 経由の markOnceUsed は冪等。断った／不発なら pay の onceRevert が戻す）
+    const entryFrame = (entry: { effect: EffectDef; src: CardInstance }): ResumeFrame => {
+        const effect = entry.effect as Extract<EffectDef, { kind: "triggered" }>
+        if (effect.oncePerTurn === true) markOnceUsed(state, owner, entry.src, effect, "triggeredUsedTurn")
+        const target = effect.eventTarget === "ignore" ? undefined : targetInstanceId
+        return {
+            kind: "action",
+            selfInstanceId: selfInstance.instanceId,
+            action: effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action,
+            actorPid: owner,
+            ...(target !== undefined ? { targetInstanceId: target } : {}),
+            ...(effect.optional && state.interactiveTargets ? { confirmPrompt: `${getCard(entry.src.cardId).name}の効果を発動しますか？` } : {}),
+            ...(card.type === "spirit" || entry.src !== selfInstance ? { redirectTarget: true as const } : {}),
+        }
+    }
+    const grantedFrame = (a: EffectAction): ResumeFrame => ({
+        kind: "action",
+        selfInstanceId: selfInstance.instanceId,
+        action: a,
+        actorPid: owner,
+        ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+    })
     if (collect !== undefined) {
         const label = `${state.players[owner].name}の${card.name}`
         const key = `${owner}:${selfInstance.cardId}`
         for (const entry of entries) {
-            const effect = entry.effect
-            if (!matches(effect, entry.src)) continue
-            // frame 経由で解決される経路でも「ターンに1回」を消費済みにする（run 経由の markOnceUsed は冪等）
-            if (effect.oncePerTurn === true) markOnceUsed(state, owner, entry.src, effect, "triggeredUsedTurn")
-            const target = effect.eventTarget === "ignore" ? undefined : targetInstanceId
+            if (!matches(entry.effect, entry.src)) continue
             collect.push({
                 key,
                 label,
                 run: () => resolveEntry(entry),
-                frame: {
-                    kind: "action",
-                    selfInstanceId: selfInstance.instanceId,
-                    action: effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action,
-                    actorPid: owner,
-                    ...(target !== undefined ? { targetInstanceId: target } : {}),
-                    ...(effect.optional && state.interactiveTargets ? { confirmPrompt: `${getCard(entry.src.cardId).name}の効果を発動しますか？` } : {}),
-                    ...(card.type === "spirit" || entry.src !== selfInstance ? { redirectTarget: true as const } : {}),
-                },
+                frame: entryFrame(entry),
             })
         }
         for (const a of grantedActions) {
@@ -594,13 +606,7 @@ export function fireTrigger(
                 key,
                 label,
                 run: () => resolveAction(state, owner, selfInstance, a, targetInstanceId),
-                frame: {
-                    kind: "action",
-                    selfInstanceId: selfInstance.instanceId,
-                    action: a,
-                    actorPid: owner,
-                    ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
-                },
+                frame: grantedFrame(a),
             })
         }
         return
@@ -613,10 +619,7 @@ export function fireTrigger(
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
             const remaining = entries.slice(i + 1).filter((x) => matches(x.effect, x.src))
-            pushResumeFrames(state, [
-                ...remaining.map((x) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: (x.effect as Extract<EffectDef, { kind: "triggered" }>).action })),
-                ...grantedActions.map((a) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: a })),
-            ])
+            pushResumeFrames(state, [...remaining.map(entryFrame), ...grantedActions.map(grantedFrame)])
             return
         }
     }
@@ -626,10 +629,7 @@ export function fireTrigger(
         resolveAction(state, owner, selfInstance, grantedAction, targetInstanceId)
         if (state.pendingChoice) {
             const remaining = grantedActions.slice(i + 1)
-            pushResumeFrames(
-                state,
-                remaining.map((a) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: a })),
-            )
+            pushResumeFrames(state, remaining.map(grantedFrame))
             return
         }
     }

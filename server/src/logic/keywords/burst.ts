@@ -291,11 +291,6 @@ function burstActivationBlocked(
     return timed.some((c) => c.type === "playerRule" && c.rule.type === "noBurstActivation" && (c.rule.byEvent === undefined || c.rule.byEvent === event))
 }
 
-// 自分のライフが減るたびに1回だけ、セットしたバースト（条件【自分のライフ減少後】）の発動を聞く。原因は問わない（2026-11-06 ユーザー確認）。
-// 相手起因では fieldEvent の ownLifeDamaged と ownLifeLost の両方が起きるので、聞くのは ownLifeLost の側だけにしてある
-export function fireOwnLifeReducedBurst(state: GameState, pid: PlayerId, eventInfo?: { lifeLossByNoOwnBurst?: boolean }): void {
-    fireBurstOnEvent(state, pid, "ownLifeDamaged", undefined, undefined, undefined, eventInfo)
-}
 
 export function fireBurstOnEvent(
     state: GameState,

@@ -1,4 +1,5 @@
 // ターン進行・フェーズ遷移の制御
+import { takeFromTrash } from "./zones/trash"
 import { trashCardEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import { handGainDenial } from "./handGate"
@@ -310,209 +311,230 @@ export function toAttackPhase(state: GameState): void {
 }
 
 // ターン終了処理：エンドステップを経て相手のターンを開始する
-export function endTurn(state: GameState): void {
-    // アタックする／しないに関わらず、アタックステップは必ず経由する（2026-09-17 ユーザー確認。smoke part343）。
-    // メインステップから直接ターンを終了したときも、ここでアタックステップへ入って開始時の誘発を出してから
-    // 終了時の誘発へ進む。「アタックステップは行えず」（BS10-108 ルナティックシール）のときだけ経由しない。
-    // 開始時の誘発が選択待ちになったら、選択の解決後にこの関数をやり直す（そのときは phase が "attack"）
-    // 第2メインステップ中と先攻1ターン目はアタックステップを経由しない（第2メイン→エンド、1ターン目はメイン→エンド）
-    if (state.phase === "main" && !state.extraMainStep && state.secondMainStep !== true && state.turn !== 1 && !isEndStepLocked(state, "attackStep")) {
-        toAttackPhase(state)
-        if (state.winner) return
-        if (state.pendingChoice) {
-            pushResumeFrames(state, [{ kind: "endTurn" }])
-            return
-        }
-    }
-    // 「アタックステップ終了時」の誘発（紫水晶の森Lv2）。エンドステップへ移る直前に、
-    // まだ phase が "attack" のまま発火させる（『自分のアタックステップ』の turn/phase 判定を効かせるため）
-    if (state.phase === "attack") fireStepTriggers(state, "attack", undefined, "end")
-    if (state.winner) return
-    // 器BJ：アタックステップ終了時に、applyAttackStepNexusAsSpiritで変換したネクサスを元へ戻す
-    // （extraAttackStepPendingでもう1回アタックステップへ戻る場合も、いったんここで戻してから
-    // toAttackPhaseが改めて変換し直すので問題ない）
-    endStepScoped(state)
-    if (state.winner) return
+// ターン終了は区切りごとに進む。誘発が選択待ちを立てたら、そこで止めて「続きはここから」を再開スタックに積む
+// （#437 F1：以前は終了時の誘発の選択待ちを無視して交代・相手のターン開始まで走り、選択と残りの誘発が相手のターンに解決された。
+// 再開も頭からやり直していたので、エンドステップの誘発が2回出うる）
+export type EndTurnStage = "start" | "afterAttackEnd" | "afterEndStep" | "afterTurnEndActions"
+const END_TURN_STAGES: EndTurnStage[] = ["start", "afterAttackEnd", "afterEndStep", "afterTurnEndActions"]
 
-    // BS15-X04 Lv2：アタックステップ終了後・エンドステップの前に、ステップを1つ行う（ターンに1回・断れない）。
-    // phase が attack＝アタックステップを経由したときだけ（行った後に戻ってきたときは draw/refresh/main）
-    if (state.phase === "attack" && !state.extraStepAfterAttackUsed) {
-        const source = extraStepSource(state)
-        if (source) {
-            noteCoverage(getCard(source.cardId).effects.find((e) => e.kind === "extraStepAfterAttackStep"), "extraStepAfterAttackStep")
-            state.extraStepAfterAttackUsed = true
-            if (!state.interactiveTargets) {
-                runExtraStep(state, "ドローステップ")
+export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
+    const at = END_TURN_STAGES.indexOf(from)
+    if (at < 1) {
+        // アタックする／しないに関わらず、アタックステップは必ず経由する（2026-09-17 ユーザー確認。smoke part343）。
+        // メインステップから直接ターンを終了したときも、ここでアタックステップへ入って開始時の誘発を出してから
+        // 終了時の誘発へ進む。「アタックステップは行えず」（BS10-108 ルナティックシール）のときだけ経由しない。
+        // 開始時の誘発が選択待ちになったら、選択の解決後にこの関数をやり直す（そのときは phase が "attack"）
+        // 第2メインステップ中と先攻1ターン目はアタックステップを経由しない（第2メイン→エンド、1ターン目はメイン→エンド）
+        if (state.phase === "main" && !state.extraMainStep && state.secondMainStep !== true && state.turn !== 1 && !isEndStepLocked(state, "attackStep")) {
+            toAttackPhase(state)
+            if (state.winner) return
+            if (state.pendingChoice) {
+                pushResumeFrames(state, [{ kind: "endTurn", from: "start" }])
                 return
             }
-            suspend(state, {
-                pid: state.turnPlayer,
-                kind: "option",
-                prompt: `${getCard(source.cardId).name}：行うステップを選んでください`,
-                candidates: [],
-                options: [...EXTRA_STEP_OPTIONS],
-                optional: false,
-                extraStepChoice: { sourceInstanceId: source.instanceId },
-                action: { type: "noop" },
-                selfInstanceId: source.instanceId,
-            })
-            return
         }
-    }
-
-    // 第2メインステップ（公式ルール。2026-10-06）: アタックステップの後にもう一度メインステップを行う。
-    // toAttackPhase を通ったターンだけ（oweSecondMain）。先攻1ターン目はアタックステップ自体が無いため来ない。
-    // BS15-X04 の追加ステップはこの前に終わる。移行したらターンプレイヤーへ返し、
-    // 「ターン終了」で endTurn をやり直す（secondMainStep が立っているのでアタック経由はしない）
-    if (state.oweSecondMain === true) {
-        delete state.oweSecondMain
-        state.secondMainStep = true
-        state.secondMainDone = true
-        state.phase = "main"
-        state.priorityPlayer = state.turnPlayer
-        state.isFlashTiming = false
-        state.flashCount = 0
-        log(state, `${state.players[state.turnPlayer].name}は第2メインステップに移行した。`)
-        fireStepTriggers(state, "main")
-        return
-    }
-
-    state.phase = "end"
-    fireStepTriggers(state, "end")
-    if (state.winner) return
-
-    // エンドステップを数える封印（BS10-108 ルナティックシール）を1つ減らす。
-    // 「『自分のエンドステップ』に1個ずつボイドに置く」＝**発揮した側のエンドステップだけ**数える。
-    // 0 になった封印は解ける。**ターン終了の一時状態リセットの対象ではない**（複数ターンにまたがる）
-    if (state.endStepLocks.length > 0) {
-        for (const lock of state.endStepLocks) {
-            if (lock.pid !== state.turnPlayer) continue
-            lock.remaining -= 1
-            log(state, `${getCard(lock.cardId).name}：デッキの横のコアを1個ボイドに置いた。（残り${lock.remaining}個）`)
-        }
-        state.endStepLocks = state.endStepLocks.filter((l) => l.remaining > 0)
-    }
-
-    // デッキ横のコア（BS12-078カシオペアシール）：持ち主のエンドステップに1個ずつボイドへ戻す。
-    // ボイドは残量を持たない無限の供給源なので、減らすだけでよい
-    {
-        const p = state.players[state.turnPlayer]
-        if (p.deckSideCores > 0) {
-            p.deckSideCores -= 1
-            log(state, `${p.name}は、デッキの横のコア1個をボイドに置いた。（残り${p.deckSideCores}個）`)
-        }
-    }
-
-    // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：持ち主のエンドステップごとに1減らす
-    for (const inst of state.players[state.turnPlayer].field.spirits) {
-        if ((inst.noRefreshUntilOwnEndSteps ?? 0) <= 0) continue
-        inst.noRefreshUntilOwnEndSteps = (inst.noRefreshUntilOwnEndSteps ?? 0) - 1
-    }
-
-    // 「アタックステップとエンドステップを順番にもう1回ずつ行う」（BS10-008 火星神龍アレス・ドラグーン）。
-    // ⚠️ **この位置でなければならない**：エンドステップの誘発を解決した直後で、
-    // かつ下の一時状態のリセット群（tempBpBuff・turnVirtualInstances 等）より**前**。
-    // 後ろに置くと、追加のアタックステップに入る前にこのターンの継続効果が消えてしまう。
-    // ターンプレイヤーは交代せず、アタックステップへ戻して return する
-    if (state.extraAttackStepPending === true) {
-        delete state.extraAttackStepPending
-        // 第2メインステップから移行してきた場合はフラグを片付ける（ここはクリーンアップより前で return するため）
-        delete state.secondMainStep
-        // 前のアタックステップで立った「バトル終了時に畳む」フラグは役目を終えているので落とす
-        // （残すと追加ステップの最初のバトルで即座に終了してしまう）
-        state.endAttackStepAfterBattle = false
-        delete state.endAttackStepLifeCheck
-        log(state, `${state.players[state.turnPlayer].name}はアタックステップとエンドステップを、もう1回ずつ行う。`)
-        toAttackPhase(state)
-        return
-    }
-
-    // 「エンドステップに自分のデッキの下に戻す」（BS05トランスマイグレーションで召喚した個体）。
-    // エンドステップの誘発効果からは見えている状態にしたいので、fireStepTriggers の**後**に処理する。
-    // 戻す処理中に配列が変わるのでスナップショットを取ってから回す
-    for (const pid of ["p1", "p2"] as const) {
-        for (const inst of [...state.players[pid].field.spirits]) {
-            if (inst.returnToDeckBottomAtEndStep) returnSpiritToDeckBottom(state, pid, inst)
-        }
-    }
-
-    // トラッシュのカードが持ち主の『自分のエンドステップ』に自動で手札へ戻る（kind:"trashReturnAtEndStep"）。
-    // **持ち主のエンドステップだけ**（＝state.turnPlayer側のトラッシュのみ）。BS13-015冥総裁ハーゲン
-    // maxCount指定時は「ターンに1回」等、そのcardIdにつき戻る枚数を上限で絞る（BS13-077ブリーズライド：1枚まで）
-    {
-        const p = state.players[state.turnPlayer]
-        const trashReturnMaxCount = (cardId: string): number => {
-            const e = getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep")
-            return e && e.kind === "trashReturnAtEndStep" ? (e.maxCount ?? Infinity) : Infinity
-        }
-        const returnedCounts = new Map<string, number>()
-        for (let i = p.trashCards.length - 1; i >= 0; i--) {
-            const cardId = p.trashCards[i]
-            if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || trashCardEffectsDisabled(state, cardId)) continue
-            const already = returnedCounts.get(cardId) ?? 0
-            if (already >= trashReturnMaxCount(cardId)) continue
-            if (handGainDenial(state, { pid: state.turnPlayer, from: "trash", cause: "effect" })) continue
-            noteCoverage(getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
-            p.trashCards.splice(i, 1)
-            p.hand.push(cardId)
-            returnedCounts.set(cardId, already + 1)
-            log(state, `${p.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
-        }
-    }
-
-    // ターン終了時までのBP増減と、このターン限りのアタック不可状態をリセット
-    for (const pid of ["p1", "p2"] as const) {
-        state.players[pid].tempHandKeywordGrants = []
-        delete state.players[pid].minAttackCostThisTurn
-        // このターンだけの仮想発生源（マジックが貸した継続効果）もリセット（BS05リアニメイト。TURN_EFFECT_SOURCES.md §4.2）
-        state.players[pid].turnVirtualInstances = []
-        // 「ターンに1回、ブロックしても疲労しない」の消費記録（BS07ブリシンガメンの首飾りLv2）
-        state.players[pid].noRestWhenBlockingUsedThisTurn = []
-        state.players[pid].payAssistUsedThisTurn = []
-        // バーストのセットはターン1回（docs/design/BURST.md。setBurstFromHandはこの制限を受けない）
-        state.players[pid].burstSetThisTurn = false
-        // 「このバトルの間」の貸与は clearBattle で切れるのが本筋だが、バトルが成立しないまま
-        // ターンが終わる経路のために念のためここでも空にする（lendSelfThisBattle）
-        state.players[pid].battleVirtualInstances = []
-        for (const inst of state.players[pid].field.spirits) {
-            // バトル終了で消えるはずのBP増減も、バトルが成立しないまま終わる経路のために念のため消す
-            delete inst.attackedThisTurn
-            inst.blockConstraintNegatedThisTurn = false
-            inst.tempAlsoCosts = []
-            delete inst.lifeDealtThisTurn
-        }
-    }
-    // このターンの間スピリットとして扱われていたネクサス（BS03ゴーレムクラフト）をネクサスへ戻す。
-    // **フィールドに残っている個体だけが戻る**：破壊・手札戻しなどで場を離れたものは既に
-    // field.spirits から抜けているので、ここで復活することはない（破壊されたネクサスはトラッシュのまま）。
-    // 上の一時状態リセットより後に置くのは、戻す前に spirits として tempBpBuff 等を消しておくため。
-    // 疲労状態はそのまま引き継ぐ（アタックして疲労した個体は疲労したネクサスとして戻る）
-    for (const pid of ["p1", "p2"] as const) {
-        const field = state.players[pid].field
-        for (const inst of [...field.spirits]) {
-            if (inst.asSpiritThisTurn === undefined) continue
-            delete inst.asSpiritThisTurn
-            delete inst.asSpiritAttackStepScoped
-            field.spirits.splice(field.spirits.indexOf(inst), 1)
-            field.nexuses.push(inst)
-            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
-            log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
-        }
-    }
-    // atTurnEnd（BS16-068）：エンドステップの誘発の後・このターンの期間つき効果を消す前に、
-    // 記録した順で解決する（発生源が場を離れていても解決する。Q22394〜Q22396）
-    if (state.turnEndActions && state.turnEndActions.length > 0) {
-        const items = state.turnEndActions
-        state.turnEndActions = []
-        resolveInOrder(state, items, {
-            resolve: (item) =>
-                resolveAction(state, item.ownerPid, null, item.action, undefined, undefined, undefined, undefined, undefined, item.sourceCardId),
-            frame: (item) => ({ kind: "action", selfInstanceId: null, actorPid: item.ownerPid, action: item.action }),
-        })
+        // 「アタックステップ終了時」の誘発（紫水晶の森Lv2）。エンドステップへ移る直前に、
+        // まだ phase が "attack" のまま発火させる（『自分のアタックステップ』の turn/phase 判定を効かせるため）
+        if (state.phase === "attack") fireStepTriggers(state, "attack", undefined, "end")
         if (state.winner) return
         if (state.pendingChoice) {
-            pushResumeFrames(state, [{ kind: "endTurn" }])
+            pushResumeFrames(state, [{ kind: "endTurn", from: "afterAttackEnd" }])
             return
+        }
+    }
+    if (at < 2) {
+        // 器BJ：アタックステップ終了時に、applyAttackStepNexusAsSpiritで変換したネクサスを元へ戻す
+        // （extraAttackStepPendingでもう1回アタックステップへ戻る場合も、いったんここで戻してから
+        // toAttackPhaseが改めて変換し直すので問題ない）
+        endStepScoped(state)
+        if (state.winner) return
+
+        // BS15-X04 Lv2：アタックステップ終了後・エンドステップの前に、ステップを1つ行う（ターンに1回・断れない）。
+        // phase が attack＝アタックステップを経由したときだけ（行った後に戻ってきたときは draw/refresh/main）
+        if (state.phase === "attack" && !state.extraStepAfterAttackUsed) {
+            const source = extraStepSource(state)
+            if (source) {
+                noteCoverage(getCard(source.cardId).effects.find((e) => e.kind === "extraStepAfterAttackStep"), "extraStepAfterAttackStep")
+                state.extraStepAfterAttackUsed = true
+                if (!state.interactiveTargets) {
+                    runExtraStep(state, "ドローステップ")
+                    return
+                }
+                suspend(state, {
+                    pid: state.turnPlayer,
+                    kind: "option",
+                    prompt: `${getCard(source.cardId).name}：行うステップを選んでください`,
+                    candidates: [],
+                    options: [...EXTRA_STEP_OPTIONS],
+                    optional: false,
+                    extraStepChoice: { sourceInstanceId: source.instanceId },
+                    action: { type: "noop" },
+                    selfInstanceId: source.instanceId,
+                })
+                return
+            }
+        }
+
+        // 第2メインステップ（公式ルール。2026-10-06）: アタックステップの後にもう一度メインステップを行う。
+        // toAttackPhase を通ったターンだけ（oweSecondMain）。先攻1ターン目はアタックステップ自体が無いため来ない。
+        // BS15-X04 の追加ステップはこの前に終わる。移行したらターンプレイヤーへ返し、
+        // 「ターン終了」で endTurn をやり直す（secondMainStep が立っているのでアタック経由はしない）
+        if (state.oweSecondMain === true) {
+            delete state.oweSecondMain
+            state.secondMainStep = true
+            state.secondMainDone = true
+            state.phase = "main"
+            state.priorityPlayer = state.turnPlayer
+            state.isFlashTiming = false
+            state.flashCount = 0
+            log(state, `${state.players[state.turnPlayer].name}は第2メインステップに移行した。`)
+            fireStepTriggers(state, "main")
+            return
+        }
+
+        state.phase = "end"
+        fireStepTriggers(state, "end")
+        if (state.winner) return
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "endTurn", from: "afterEndStep" }])
+            return
+        }
+    }
+    if (at < 3) {
+
+        // エンドステップを数える封印（BS10-108 ルナティックシール）を1つ減らす。
+        // 「『自分のエンドステップ』に1個ずつボイドに置く」＝**発揮した側のエンドステップだけ**数える。
+        // 0 になった封印は解ける。**ターン終了の一時状態リセットの対象ではない**（複数ターンにまたがる）
+        if (state.endStepLocks.length > 0) {
+            for (const lock of state.endStepLocks) {
+                if (lock.pid !== state.turnPlayer) continue
+                lock.remaining -= 1
+                log(state, `${getCard(lock.cardId).name}：デッキの横のコアを1個ボイドに置いた。（残り${lock.remaining}個）`)
+            }
+            state.endStepLocks = state.endStepLocks.filter((l) => l.remaining > 0)
+        }
+
+        // デッキ横のコア（BS12-078カシオペアシール）：持ち主のエンドステップに1個ずつボイドへ戻す。
+        // ボイドは残量を持たない無限の供給源なので、減らすだけでよい
+        {
+            const p = state.players[state.turnPlayer]
+            if (p.deckSideCores > 0) {
+                p.deckSideCores -= 1
+                log(state, `${p.name}は、デッキの横のコア1個をボイドに置いた。（残り${p.deckSideCores}個）`)
+            }
+        }
+
+        // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：持ち主のエンドステップごとに1減らす
+        for (const inst of state.players[state.turnPlayer].field.spirits) {
+            if ((inst.noRefreshUntilOwnEndSteps ?? 0) <= 0) continue
+            inst.noRefreshUntilOwnEndSteps = (inst.noRefreshUntilOwnEndSteps ?? 0) - 1
+        }
+
+        // 「アタックステップとエンドステップを順番にもう1回ずつ行う」（BS10-008 火星神龍アレス・ドラグーン）。
+        // ⚠️ **この位置でなければならない**：エンドステップの誘発を解決した直後で、
+        // かつ下の一時状態のリセット群（tempBpBuff・turnVirtualInstances 等）より**前**。
+        // 後ろに置くと、追加のアタックステップに入る前にこのターンの継続効果が消えてしまう。
+        // ターンプレイヤーは交代せず、アタックステップへ戻して return する
+        if (state.extraAttackStepPending === true) {
+            delete state.extraAttackStepPending
+            // 第2メインステップから移行してきた場合はフラグを片付ける（ここはクリーンアップより前で return するため）
+            delete state.secondMainStep
+            // 前のアタックステップで立った「バトル終了時に畳む」フラグは役目を終えているので落とす
+            // （残すと追加ステップの最初のバトルで即座に終了してしまう）
+            state.endAttackStepAfterBattle = false
+            delete state.endAttackStepLifeCheck
+            log(state, `${state.players[state.turnPlayer].name}はアタックステップとエンドステップを、もう1回ずつ行う。`)
+            toAttackPhase(state)
+            return
+        }
+
+        // 「エンドステップに自分のデッキの下に戻す」（BS05トランスマイグレーションで召喚した個体）。
+        // エンドステップの誘発効果からは見えている状態にしたいので、fireStepTriggers の**後**に処理する。
+        // 戻す処理中に配列が変わるのでスナップショットを取ってから回す
+        for (const pid of ["p1", "p2"] as const) {
+            for (const inst of [...state.players[pid].field.spirits]) {
+                if (inst.returnToDeckBottomAtEndStep) returnSpiritToDeckBottom(state, pid, inst)
+            }
+        }
+
+        // トラッシュのカードが持ち主の『自分のエンドステップ』に自動で手札へ戻る（kind:"trashReturnAtEndStep"）。
+        // **持ち主のエンドステップだけ**（＝state.turnPlayer側のトラッシュのみ）。BS13-015冥総裁ハーゲン
+        // maxCount指定時は「ターンに1回」等、そのcardIdにつき戻る枚数を上限で絞る（BS13-077ブリーズライド：1枚まで）
+        {
+            const p = state.players[state.turnPlayer]
+            const trashReturnMaxCount = (cardId: string): number => {
+                const e = getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep")
+                return e && e.kind === "trashReturnAtEndStep" ? (e.maxCount ?? Infinity) : Infinity
+            }
+            const returnedCounts = new Map<string, number>()
+            for (let i = p.trashCards.length - 1; i >= 0; i--) {
+                const cardId = p.trashCards[i]
+                if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || trashCardEffectsDisabled(state, cardId)) continue
+                const already = returnedCounts.get(cardId) ?? 0
+                if (already >= trashReturnMaxCount(cardId)) continue
+                if (handGainDenial(state, { pid: state.turnPlayer, from: "trash", cause: "effect" })) continue
+                noteCoverage(getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
+                if (takeFromTrash(state, state.turnPlayer, i, "effect") === null) continue
+                p.hand.push(cardId)
+                returnedCounts.set(cardId, already + 1)
+                log(state, `${p.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+            }
+        }
+
+        // ターン終了時までのBP増減と、このターン限りのアタック不可状態をリセット
+        for (const pid of ["p1", "p2"] as const) {
+            state.players[pid].tempHandKeywordGrants = []
+            delete state.players[pid].minAttackCostThisTurn
+            // このターンだけの仮想発生源（マジックが貸した継続効果）もリセット（BS05リアニメイト。TURN_EFFECT_SOURCES.md §4.2）
+            state.players[pid].turnVirtualInstances = []
+            // 「ターンに1回、ブロックしても疲労しない」の消費記録（BS07ブリシンガメンの首飾りLv2）
+            state.players[pid].noRestWhenBlockingUsedThisTurn = []
+            state.players[pid].payAssistUsedThisTurn = []
+            // バーストのセットはターン1回（docs/design/BURST.md。setBurstFromHandはこの制限を受けない）
+            state.players[pid].burstSetThisTurn = false
+            // 「このバトルの間」の貸与は clearBattle で切れるのが本筋だが、バトルが成立しないまま
+            // ターンが終わる経路のために念のためここでも空にする（lendSelfThisBattle）
+            state.players[pid].battleVirtualInstances = []
+            for (const inst of state.players[pid].field.spirits) {
+                // バトル終了で消えるはずのBP増減も、バトルが成立しないまま終わる経路のために念のため消す
+                delete inst.attackedThisTurn
+                inst.blockConstraintNegatedThisTurn = false
+                inst.tempAlsoCosts = []
+                delete inst.lifeDealtThisTurn
+            }
+        }
+        // このターンの間スピリットとして扱われていたネクサス（BS03ゴーレムクラフト）をネクサスへ戻す。
+        // **フィールドに残っている個体だけが戻る**：破壊・手札戻しなどで場を離れたものは既に
+        // field.spirits から抜けているので、ここで復活することはない（破壊されたネクサスはトラッシュのまま）。
+        // 上の一時状態リセットより後に置くのは、戻す前に spirits として tempBpBuff 等を消しておくため。
+        // 疲労状態はそのまま引き継ぐ（アタックして疲労した個体は疲労したネクサスとして戻る）
+        for (const pid of ["p1", "p2"] as const) {
+            const field = state.players[pid].field
+            for (const inst of [...field.spirits]) {
+                if (inst.asSpiritThisTurn === undefined) continue
+                delete inst.asSpiritThisTurn
+                delete inst.asSpiritAttackStepScoped
+                field.spirits.splice(field.spirits.indexOf(inst), 1)
+                field.nexuses.push(inst)
+                detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
+                log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
+            }
+        }
+        // atTurnEnd（BS16-068）：エンドステップの誘発の後・このターンの期間つき効果を消す前に、
+        // 記録した順で解決する（発生源が場を離れていても解決する。Q22394〜Q22396）
+        if (state.turnEndActions && state.turnEndActions.length > 0) {
+            const items = state.turnEndActions
+            state.turnEndActions = []
+            resolveInOrder(state, items, {
+                resolve: (item) =>
+                    resolveAction(state, item.ownerPid, null, item.action, undefined, undefined, undefined, undefined, undefined, item.sourceCardId),
+                frame: (item) => ({ kind: "action", selfInstanceId: null, actorPid: item.ownerPid, action: item.action }),
+            })
+            if (state.winner) return
+            if (state.pendingChoice) {
+                pushResumeFrames(state, [{ kind: "endTurn", from: "afterTurnEndActions" }])
+                return
+            }
         }
     }
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット

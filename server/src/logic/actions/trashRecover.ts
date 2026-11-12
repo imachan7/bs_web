@@ -1,4 +1,5 @@
 // デッキ破棄からトラッシュ回収・召喚へつなぐアクションのハンドラ
+import { takeFromTrash } from "../zones/trash"
 import { handGainDenial } from "../handGate"
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log, requestTrashReturn, returnTrashCardToHand } from "../GameState"
@@ -46,7 +47,7 @@ const takeLastHandler: ActionHandler<"takeLast"> = (ctx, action) => {
         log(state, `${sourceName}：効果によって手札が増やせないため、${getCard(cardId).name}はトラッシュに残った。`)
         return
     }
-    player.trashCards.splice(idx, 1)
+    if (takeFromTrash(state, owner, idx, "effect") === null) return
     player.hand.push(cardId)
     log(state, `${player.name}は${sourceName}の効果で${getCard(cardId).name}を手札に戻した。`)
     notifyHandGained(state, owner, 1)
