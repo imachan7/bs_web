@@ -1065,7 +1065,10 @@
     "kind": "triggered",
     "keyword": "rensa",
     "trigger": "onAttack",
-    "levels": null,
+    "levels": [
+     2,
+     3
+    ],
     "whileCombined": true,
     "optional": false,
     "action": {
@@ -1093,7 +1096,10 @@
     "kind": "triggered",
     "keyword": "rensa",
     "trigger": "onAttack",
-    "levels": null,
+    "levels": [
+     2,
+     3
+    ],
     "whileCombined": true,
     "optional": false,
     "action": {
@@ -2949,7 +2955,10 @@
     "kind": "triggered",
     "keyword": "rensa",
     "trigger": "onAttack",
-    "levels": null,
+    "levels": [
+     2,
+     3
+    ],
     "optional": false,
     "action": {
      "type": "if",
