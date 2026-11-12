@@ -1402,13 +1402,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `SavedDeck`（型）：デッキビルダー（deck.ts）と同じ保存フォーマット
 - `customDecks`（const）：デッキ名 → カードリスト（cardId -> 枚数）。ページ表示時に読み込む
 - `loadSavedDecks`（fn）
-- `deckRecipes`（let）：deck-select に保存済みデッキを「カスタム: <デッキ名>」として追加する（4色プリセットの後ろ）
+- `deckRecipes`（let）：おまかせデッキ。カードプールに合わせてサーバーが決めるので起動時に取得する
 - `setDeckRecipes`（fn）
-- `populateBuiltinDecks`（fn）
-- `populateCustomDecks`（fn）
-- `ALL_DECK_SELECT_IDS`（const）：ロビー・AI対戦用の全デッキセレクトを一括で構築する
-- `populateAllBuiltinDecks`（fn）
-- `populateAllCustomDecks`（fn）
+- `ALL_DECK_SELECT_IDS`（const）
+- `showStarterDecks`（fn）
+- `rebuildDeckSelects`（fn）：デッキ欄を作り直す：オリジナル（自作）を先頭、スタートデッキを後ろに見出しで分け、最後に使ったデッキを選んだ状態にする
+- `rememberDeckSelection`（fn）：選んだデッキを覚える（対戦後はページを読み直してロビーへ戻るため、覚えておかないと先頭に戻る）
 - `ChangelogEntry`（型）
 - `CATEGORY_MAP`（const）：コミットメッセージからカテゴリと表示テキストを抽出する
 - `parseReleaseMessage`（fn）

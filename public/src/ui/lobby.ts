@@ -35,65 +35,98 @@ export function loadSavedDecks(): SavedDeck[] {
     }
 }
 
-// deck-select に保存済みデッキを「カスタム: <デッキ名>」として追加する（4色プリセットの後ろ）
 // おまかせデッキ。カードプールに合わせてサーバーが決めるので起動時に取得する
 export let deckRecipes: Record<string, { label: string; cards: Record<string, number> }> = {}
 export function setDeckRecipes(r: typeof deckRecipes): void {
     deckRecipes = r
 }
 
-export function populateBuiltinDecks(selectId = "deck-select"): void {
-    const select = byId(selectId) as HTMLSelectElement
-    // キー（sd01_blazing・sd03c 等）の順＝商品番号の順に並べる
-    for (const [key, recipe] of Object.entries(deckRecipes).sort(([a], [b]) => a.localeCompare(b))) {
-        const option = document.createElement("option")
-        option.value = key
-        option.textContent = recipe.label
-        select.appendChild(option)
-    }
-}
-
-export function populateCustomDecks(selectId = "deck-select"): void {
-    const select = byId(selectId) as HTMLSelectElement
-    // 既存のカスタムデッキをクリア
-    const options = Array.from(select.options)
-    for (const opt of options) {
-        if (opt.value.startsWith(CUSTOM_DECK_PREFIX)) {
-            select.removeChild(opt)
-        }
-    }
-    if (selectId === "deck-select") {
-        customDecks.clear()
-    }
-
-    for (const saved of loadSavedDecks()) {
-        if (selectId === "deck-select") {
-            customDecks.set(saved.name, saved.cards)
-        }
-        let total = 0
-        for (const count of Object.values(saved.cards)) total += count
-
-        const option = document.createElement("option")
-        option.value = `${CUSTOM_DECK_PREFIX}${saved.name}`
-        if (total >= DECK_MIN_SIZE) {
-            option.textContent = `カスタム: ${saved.name}（${total}枚）`
-        } else {
-            option.textContent = `カスタム: ${saved.name}（${total}枚のため使用不可）`
-            option.disabled = true
-        }
-        select.appendChild(option)
-    }
-}
-
-// ロビー・AI対戦用の全デッキセレクトを一括で構築する
 export const ALL_DECK_SELECT_IDS = ["deck-select", "ai-my-deck-select", "ai-opp-deck-select"]
+// 「スタートデッキを表示」の切り替えを置くデッキ欄。AI のデッキはスタートデッキを選ぶことが多いので常に出す（2026-11-12 ユーザー決定）
+const STARTER_TOGGLE_SELECT_IDS = ["deck-select", "ai-my-deck-select"]
+const SHOW_STARTERS_KEY = "bsweb:showStarterDecks"
+const lastDeckKey = (selectId: string) => `bsweb:lastDeck:${selectId}`
 
-export function populateAllBuiltinDecks(): void {
-    for (const id of ALL_DECK_SELECT_IDS) populateBuiltinDecks(id)
+// localStorage は使えないことがある（プライベートウィンドウなど）。読めなければ既定値
+function readStore(key: string): string | null {
+    try {
+        return localStorage.getItem(key)
+    } catch {
+        return null
+    }
+}
+function writeStore(key: string, value: string): void {
+    try {
+        localStorage.setItem(key, value)
+    } catch {
+        // 覚えられないだけで動作には影響しない
+    }
 }
 
-export function populateAllCustomDecks(): void {
-    for (const id of ALL_DECK_SELECT_IDS) populateCustomDecks(id)
+export function showStarterDecks(): boolean {
+    return readStore(SHOW_STARTERS_KEY) !== "0"
+}
+
+// デッキ欄を作り直す：オリジナル（自作）を先頭、スタートデッキを後ろに見出しで分け、最後に使ったデッキを選んだ状態にする
+export function rebuildDeckSelects(): void {
+    const saved = loadSavedDecks()
+    customDecks.clear()
+    for (const d of saved) customDecks.set(d.name, d.cards)
+    const usable = saved.some((d) => Object.values(d.cards).reduce((a, b) => a + b, 0) >= DECK_MIN_SIZE)
+    for (const id of ALL_DECK_SELECT_IDS) {
+        // 使えるオリジナルが無いときは、切り替えに関係なくスタートデッキを出す（空の選択欄にしない）
+        const withStarters = !STARTER_TOGGLE_SELECT_IDS.includes(id) || showStarterDecks() || !usable
+        buildDeckSelect(id, saved, withStarters)
+    }
+}
+
+function buildDeckSelect(selectId: string, saved: SavedDeck[], withStarters: boolean): void {
+    const select = byId(selectId) as HTMLSelectElement
+    const want = select.value || readStore(lastDeckKey(selectId))
+    select.replaceChildren()
+    if (saved.length > 0) {
+        const group = document.createElement("optgroup")
+        group.label = "オリジナル"
+        for (const d of saved) {
+            const total = Object.values(d.cards).reduce((a, b) => a + b, 0)
+            const option = document.createElement("option")
+            option.value = `${CUSTOM_DECK_PREFIX}${d.name}`
+            option.textContent = total >= DECK_MIN_SIZE ? `${d.name}（${total}枚）` : `${d.name}（${total}枚のため使用不可）`
+            option.disabled = total < DECK_MIN_SIZE
+            group.appendChild(option)
+        }
+        select.appendChild(group)
+    }
+    if (withStarters) {
+        const group = document.createElement("optgroup")
+        group.label = "スタートデッキ"
+        // キー（sd01_blazing・sd03c 等）の順＝商品番号の順に並べる
+        for (const [key, recipe] of Object.entries(deckRecipes).sort(([a], [b]) => a.localeCompare(b))) {
+            const option = document.createElement("option")
+            option.value = key
+            option.textContent = recipe.label
+            group.appendChild(option)
+        }
+        select.appendChild(group)
+    }
+    const match = Array.from(select.options).find((o) => o.value === want && !o.disabled)
+    if (match) select.value = match.value
+    else select.value = Array.from(select.options).find((o) => !o.disabled)?.value ?? ""
+}
+
+// 選んだデッキを覚える（対戦後はページを読み直してロビーへ戻るため、覚えておかないと先頭に戻る）
+export function rememberDeckSelection(): void {
+    for (const id of ALL_DECK_SELECT_IDS) {
+        byId(id).addEventListener("change", (e) => writeStore(lastDeckKey(id), (e.target as HTMLSelectElement).value))
+    }
+    for (const box of document.querySelectorAll<HTMLInputElement>("input[data-show-starters]")) {
+        box.checked = showStarterDecks()
+        box.addEventListener("change", () => {
+            writeStore(SHOW_STARTERS_KEY, box.checked ? "1" : "0")
+            for (const other of document.querySelectorAll<HTMLInputElement>("input[data-show-starters]")) other.checked = box.checked
+            rebuildDeckSelects()
+        })
+    }
 }
 
 export interface ChangelogEntry {
