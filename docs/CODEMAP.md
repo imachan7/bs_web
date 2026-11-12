@@ -1417,6 +1417,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ALL_DECK_SELECT_IDS`（const）
 - `showStarterDecks`（fn）
 - `rebuildDeckSelects`（fn）：デッキ欄を作り直す：オリジナル（自作）を先頭、スタートデッキを後ろに見出しで分け、最後に使ったデッキを選んだ状態にする
+- `rememberLobbyInputs`（fn）：名前とルームIDを覚える（ブラウザによっては読み直しで入力欄が戻らず、ルームIDが既定の room1 に戻ったため。2026-11-13 ユーザー報告：スマホ）
 - `rememberDeckSelection`（fn）：選んだデッキを覚える（対戦後はページを読み直してロビーへ戻るため、覚えておかないと先頭に戻る）
 - `ChangelogEntry`（型）
 - `CATEGORY_MAP`（const）：コミットメッセージからカテゴリと表示テキストを抽出する

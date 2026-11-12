@@ -114,6 +114,16 @@ function buildDeckSelect(selectId: string, saved: SavedDeck[], withStarters: boo
     else select.value = Array.from(select.options).find((o) => !o.disabled)?.value ?? ""
 }
 
+// 名前とルームIDを覚える（ブラウザによっては読み直しで入力欄が戻らず、ルームIDが既定の room1 に戻ったため。2026-11-13 ユーザー報告：スマホ）
+export function rememberLobbyInputs(): void {
+    for (const id of ["name-input", "room-input"]) {
+        const input = byId(id) as HTMLInputElement
+        const saved = readStore(`bsweb:lobby:${id}`)
+        if (saved !== null && saved !== "") input.value = saved
+        input.addEventListener("input", () => writeStore(`bsweb:lobby:${id}`, input.value.trim()))
+    }
+}
+
 // 選んだデッキを覚える（対戦後はページを読み直してロビーへ戻るため、覚えておかないと先頭に戻る）
 export function rememberDeckSelection(): void {
     for (const id of ALL_DECK_SELECT_IDS) {
