@@ -34,6 +34,14 @@
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：プロボケイションと `moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
+### 進行中：複数の対象を「全部選んでから同時に適用」にする（2026-11-12 確定。`fix/simultaneous-multi-target`。#437 SP-1・SP-2）
+
+- **対象**：destroy・exhaust・return（手札・デッキ）の「N体（まで）」。今は「1体選ぶ→適用→次を選ぶ」で、upTo 型は誘発の中断で残りが消え（欠陥A）、「破壊した1体につき」を少なく数える（欠陥B）
+- **部品**：`server/src/logic/pickTargets.ts` の `pickTargets(ctx, action, {candidates, count, upTo, prompt, verb, chooserPid})` → `string[] | null`（null＝選択待ちを立てた）。`chooseOwnAny`（destroy.ts）を数の上限つきに広げたもの。途中経過は action の `choosing`／`chosenIds`、確定後は `picked: { ids, passed, failed }`（耐性の確認の途中経過）。**`picked` があれば選び直さない**（payNegateDecide の再開は targetInstanceId を渡すので、トグルと誤読しないため）
+- **読み（ユーザー確認済み）**：①耐性の確認（手札を破棄して受けない）は全員を選び終えてから1体ずつ、受けた体だけまとめて適用 ②「N体」は min(候補, N) ちょうどを選ぶまで確定できない ③「N体まで」は0〜N ④chooserIsTarget は相手がまとめて選ぶ ⑤非対話は選び方は自動のまま、適用はまとめて
+- **適用**：destroy＝`destroyTargetsBatch`（drawPerDestroyed 等の options もそのまま）、return＝既存の一括処理、exhaust＝全員に順に。候補が min(N) 以下で「まで」なしなら選ばずに全員
+- **SP-2**：`moveCards{costBudget}` も対話では予算内をトグルで選ばせる（BS12-016・BS06-X22）
+
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
 - **対象**：BS13-038 魔女タランダ（手札のスピリット）・BS10-046 龍仙公主（手札のマジック）。「好きなだけ破棄、**破棄した1枚につき**破壊された体を1体戻す」。#423（perDestroyed）の置き換え（#423 は閉じる）
