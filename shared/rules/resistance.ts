@@ -142,7 +142,7 @@ function untargetableAgainst(board: Board, targetOwnerPid: PlayerId, target: Car
     if (
         attempt.scope === "targeted" &&
         attempt.sourceType === "magic" &&
-        (target.untargetableByOpponentMagicTimed === true || activeConstraints(board, targetOwnerPid, target).some((c) => c.type === "untargetableByOpponentMagic"))
+        (target.untargetableByOpponentMagicTimed === true || activeConstraints(board, targetOwnerPid, target, false).some((c) => c.type === "untargetableByOpponentMagic"))
     ) {
         return { category: "untargetable", label: "相手のマジックの効果では指定されない" }
     }
@@ -206,4 +206,20 @@ export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, i
         }
     }
     return false
+}
+
+// 相手の継続効果（相手に与える制約・常時のBP増減・期間つきの範囲効果・指定アタック）が、この個体に届くか。
+// こちらのスピリットに向けた効果は、継続していても【装甲】などで防げる（Q682・Q683・Q686・【装甲】の項「途中で装甲が付けば受けていた効果は消える」。2026-11-12 ユーザー確認）。
+// 自分のアタッカーに付く「ブロックされない」のような、相手のスピリットを受け手にしない効果はここを通さない（Q689）
+export function continuousEffectReaches(board: Board, targetPid: PlayerId, target: CardInstance, source: { pid: PlayerId; type?: CardType | undefined; colors?: Color[] | undefined }): boolean {
+    if (source.pid === targetPid) return true
+    return (
+        boardResistanceAgainst(board, targetPid, target, {
+            op: "other",
+            scope: "area",
+            actorPid: source.pid,
+            ...(source.type !== undefined ? { sourceType: source.type } : {}),
+            ...(source.colors !== undefined ? { sourceColors: source.colors } : {}),
+        }) === null
+    )
 }

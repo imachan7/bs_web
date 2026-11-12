@@ -1387,11 +1387,13 @@ export function validatePass(state: GameState, pid: PlayerId): string | null {
 }
 
 function mustAttackNow(state: GameState, pid: PlayerId, inst: CardInstance): boolean {
-    if (!activeConstraints(state, pid, inst).some((c) => c.type === "mustAttack") && !mustAttackThisTurn(state, pid, inst)) return false
+    // メインステップからのターン終了でもアタックステップは来るので、phase だけ attack にした写しで見る。
+    // 制約も写しで読む：「相手のアタックステップ」の間だけの強制アタック（天眼機神ディアリーン Lv3）を、メインから直接ターン終了して避けられたため（2026-11-12）
+    const atAttack = { ...state, phase: "attack" as const }
+    if (!activeConstraints(atAttack, pid, inst).some((c) => c.type === "mustAttack") && !mustAttackThisTurn(atAttack, pid, inst)) return false
     // 「アタックできるとき」は、実際のアタック宣言が通るか（mustAttackOnceBlocksEnd と同じ）。条件を別に持つと片方だけ抜けて、
-    // アタックもターン終了もできずに詰む（2026-11-03：自分のスピリットが少ないとアタックできない制限が抜けていた。fuzz seed=187）。
-    // メインステップからのターン終了でもアタックステップは来るので、phase だけ attack にした写しで見る
-    return validateAttack({ ...state, phase: "attack" as const }, pid, inst.instanceId, undefined, undefined, undefined, true) === null
+    // アタックもターン終了もできずに詰む（2026-11-03：自分のスピリットが少ないとアタックできない制限が抜けていた。fuzz seed=187）
+    return validateAttack(atAttack, pid, inst.instanceId, undefined, undefined, undefined, true) === null
 }
 
 // ターン終了の妥当性。「必ずアタック」制約（mustAttack）を持ち現在アタック可能な自分のスピリットが1体でもいれば拒否する（メイン・アタックステップ両方）

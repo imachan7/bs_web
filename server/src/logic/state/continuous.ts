@@ -6,7 +6,6 @@ import { currentLevel, findInstanceAnywhere, getCard, opponentOf, rawLevel } fro
 import { ownFieldSymbolColors } from "../../../../shared/cost"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { keywordGrantTargetMatches } from "../../../../shared/rules/keywordState"
-import { boardResistanceAgainst } from "../../../../shared/rules/resistance"
 import { matchesPick } from "../actions/revealAction"
 import {
     effectActiveOn,
@@ -136,25 +135,14 @@ function applyTimedCopies(state: GameState): void {
     // 「〜として扱う」の Lv は、期間つきの耐性を写したあとで当てる。ここではまだ Lv の置き換えを消した状態なので、耐性は本来の Lv で判定でき、
     // 「耐性が Lv で決まり、その Lv を置き換えが決める」循環にならない。計算し直すたびに見るので、後から耐性を得た／失った個体も正しくなる（2026-11-03 ユーザーと決定）。
     // 自分の効果による Lv の置き換え（levelAsContinuous）はこの後で組むので、それで得る耐性はここでは見えない（既知の限界）
+    // 相手の「すべて」の記録を【装甲】などで防ぐ判定は timedRecordsOn の中にある
     for (const inst of all) {
-        const pid: PlayerId = state.players.p1.field.spirits.includes(inst) || state.players.p1.field.nexuses.includes(inst) ? "p1" : "p2"
         // 記録順に処理する＝後から掛けた Lv が勝つ
         for (const r of timedRecordsOn(state, inst)) {
             for (const c of r.content) {
                 if (c.type !== "level") continue
                 const levels = getCard(inst.cardId).levels
                 if (c.requireLevelExists && c.set !== undefined && !levels.some((l) => l.level === c.set)) continue
-                if (
-                    r.target.kind === "rule" &&
-                    boardResistanceAgainst(state, pid, inst, {
-                        op: "other",
-                        scope: "area",
-                        actorPid: r.ownerPid,
-                        ...(r.sourceType !== undefined ? { sourceType: r.sourceType } : {}),
-                        ...(r.sourceColors !== undefined ? { sourceColors: r.sourceColors } : {}),
-                    }) !== null
-                )
-                    continue
                 const to = c.max ? levels.reduce((m, l) => Math.max(m, l.level), 1) : c.set
                 if (to !== undefined) inst.timedLevel = to
             }

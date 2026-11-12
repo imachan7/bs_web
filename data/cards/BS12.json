@@ -5802,8 +5802,7 @@
         "trigger": "onBlocked",
         "eventTarget": "use",
         "levels": [
-          2,
-          3
+          2
         ],
         "optional": false,
         "action": {
@@ -5812,17 +5811,21 @@
       },
       {
         "id": "BS12-X01-e3",
-        "kind": "symbolAddGrant",
+        "kind": "triggered",
+        "trigger": "onBlocked",
+        "eventTarget": "use",
         "levels": [
           3
         ],
-        "target": "self",
-        "color": "red",
-        "counter": {
-          "ownFamily": [
-            "神星",
-            "光導"
-          ]
+        "optional": false,
+        "action": {
+          "type": "lifeCoresBySymbolDiff",
+          "selfBonusCounter": {
+            "ownFamily": [
+              "神星",
+              "光導"
+            ]
+          }
         }
       }
     ]

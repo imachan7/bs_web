@@ -21,9 +21,9 @@ import { card } from "../cardDb"
 import { isEndStepLocked } from "./activation"
 import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { hasKeyword, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
+import { hasKeyword, instColors, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
 import { entryActive } from "./effectStop"
-import { hasUntargetableConstraint } from "./resistance"
+import { continuousEffectReaches, hasUntargetableConstraint } from "./resistance"
 import { handSizeOf, instanceSymbolCount } from "./symbols"
 import { ownFieldSymbolColors } from "../cost"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
@@ -41,18 +41,22 @@ export interface ConstraintWithSource {
 }
 
 // 制約だけが要る呼び出し（大多数）はこちら。判定の本体は activeConstraintsWithSource に1本化してある
+// fromOpponent：相手から与えられた制約（constraintGrant の opponentAll）も含めるか。耐性の判定の内側は false で呼ぶ
+// （自分が持つ耐性だけを見る。相手の制約が届くかの判定が耐性を読み、耐性がまた相手の制約を読むと回り続けるため）
 export function activeConstraints(
     board: Board,
     pid: PlayerId,
     inst: CardInstance,
+    fromOpponent = true,
 ): ConstraintDef[] {
-    return activeConstraintsWithSource(board, pid, inst).map((e) => e.constraint)
+    return activeConstraintsWithSource(board, pid, inst, fromOpponent).map((e) => e.constraint)
 }
 
 export function activeConstraintsWithSource(
     board: Board,
     pid: PlayerId,
     inst: CardInstance,
+    fromOpponent = true,
 ): ConstraintWithSource[] {
     // 「持つ効果すべては発揮されない」を受けている個体は制約を1つも出さない
     // （自前の kind:"constraint" だけでなく、他の発生源からの継続付与 constraintGrant も含めて打ち切る。
@@ -154,7 +158,7 @@ export function activeConstraintsWithSource(
     // target:"opponentAll"（N9）：発生源の持ち主から見て相手の側（pid）に効く制約。
     // phaseTurn・turn は効果文どおり発生源の持ち主（oppPid）基準で判定する
     const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
-    for (const source of effectSources(board, oppPid)) {
+    for (const source of fromOpponent ? effectSources(board, oppPid) : []) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "constraintGrant" || effect.target !== "opponentAll") continue
@@ -173,6 +177,8 @@ export function activeConstraintsWithSource(
             if (effect.turn === "own" && oppPid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && oppPid === board.turnPlayer) continue
             if (!combinedBraveColorsOk(board.players[oppPid], source, effect.combinedBraveColors)) continue
+            // 【装甲】などで防げる（天眼機神ディアリーン Lv3 の強制アタック。Q686 と同じ形）
+            if (!continuousEffectReaches(board, pid, inst, { pid: oppPid, type: card(source.cardId).type, colors: instColors(source) })) continue
             noteCoverage(effect, "constraintGrant")
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }
@@ -256,17 +262,17 @@ export function hasFullEffectImmunity(
     // ⚠️ against 未指定の「相手の効果を受けない」は**従来どおりスピリット/マジックだけ**を止める
     // （既存カードの範囲を広げないため）。ブレイヴを止めるのは against:"brave" を書いたときだけ
     if (srcType === "brave") {
-        return activeConstraints(board, pid, inst).some(
+        return activeConstraints(board, pid, inst, false).some(
             (c) => c.type === "immuneToOpponentEffects" && againstIncludes(c.against, "brave"),
         )
     }
     if (srcType === "nexus") {
-        return activeConstraints(board, pid, inst).some((c) => c.type === "immuneToOpponentEffects" && againstIncludes(c.against, "nexus"))
+        return activeConstraints(board, pid, inst, false).some((c) => c.type === "immuneToOpponentEffects" && againstIncludes(c.against, "nexus"))
     }
     if (srcType !== "spirit" && srcType !== "magic") return false
     // activeConstraints は自前の kind:"constraint" だけでなく constraintGrant による範囲付与も含む
     // （BS10-091シャボンの湖畔Lv2＝「自分のコスト2のスピリットすべては」）。against指定時はそのsrcTypeのみ絞る
-    return activeConstraints(board, pid, inst).some(
+    return activeConstraints(board, pid, inst, false).some(
         (c) => c.type === "immuneToOpponentEffects" && (c.against === undefined || againstIncludes(c.against, srcType)),
     )
 }
@@ -1188,7 +1194,9 @@ export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[
 }
 
 // 記録を出した側（ownerPid）が要る判定のために、当たった記録そのものを記録順で返す
-export function timedRecordsOn(board: Board, inst: CardInstance): Board["timedEffects"] {
+// resist：相手の「すべて」の記録を、この個体の【装甲】などで防げるなら外す（バキュームシンボル。2026-11-12）。
+// 耐性の判定の内側（付与された【装甲】を読む timedKeywords）は false で呼ぶ（回り続けないため）
+export function timedRecordsOn(board: Board, inst: CardInstance, resist = true): Board["timedEffects"] {
     const p1 = board.players.p1.field
     const pid: PlayerId = p1.spirits.includes(inst) || p1.nexuses.includes(inst) ? "p1" : "p2"
     // 「〜のスピリットすべて」の記録はスピリットにだけ当たる（ネクサスは1体指定の記録でだけ受ける）
@@ -1199,13 +1207,17 @@ export function timedRecordsOn(board: Board, inst: CardInstance): Board["timedEf
             ? t.instanceId === inst.instanceId
             : t.kind === "braveHost"
               ? bravesOf(board.players[pid], inst).some((b) => b.instanceId === t.braveInstanceId)
-              : t.kind === "rule" && isSpirit && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
+              : t.kind === "rule" &&
+                isSpirit &&
+                (t.pid === undefined || t.pid === pid) &&
+                matchesTarget(board, pid, inst, t.filter, t.selfInstanceId) &&
+                (!resist || continuousEffectReaches(board, pid, inst, { pid: r.ownerPid, type: r.sourceType, colors: r.sourceColors }))
     })
 }
 
 // この個体に期間つき効果で与えられたキーワード（colors＝【装甲】の色）
 export function timedKeywords(board: Board, inst: CardInstance): { keyword: Keyword; colors?: Color[] }[] {
-    return timedContentsOn(board, inst).flatMap((c) => (c.type === "keyword" ? [c] : []))
+    return timedRecordsOn(board, inst, false).flatMap((r) => r.content).flatMap((c) => (c.type === "keyword" ? [c] : []))
 }
 
 // このプレイヤーに掛かっている期間つき効果の内容
@@ -1407,7 +1419,9 @@ export function mustBeAttackTargetIds(board: Board, attackerPid: PlayerId, attac
         .filter((s) =>
             activeConstraints(board, opp, s).some(
                 (c) => c.type === "mustBeAttackTarget" && instMatchesCostFilter(attacker, { min: c.attackerMinCost }),
-            ),
+            ) &&
+            // アタッカーに向けた効果なので、アタッカーの【装甲】などで防げる（バッファロング・ビル。Q683 の指定アタックと同じ形）
+            continuousEffectReaches(board, attackerPid, attacker, { pid: opp, type: card(s.cardId).type, colors: instColors(s) }),
         )
         .map((s) => s.instanceId)
 }

@@ -22,6 +22,16 @@ type Content = TimedEffect["content"][number]
 const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "ownAttackStepEffectsDisabled", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "alsoCost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "immune", "cantRefresh", "untargetableByOpponentMagic", "colorless"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
+// 効果の期間つき記録は、発生源（種別・色）を必ず持たせる。相手の「すべて」の記録を【装甲】などで防ぐ判定（timedRecordsOn）が読むため
+// （以前は多くの記録が持たず、色が分からないので防げなかった：バキュームシンボル。2026-11-12）
+function recordFrom(ctx: Parameters<ActionHandler<"timedEffect">>[0], record: Parameters<typeof recordTimed>[1]): void {
+    recordTimed(ctx.state, {
+        ...(ctx.srcType !== undefined ? { sourceType: ctx.srcType } : {}),
+        ...(ctx.srcColors !== undefined ? { sourceColors: ctx.srcColors } : {}),
+        ...record,
+    })
+}
+
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
     recordTimed(state, { content, target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid: owner })
 }
@@ -203,7 +213,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
     // bp と同じ timedEffect に並んだ色つきシンボル追加は、BP を上げる個体と同じ個体に付く
     for (const c of action.content) {
         if (c.type !== "symbolAdd" || !c.color) continue
-        recordTimed(state, { content: [c], target: { kind: "instance", instanceId: target.instanceId }, until: action.duration, ownerPid: owner })
+        recordFrom(ctx, { content: [c], target: { kind: "instance", instanceId: target.instanceId }, until: action.duration, ownerPid: owner })
         log(state, `${getCard(target.cardId).name}は${COLOR_LABELS[c.color]}のシンボルを${c.count ?? 1}つ追加した（${action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
     }
     const untilLabel = action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"
@@ -226,7 +236,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
         return
     }
     // 量が可変（amountCounter あり）：「1体につき」の数は計算のたびに数え直す（timedRuleBp。2026-09-24 ユーザー確認）。解決時に0でも置く
-    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: action.duration, ownerPid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+    recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: action.duration, ownerPid: owner, ...(srcType ? { sourceType: srcType } : {}) })
     const preview = content.amount * countAuraCounter(state, owner, content.amountCounter as AuraCounter, target)
     log(state, `${getCard(target.cardId).name}はBP+${preview}（${untilLabel}、数に応じて増減）。`)
     applyMagicBuffBonus(state, target, srcType, srcColors)
@@ -260,7 +270,7 @@ function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
         return
     }
     // 可変：量は判定のたびに数え直す（2026-09-24 ユーザー確認）。解決時に0でも置く
-    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: self.instanceId }, until: action.duration, ownerPid: owner })
+    recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: self.instanceId }, until: action.duration, ownerPid: owner })
     const preview = content.amount * countAuraCounter(state, owner, content.amountCounter as AuraCounter, self)
     log(state, `${getCard(self.cardId).name}はBP+${preview}（${untilLabel}、数に応じて増減）。`)
 }
@@ -295,7 +305,7 @@ function placeLastTargets(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
         if (!found || !matchesTarget(state, found.pid, found.inst, filter, self?.instanceId)) continue
         for (const c of action.content) {
             if (c.type === "bp") recordBp(state, owner, found.inst, c.amount, bpUntil(action))
-            else recordTimed(state, { content: [c], target: { kind: "instance", instanceId: found.inst.instanceId }, until: action.duration, ownerPid: owner })
+            else recordFrom(ctx, { content: [c], target: { kind: "instance", instanceId: found.inst.instanceId }, until: action.duration, ownerPid: owner })
         }
         n++
     }
@@ -336,7 +346,7 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
     }
     if (action.content.some((c) => c.type === "level")) {
         // 耐性は記録時でなく、計算し直すたびに判定する（state/continuous.ts の applyTimedCopies）。後から耐性を得た／失った個体も正しくなる
-        recordTimed(state, {
+        recordFrom(ctx, {
             content: action.content,
             target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
             until: bpUntil(action),
@@ -349,7 +359,7 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間" : "このターンの間"}、${who}スピリットすべてを${lv.max ? "最高Lv" : `Lv${lv.set}`}として扱う。`)
         return
     }
-    recordTimed(state, {
+    recordFrom(ctx, {
         content: action.content,
         target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
         until: action.duration,
@@ -419,7 +429,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
             return
         }
         const level = levelOf(found.inst)
-        recordTimed(state, { content: [{ type: "level", set: level }], target: { kind: "instance", instanceId: found.inst.instanceId }, until, ownerPid: owner })
+        recordFrom(ctx, { content: [{ type: "level", set: level }], target: { kind: "instance", instanceId: found.inst.instanceId }, until, ownerPid: owner })
         log(state, `${sourceName}：${getCard(found.inst.cardId).name}はこの${until === "battle" ? "バトル" : "ターン"}の間Lv${level}として扱われる。`)
         return
     }
@@ -440,7 +450,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         return
     }
     const next = Math.min(currentLevel(target).level + (content.up ?? 1), maxLevelOf(target))
-    recordTimed(state, { content: [{ type: "level", set: next }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+    recordFrom(ctx, { content: [{ type: "level", set: next }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：${getCard(target.cardId).name}のLvを、このターンの間${next}として扱う。`)
 }
 
@@ -453,7 +463,7 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     const content = action.content.find((c): c is Extract<Content, { type: "color" }> => c.type === "color")
     if (!content) return
     const give = (target: CardInstance, color: Color) => {
-        recordTimed(state, { content: [{ type: "color", color }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+        recordFrom(ctx, { content: [{ type: "color", color }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${getCard(target.cardId).name}に色「${COLOR_LABELS[color]}」が与えられた（ターン終了時まで）。`)
     }
     if (content.color !== undefined) {
@@ -521,7 +531,7 @@ function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
         .map((c) => (c.rule.type === "effectTaxForPid" && c.rule.source === undefined ? { ...c, rule: { ...c.rule, source: sourceName } } : c))
     if (rules.length === 0) return
     // 消費量（used）を記録ごとに持つので、カードデータと両陣営で共有しない
-    for (const pid of pids) recordTimed(state, { content: rules.map((c) => ({ ...c, rule: { ...c.rule } })), target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
+    for (const pid of pids) recordFrom(ctx, { content: rules.map((c) => ({ ...c, rule: { ...c.rule } })), target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
     const period = action.duration === "battle" ? "このバトルの間" : action.duration === "step" ? "このステップの間" : action.duration === "beforeBlock" ? "ブロック前のフラッシュタイミングの間" : action.duration === "nextRefresh" ? "次のターンの間" : "このターンの間"
     log(state, `${sourceName}：${period}、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
 }
@@ -539,7 +549,7 @@ function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
     const period = until === "attack" ? "このターン1回だけ" : action.duration === "turn" ? "このターンの間" : "このバトルの間"
     const fromLabel = content.from === undefined ? "相手のスピリット" : "条件に合う相手のスピリット"
     if (action.all) {
-        recordTimed(state, { content: [content], target: { kind: "rule", pid: owner, filter, ...(self ? { selfInstanceId: self.instanceId } : {}) }, until, ownerPid: owner })
+        recordFrom(ctx, { content: [content], target: { kind: "rule", pid: owner, filter, ...(self ? { selfInstanceId: self.instanceId } : {}) }, until, ownerPid: owner })
         log(state, `${sourceName}：${period}、自分のスピリットすべては${fromLabel}にブロックされない。`)
         return
     }
@@ -566,7 +576,7 @@ function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
             return
         }
     }
-    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until, ownerPid: owner })
+    recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until, ownerPid: owner })
     log(state, `${sourceName}：${getCard(target.cardId).name}は、${period}${fromLabel}にブロックされない。`)
 }
 
@@ -601,7 +611,7 @@ function placeCountAs(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: 
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    recordTimed(state, { content: [c], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })
+    recordFrom(ctx, { content: [c], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：このターンの間、${getCard(found.inst.cardId).name}は${state.players[owner].name}の効果で${c.count}体分として数えられる。`)
 }
 
@@ -618,7 +628,7 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     }
     const pid = action.side === "own" ? owner : opp
     const locks = action.content.filter((c) => c.type === "battleLock")
-    recordTimed(state, { content: locks, target: { kind: "player", pid }, until: "battle", ownerPid: owner })
+    recordFrom(ctx, { content: locks, target: { kind: "player", pid }, until: "battle", ownerPid: owner })
     for (const c of locks) {
         if (c.lock === "flash") log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はフラッシュで手札のカードを使用できない。`)
         else if (c.lock === "magic") log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はマジックカードを使用できない。`)
@@ -681,7 +691,7 @@ function placeTriggerSuppressionRule(ctx: Parameters<ActionHandler<"timedEffect"
         return
     }
     const pids: PlayerId[] = action.side === "both" ? bothSidesPids(state, ctx.srcType) : [action.side === "own" ? owner : opp]
-    for (const pid of pids) recordTimed(state, { content: action.content, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
+    for (const pid of pids) recordFrom(ctx, { content: action.content, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
     const who = action.side === "both" ? "お互い" : state.players[pids[0]!].name
     log(state, `${sourceName}：このターンの間、${who}のスピリットの誘発効果は発揮されない。`)
 }
@@ -697,7 +707,7 @@ function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], ac
     }
     const usedInBattle = [state.battle?.attackerInstanceId ?? null, state.battle?.blockerInstanceId ?? null].some((id) => id !== null && state.players[owner].field.spirits.some((sp) => sp.instanceId === id))
     const contents = action.content.filter((c) => c.type !== "swapBattleBp" || usedInBattle).filter((c) => c.type === "compareBy" || c.type === "swapBattleBp" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled" || c.type === "coresProtected")
-    recordTimed(state, { content: contents, target: { kind: "battle" }, until: forTurn ? "turn" : "battle", ownerPid: owner })
+    recordFrom(ctx, { content: contents, target: { kind: "battle" }, until: forTurn ? "turn" : "battle", ownerPid: owner })
     const label = { level: "Lv", cores: "コアの数", cost: "コスト" }
     for (const c of contents) {
         if (c.type === "compareBy") {
@@ -727,7 +737,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
             log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
             return
         }
-        recordTimed(state, { content: [content], target: { kind: "instance", instanceId: self.instanceId }, until: "turn", ownerPid: owner })
+        recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: self.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${sourceName}：${getCard(self.cardId).name}に、このターンの間${content.color}シンボル${content.count ?? 1}つを追加した。`)
         return
     }
@@ -742,7 +752,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
             log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
             return
         }
-        recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+        recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${sourceName}：${getCard(target.cardId).name}に、このターンの間${content.color}シンボル${content.count ?? 1}つを追加した。`)
         if (chosen.length + 1 < total) ctx.resolve({ ...action, chosenIds: [...chosen, target.instanceId] })
         return
@@ -763,7 +773,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
             log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
             return
         }
-        recordTimed(state, { content: [{ type: "symbolAdd" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+        recordFrom(ctx, { content: [{ type: "symbolAdd" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${sourceName}：${getCard(target.cardId).name}に、このターンの間シンボル1つを追加した。`)
         return
     }
@@ -779,7 +789,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
             return
         }
-        recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+        recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${getCard(target.cardId).name}は、このターンの間コスト${instBaseCost(target)}になる。（コスト${content.amount >= 0 ? "+" : ""}${content.amount}）`)
         return
     }
@@ -792,7 +802,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "battle", ownerPid: owner })
+    recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "battle", ownerPid: owner })
     log(state, `${getCard(target.cardId).name}は、このバトルの間シンボルを${content.color ? COLOR_LABELS[content.color] : ""}${content.count}つとして扱う。`)
 }
 
@@ -824,7 +834,7 @@ function placeSymbolLossRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], a
             color = counts.reduce((a, b) => (b[1] > a[1] ? b : a))[0]
         }
     }
-    recordTimed(state, {
+    recordFrom(ctx, {
         content: [{ type: "symbolLoss", color }],
         target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
         until: action.duration === "step" ? "step" : "turn",
@@ -847,7 +857,7 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
             return
         }
         const pid = action.side === "both" ? rulePid(ctx, "both") : owner
-        recordTimed(state, { content: [content], target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter: {} }, until: "turn", ownerPid: owner })
+        recordFrom(ctx, { content: [content], target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter: {} }, until: "turn", ownerPid: owner })
         const who = pid === undefined ? "お互いの" : `${state.players[owner].name}の`
         log(state, `${sourceName}：このターンの間、${who}スピリットの『ブロック時』効果は『アタック時』に発揮される。`)
         return
@@ -872,7 +882,7 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
         log(state, `${sourceName}：${content.from === "onBlock" ? "『ブロック時』効果を持つ" : "対象の"}自分のスピリットがいなかった。`)
         return
     }
-    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+    recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}の『${fromLabel}』効果は『${toLabel}』に発揮される。`)
 }
 
@@ -887,7 +897,7 @@ function placeTrashCoreReturnCap(ctx: Parameters<ActionHandler<"timedEffect">>[0
     }
     const pids: PlayerId[] = action.side === "both" ? bothSidesPids(state, ctx.srcType) : [action.side === "own" ? owner : opp]
     for (const pid of pids) {
-        recordTimed(state, { content: [content], target: { kind: "player", pid }, until: "nextRefresh", ownerPid: owner })
+        recordFrom(ctx, { content: [content], target: { kind: "player", pid }, until: "nextRefresh", ownerPid: owner })
         log(state, `${sourceName}：次の${state.players[pid].name}のリフレッシュステップでは、トラッシュのコアは${content.max}個までしかリザーブに戻せない。`)
     }
 }
@@ -902,7 +912,7 @@ function placeBraveZero(ctx: Parameters<ActionHandler<"timedEffect">>[0], action
     }
     const pids: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [action.side === "own" ? owner : opp]
     for (const pid of pids) {
-        recordTimed(state, { content, target: { kind: "player", pid }, until: action.duration, ownerPid: owner, ...(content.some((c) => c.type === "braveBpBonusZero") && self ? { sourceInstanceId: self.instanceId } : {}) })
+        recordFrom(ctx, { content, target: { kind: "player", pid }, until: action.duration, ownerPid: owner, ...(content.some((c) => c.type === "braveBpBonusZero") && self ? { sourceInstanceId: self.instanceId } : {}) })
     }
     const what = content.map((c) => (c.type === "braveBpBonusZero" ? "「合体時BP+」を0" : "ブレイヴのコストを0")).join("と")
     log(state, `${sourceName}：${pids.map((p) => state.players[p].name).join("と")}の合体スピリットの${what}として扱う。`)
@@ -966,7 +976,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
             log(state, `${sourceName}：この期間・陣営の指定は未対応のため発揮しなかった。`)
             return
         }
-        recordTimed(state, { content: action.content.filter((c) => c.type === "grantTrigger"), target: { kind: "rule", pid: owner, filter, ...(self ? { selfInstanceId: self.instanceId } : {}) }, until: "turn", ownerPid: owner })
+        recordFrom(ctx, { content: action.content.filter((c) => c.type === "grantTrigger"), target: { kind: "rule", pid: owner, filter, ...(self ? { selfInstanceId: self.instanceId } : {}) }, until: "turn", ownerPid: owner })
         log(state, `${sourceName}：このターンの間、条件に合う自分のスピリットすべてに効果を付与した。`)
         return
     }
