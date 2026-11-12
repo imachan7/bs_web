@@ -198,14 +198,19 @@ async function main(): Promise<void> {
     const act = (c: typeof c1, action: GameAction) =>
         c.socket.emit("action", action)
 
-    act(c1, { type: "endTurn" })
-    const [v1b, v2b] = await Promise.all([c1.nextState(), c2.nextState()])
-    assert(v1b.turnPlayer === "p2", "p1がターン終了しp2のターンになる")
-    assert(v2b.players.p2.handCount === 5, "p2はドローして手札5枚")
+    // 先攻はランダム（2026-11-13）。先攻の側からターンを終える
+    const firstPid = v1.turnPlayer
+    const secondPid = firstPid === "p1" ? "p2" : "p1"
+    const [cFirst, cSecond] = firstPid === "p1" ? [c1, c2] : [c2, c1]
+    assert(v1.players[firstPid].handCount === 5 && v1.players[secondPid].handCount === 4, "先攻は初期4＋ドロー1で5枚、後攻は4枚")
+    act(cFirst, { type: "endTurn" })
+    const [v1b] = await Promise.all([c1.nextState(), c2.nextState()])
+    assert(v1b.turnPlayer === secondPid, "先攻がターン終了し後攻のターンになる")
+    assert(v1b.players[secondPid].handCount === 5, "後攻はドローして手札5枚")
 
-    act(c2, { type: "endTurn" })
+    act(cSecond, { type: "endTurn" })
     const [v1c] = await Promise.all([c1.nextState(), c2.nextState()])
-    assert(v1c.turnPlayer === "p1" && v1c.turn === 3, "ターン3でp1に戻る")
+    assert(v1c.turnPlayer === firstPid && v1c.turn === 3, "ターン3で先攻に戻る")
 
     c1.socket.disconnect()
     c2.socket.disconnect()
@@ -230,9 +235,9 @@ async function main(): Promise<void> {
         w1.players.p1.deckCount + w1.players.p1.handCount === 40,
         `p1のデッキ+手札が40枚（デッキ${w1.players.p1.deckCount}+手札${w1.players.p1.handCount}）`,
     )
-    // 初期手札4枚 + 先攻1ターン目のドローステップ1枚 = 5枚。
+    // 初期手札4枚 + 先攻1ターン目のドローステップ1枚 = 5枚（先攻はランダムなので、先攻の側を見る）。
     // 「先攻1ターン目はコアステップなし・ドローあり」への修正（94b4099）以降はこれが正
-    assert(w1.players.p1.handCount === 5, "p1の初期手札は5枚（初期4＋ドローステップ1）")
+    assert(w1.players[w1.turnPlayer].handCount === 5, "先攻の初期手札は5枚（初期4＋ドローステップ1）")
 
     d1.socket.disconnect()
     d2.socket.disconnect()
@@ -420,8 +425,10 @@ async function main(): Promise<void> {
         assert(joined.playerId === "p1", "AI戦では自分がp1に座る")
         assert(joined.roomId.startsWith("ai-"), `AI戦のルームIDは ai- で始まる（${joined.roomId}）`)
 
-        const v = await c.nextState()
-        assert(v.phase === "main" && v.turnPlayer === "p1", "相手を待たずにそのまま対戦が始まる")
+        // 先攻はランダム（2026-11-13）。AI が先攻なら、AI の1ターン目（アタックは無い）が終わって自分のメインステップが来るまで待つ
+        let v = await c.nextState()
+        for (let i = 0; i < 30 && !(v.phase === "main" && v.turnPlayer === "p1"); i++) v = await c.nextState()
+        assert(v.phase === "main" && v.turnPlayer === "p1", "相手を待たずにそのまま対戦が始まる（AI が先攻なら1ターン目のあとに自分の番）")
         assert(v.players.p2.name === "AI紫", "指定した名前でAIが座る")
 
         // ターンを渡すと AI が指し始める。AI はアタックまでしてくるので、
