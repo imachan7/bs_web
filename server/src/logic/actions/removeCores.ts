@@ -92,12 +92,18 @@ function depositTo(state: GameState, pid: PlayerId, to: Dest, amount: number, la
 
 // 相手の効果でスピリットからリザーブ／トラッシュへ移すとき、[ソウルコア]を含めるかを持ち主に聞く（§1.3・2026-10-05 確定）。
 // 答えは action.soulAnswers に溜める。resume は「この個体の続きから」解決し直すアクション
-function soulFor(ctx: ActionCtx, resume: RemoveCoresAction, pid: PlayerId, inst: CardInstance, to: Dest): boolean | "asked" {
+function soulFor(ctx: ActionCtx, resume0: RemoveCoresAction, pid: PlayerId, inst: CardInstance, to: Dest): boolean | "asked" {
+    const resume = continueWith(ctx, resume0)
     if (to !== "reserve" && to !== "trash") return false
     if (!ctx.state.players[pid].field.spirits.includes(inst)) return false
     const answered = resume.soulAnswers?.[inst.instanceId]
     if (answered !== undefined) return answered
     return soulCoreInclusionDecision(ctx.state, ctx.owner, pid, inst, to, resume, ctx.self, ctx.sourceName, ctx.chosenOption)
+}
+
+// 中断・再入の続きのアクション。ここまでに0個にした体数を持たせる（入口で記録をこの値から数え直す）
+function continueWith(ctx: ActionCtx, action: RemoveCoresAction): RemoveCoresAction {
+    return { ...action, emptiedSoFar: lastEmptiedSpiritsOf(ctx.state) }
 }
 
 // この効果でスピリットのコアが0個になったことを記録し、相手のスピリットなら「コアが0個になったとき」を起こす。
@@ -377,7 +383,7 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     const applyOne = (pid: PlayerId, inst: CardInstance, resume: typeof action = action): boolean => {
         if (pid !== owner) {
             const attempt = attemptOf(ctx, "coreRemove", "targeted")
-            if (askPayToNegateIfNeeded(state, pid, inst, attempt, resume, self, sourceName)) return true
+            if (askPayToNegateIfNeeded(state, pid, inst, attempt, continueWith(ctx, resume), self, sourceName)) return true
             const resisted = resistanceAgainst(state, pid, inst, attempt)
             if (resisted) {
                 log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
@@ -409,7 +415,7 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         if (applyOne(found.pid, found.inst)) return
         if (picks > 1) {
             const { soulChoiceTarget: _answered, ...withoutSoulTarget } = action
-            ctx.resolve({ ...withoutSoulTarget, targets: picks - 1, excludeIds: [...excludeIds, found.inst.instanceId] })
+            ctx.resolve(continueWith(ctx, { ...withoutSoulTarget, targets: picks - 1, excludeIds: [...excludeIds, found.inst.instanceId] }))
         }
         return
     }
@@ -428,7 +434,7 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
             `${sourceName}のコア除去：対象を選んでください${picks > 1 ? `（あと${String(picks)}体）` : ""}`,
             open.map((c) => c.inst.instanceId),
             false,
-            action,
+            continueWith(ctx, action),
             self,
             "target",
             undefined,
@@ -616,7 +622,7 @@ const resolveSpread = (ctx: ActionCtx, action: RemoveCoresAction): void => {
                 `${sourceName}のコア除去：コアを取り除く場所を選んでください${Number.isFinite(left) ? `（あと${String(left)}個）` : ""}`,
                 candidates.map(sourceIdOf),
                 false,
-                { ...action, spreadRemaining: left, excludeIds },
+                continueWith(ctx, { ...action, spreadRemaining: left, excludeIds }),
                 self,
                 "target",
                 undefined,
@@ -738,7 +744,7 @@ const removeCoresHandler: ActionHandler<"removeCores"> = (ctx, action0) => {
     const action: RemoveCoresAction = action0.soulChoiceTarget !== undefined && ctx.chosenOption !== undefined
         ? { ...action0, soulAnswers: { ...action0.soulAnswers, [action0.soulChoiceTarget]: ctx.chosenOption.includes("[ソウルコア]を含める") } }
         : action0
-    recordEmptiedSpirits(state, 0)
+    recordEmptiedSpirits(state, action.emptiedSoFar ?? 0)
     if (action.count === "any") {
         resolveAny(ctx, action)
         return
