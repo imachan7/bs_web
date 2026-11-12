@@ -463,7 +463,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `runExtraStep`（fn）：BS15-X04 Lv2：選んだステップを通常どおり丸ごと行う（そのステップの効果もすべて発揮する）
 - `runTurnStart`（fn）：ターン開始処理：start → core → draw → refresh を自動で進めて main で止める。
 - `toAttackPhase`（fn）：メインステップ → アタックステップ
-- `endTurn`（fn）：ターン終了処理：エンドステップを経て相手のターンを開始する
+- `EndTurnStage`（型）：ターン終了処理：エンドステップを経て相手のターンを開始する
+- `endTurn`（fn）
 
 ## server/src/logic/RuleValidator.ts
 
