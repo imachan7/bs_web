@@ -286,6 +286,11 @@ export function normalizeFilter(
             ? instanceIds
             : resolved.instanceIn.filter((id) => instanceIds.includes(id))
     }
+    // 置き換えられずに残った eventTargets（まとまりを渡さない経路から解決された）は、対象なし
+    if ((resolved as { eventTargets?: true }).eventTargets !== undefined) {
+        delete (resolved as { eventTargets?: true }).eventTargets
+        resolved.instanceIn = []
+    }
     if (resolved.instanceIn !== undefined && resolved.instanceIn.length === 0) return SELF_REQUIRED
 
     return resolved
