@@ -69,11 +69,11 @@ console.log("=== 2. exhaust upTo：1つ選んだあとで止められる ===")
     resolveAction(s, "p1", null, exhaustAction)
     assert(s.pendingChoice!.candidates.length === 2, "候補は相手の2体")
     assert(handleAction(s, "p1", { type: "resolveChoice", instanceId: e1.instanceId }) === null, "1体目を選ぶ")
-    assert(e1.isRested, "選んだ1体は疲労した")
-    assert(!e2.isRested, "残りはまだ疲労していない")
+    // 全部選び終えてからまとめて疲労させる（2026-11-12 ユーザー決定）。選んだ時点ではまだ疲労しない
+    assert(!e1.isRested && !e2.isRested, "選んだ時点ではまだ誰も疲労していない")
     assert(s.pendingChoice !== null && s.pendingChoice.prompt.includes("あと1体"), "残り1体ぶんの選択が立ち直す")
     assert(handleAction(s, "p1", { type: "resolveChoice" }) === null, "残りは選ばずに終える")
-    assert(!e2.isRested, "スキップしたので2体目は疲労しないまま")
+    assert(e1.isRested && !e2.isRested, "確定したら選んだ1体だけが疲労する")
     assert(s.pendingChoice === null, "選択は残らない")
 }
 
