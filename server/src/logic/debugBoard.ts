@@ -26,6 +26,7 @@ export interface DebugPlayerBoard {
     deck?: string[] // 先頭がデッキトップ。**省略時は現状維持**（引くカードを固定したいときだけ書く）
     trashCards?: string[]
     tegamoto?: string[]
+    burst?: string | null // セットしておくバーストのカードID（null で外す）
     field?: {
         spirits?: DebugInstance[]
         nexuses?: DebugInstance[]
@@ -85,6 +86,7 @@ export function applyDebugBoard(state: GameState, board: DebugBoard): string | n
             ["デッキ", spec.deck],
             ["トラッシュ", spec.trashCards],
             ["手元", spec.tegamoto],
+            ["バースト", spec.burst ? [spec.burst] : undefined],
         ] as const) {
             const err = checkCardIds(ids, `${pid}の${zone}`)
             if (err) return err
@@ -127,6 +129,10 @@ export function applyDebugBoard(state: GameState, board: DebugBoard): string | n
         if (spec.tegamoto !== undefined) {
             p.tegamoto = [...spec.tegamoto]
             p.tegamotoPlayable = []
+        }
+        if (spec.burst !== undefined) {
+            p.burst = spec.burst
+            p.burstSet = spec.burst !== null
         }
         if (spec.field !== undefined) {
             p.field.spirits = toInstances(spec.field.spirits, state.turn)
