@@ -246,7 +246,7 @@ export function destroySpirit(
         state.ownSpiritDestroyedByOwnEffectColors = { ...(state.ownSpiritDestroyedByOwnEffectColors ?? {}), [ownerPid]: [...(state.ownSpiritDestroyedByOwnEffectColors?.[ownerPid] ?? []), ...instColors(inst)] }
         if (getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onDestroy")) state.ownSpiritWithOnDestroyDestroyedByOwnEffect = { ...(state.ownSpiritWithOnDestroyDestroyedByOwnEffect ?? {}), [ownerPid]: true }
     }
-    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name, ...(cause === "deplete" ? { vanish: true as const } : {}) })
+    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name, instanceId: inst.instanceId, ...(cause === "deplete" ? { vanish: true as const } : {}) })
 
     // 破壊された時点でまだバトルが生きているので、アタッカー側だったかをここで確定させる
     // （clearBattle 後には判定できない。attackerOnly の判定に使う）
@@ -1279,7 +1279,7 @@ export function returnNexusToHand(
     player.reserve += inst.cores
     player.hand.push(inst.cardId)
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は手札に戻った。`)
-    emitEvent(state, { type: "returnToHand", pid: ownerPid, cardName: getCard(inst.cardId).name })
+    emitEvent(state, { type: "returnToHand", pid: ownerPid, cardName: getCard(inst.cardId).name, instanceId: inst.instanceId })
     notifyHandGained(state, ownerPid, 1)
 }
 
@@ -1444,6 +1444,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
                     type: "returnToHand",
                     pid,
                     cardName: name,
+                    instanceId: inst.instanceId,
                     ...(sourceName !== undefined ? { sourceName } : {}),
                 })
             } else if (pb.to === "burst") {
@@ -1462,6 +1463,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
                     type: "returnToDeck",
                     pid,
                     cardName: name,
+                    instanceId: inst.instanceId,
                     position: top ? "top" : "bottom",
                     ...(sourceName !== undefined ? { sourceName } : {}),
                 })

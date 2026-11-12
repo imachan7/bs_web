@@ -165,15 +165,17 @@ export type TriggerEvent =
 // クライアントは前回処理済みの seq より大きいものだけをアニメーション再生する。
 export type GameEvent =
     | { seq: number; type: "summon"; pid: PlayerId; cardName: string } // 召喚（神速召喚含む）
-    | { seq: number; type: "destroy"; pid: PlayerId; cardName: string; vanish?: true } // 破壊。vanish は消滅（維持コア割れ）
+    // instanceId＝場を離れた個体。画面が消える位置にエフェクトを出す（急に消えたように見えないため。2026-11-12 ユーザー要望）
+    | { seq: number; type: "destroy"; pid: PlayerId; cardName: string; vanish?: true; instanceId?: string } // 破壊。vanish は消滅（維持コア割れ）
     | { seq: number; type: "draw"; pid: PlayerId; count: number } // ドロー
     | { seq: number; type: "lifeDamage"; pid: PlayerId; amount: number } // ライフのコアが減った（このpidが被弾した側）
-    | { seq: number; type: "magic"; pid: PlayerId; cardName: string } // マジック使用
+    | { seq: number; type: "magic"; pid: PlayerId; cardName: string; cardId?: string; timing?: "main" | "flash" } // マジック使用。画面が使った効果の文面を出す
+    | { seq: number; type: "reveal"; pid: PlayerId; cardIds: string[] } // デッキ・バーストのカードをオープンした（pid＝オープンしたカードの持ち主）
     | { seq: number; type: "burst"; pid: PlayerId; cardName: string }
     // バウンス／デッキ戻し。
     // pid は**カードの持ち主**（＝戻された側）。sourceName は戻した効果の発生源カード名（分かる場合のみ）
-    | { seq: number; type: "returnToHand"; pid: PlayerId; cardName: string; sourceName?: string } // フィールドから手札へ戻った（スピリット／ネクサス）
-    | { seq: number; type: "returnToDeck"; pid: PlayerId; cardName: string; position: "top" | "bottom"; sourceName?: string } // フィールドからデッキへ戻った
+    | { seq: number; type: "returnToHand"; pid: PlayerId; cardName: string; sourceName?: string; instanceId?: string } // フィールドから手札へ戻った（スピリット／ネクサス）
+    | { seq: number; type: "returnToDeck"; pid: PlayerId; cardName: string; position: "top" | "bottom"; sourceName?: string; instanceId?: string } // フィールドからデッキへ戻った
 
 // ブロック可否などの制約定義（RuleValidator が参照する宣言的ルール）
 // **エンドステップを数える封印**（BS10-108 ルナティックシール）。

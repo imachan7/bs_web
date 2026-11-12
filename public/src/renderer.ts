@@ -309,7 +309,65 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
             return `💨 ${ev.cardName} 手札へ戻る`
         case "returnToDeck":
             return `🌪 ${ev.cardName} デッキ${ev.position === "top" ? "上" : "下"}へ戻る`
+        case "reveal":
+            return null // 詳しい表示（showDetailBanner）で出す
     }
+}
+
+// マジックの効果文から、使ったタイミングの部分（「フラッシュ：」以下など）だけを取り出す
+function magicEffectText(cardId: string, timing: "main" | "flash" | undefined): string {
+    const text = master(cardId).effect
+    if (timing === undefined) return text
+    const head = timing === "flash" ? "フラッシュ：" : "メイン："
+    const at = text.indexOf(head)
+    if (at === -1) return text
+    const rest = text.slice(at + head.length)
+    const next = rest.search(/(メイン|フラッシュ)：/)
+    return (next === -1 ? rest : rest.slice(0, next)).trim()
+}
+
+// 誰が何をしたかと中身を読める大きめの通知。相手の行動は長めに出し、押せば閉じる（2026-11-12 ユーザー要望：使ったマジック・オープンしたカードが分かりづらい）
+function showDetailBanner(layer: HTMLElement, kind: string, title: string, body: string, mine: boolean): void {
+    const banner = document.createElement("div")
+    banner.className = `event-detail event-${kind}`
+    const t = document.createElement("div")
+    t.className = "event-detail-title"
+    t.textContent = title
+    const b = document.createElement("div")
+    b.className = "event-detail-body"
+    b.textContent = body
+    banner.append(t, b)
+    banner.addEventListener("click", () => banner.remove())
+    layer.appendChild(banner)
+    setTimeout(() => banner.remove(), mine ? 4000 : 8000)
+}
+
+// 直前に使われたマジックを画面の隅に残す（次のマジックまで。カーソルを合わせると効果文）
+function showLastMagic(ev: Extract<GameEvent, { type: "magic" }>, you: PlayerId): void {
+    let chip = document.getElementById("last-magic")
+    if (!chip) {
+        chip = document.createElement("div")
+        chip.id = "last-magic"
+        document.getElementById("game")?.appendChild(chip)
+    }
+    chip.textContent = `📜 直前のマジック：${ev.pid === you ? "あなた" : "相手"}の${ev.cardName}${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`
+    chip.title = ev.cardId !== undefined ? master(ev.cardId).effect : ev.cardName
+}
+
+// 場を離れたカードの位置に、消えていく写しを重ねる（描き直す前に呼ぶ。急に消えたように見えないため）
+function showLeaveGhost(instanceId: string, kind: "vanish" | "destroy" | "bounce"): void {
+    const el = document.querySelector<HTMLElement>(`.card[data-instance-id="${CSS.escape(instanceId)}"]`)
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const ghost = el.cloneNode(true) as HTMLElement
+    ghost.classList.add("leave-ghost", `leave-${kind}`)
+    ghost.removeAttribute("data-instance-id")
+    ghost.style.left = `${rect.left}px`
+    ghost.style.top = `${rect.top}px`
+    ghost.style.width = `${rect.width}px`
+    ghost.style.height = `${rect.height}px`
+    document.body.appendChild(ghost)
+    setTimeout(() => ghost.remove(), 1200)
 }
 
 // view.events のうち前回描画より新しいものだけを処理する：
@@ -322,6 +380,19 @@ function processNewEvents(view: GameView): Set<PlayerId> {
     for (const ev of newEvents) {
         if (ev.type === "lifeDamage") {
             lifeDamagedPids.add(ev.pid)
+            continue
+        }
+        if ((ev.type === "destroy" || ev.type === "returnToHand" || ev.type === "returnToDeck") && ev.instanceId !== undefined) {
+            showLeaveGhost(ev.instanceId, ev.type === "destroy" ? (ev.vanish ? "vanish" : "destroy") : "bounce")
+        }
+        const mine = ev.pid === view.you
+        if (ev.type === "magic" && layer) {
+            showLastMagic(ev, view.you)
+            showDetailBanner(layer, "magic", `📜 ${mine ? "あなた" : "相手"}が ${ev.cardName} を使用${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`, ev.cardId !== undefined ? magicEffectText(ev.cardId, ev.timing) : "", mine)
+            continue
+        }
+        if (ev.type === "reveal" && layer) {
+            showDetailBanner(layer, "reveal", `🔍 ${mine ? "あなた" : "相手"}のカードをオープン`, ev.cardIds.map((id) => master(id).name).join("、"), false)
             continue
         }
         const text = eventBannerText(ev, view.you)

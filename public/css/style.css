@@ -2169,3 +2169,83 @@ body:has(#notice-banner:not(.hidden)) {
 .lobby-section .starter-toggle {
     margin-bottom: 12px;
 }
+
+/* マジック・オープンの詳しい通知（誰が・何を・中身。押せば閉じる） */
+.event-detail {
+    pointer-events: auto;
+    cursor: pointer;
+    max-width: min(560px, calc(100vw - 32px));
+    padding: 12px 18px;
+    border-radius: 10px;
+    background: rgba(26, 29, 36, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+    color: var(--text-main);
+    animation: event-detail-in 200ms ease-out;
+}
+.event-detail.event-magic { border-color: #8e6cf0; }
+.event-detail.event-reveal { border-color: #4fb3d9; }
+.event-detail-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.event-detail-body { font-size: 13px; line-height: 1.5; white-space: pre-wrap; color: var(--text-muted); }
+@keyframes event-detail-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* 直前に使われたマジック（カーソルを合わせると効果文） */
+#last-magic {
+    position: fixed;
+    left: 12px;
+    bottom: 12px;
+    z-index: 40;
+    max-width: calc(100vw - 24px);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    background: rgba(26, 29, 36, 0.85);
+    border: 1px solid #8e6cf0;
+    color: var(--text-main);
+    cursor: help;
+}
+
+/* 場を離れたカードの写し（消滅・破壊・手札/デッキへ戻る） */
+.leave-ghost {
+    position: fixed;
+    margin: 0;
+    z-index: 60;
+    pointer-events: none;
+    animation-duration: 1100ms;
+    animation-fill-mode: forwards;
+    animation-timing-function: ease-in;
+}
+.leave-ghost.leave-vanish { animation-name: leave-vanish; }
+.leave-ghost.leave-destroy { animation-name: leave-destroy; }
+.leave-ghost.leave-bounce { animation-name: leave-bounce; }
+.leave-ghost::after {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 0 6px #000, 0 0 2px #000;
+}
+.leave-ghost.leave-vanish::after { content: "消滅"; }
+.leave-ghost.leave-destroy::after { content: "破壊"; }
+.leave-ghost.leave-bounce::after { content: "戻る"; }
+@keyframes leave-vanish {
+    0% { opacity: 1; filter: none; transform: none; }
+    100% { opacity: 0; filter: grayscale(1) blur(3px); transform: translateY(-14px) scale(0.9); }
+}
+@keyframes leave-destroy {
+    0% { opacity: 1; filter: none; transform: none; }
+    20% { filter: brightness(1.8) saturate(2) hue-rotate(-20deg); transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    100% { opacity: 0; filter: grayscale(1); transform: scale(0.85) rotate(-4deg); }
+}
+@keyframes leave-bounce {
+    0% { opacity: 1; transform: none; }
+    100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
+}
