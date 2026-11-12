@@ -1,4 +1,5 @@
 // ターン進行・フェーズ遷移の制御
+import { takeFromTrash } from "./zones/trash"
 import { trashCardEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import { handGainDenial } from "./handGate"
@@ -453,7 +454,7 @@ export function endTurn(state: GameState): void {
             if (already >= trashReturnMaxCount(cardId)) continue
             if (handGainDenial(state, { pid: state.turnPlayer, from: "trash", cause: "effect" })) continue
             noteCoverage(getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
-            p.trashCards.splice(i, 1)
+            if (takeFromTrash(state, state.turnPlayer, i, "effect") === null) continue
             p.hand.push(cardId)
             returnedCounts.set(cardId, already + 1)
             log(state, `${p.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)

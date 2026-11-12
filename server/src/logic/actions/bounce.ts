@@ -1,4 +1,5 @@
 // バウンス（手札・デッキ上へ戻す）アクションのハンドラと候補数の判定
+import { takeFromTrash } from "../zones/trash"
 import { handGainDenial } from "../handGate"
 import { bounceDenial } from "../bounceGate"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
@@ -818,7 +819,7 @@ function returnDestroyedSelfToHand(ctx: ActionCtx): void {
         const idx = player.trashCards.lastIndexOf(self.cardId)
         if (idx >= 0) {
             if (blocked("trash")) return
-            player.trashCards.splice(idx, 1)
+            if (takeFromTrash(state, owner, idx, "effect") === null) return
             player.hand.push(self.cardId)
             log(state, `${getCard(self.cardId).name}は手札に戻った。`)
             notifyHandGained(state, owner, 1)
@@ -845,8 +846,7 @@ function returnDestroyedSelfToDeckTop(ctx: ActionCtx): void {
             return
         }
         const idx = player.trashCards.lastIndexOf(self.cardId)
-        if (idx >= 0) {
-            player.trashCards.splice(idx, 1)
+        if (idx >= 0 && takeFromTrash(state, owner, idx, "effect") !== null) {
             player.deck.unshift(self.cardId)
             log(state, `${getCard(self.cardId).name}はデッキの一番上に戻った。`)
         }
