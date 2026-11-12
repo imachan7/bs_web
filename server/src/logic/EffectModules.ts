@@ -1464,7 +1464,7 @@ export function resolveAction(
     burst?: true,
 ): void {
     // 召喚時効果を発揮した印。pay は払えないと発動していないので、確認を済ませたか払った時点で付ける（pay.ts）
-    if (self !== null && state.summonEffectSource?.instanceId === self.instanceId && action.type !== "pay") state.summonEffectSource.resolved = true
+    if (self !== null && action.type !== "pay") markSummonEffectResolved(state, self)
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
     const srcColors = sourceColors ?? (self ? instColors(self) : undefined)
@@ -1630,4 +1630,5 @@ export {
     requestUpToChoice,
 } from "./targeting"
 export { placeBurst, finishBurstActivation, fireOwnBurstActivated, continueBurstActivation, announceBurstActivation, fireEventBursts } from "./keywords/burst"
+import { markSummonEffectResolved } from "./keywords/burst"
 export { fireSummonSequence, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "./summon"

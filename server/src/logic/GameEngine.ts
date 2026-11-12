@@ -167,7 +167,8 @@ export function handleAction(
     // 『召喚時』効果の解決中フラグは、選択待ちが無くなった時点で落とす
     if (!state.pendingChoice) {
         delete state.resolvingSummonTriggerPid
-        finishSummonEffect(state)
+        // 入れ子の召喚時効果を内側から順に閉じる（閉じた先の誘発が選択待ちを立てたら、そこで止める）
+        while (!state.pendingChoice && (state.summonEffectSources?.length ?? 0) > 0) finishSummonEffect(state)
     }
     if (!state.pendingChoice && state.resumeStack.length === 0) {
         delete state.lastMoved
