@@ -37,6 +37,8 @@ app.use((req, res, next) => {
     if (to) res.redirect(302, to)
     else next()
 })
+// カード画像は本番ではバケットをつないだ場所から読む（docs/ops/DEPLOY_CLOUDRUN.md「旧カードの画像」）。読むたびにバケットへ行かないよう、ブラウザに7日覚えさせる
+app.use("/imgs/cards", express.static(path.resolve(__dirname, "../../public/imgs/cards"), { maxAge: "7d" }))
 app.use(express.static(path.resolve(__dirname, "../../public")))
 app.use("/data", express.static(path.resolve(__dirname, "../../data")))
 
