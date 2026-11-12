@@ -54,6 +54,8 @@ export function fireFieldEventTriggers(
     targetInstanceId?: string,
     eventCount?: number,
     eventInfo?: {
+        // その誘発のまとまりの体（「BP0になったスピリットすべて」など）。効果の filter.eventTargets をこの一覧に置き換えてから解決する
+        eventTargetIds?: string[]
         vanilla?: boolean
         byBattle?: boolean
         // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルのアタッカーだったか（attackerOnly の判定に使う）
@@ -599,7 +601,7 @@ export function fireFieldEventTriggers(
                     state,
                     c.actionPid,
                     activationPrompt(e.inst),
-                    e.effect.action,
+                    bindEventTargets(e.effect.action, eventInfo?.eventTargetIds),
                     c.actionSelf,
                     // oncePerTurn／同時破壊グループの仮消費どちらも、断ったときにここで戻す
                     // （revertDestroyGroupUsageは対象キーが無ければ何もしないので常に渡してよい）
@@ -609,7 +611,7 @@ export function fireFieldEventTriggers(
             } else {
                 delete state.effectFizzled
                 // 中の pay が確認で止まったとき、断った／不発で消費を戻せるよう渡す（triggered と同じ）
-                const action = markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } })
+                const action = markPays(bindEventTargets(e.effect.action, eventInfo?.eventTargetIds), { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } })
                 resolveAction(state, c.actionPid, c.actionSelf, action, c.actionTargetId, c.srcColors, c.srcType)
                 // コストを払えないなどで何も起きなかったら、「ターンに1回」／同時破壊グループの消費を戻す（2026-09-16／fix/destroyed-trigger-once）
                 if (state.effectFizzled) {
@@ -639,15 +641,13 @@ export function fireFieldEventTriggers(
             return {
                 kind: "action" as const,
                 selfInstanceId: c.actionSelf.instanceId,
-                action: e.effect.onceScope === "name" ? markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : e.effect.action,
+                action: e.effect.onceScope === "name" ? markPays(bindEventTargets(e.effect.action, eventInfo?.eventTargetIds), { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : bindEventTargets(e.effect.action, eventInfo?.eventTargetIds),
                 actorPid: c.actionPid,
                 ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
                 ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
                 ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
-                // 「BP0になったとき」の対象（新しく BP0 になった体）は発火元が記録の枠に書いて渡す（stepTriggers.ts）。後回しの誘発にも同じ枠を渡す
-                ...(event === "opponentSpiritBpReachedZero" && state.recordScope !== undefined ? { recordScope: state.recordScope } : {}),
                 ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
             }
         },
@@ -764,4 +764,24 @@ export function fireNexusDeployed(state: GameState, ownerPid: PlayerId, inst: Ca
     // 器BS16：fromHand（手札から配置したときのみ発火する条件。effect.fromHandOnly）
     fireTrigger(state, ownerPid, inst, "onDeploy", undefined, undefined, undefined, undefined, fromHand === true)
     notifyNexusDeployed(state, ownerPid)
+}
+
+// filter.eventTargets（「その誘発のまとまりの体」）を、発火元が渡した一覧（instanceIn）に置き換えた action を返す。
+// action に入れるので、確認の中断や後回しのフレームを挟んでも対象が一緒に運ばれる（CLAUDE.md 設計の3原則の3）
+export function bindEventTargets(action: EffectAction, ids: string[] | undefined): EffectAction {
+    if (ids === undefined) return action
+    const bind = (v: unknown): unknown => {
+        if (Array.isArray(v)) return v.map(bind)
+        if (v === null || typeof v !== "object") return v
+        const o = v as Record<string, unknown>
+        const out: Record<string, unknown> = {}
+        for (const [k, x] of Object.entries(o)) out[k] = bind(x)
+        const f = out.filter as Record<string, unknown> | undefined
+        if (f && f.eventTargets === true) {
+            const { eventTargets: _e, ...rest } = f
+            out.filter = { ...rest, instanceIn: ids }
+        }
+        return out
+    }
+    return bind(action) as EffectAction
 }

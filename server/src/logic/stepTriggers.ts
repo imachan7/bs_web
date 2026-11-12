@@ -9,7 +9,6 @@ import { requestActivationConfirm, resolveAction } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
-import { newRecordScope, recordTargets } from "./record"
 import { moveCardCandidates } from "./actions/moveCards"
 import { activationPrompt, confirmPromptIfOptional, isStillOnField } from "./triggers"
 
@@ -437,7 +436,7 @@ export function fireBpReachedTriggers(state: GameState): void {
     state.bpSeen = next
     // 「BP0になったとき」は、同時に新しく BP0 になった体をまとめて1回だけ発動し、対象はその体だけ（TIMING_CHART「BP0になったとき」。2026-11-05 ユーザー確認）。
     // 「このスピリットの効果で」（bySelfEffectOnly）を見分けるため、BP- の発生源ごとにまとめる。
-    // 対象は誘発の前に「直前の対象」として記録し、データは filter.lastTarget で引く（選択待ちの再開にも記録の枠が引き継がれる）
+    // 対象は誘発の引数（eventTargetIds）で渡し、データは filter.eventTargets で引く
     const zeroGroups = new Map<string, { pid: PlayerId; source: string | undefined; insts: CardInstance[] }>()
     for (const r of reached) {
         if (!(r.to <= 0 && r.from > 0)) continue
@@ -461,12 +460,10 @@ export function fireBpReachedTriggers(state: GameState): void {
         const group = [...zeroGroups.values()].find((g) => g.insts[0] === r.inst)
         if (group && !state.pendingChoice) {
             for (const inst of group.insts) fired.add(inst.instanceId)
-            const prevScope = state.recordScope
-            state.recordScope = newRecordScope()
-            recordTargets(state, group.insts.map((x) => x.instanceId))
-            fireFieldEventTriggers(state, opponentOf(group.pid), "opponentSpiritBpReachedZero", { pid: group.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, group.source === undefined ? undefined : { sourceInstanceId: group.source })
-            if (prevScope === undefined) delete state.recordScope
-            else state.recordScope = prevScope
+            fireFieldEventTriggers(state, opponentOf(group.pid), "opponentSpiritBpReachedZero", { pid: group.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, {
+                eventTargetIds: group.insts.map((x) => x.instanceId),
+                ...(group.source === undefined ? {} : { sourceInstanceId: group.source }),
+            })
         }
         // 原因の記録はこのBP変動の発火で使い切る（効果によらない下げ方で古い記録が残らないように）
         if (state.bpMinusSourceBy) delete state.bpMinusSourceBy[r.inst.instanceId]
