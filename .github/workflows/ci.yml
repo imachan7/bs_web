@@ -108,15 +108,8 @@ jobs:
       - name: gcloud をセットアップ
         uses: google-github-actions/setup-gcloud@v2
 
-      # カード画像は git 管理外。GCS バケット（変数 CARD_IMAGES_BUCKET）に置いたものを取り込み、
-      # .gcloudignore の指定どおり md/sm/xs だけを --source に含めてイメージへ焼き込む。
-      # 変数が無いうちは画像なしで出す（旧カードの画像は隠し要素なので、無くても対戦は動く）
-      - name: カード画像をバケットから取得
-        if: vars.CARD_IMAGES_BUCKET != ''
-        run: |
-          mkdir -p public/imgs/cards
-          gcloud storage rsync --recursive "gs://${{ vars.CARD_IMAGES_BUCKET }}" public/imgs/cards
-          test -n "$(ls public/imgs/cards/md)" # 空なら止める
+      # カード画像はイメージに含めない。Cloud Run にバケットをつないで読む（初回の設定は docs/ops/DEPLOY_CLOUDRUN.md「旧カードの画像」。
+      # 設定はサービスに残るので、ここでは何もしない。以前は毎回バケットから全部取ってイメージに焼き込んでいた）
 
       # 対戦中のルームはメモリ上にあり、デプロイで消える。対戦中の人にお知らせを出し、終わるまで最大20分待ってから出す（2026-11-12 ユーザー決定）。
       # 空けばすぐ出す。時間切れならお知らせを消して止める（急ぐときは force）。鍵は secrets.ADMIN_KEY（本番の ADMIN_KEY と同じ値）

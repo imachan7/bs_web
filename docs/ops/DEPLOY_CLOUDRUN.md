@@ -217,19 +217,23 @@ Cloud Run が返す `https://bs-web-xxxxx.asia-northeast1.run.app` は安定し�
 
 ## 旧カードの画像（隠し要素。2026-11-02）
 
-画像は git 管理外。手元で取って縮小し、Cloud Storage のバケットに置く。デプロイ（Actions）がバケットから取り込み、`.gcloudignore` の指定どおり md/sm/xs だけをイメージに焼き込む。
+画像は git 管理外。手元で取って縮小し、Cloud Storage のバケット（`bs-web-card-images`）に置く。**イメージには含めず、Cloud Run にバケットをつないで `/app/public/imgs/cards` として読む**（2026-11-12。以前はデプロイのたびに全部取って焼き込んでいて、毎回1分前後かかっていた）。画像を足すときはバケットに上げるだけで、デプロイは要らない。同じドメインから配るので Discord Activity の「外部ホスト禁止」も守れる。
 画面に出るのは、入力欄に「ゲートオープン開放」と打った端末だけ（`public/src/cardArt.ts`）。
 
 1. 画像を取る・縮小する（取得済みは飛ばす。全部で1時間強）
    `npx tsx scripts/download-card-images.ts && npx tsx scripts/optimize-card-images.ts`
-2. **初回だけ**：バケットを作り、デプロイ用サービスアカウントに読み取りを付け、リポジトリの Variables に名前を登録する
+2. 画像を上げる（画像を足したら同じコマンドで上げ直す。**original は上げない**＝バケットの中身がそのまま配られる）
+   `gcloud storage rsync --recursive --exclude 'original/.*' public/imgs/cards gs://bs-web-card-images`
+3. **初回だけ**：実行用のサービスアカウントにバケットの読み取りを付け、Cloud Run にバケットをつなぐ（つなぐ設定はサービスに残り、以後の `gcloud run deploy` でも消えない。リビジョンが入れ替わるので、ルームが空いているときに行う）
    ```bash
-   gcloud storage buckets create gs://<バケット名> --project=bs-web-imachan --location=asia-northeast1 --uniform-bucket-level-access
-   gcloud storage buckets add-iam-policy-binding gs://<バケット名> --member="serviceAccount:<GCP_DEPLOY_SA の値>" --role=roles/storage.objectViewer
-   gh variable set CARD_IMAGES_BUCKET --body "<バケット名>"
+   SA=$(gcloud run services describe bs-web --region asia-northeast1 --project bs-web-imachan --format='value(spec.template.spec.serviceAccountName)')
+   SA=${SA:-910728969072-compute@developer.gserviceaccount.com}   # 空なら既定のサービスアカウント
+   gcloud storage buckets add-iam-policy-binding gs://bs-web-card-images --member="serviceAccount:$SA" --role=roles/storage.objectViewer
+   gcloud run services update bs-web --region asia-northeast1 --project bs-web-imachan \
+     --execution-environment=gen2 \
+     --add-volume=name=cards,type=cloud-storage,bucket=bs-web-card-images,readonly=true \
+     --add-volume-mount=volume=cards,mount-path=/app/public/imgs/cards
    ```
-3. 画像を上げる（画像を足したら同じコマンドで上げ直す）
-   `gcloud storage rsync --recursive --exclude 'original/.*' public/imgs/cards gs://<バケット名>`
-4. いつもどおり Actions からデプロイする。`CARD_IMAGES_BUCKET` が無いうちは画像なしで出る（対戦は動く）
+   バケットをつなぐには第2世代の実行環境（gen2）が要る。サーバーは `/imgs/cards` に7日のキャッシュを付けて返す（`server/src/index.ts`）
 
 容量の上限は無い。約2,200枚で md/sm/xs 合わせて数十MB、保存料は月1円未満。
