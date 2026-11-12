@@ -739,6 +739,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `notifyNexusDeployed`（fn）：フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
 - `tryHandFreeSummonOnOwnNexusDeployed`（fn）：手札のカード自身が持つ「自分のネクサスが配置されたとき、コストを支払わずに召喚できる」
 - `fireNexusDeployed`（fn）：ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:
+- `bindEventTargets`（fn）：filter.eventTargets（「その誘発のまとまりの体」）を、発火元が渡した一覧（instanceIn）に置き換えた action を返す。
 
 ## server/src/logic/forcedBlock.ts
 

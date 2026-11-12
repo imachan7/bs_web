@@ -2868,7 +2868,7 @@
      "count": 1,
      "all": true,
      "filter": {
-      "maxBp": 0
+      "eventTargets": true
      }
     },
     "selfMode": "source"
@@ -6251,7 +6251,7 @@
      "to": "deckTop",
      "all": true,
      "filter": {
-      "maxBp": 0
+      "eventTargets": true
      }
     },
     "selfMode": "source",
