@@ -1,6 +1,7 @@
 // バウンス（手札・デッキ上へ戻す）アクションのハンドラと候補数の判定
 import { handGainDenial } from "../handGate"
 import { bounceDenial } from "../bounceGate"
+import { gatePickedTargets, pickTargets } from "../pickTargets"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
@@ -223,7 +224,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
             return
         }
         // 対象指定時はその1体のみ手札へ戻す
-        if (targetInstanceId) {
+        if (targetInstanceId && !action.choosing && !action.picked) {
             const found = findSpiritAny(state, targetInstanceId)
             if (!found) {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
@@ -261,133 +262,65 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
             log(state, `${sourceName}の手札戻し：相手にネクサスがなかった。`)
             return
         }
-        // side:"own"：自分側のスピリットだけが対象（pay { cost: returnToHand{side:"own"} } の器。
-        // 自分の効果は自分のスピリットに免疫が働かないためisResistedは挟まない＝anySideの自分側と同じ扱い）
-        if (action.side === "own") {
-            const ownMatchesBp = (s: CardInstance) =>
-                effectiveBp(state, owner, s) <= limitBp && !s.pendingBounce && matchesTarget(state, owner, s, filter, self?.instanceId) && bounceDenial(state, owner, s, "hand") === null
-            const ownCandidates = state.players[owner].field.spirits.filter(ownMatchesBp)
-            if (
-                state.interactiveTargets &&
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}の手札戻し：手札に戻す自分のスピリットを選んでください`,
-                    ownCandidates,
-                    { ...action, count: 1 },
-                    resolvedCount > 1 ? { ...action, count: resolvedCount - 1, countPerOpponentNexus: false } : null,
-                )
-            ) {
-                return
-            }
-            const moved: string[] = []
-            for (let i = 0; i < resolvedCount; i++) {
-                const pool = state.players[owner].field.spirits.filter(ownMatchesBp)
-                if (pool.length === 0) {
-                    log(state, `${sourceName}の手札戻し：対象がいなかった。`)
-                    break
-                }
-                const target = pool.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
-                markBounce(state, owner, target, "hand", sourceName)
-                moved.push(target.cardId)
-            }
-            flushBounces(state)
-            recordMoved(state, moved)
-            return
-        }
-        // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
-        // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
-        if (action.anySide) {
-            const matchesBp = (s: CardInstance) =>
-                effectiveBp(state, owner, s) <= limitBp && matchesTarget(state, opp, s, filter, self?.instanceId)
-            const anySideCandidates = pickAnySideCandidates(state, owner, matchesBp, srcColors, srcType, "bounce")
-            if (
-                state.interactiveTargets &&
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}の手札戻し：対象を選んでください`,
-                    anySideCandidates,
-                    { ...action, count: 1 },
-                    resolvedCount > 1
-                        ? { ...action, count: resolvedCount - 1, countPerOpponentNexus: false }
-                        : null,
-                )
-            ) {
-                return
-            }
-            // **まとめて待機させてから一度に戻す**（Wiki「バウンスについて」）。
-            // 1体ずつ戻すと、1体目の「戻ったとき」の誘発が2体目以降の対象を変えてしまう
-            const moved: string[] = []
-            // 受けなかった対象は場に残るので、次の回で選び直さないよう除く。
-            // 対話中にここへ来るのは候補が0〜1体のときだけなので、聞いて中断しても積む残りは無い
-            const handledAny = new Set<string>()
-            for (let i = 0; i < resolvedCount; i++) {
-                const target = pickAnySideByBp(state, owner, limitBp, (s) => matchesBp(s) && !handledAny.has(s.instanceId), srcColors, srcType, "bounce", true)
-                if (!target) {
-                    log(state, `${sourceName}の手札戻し：対象がいなかった。`)
-                    break
-                }
-                handledAny.add(target.inst.instanceId)
-                // 自分側の対象には耐性を挟まない（このアクションの anySide の非対称ルール）
-                const resisted = target.pid === owner
-                    ? null
-                    : gateTargetedApply(state, target.pid, target.inst, attemptOf(ctx, "bounce", "targeted"), { ...action, count: 1 }, self, sourceName)
-                if (resisted === "asked") return
-                if (resisted) {
-                    log(state, `${getCard(target.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-                    continue
-                }
-                markBounce(state, target.pid, target.inst, "hand", sourceName)
-                moved.push(target.inst.cardId)
-            }
-            flushBounces(state)
-            recordMoved(state, moved)
-            return
-        }
+        // 複数は全部選んでから一度に戻す（2026-11-12 ユーザー決定。pickTargets.ts。Wiki「バウンスについて」：
+        // 1体ずつ戻すと、1体目の「戻ったとき」の誘発が2体目以降の対象を変えてしまう）。
+        // side:"own"＝自分側（pay のコストの器。自分の効果なので耐性は挟まない）／anySide＝両陣営（相手側だけ耐性を見る）
+        const own = action.side === "own"
+        const matchesBp = (s: CardInstance) => effectiveBp(state, owner, s) <= limitBp && matchesTarget(state, opp, s, filter, self?.instanceId)
+        const ownMatchesBp = (s: CardInstance) =>
+            effectiveBp(state, owner, s) <= limitBp && !s.pendingBounce && matchesTarget(state, owner, s, filter, self?.instanceId) && bounceDenial(state, owner, s, "hand") === null
         // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
         const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
+        const pool = own
+            ? state.players[owner].field.spirits.filter(ownMatchesBp)
+            : action.anySide
+              ? pickAnySideCandidates(state, owner, matchesBp, srcColors, srcType, "bounce")
+              : pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType, "bounce")
+        const { countPerOpponentNexus: _cpn, ...actionForChoice } = action
+        let ids: string[] | null
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType, "bounce")
-            if (
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}の手札戻し：対象を選んでください`,
-                    candidates,
-                    { ...action, count: 1 },
-                    resolvedCount > 1 ? { ...action, count: resolvedCount - 1, countPerOpponentNexus: false } : null,
-                )
-            ) {
-                return
+            ids = pickTargets(ctx, { ...actionForChoice, count: resolvedCount }, {
+                candidates: pool.map((sp) => sp.instanceId),
+                count: resolvedCount,
+                upTo: false,
+                prompt: own ? `${sourceName}の手札戻し：手札に戻す自分のスピリットを選んでください` : `${sourceName}の手札戻し：対象を選んでください`,
+                verb: "手札に戻す",
+            })
+            if (ids === null) return
+        } else {
+            // 自動は実効BP最大から
+            ids = []
+            for (let i = 0; i < resolvedCount; i++) {
+                const fresh = (s: CardInstance) => !ids!.includes(s.instanceId)
+                const target = own
+                    ? pool.filter(fresh).reduce<CardInstance | null>((b, s) => (b === null || effectiveBp(state, owner, s) > effectiveBp(state, owner, b) ? s : b), null)
+                    : action.anySide
+                      ? pickAnySideByBp(state, owner, limitBp, (s) => matchesBp(s) && fresh(s), srcColors, srcType, "bounce", true)?.inst ?? null
+                      : pickEnemyByBp(state, opp, limitBp, (s) => matchesFilter(s) && fresh(s), srcColors, srcType, "bounce")
+                if (!target) break
+                ids.push(target.instanceId)
             }
         }
-        // 未指定時は相手フィールドのBP最大をresolvedCount回自動選択
+        const passed = gatePickedTargets(
+            ctx,
+            { ...actionForChoice, count: resolvedCount },
+            ids,
+            (id) => findSpiritAny(state, id) ?? undefined,
+            attemptOf(ctx, "bounce", "targeted"),
+            (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),
+            (pid) => pid === owner && (own || action.anySide === true),
+        )
+        if (passed === null) return
+        if (ids.length === 0) log(state, `${sourceName}の手札戻し：対象がいなかった。`)
         const moved: string[] = []
-        // 受けなかった対象は場に残るので、次の回で選び直さないよう除く。
-        // 対話中にここへ来るのは候補が0〜1体のときだけなので、聞いて中断しても積む残りは無い
-        const handled = new Set<string>()
-        for (let i = 0; i < resolvedCount; i++) {
-            const target = pickEnemyByBp(state, opp, limitBp, (s) => matchesFilter(s) && !handled.has(s.instanceId), srcColors, srcType, "bounce")
-            if (!target) {
-                log(state, `${sourceName}の手札戻し：対象がいなかった。`)
-                break
-            }
-            handled.add(target.instanceId)
-            const resisted = gateTargetedApply(state, opp, target, attemptOf(ctx, "bounce", "targeted"), { ...action, count: 1 }, self, sourceName)
-            if (resisted === "asked") return
-            if (resisted) {
-                log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-                continue
-            }
-            returnSpiritToHand(state, opp, target, sourceName)
-            moved.push(target.cardId)
+        for (const id of passed) {
+            const found = findSpiritAny(state, id)
+            if (!found) continue
+            markBounce(state, found.pid, found.inst, "hand", sourceName)
+            moved.push(found.inst.cardId)
         }
+        flushBounces(state)
         recordMoved(state, moved)
-        return
 }
 
 type NexusBounceAction = Extract<EffectAction, { type: "return"; to: "hand" | "deckTop" }>
@@ -739,15 +672,6 @@ const returnToDeckBottomHandler = (ctx: ActionCtx, action: DeckReturnAction): vo
 
 function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" | "bottom"): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // count 指定（BS07ブリシンガメンの首飾り＝3体）：1体ずつ選ぶ連鎖にする。
-        // 選ばれた順に一番上へ積むので、**最後に選んだものがデッキの一番上**になる
-        //（＝「好きな順番で戻す」を1体ずつの選択で表現している）。
-        // 残りは再開スタックではなく、1体の処理が済んだ所（chainNext）が excludeIds つきで次の1体を始める。
-        // 聞く（払う確認）で中断しても、再開で同じ所を通るので残りが落ちない
-        if (action.count !== undefined && action.count > 1 && targetInstanceId === undefined && action.excludeIds === undefined) {
-            ctx.resolve({ ...action, excludeIds: [] }, { sourceColors: srcColors, sourceType: srcType })
-            return
-        }
         // filter（BS09-X38要塞騎神オーディーンType-X＝【転召】を持たない相手3体）：候補の絞り込み。
         // 自動選択・明示ターゲットの両方に効かせる
         const resolvedFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
@@ -755,79 +679,85 @@ function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" 
             action.excludeIds?.includes(s.instanceId) !== true &&
             (resolvedFilter === undefined ||
                 (resolvedFilter !== SELF_REQUIRED && matchesTarget(state, pid, s, resolvedFilter, self?.instanceId)))
-        // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
-        // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
-        if (targetInstanceId === undefined && state.interactiveTargets) {
-            const candidates = action.side === "own"
-                ? state.players[owner].field.spirits.filter((s) => filterOk(owner, s))
-                : (action.anySide
-                      ? pickAnySideCandidates(state, owner, (s) => action.excludeIds?.includes(s.instanceId) !== true, srcColors, srcType, "bounce")
-                      : pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce")
-                  ).filter((s) => action.anySide === undefined || filterOk(opp, s))
-            if (candidates.length >= 2) {
-                // chooserIsTarget（BS07ブリシンガメンの首飾り）：「**相手は**、相手のスピリット3体を〜戻す」。
-                // 選ぶのは戻される側だが、解決は発生源の持ち主の効果として行う（actorPid）
-                requestChoice(
-                    state,
-                    owner,
-                    action.chooserIsTarget
-                        ? `${sourceName}：デッキの${position === "top" ? "上" : "下"}に戻す自分のスピリットを選んでください`
-                        : `${sourceName}のデッキ戻し：対象を選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    action,
-                    self,
-                    "target",
-                    undefined,
-                    action.chooserIsTarget ? opp : undefined,
-                )
+        // 明示された1体（誘発が渡す対象・クライアントが先に選んだ対象）
+        if (targetInstanceId !== undefined && !action.choosing && !action.picked) {
+            const found = findSpiritAny(state, targetInstanceId)
+            if (!found) {
+                log(state, `${sourceName}のデッキ戻し：対象がいなかった。`)
                 return
             }
+            const r = gateTargetedApply(state, found.pid, found.inst, attemptOf(ctx, "bounce", "targeted"), action, self, sourceName)
+            if (r === "asked") return
+            if (r) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`)
+                return
+            }
+            if (position === "top") returnSpiritToDeckTop(state, found.pid, found.inst, sourceName)
+            else returnSpiritToDeckBottom(state, found.pid, found.inst, sourceName)
+            recordMoved(state, [found.inst.cardId])
+            return
         }
-        const found = targetInstanceId
-            ? findSpiritAny(state, targetInstanceId)
-            : action.side === "own"
-              ? (() => {
-                    const pool = state.players[owner].field.spirits.filter((s) => filterOk(owner, s))
-                    if (pool.length === 0) return null
-                    const t = pool.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
-                    return { pid: owner, inst: t }
-                })()
-              : action.anySide
-                ? pickAnySideByBp(state, owner, Infinity, (s) => action.excludeIds?.includes(s.instanceId) !== true, srcColors, srcType, "bounce", true)
-                : (() => {
-                      const t = pickEnemyByBp(state, opp, Infinity, (sp) => filterOk(opp, sp), srcColors, srcType, "bounce")
-                      return t ? { pid: opp, inst: t } : null
-                  })()
-        if (!found) {
+        // 複数は全部選んでから一度に戻す（2026-11-12 ユーザー決定。pickTargets.ts）。
+        // 選んだ順に積むので、**最後に選んだものがデッキの一番上**になる（「好きな順番で戻す」を選ぶ順で表す）。
+        // anySide は自分側に耐性を挟まない。chooserIsTarget（BS07ブリシンガメンの首飾り）は戻される側が選び、解決は発生源の持ち主の効果
+        const own = action.side === "own"
+        const pool = own
+            ? state.players[owner].field.spirits.filter((s) => filterOk(owner, s))
+            : (action.anySide
+                  ? pickAnySideCandidates(state, owner, (s) => action.excludeIds?.includes(s.instanceId) !== true, srcColors, srcType, "bounce")
+                  : pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce")
+              ).filter((s) => action.anySide === undefined || filterOk(opp, s))
+        const count = action.count ?? 1
+        let ids: string[] | null
+        if (state.interactiveTargets) {
+            ids = pickTargets(ctx, action, {
+                candidates: pool.map((sp) => sp.instanceId),
+                count,
+                upTo: false,
+                prompt: action.chooserIsTarget
+                    ? `${sourceName}：デッキの${position === "top" ? "上" : "下"}に戻す自分のスピリットを選んでください`
+                    : `${sourceName}のデッキ戻し：対象を選んでください`,
+                verb: `デッキの${position === "top" ? "上" : "下"}に戻す`,
+                ordered: true,
+                ...(action.chooserIsTarget ? { chooserPid: opp } : {}),
+            })
+            if (ids === null) return
+        } else {
+            ids = []
+            for (let i = 0; i < count; i++) {
+                const fresh = (s: CardInstance) => !ids!.includes(s.instanceId)
+                const t = own
+                    ? pool.filter(fresh).reduce<CardInstance | null>((b, s) => (b === null || effectiveBp(state, owner, s) > effectiveBp(state, owner, b) ? s : b), null)
+                    : action.anySide
+                      ? pickAnySideByBp(state, owner, Infinity, (s) => action.excludeIds?.includes(s.instanceId) !== true && fresh(s), srcColors, srcType, "bounce", true)?.inst ?? null
+                      : pickEnemyByBp(state, opp, Infinity, (sp) => filterOk(opp, sp) && fresh(sp), srcColors, srcType, "bounce")
+                if (!t) break
+                ids.push(t.instanceId)
+            }
+        }
+        if (ids.length === 0) {
             log(state, `${sourceName}のデッキ戻し：対象がいなかった。`)
             return
         }
-        // 1体の処理が済んだら（受けなかった場合も含め）残りの体数ぶんを次の1体として始める
-        const chainNext = (): void => {
-            if (action.excludeIds === undefined || action.count === undefined || action.count <= 1) return
-            ctx.resolve(
-                { ...action, count: action.count - 1, excludeIds: [...action.excludeIds, found.inst.instanceId] },
-                { sourceColors: srcColors, sourceType: srcType },
-            )
+        const passed = gatePickedTargets(
+            ctx,
+            action,
+            ids,
+            (id) => findSpiritAny(state, id) ?? undefined,
+            attemptOf(ctx, "bounce", "targeted"),
+            (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),
+            (pid) => pid === owner,
+        )
+        if (passed === null) return
+        const moved: string[] = []
+        for (const id of passed) {
+            const found = findSpiritAny(state, id)
+            if (!found) continue
+            markBounce(state, found.pid, found.inst, position === "top" ? "deckTop" : "deckBottom", sourceName)
+            moved.push(found.inst.cardId)
         }
-        // 自分側の対象には耐性を挟まない（自動選択は従来どおり。明示された対象だけ改めて見る）。
-        // 相手側は、選び方（明示／自動）に関わらず適用の直前に耐性を通す
-        const deckTopResisted =
-            targetInstanceId || found.pid !== owner
-                ? gateTargetedApply(state, found.pid, found.inst, attemptOf(ctx, "bounce", "targeted"), action, self, sourceName)
-                : null
-        if (deckTopResisted === "asked") return
-        if (deckTopResisted) {
-            log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${deckTopResisted.label}）。`)
-            chainNext()
-            return
-        }
-        if (position === "top") returnSpiritToDeckTop(state, found.pid, found.inst, sourceName)
-        else returnSpiritToDeckBottom(state, found.pid, found.inst, sourceName)
-        recordMoved(state, [found.inst.cardId])
-        chainNext()
-        return
+        flushBounces(state, passed)
+        recordMoved(state, moved)
 }
 
 // 場を離れる手順はバウンスと同じ（markBounce → flushBounces）。持ち主のバーストエリアへ置く点だけが違う

@@ -46,6 +46,11 @@ console.log("=== 戻す対象を選ぶのは「相手」（戻される側） ==
     const pick = s.pendingChoice?.candidates[0] ?? ""
     const deckBefore = s.players.p2.deck.length
     assert(act(s, "p2", { type: "resolveChoice", instanceId: pick }) === null, "p2が選ぶ")
+    // 3体を選び終えてからまとめて戻す（2026-11-12 ユーザー決定）。残りも p2 が選ぶ
+    for (let i = 0; i < 5 && s.pendingChoice; i++) {
+        assert(s.pendingChoice.pid === "p2", "続きも戻される側が選ぶ")
+        act(s, "p2", { type: "resolveChoice", instanceId: s.pendingChoice.candidates[0]! })
+    }
     assert(
         !s.players.p2.field.spirits.some((x) => x.instanceId === pick),
         "選ばれたスピリットが場から離れる",

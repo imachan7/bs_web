@@ -103,7 +103,8 @@ console.log("=== [interactiveTargets] destroy count:2 を直接resolveActionで�
     assert(s.pendingChoice?.candidates.length === 3, "候補は3件")
 
     assert(act(s, "p1", { type: "resolveChoice", instanceId: gora1.instanceId }) === null, "1体目を選択")
-    assert(s.players.p2.field.spirits.length === 2, "1体目が破壊された")
+    // 全部選び終えてからまとめて破壊する（2026-11-12 ユーザー決定）。1体目を選んだ時点ではまだ場にいる
+    assert(s.players.p2.field.spirits.length === 3, "1体目を選んだ時点ではまだ破壊されない")
     assert(s.pendingChoice !== null, "残りcount-1分の2回目のpendingChoiceが連続で立つ")
     assert(s.pendingChoice?.candidates.length === 2, "残り候補は2件")
 

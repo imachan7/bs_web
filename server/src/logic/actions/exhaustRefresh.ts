@@ -1,5 +1,6 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { gatePickedTargets, pickTargets } from "../pickTargets"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, log, minLevelCores } from "../GameState"
@@ -190,7 +191,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
                 return
             }
             const matchesOwn = (s: CardInstance) => !s.isRested && matchesTarget(state, owner, s, filter, self?.instanceId)
-            if (targetInstanceId !== undefined) {
+            if (targetInstanceId !== undefined && !action.choosing && !action.picked) {
                 const found = state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
                 if (!found || !matchesOwn(found)) {
                     log(state, `${sourceName}の疲労付与：対象がいなかった。`)
@@ -201,41 +202,29 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
                 recordTargets(state, [found.instanceId])
                 return
             }
+            // 複数は全部選んでから疲労させる（pickTargets.ts）。自動選択は実効BP最小（コストとして失う損が小さい方）。
+            // autoPickMaxBp は疲労させた個体のBPがそのまま得になる効果（BP+(疲労させたスピリットのBP)）用で、BP最大を選ぶ
             const candidates = state.players[owner].field.spirits.filter(matchesOwn)
-            const { count: _ownCount, ...restForChoice } = action
-            if (
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}：疲労させる自分のスピリットを選んでください`,
-                    candidates,
-                    { ...restForChoice, count: 1 },
-                    action.count > 1 ? { ...restForChoice, count: action.count - 1 } : null,
-                )
-            ) {
-                return
+            let ids: string[] | null
+            if (state.interactiveTargets) {
+                ids = pickTargets(ctx, action, { candidates: candidates.map((s) => s.instanceId), count: action.count, upTo: action.upTo === true, prompt: `${sourceName}：疲労させる自分のスピリットを選んでください`, verb: "疲労させる" })
+                if (ids === null) return
+            } else {
+                const better = (a: number, b: number) => (action.autoPickMaxBp ? a > b : a < b)
+                ids = [...candidates]
+                    .sort((x, y) => (better(effectiveBp(state, owner, x), effectiveBp(state, owner, y)) ? -1 : better(effectiveBp(state, owner, y), effectiveBp(state, owner, x)) ? 1 : 0))
+                    .slice(0, action.count)
+                    .map((s) => s.instanceId)
             }
-            // 自動選択は実効BP最小（コストとして失う損が小さい方）。autoPickMaxBp は疲労させた個体のBPが
-            // そのまま得になる効果（BP+(疲労させたスピリットのBP)）用で、BP最大を選ぶ
             const exhausted: string[] = []
-            const better = (a: number, b: number) => (action.autoPickMaxBp ? a > b : a < b)
-            for (let i = 0; i < action.count; i++) {
-                const target = state.players[owner].field.spirits
-                    .filter(matchesOwn)
-                    .reduce<CardInstance | undefined>(
-                        (worst, s) =>
-                            !worst || better(effectiveBp(state, owner, s), effectiveBp(state, owner, worst)) ? s : worst,
-                        undefined,
-                    )
-                if (!target) {
-                    log(state, `${sourceName}の疲労付与：対象がいなかった。`)
-                    break
-                }
+            for (const id of ids) {
+                const target = state.players[owner].field.spirits.find((s) => s.instanceId === id)
+                if (!target || target.isRested) continue
                 exhaustSpirit(state, owner, target, undefined, owner, srcType)
                 log(state, exhaustLog(sourceName, getCard(target.cardId).name, false))
                 exhausted.push(target.instanceId)
             }
+            if (exhausted.length === 0) log(state, `${sourceName}の疲労付与：対象がいなかった。`)
             recordTargets(state, exhausted)
             return
         }
@@ -303,7 +292,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             if (pool.length > 0) filter.level = [pool.reduce((m, s) => Math.max(m, currentLevel(s).level), 0)]
         }
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
-        if (targetInstanceId && !action.excludeTarget) {
+        if (targetInstanceId && !action.excludeTarget && !action.choosing && !action.picked) {
             const found = findSpiritAny(state, targetInstanceId)
             if (!found) {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
@@ -374,147 +363,62 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
         // interactive の選択後に再入するときは excludeTarget を落とす。
         // 残したままだと、プレイヤーが選んだ instanceId を「除外する対象」と誤読して自動選択に落ちてしまう
         const { excludeTarget: _excludeTarget, ...actionForChoice } = action
-        // anySide：「自分か相手のスピリット1体を疲労させる」（BS03-104 運命分かつ岐路／BS04-042 ドヴェルグ）。
-        // 自分側は疲労免疫・装甲の対象外（既存の anySide 系と同じ非対称ルール）
-        if (action.anySide) {
-            const candidates = pickAnySideCandidates(
-                state,
-                owner,
-                (sp) => !sp.isRested && matchesLevel(sp),
-                srcColors,
-                srcType,
-                "exhaust",
-            )
-            if (action.upTo && state.interactiveTargets) {
-                requestUpToChoice(
-                    state,
-                    owner,
-                    `${sourceName}：疲労させるスピリットを選んでください（あと${action.count}体まで）`,
-                    candidates.map((sp) => sp.instanceId),
-                    actionForChoice,
-                    self,
-                )
-                return
-            }
-            if (
-                state.interactiveTargets &&
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}：疲労させるスピリットを選んでください`,
-                    candidates,
-                    { ...actionForChoice, count: 1 },
-                    action.count > 1 ? { ...actionForChoice, count: action.count - 1 } : null,
-                )
-            ) {
-                return
-            }
-            // 自動時は実効BP最大から順に count 体（相手側→自分側の順で同値は先勝ち）。
-            // count を見ずに1体で打ち切ると「スピリット2体までを疲労させる」（BS01-036 シャ・ズー）が
-            // 半分しか効かないため、選んだ個体を除きながら count 回繰り返す
-            let exhausted = 0
-            for (let i = 0; i < action.count; i++) {
-                const target = candidates
-                    .filter((sp) => !sp.isRested)
-                    .reduce<CardInstance | undefined>(
-                        (best, sp) =>
-                            !best || effectiveBp(state, owner, sp) > effectiveBp(state, owner, best)
-                                ? sp
-                                : best,
-                        undefined,
-                    )
-                if (!target) break
-                // anySide なので疲労するのは自分か相手か分からない。「疲労したとき」の誘発を
-                // 正しい持ち主のフィールドから発火させるため、どちらの場にいるかを引き直す
-                const targetPid = state.players[owner].field.spirits.includes(target) ? owner : opp
-                exhaustSpirit(state, targetPid, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
-                exhausted += 1
-                log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
-            }
-            if (exhausted === 0) {
-                log(state, `${sourceName}の疲労付与：対象がいなかった。`)
-            }
-            return
-        }
+        // 複数は全部選んでから疲労させる（2026-11-12 ユーザー決定。pickTargets.ts）。
+        // anySide（BS03-104 運命分かつ岐路など）は自分側に疲労免疫・装甲を見ない（既存の anySide 系と同じ非対称ルール）。
+        // chooserIsTarget（【暴風】）は疲労させられる側が選び、解決は発生源の持ち主の効果として行う
+        const pool = action.anySide
+            ? pickAnySideCandidates(state, owner, (sp) => !sp.isRested && matchesLevel(sp), srcColors, srcType, "exhaust")
+            : pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
+        let ids: string[] | null
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
-            if (action.upTo) {
-                requestUpToChoice(
-                    state,
-                    owner,
-                    action.chooserIsTarget
-                        ? `${sourceName}：疲労させる自分のスピリットを選んでください（あと${action.count}体まで）`
-                        : `${sourceName}の疲労付与：対象を選んでください（あと${action.count}体まで）`,
-                    candidates.map((s) => s.instanceId),
-                    actionForChoice,
-                    self,
-                    action.chooserIsTarget ? opp : undefined,
-                )
-                return
-            }
-            // chooserIsTarget（【暴風】）：疲労させられる側が自分で対象を選ぶ。
-            // 解決は発生源の持ち主の効果として行う（tryInteractiveTargetChoice が actorPid を立てる）
-            if (
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    action.chooserIsTarget
-                        ? `${sourceName}：疲労させる自分のスピリットを選んでください`
-                        : `${sourceName}の疲労付与：対象を選んでください`,
-                    candidates,
-                    action.count > 1 ? { ...actionForChoice, excludeIds: action.excludeIds ?? [] } : { ...actionForChoice, count: 1 },
-                    null,
-                    action.chooserIsTarget ? opp : undefined,
-                )
-            ) {
-                return
+            ids = pickTargets(ctx, actionForChoice, {
+                candidates: pool.map((sp) => sp.instanceId),
+                count: action.count,
+                upTo: action.upTo === true,
+                prompt: action.anySide
+                    ? `${sourceName}：疲労させるスピリットを選んでください`
+                    : action.chooserIsTarget
+                      ? `${sourceName}：疲労させる自分のスピリットを選んでください`
+                      : `${sourceName}の疲労付与：対象を選んでください`,
+                verb: "疲労させる",
+                ...(action.chooserIsTarget ? { chooserPid: opp } : {}),
+            })
+            if (ids === null) return
+        } else {
+            // 自動は実効BP最大から count 体（両陣営は相手側→自分側の順で同値は先勝ち）
+            ids = []
+            for (let i = 0; i < action.count; i++) {
+                const target = action.anySide
+                    ? pool.filter((sp) => !ids!.includes(sp.instanceId)).reduce<CardInstance | undefined>((b, sp) => (!b || effectiveBp(state, owner, sp) > effectiveBp(state, owner, b) ? sp : b), undefined)
+                    : pickEnemyByBp(state, opp, Infinity, (s) => matchesCandidate(s) && !ids!.includes(s.instanceId), srcColors, srcType, "exhaust") ?? undefined
+                if (!target) break
+                ids.push(target.instanceId)
             }
         }
-        // 未指定時は相手フィールドの回復状態（かつlevelFilter一致）スピリットからBP最大をcount回自動選択。
-        // 1体ごとに適用の直前で耐性（手札を破棄して受けない、を含む）を通す。
-        // 受けなかった対象は回復状態のままなので、次の回で同じ対象を選び直さないよう除く。
-        // 対話中にここへ来るのは候補が0〜1体のときだけ（2体以上は上の選択に回る）なので、
-        // 聞いて中断しても再開スタックに積む残りは無い
-        const handled = new Set<string>()
-        let noTarget = false
-        const oneAction = { ...actionForChoice, count: 1 }
-        resolveInOrder(state, Array.from({ length: state.interactiveTargets ? Math.min(action.count, 1) : action.count }, (_, i) => i), {
-            frame: () => ({ kind: "action", selfInstanceId: self ? self.instanceId : null, action: oneAction }),
-            resolve: () => {
-                const target = pickEnemyByBp(
-                    state,
-                    opp,
-                    Infinity,
-                    (s) => matchesCandidate(s) && !handled.has(s.instanceId),
-                    srcColors,
-                    srcType,
-                    "exhaust",
-                )
-                if (!target) {
-                    log(state, `${sourceName}の疲労付与：対象がいなかった。`)
-                    noTarget = true
-                    return
-                }
-                handled.add(target.instanceId)
-                const resisted = gateTargetedApply(state, opp, target, attemptOf(ctx, "exhaust", "targeted"), oneAction, self, sourceName)
-                if (resisted === "asked") return
-                if (resisted) {
-                    log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-                    return
-                }
-                exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
-                log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
-                // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
-                if (action.noRefreshUntilOwnEndSteps !== undefined) {
-                    target.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
-                    log(state, `${getCard(target.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
-                }
-            },
-            skip: () => noTarget,
-        })
-        return
+        const passed = gatePickedTargets(
+            ctx,
+            actionForChoice,
+            ids,
+            (id) => findSpiritAny(state, id) ?? undefined,
+            attemptOf(ctx, "exhaust", "targeted"),
+            (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),
+            (pid) => action.anySide === true && pid === owner,
+        )
+        if (passed === null) return
+        let exhausted = 0
+        for (const id of passed) {
+            const found = findSpiritAny(state, id)
+            if (!found || found.inst.isRested) continue
+            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
+            exhausted += 1
+            log(state, exhaustLog(sourceName, getCard(found.inst.cardId).name, action.bofuSourcePid !== undefined))
+            // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
+            if (action.noRefreshUntilOwnEndSteps !== undefined) {
+                found.inst.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
+                log(state, `${getCard(found.inst.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
+            }
+        }
+        if (exhausted === 0 && ids.length === 0) log(state, `${sourceName}の疲労付与：対象がいなかった。`)
 }
 
 // 「すべて」の疲労は範囲の効果（attempt が "area"）。両陣営は bothSidesPids（封印された魔導書の片側への変更を見る）
