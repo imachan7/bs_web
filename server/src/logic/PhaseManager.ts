@@ -93,6 +93,14 @@ function turnStartSegments(state: GameState): (() => void)[] {
         () => {
             state.phase = "start"
             log(state, `―――― ターン${state.turn}：${player.name}のターン ――――`)
+            // デッキ切れの敗北は「自分のスタートステップ開始時にデッキが0枚」のときだけ。0枚から引こうとしても負けにはならない
+            // （公式マニュアル Eternal 版 VICTORY CONDITIONS・総合ルール 1-3-2-2。2026-11-12 ユーザー確認）
+            if (player.deck.length === 0) {
+                const winner = state.turnPlayer === "p1" ? "p2" : "p1"
+                state.winner = winner
+                log(state, `${player.name}のデッキが0枚のため、${state.players[winner].name}の勝利！`)
+                return
+            }
             // クロスシザースのコア数リンクは次の自分のスタートステップまで続く（2026-09-25 ユーザー確認）。指定し直す前に外す
             for (const nexus of player.field.nexuses) {
                 delete nexus.coresLinkedTo

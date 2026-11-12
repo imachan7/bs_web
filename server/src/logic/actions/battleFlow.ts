@@ -3,7 +3,7 @@
 import { flushSummonBatch } from "../summon"
 import { resolveSummonRepeatPaid } from "./summonRepeat"
 import { summonSurcharge } from "../../../../shared/cost"
-import { lifeLossAllowed, recordLifeLoss } from "../lifeGate"
+import { lifeLossAllowed, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import { summonFromHandFreeCandidateMatches } from "../summon"
 import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
@@ -50,7 +50,6 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
     tryInteractiveTargetChoice,
-    tryOwnLifeFloorByCost,
     recordTimed,
 } from "../EffectModules"
 import {
@@ -347,14 +346,10 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         )
         if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: opp, amount: dealt })
         if (player.life <= 0 && !state.winner) {
-            // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コストで0を回避できる
-            if (tryOwnLifeFloorByCost(state, opp)) {
+            if (settleLifeZero(state, opp) === "saved") {
                 fireFieldEventTriggers(state, opp, "ownLifeDamaged", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true)
                 fireFieldEventTriggers(state, owner, "opponentLifeDamaged")
                 fireFieldEventTriggers(state, opp, "ownLifeLost")
-            } else {
-                state.winner = owner
-                log(state, `${state.players[owner].name}の勝利！`)
             }
         } else if (dealt > 0) {
             // 相手（opp）から見て「相手（owner）によって自分のライフが減らされたとき」に該当（命の果実）

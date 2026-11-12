@@ -23,7 +23,7 @@ import { coreZoneChoiceId, currentLevel, effectiveBp, instBaseCost, matchesTarge
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { recordCores, recordEmptiedSpirits, recordLeftCost, recordMoved, lastEmptiedSpiritsOf } from "../record"
-import { canPayLife, lifeCostQuery, lifeLossAllowed, recordLifeLoss } from "../lifeGate"
+import { canPayLife, lifeCostQuery, lifeLossAllowed, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import { kyokaBonus } from "../keywords/kyoka"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
@@ -780,16 +780,11 @@ function resolveLife(ctx: ActionCtx, action: RemoveCoresAction): void {
     player.life -= count
     recordLifeLoss(state, owner, count, self)
     depositTo(state, owner, action.to ?? "trash", count, "ライフ")
-    if (player.life <= 0 && !state.winner) {
-        state.winner = opp
-        log(state, `${state.players[opp].name}の勝利！`)
-    } else if (count > 0) {
-        fireFieldEventTriggers(state, owner, "ownLifeLost")
-    }
+    if (settleLifeZero(state, owner) !== "lost" && count > 0) fireFieldEventTriggers(state, owner, "ownLifeLost")
 }
 
-// 相手のライフを downTo 個になるまで置く。「ライフの減少」としての後続（ownLifeDamaged等・勝敗）は呼び出し側が扱う
-// （lifeDamageReplace の settle）ので、ここでは誘発も勝敗判定もしない
+// 相手のライフを downTo 個になるまで置く。「ライフの減少」としての後続（ownLifeDamaged等）は呼び出し側が扱う
+// （lifeDamageReplace の settle）。勝敗だけはここで確定する（settle を経ない直接の経路があった。#437 R10-2）
 function resolveOpponentLifeDownTo(ctx: ActionCtx, action: RemoveCoresAction): void {
     const { state, owner, opp, sourceName, self, srcType } = ctx
     const player = state.players[opp]
@@ -807,6 +802,7 @@ function resolveOpponentLifeDownTo(ctx: ActionCtx, action: RemoveCoresAction): v
     player.life -= n
     recordLifeLoss(state, opp, n, self)
     depositTo(state, opp, action.to ?? "reserve", n, "ライフ")
+    settleLifeZero(state, opp)
 }
 
 function dispatchByTarget(ctx: ActionCtx, action: RemoveCoresAction): void {

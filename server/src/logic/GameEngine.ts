@@ -1,4 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
+import { settleAllLifeZero } from "./lifeGate"
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { askSurchargePay, payFreeSummonSurcharge, payVoidToll } from "./summonSurcharge"
 import { consumeSummonCostSetOnce, consumeSummonPayByNexusExhaust, noteSummonExtraDiscard, summonExtraDiscardPlan } from "./summonCostRules"
@@ -188,6 +189,8 @@ export function handleAction(
     if (!state.pendingChoice) fireQueuedDestroyBursts(state)
     // 「BPがN以上になった時」は今の効果の処理が終わってから発揮されるので、解決しきったここで判定する
     if (!state.pendingChoice && state.resumeStack.length === 0 && !state.winner) fireBpReachedTriggers(state)
+    // 最後の網：ライフを減らした経路が勝敗の確定（settleLifeZero）を呼び忘れていても、ここで負けにする
+    settleAllLifeZero(state)
     checkNoMutationAfterSuspend(state)
     return result
 }

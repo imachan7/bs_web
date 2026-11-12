@@ -2,7 +2,7 @@
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import { recordMoved } from "../record"
-import { canPayLife, lifeCostQuery, recordLifeLoss } from "../lifeGate"
+import { canPayLife, lifeCostQuery, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId, PlayerRuleDef } from "../../type"
 import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"
 import { returnSpiritToDeckBottom } from "../removal"
@@ -390,7 +390,7 @@ export function payDeckMillNegateCost(
             state,
             `${getCard(source.cardId).name}：${player.name}はライフのコア${paid}個をリザーブに置き、デッキの破棄を無効にした。（残りライフ${player.life}）`,
         )
-        if (paid > 0 && !state.winner) fireFieldEventTriggers(state, pid, "ownLifeLost")
+        if (paid > 0 && settleLifeZero(state, pid) !== "lost") fireFieldEventTriggers(state, pid, "ownLifeLost")
     } else {
         exhaustSpirit(state, pid, source)
         log(state, `${getCard(source.cardId).name}：${player.name}はこのスピリットを疲労させ、デッキの破棄を無効にした。`)
