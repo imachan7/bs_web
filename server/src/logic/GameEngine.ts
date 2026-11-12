@@ -1095,20 +1095,21 @@ function doMoveCore(
     } else {
         inst.cores -= 1
         player.reserve += 1
-        // 維持コア（Lv1）を下回ったら消滅する（confirmDeplete で承知のうえ取り除いた場合のみ。残ったコアは destroySpirit がリザーブへ戻す）。
-        // 疲労の誘発より先に消滅させる：場を離れたスピリットが「コアを取り除かれて疲労した」ことにならないように
-        if (spirit && wouldDepleteOf(player, spirit)) {
-            log(
-                state,
-                `${player.name}は${getCard(spirit.cardId).name}のコアを取り除いた。維持コアを下回ったため消滅した。`,
-            )
-            destroySpirit(state, pid, spirit.instanceId, "deplete")
-            return null
-        }
-        // 「コアを置く、または取り除くと疲労する」。onRemove を持たない既存の効果はここでは反応しない
-        if (spirit) checkExhaustOnCoreChange(state, pid, spirit, { viaEffect: false, isRemoval: true })
+        if (spirit) afterManualCoreRemoval(state, pid, spirit, `${player.name}は${getCard(spirit.cardId).name}のコアを取り除いた。維持コアを下回ったため消滅した。`)
     }
     return null
+}
+
+// 操作（効果でない）でスピリットからコアを取り除いたあとの後始末。手動のコア移動と【覚醒】の移動元が通る（#437 R11A-1：覚醒だけ疲労の判定が抜けていた）。
+// 維持コア（Lv1）を下回ったら消滅させ、疲労の誘発より先に処理する（場を離れたスピリットが「コアを取り除かれて疲労した」ことにならないように）。
+// 残っていれば「コアを置く、または取り除くと疲労する」を見る（onRemove を持たない効果はここでは反応しない）
+function afterManualCoreRemoval(state: GameState, pid: PlayerId, spirit: CardInstance, depleteLog: string): void {
+    if (wouldDepleteOf(state.players[pid], spirit)) {
+        log(state, depleteLog)
+        destroySpirit(state, pid, spirit.instanceId, "deplete")
+        return
+    }
+    checkExhaustOnCoreChange(state, pid, spirit, { viaEffect: false, isRemoval: true })
 }
 
 // 【超覚醒】：この効果でコアを置いたとき、そのスピリットは回復する。【覚醒】との違いはここだけなので、コアを移した直後に1回だけ呼ぶ
@@ -1164,9 +1165,7 @@ function doAwaken(
         `【覚醒】${player.name}は${getCard(from.cardId).name}から${getCard(target.cardId).name}へコア${count}個を移した。`,
     )
     refreshOnSuperAwaken(state, pid, target)
-    if (wouldDepleteOf(player, from)) {
-        destroySpirit(state, pid, from.instanceId, "deplete")
-    }
+    afterManualCoreRemoval(state, pid, from, `${getCard(from.cardId).name}は維持コアを下回ったため消滅した。`)
     passFlashPriority(state, pid)
     return null
 }
