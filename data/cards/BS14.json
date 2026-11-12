@@ -3382,6 +3382,27 @@
     "keyword": "seimei",
     "target": "ownAll",
     "familyFilter": "天霊"
+   },
+   {
+    "id": "BS14-054-e5",
+    "kind": "effectGrant",
+    "levels": [
+     3
+    ],
+    "target": "ownAll",
+    "familyFilter": [
+     "天霊"
+    ],
+    "granted": {
+     "trigger": "onLifeDealt",
+     "keywordBody": "seimei",
+     "action": {
+      "type": "placeCores",
+      "from": "void",
+      "to": "life",
+      "count": 1
+     }
+    }
    }
   ]
  },
@@ -4762,7 +4783,8 @@
      "type": "draw",
      "count": 1
     },
-    "turn": "own"
+    "turn": "own",
+    "perDestroyed": true
    }
   ]
  },

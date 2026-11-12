@@ -273,6 +273,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
           ? (state.magicIdsUsedThisTurn?.[owner] ?? []).some((id) => matchesPick(id, cond.ownMagicUsedThisTurn))
           : "selfNameIs" in cond
           ? self !== null && matchesTarget(state, owner, self, { nameIs: cond.selfNameIs })
+          : "self" in cond
+          ? ((f) => self !== null && f !== SELF_REQUIRED && matchesTarget(state, owner, self, f, self.instanceId))(normalizeFilter(ctx, { filter: cond.self }))
           : "selfSummonedBy" in cond
           ? self?.summonedBy === cond.selfSummonedBy
           : "lastBuffed" in cond

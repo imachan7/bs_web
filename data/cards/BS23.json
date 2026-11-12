@@ -5275,6 +5275,38 @@
       "skipOnSummon": true
      }
     }
+   },
+   {
+    "id": "BS23-062-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "self": {
+       "family": "剣使"
+      }
+     },
+     "then": {
+      "type": "return",
+      "to": "hand",
+      "count": 1,
+      "filter": {
+       "minBp": 10000
+      }
+     },
+     "else": {
+      "type": "return",
+      "to": "hand",
+      "count": 1,
+      "filter": {
+       "maxBp": 5000
+      }
+     }
+    }
    }
   ]
  },
