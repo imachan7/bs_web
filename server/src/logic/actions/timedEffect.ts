@@ -1100,19 +1100,23 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
 
 // 「好きなだけ指定する」：候補を押すたびに選ぶ／外すを切り替え、確定で掛ける。非対話は候補すべてに掛ける
 function placeAny(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, candidates: CardInstance[]): void {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
     const ids = candidates.map((s) => s.instanceId)
     let chosen = (action.chosenIds ?? []).filter((id) => ids.includes(id))
+    // anyMax：「N体まで」の上限（BS18-033）。上限に達したら、選んだものを外す操作だけ受け付ける
+    const max = action.anyMax ?? Infinity
     if (action.choosing && targetInstanceId !== undefined) {
-        chosen = chosen.includes(targetInstanceId) ? chosen.filter((id) => id !== targetInstanceId) : [...chosen, targetInstanceId]
+        if (chosen.includes(targetInstanceId)) chosen = chosen.filter((id) => id !== targetInstanceId)
+        else if (chosen.length < max) chosen = [...chosen, targetInstanceId]
     }
     if (!state.interactiveTargets) {
-        chosen = ids
+        // 非対話は実効BP最大から上限まで
+        chosen = [...candidates].sort((a, b) => effectiveBp(state, opp, b) - effectiveBp(state, opp, a)).slice(0, max).map((s) => s.instanceId)
     } else if (!(action.choosing && targetInstanceId === undefined) && candidates.length > 0) {
         suspend(state, {
             pid: owner,
             kind: "target",
-            prompt: `${sourceName}：${contentLabel(action)}ようにする相手のスピリットを選んでください（選んだものをもう一度押すと外れます）`,
+            prompt: `${sourceName}：${contentLabel(action)}ようにする相手のスピリットを選んでください（${max === Infinity ? "" : `${max}体まで。`}選んだものをもう一度押すと外れます）`,
             candidates: ids,
             selectedIds: chosen,
             skipLabel: chosen.length > 0 ? `これで確定する（${chosen.length}体）` : "指定しない",
