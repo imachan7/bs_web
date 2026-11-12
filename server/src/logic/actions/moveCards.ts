@@ -375,7 +375,7 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     }
     if (action.pick === undefined && action.count === "all") {
         if (dest !== "deckTop" && dest !== "deckBottom" && dest !== "deckTopOrBottom" && dest !== "trash" && dest !== "hand") return
-        ctx.resolve({ type: "revealRest", destPid: zone.pid, rest: dest }, { sourceColors: ctx.srcColors, sourceType: ctx.srcType })
+        ctx.resolve({ type: "revealRest", destPid: zone.pid, rest: dest })
         return
     }
     if (dest === "deckTop" || dest === "deckTopOrBottom") return
@@ -400,7 +400,7 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
         if (together) startSummonBatch(state)
         const frames = [...ids.map(applyOne), ...(after ? [after] : []), ...(together ? [{ type: "summonBatchFlush" } as const] : [])]
         resolveInOrder(state, frames, {
-            resolve: (a) => ctx.resolve(a, { sourceColors: ctx.srcColors, sourceType: ctx.srcType }),
+            resolve: (a) => ctx.resolve(a),
             frame: (a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a }),
         })
     }
