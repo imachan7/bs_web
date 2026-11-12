@@ -12,7 +12,7 @@
 //   - exhaust.countCounter + EffectCounter "ownCombinedSpirits"（自分の合体スピリット1体につき）
 //
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・コストを機械検証してから使う。
-import { act, assert, createGame, createInstance, effectiveBp, getCard, refreshLevelAsOverrides, runTurnStart, takeLifeAndResolve } from "./helpers"
+import { act, answerCoreLevel, assert, createGame, createInstance, effectiveBp, getCard, refreshLevelAsOverrides, runTurnStart, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { attachBrave, detachBraveByEffect, fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/EffectModules"
@@ -185,11 +185,13 @@ console.log("=== BS10-029 Lv1『召喚時』：対話では発動確認→1枚�
     if (s.pendingChoice?.kind === "target") {
         assert(act(s, "p1", { type: "resolveChoice" }) === null, "合体先はスキップ（単体召喚）")
     }
+    answerCoreLevel(s, "p1")
     assert(s.pendingChoice !== null && s.pendingChoice.kind === "card", "続けて2枚目を選ぶ選択待ちが立つ")
     assert(act(s, "p1", { type: "resolveChoice", cardIndex: 0 }) === null, "2枚目を選ぶ")
     if (s.pendingChoice?.kind === "target") {
         assert(act(s, "p1", { type: "resolveChoice" }) === null, "合体先はスキップ（単体召喚）")
     }
+    answerCoreLevel(s, "p1")
     assert(s.pendingChoice === null, "手札のブレイヴが尽きたので選択待ちは立たない")
     assert(s.players.p1.hand.length === 0, "2枚とも召喚される")
 }

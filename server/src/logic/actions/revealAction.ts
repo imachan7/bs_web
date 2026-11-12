@@ -88,7 +88,7 @@ function failDest(ctx: ActionCtx, orHand: boolean | undefined, cardId: string): 
     }
 }
 
-// 選ばれた1枚（すでに元のゾーンから除いてある）を dest へ送る
+// 選ばれた1枚を dest へ送る。fromRevealed なら公開ゾーンからここで抜く（それ以外は呼び出し側が除いてある）
 function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "revealApplyOne" }>): void {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
@@ -111,7 +111,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
         takeOut()
         return false
     }
-    if (action.placeCores !== undefined) takeOut()
+    if (action.fromRevealed || action.placeCores !== undefined) takeOut()
     // 「召喚/配置できる」：ネクサスは配置、それ以外は召喚
     const dest: RevealDest = action.dest === "summonOrPlace" ? (card.type === "nexus" ? "placeNexus" : "summon") : (action.dest ?? "hand")
     switch (dest) {
