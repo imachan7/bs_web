@@ -6,6 +6,7 @@ import type {
     GameView, PlayerId
 } from "../../server/src/type"
 import { CARD_TYPE_LABELS } from "../../data/constants"
+import { attachCardArt } from "./cardArt"
 import { setCardLookup } from "../../shared/cardDb"
 import { choiceCounterView } from "./choiceCounter"
 import { effectiveCost } from "../../shared/cost"
@@ -351,7 +352,9 @@ function showLastMagic(ev: Extract<GameEvent, { type: "magic" }>, you: PlayerId)
         document.getElementById("game")?.appendChild(chip)
     }
     chip.textContent = `📜 直前のマジック：${ev.pid === you ? "あなた" : "相手"}の${ev.cardName}${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`
-    chip.title = ev.cardId !== undefined ? master(ev.cardId).effect : ev.cardName
+    // カードと同じ効果のツールチップを出す（tooltip.ts の .tip-card）
+    chip.classList.add("tip-card")
+    if (ev.cardId !== undefined) chip.dataset.cardId = ev.cardId
 }
 
 // 場を離れたカードの位置に、消えていく写しを重ねる（描き直す前に呼ぶ。急に消えたように見えないため）
@@ -367,7 +370,84 @@ function showLeaveGhost(instanceId: string, kind: "vanish" | "destroy" | "bounce
     ghost.style.width = `${rect.width}px`
     ghost.style.height = `${rect.height}px`
     document.body.appendChild(ghost)
-    setTimeout(() => ghost.remove(), 1200)
+    setTimeout(() => ghost.remove(), LEAVE_MS)
+    // 消えるまでは元の場所を空けておく（詰めると隣のカードが写しの下から出てくるように見えるため）
+    const zone = el.parentElement
+    if (zone?.id) {
+        leavingSlots.set(instanceId, { zoneId: zone.id, index: Array.from(zone.children).indexOf(el), width: rect.width, height: rect.height })
+        setTimeout(() => {
+            leavingSlots.delete(instanceId)
+            document.querySelector(`.leave-slot[data-slot="${CSS.escape(instanceId)}"]`)?.remove()
+        }, LEAVE_MS)
+    }
+}
+
+const LEAVE_MS = 1200
+const leavingSlots = new Map<string, { zoneId: string; index: number; width: number; height: number }>()
+
+// 場を描き直したあとに、消えている途中のカードの場所へ同じ大きさの空きを入れ直す
+function restoreLeavingSlots(): void {
+    for (const [id, slot] of leavingSlots) {
+        const zone = document.getElementById(slot.zoneId)
+        if (!zone) continue
+        const spacer = document.createElement("div")
+        spacer.className = "leave-slot"
+        spacer.dataset.slot = id
+        spacer.style.width = `${slot.width}px`
+        spacer.style.height = `${slot.height}px`
+        zone.insertBefore(spacer, zone.children[slot.index] ?? null)
+    }
+}
+
+// オープンしたカード：選択待ちのあいだ（公開ゾーンが残っている間）は出しっぱなし、すぐ片付いた場合も8秒は出す。
+// カードの形で並べ、カーソルを合わせると効果文（画像が使える設定なら画像も）
+let revealShown: { pid: PlayerId; cardIds: string[]; until: number } | null = null
+function renderRevealPanel(view: GameView): void {
+    let panel = document.getElementById("reveal-panel")
+    const live = view.revealedCards
+    const src = live && live.cardIds.length > 0 ? { pid: live.pid, cardIds: live.cardIds } : revealShown && Date.now() < revealShown.until ? revealShown : null
+    if (!src) {
+        panel?.remove()
+        return
+    }
+    if (!panel) {
+        panel = document.createElement("div")
+        panel.id = "reveal-panel"
+        panel.addEventListener("click", (e) => {
+            if ((e.target as HTMLElement).closest(".reveal-close")) {
+                revealShown = null
+                panel?.remove()
+            }
+        })
+        document.getElementById("game")?.appendChild(panel)
+    }
+    panel.innerHTML = ""
+    panel.dataset.live = live && live.cardIds.length > 0 ? "1" : ""
+    const head = document.createElement("div")
+    head.className = "reveal-head"
+    head.textContent = `🔍 ${src.pid === view.you ? "あなた" : "相手"}のカードをオープン中`
+    const close = document.createElement("button")
+    close.className = "reveal-close"
+    close.textContent = "×"
+    head.appendChild(close)
+    const row = document.createElement("div")
+    row.className = "reveal-row"
+    for (const id of src.cardIds) {
+        const m = master(id)
+        const c = document.createElement("div")
+        c.className = "reveal-card tip-card"
+        c.dataset.cardId = id
+        const name = document.createElement("div")
+        name.className = "reveal-name"
+        name.textContent = m.name
+        const type = document.createElement("div")
+        type.className = "reveal-type"
+        type.textContent = `${CARD_TYPE_LABELS[m.type]}・コスト${m.cost}`
+        c.append(name, type)
+        attachCardArt(c, id, m.name)
+        row.appendChild(c)
+    }
+    panel.append(head, row)
 }
 
 // view.events のうち前回描画より新しいものだけを処理する：
@@ -391,8 +471,12 @@ function processNewEvents(view: GameView): Set<PlayerId> {
             showDetailBanner(layer, "magic", `📜 ${mine ? "あなた" : "相手"}が ${ev.cardName} を使用${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`, ev.cardId !== undefined ? magicEffectText(ev.cardId, ev.timing) : "", mine)
             continue
         }
-        if (ev.type === "reveal" && layer) {
-            showDetailBanner(layer, "reveal", `🔍 ${mine ? "あなた" : "相手"}のカードをオープン`, ev.cardIds.map((id) => master(id).name).join("、"), false)
+        if (ev.type === "reveal") {
+            revealShown = { pid: ev.pid, cardIds: ev.cardIds, until: Date.now() + 8000 }
+            setTimeout(() => {
+                const panel = document.getElementById("reveal-panel")
+                if (revealShown && Date.now() >= revealShown.until && panel?.dataset.live !== "1") panel?.remove()
+            }, 8100)
             continue
         }
         const text = eventBannerText(ev, view.you)
@@ -892,6 +976,8 @@ export function render(view: GameView, ui: UiState): void {
     // フィールド
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
     renderField("my-spirits", "my-nexuses", view, ui, you, true)
+    restoreLeavingSlots()
+    renderRevealPanel(view)
 
     // バーストエリア（docs/design/BURST.md）。相手のバーストは常に裏面のみ（cardIdは来ない）
     renderBurst("opp-burst", view, opp, false)

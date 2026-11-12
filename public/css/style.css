@@ -2249,3 +2249,51 @@ body:has(#notice-banner:not(.hidden)) {
     0% { opacity: 1; transform: none; }
     100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
 }
+
+/* 消えている途中のカードの場所（詰めない） */
+.leave-slot { flex: none; }
+
+/* オープン中のカード（選択待ちの間は出しっぱなし。カーソルで効果文） */
+#reveal-panel {
+    position: fixed;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 45;
+    max-width: min(420px, calc(100vw - 24px));
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(26, 29, 36, 0.95);
+    border: 1px solid #4fb3d9;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+}
+.reveal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+.reveal-close {
+    padding: 2px 8px;
+    font-size: 14px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.reveal-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.reveal-card {
+    position: relative;
+    width: 84px;
+    min-height: 116px;
+    padding: 6px;
+    border-radius: 6px;
+    background: #14161b;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    cursor: help;
+}
+.reveal-card .card-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+.reveal-name { position: relative; font-size: 11px; font-weight: 700; line-height: 1.3; }
+.reveal-type { position: relative; font-size: 10px; color: var(--text-muted); margin-top: 4px; }
