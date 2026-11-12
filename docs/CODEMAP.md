@@ -294,6 +294,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasUntargetableConstraint`（fn）：constraint:"untargetableByOpponent" だけを見る（immuneToOpponentThisTurn は上で別扱いにしたので含めない）。
 - `isInBattle`（fn）：現在のバトルに参加しているか（サーバーの isInCurrentBattle と同じ判定。Board だけで決まる）
 - `isExhaustImmuneOnBoard`（fn）：【疲労しない】（kind:"exhaustImmunityGrant"。トランプの王国）。
+- `continuousEffectReaches`（fn）：相手の継続効果（相手に与える制約・常時のBP増減・期間つきの範囲効果・指定アタック）が、この個体に届くか。
 
 ## shared/rules/summonToll.ts
 

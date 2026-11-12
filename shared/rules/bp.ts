@@ -1,4 +1,5 @@
 // 常時BP修正（オーラ）と実効BP、数を数えるときの重み（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { continuousEffectReaches } from "./resistance"
 import { noteCoverage } from "../coverage"
 
 import type {
@@ -14,7 +15,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { bofuCountFor, matchesFamilyFilter, spiritHasFamily, spiritHasKeywordOrLabel, targetArmorColorCount } from "./keywordState"
 import { entryActive } from "./effectStop"
-import { braveBpBonus, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast } from "./level"
+import { braveBpBonus, instColors, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast } from "./level"
 import { countSymbols, handSizeOf, instanceSymbolCount } from "./symbols"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
@@ -495,6 +496,8 @@ function eachBpAura(board: Board, ownerPid: PlayerId, inst: CardInstance, onAmou
                 if (!auraAppliesTo(board, pid, source, effect.aura, ownerPid, inst)) {
                     continue
                 }
+                // 相手から当てる常時のBP増減は、【装甲】などで防げる（continuousEffectReaches。2026-11-12）
+                if (!continuousEffectReaches(board, ownerPid, inst, { pid, type: card(source.cardId).type, colors: instColors(source) })) continue
                 if (effect.uniqueByName) {
                     const key = `${pid}|${card(source.cardId).name}|${effect.id}`
                     if (uniqueSeen.has(key)) continue

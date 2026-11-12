@@ -1413,7 +1413,8 @@ const lifeCoresBySymbolDiffHandler: ActionHandler<"lifeCoresBySymbolDiff"> = (ct
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    const diff = instanceSymbolCount(self) - instanceSymbolCount(blocker.inst)
+    const bonus = action.selfBonusCounter !== undefined ? countEffectCounter(state, ctx.owner, self, action.selfBonusCounter, ctx.srcType) : 0
+    const diff = instanceSymbolCount(self) + bonus - instanceSymbolCount(blocker.inst)
     if (diff <= 0) {
         log(state, `${sourceName}：シンボルの数で上回っていないため発動しなかった。`)
         return

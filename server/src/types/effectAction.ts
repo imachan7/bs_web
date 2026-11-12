@@ -139,7 +139,7 @@ export type EffectAction =
  | { type: "atTurnEnd"; action: EffectAction } // このターン終了時に action を解決する（記録はGameState.turnEndActions）。発生源が場を離れていても解決する（公式Q&A Q22394〜Q22396）
  | { type: "burstMagicFreeOrThenPay"; cardId: string; payTiming?: "main" | "flash"; payCost?: number } // burstMagicFreeEffect（BS16-070）の選択肢の解決専用。keywords/burst.tsのtryBurstMagicFreeOrThenPayが積み、actions/control.tsのハンドラがchosenOptionの文言で分岐する
  | { type: "negateContinuousMagicByName"; nameIncludes: string } // 相手側が発揮中のendStepLockのうち、発生源カード名にこの文字列を含むものだけを解除する。トラッシュ・手札のカードには何もしない
- | { type: "lifeCoresBySymbolDiff" } // onBlocked（self=アタッカー、targetInstanceId=ブロッカー）で解決。シンボル数の差が正のとき、その数ぶん相手のライフのコアを相手のリザーブへ（内部でlifeCrushへ委譲）
+ | { type: "lifeCoresBySymbolDiff"; selfBonusCounter?: EffectCounter } // onBlocked（self=アタッカー、targetInstanceId=ブロッカー）で解決。シンボル数の差が正のとき、その数ぶん相手のライフのコアを相手のリザーブへ（内部でlifeCrushへ委譲）。selfBonusCounter＝「この効果でシンボルの数を比べるとき」だけ自分に足すシンボル数（常時のシンボル追加にしない。軽減に効いてしまったため。2026-11-12）
  | { type: "battleLoserCoresToVoid" } // 直前のバトルで破壊された相手のスピリット上のコアすべてを、リザーブでなく**ボイド**へ送る。破壊待機中（コアが乗ったまま）に呼ぶ前提
  | { type: "extraAttackStep" } // アタックステップとエンドステップを順番にもう1回ずつ行う（GameState.extraAttackStepPending を立てる）。既に立っていれば何もしない
  | { type: "endAttackStep"; onlyOpponentTurn?: boolean } // 今行っているアタックステップの終了フラグを立てる（onlyOpponentTurn=true時は自分のターンなら発動しない）

@@ -95,6 +95,7 @@ function extractBlockHeaders(text: string): string[] {
  * （「見出し1つに効果が2つぶら下がる」など、見出しとエントリが1対1にならないカード）。
  */
 const LEVEL_MISMATCH_VERIFIED: Record<string, string> = {
+    "BS12-X01": "Lv2･Lv3 のシンボル比較を、Lv3 の「比べるときシンボルを足す」込みのエントリ（levels:[3]）と足さないエントリ（levels:[2]）に分けた（2026-11-12。常時のシンボル追加にすると軽減に効いたため）",
     "BS01-099":
         "百識の谷：Lv1のブロックが『ドロー+1』『手札1枚破棄』の2文からなる。ドロー+1は[1,2]、破棄は[1]で正しい",
     "BS05-054":
