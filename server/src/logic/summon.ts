@@ -5,7 +5,7 @@ import { noteCoverage } from "../../../shared/coverage"
 import { countEffectCounter, getAllFamilies, hasSummonedExhaustGrant, payCost, spiritHasFamily } from "./EffectModules"
 import { summonVoidToll } from "../../../shared/rules/summonToll"
 import { refreshLevelAsOverrides } from "./state/continuous"
-import type { CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
+import type { CardData, CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
 import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { attachBrave } from "./brave"
 import { summonDenial } from "./summonGate"
@@ -21,7 +21,7 @@ import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, 
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "./summonSurcharge"
-import { askSummonCores, summonCoreOptions } from "./summonCores"
+import { askSummonCores, summonCoreOptions, summonPayPlan } from "./summonCores"
 
 // 召喚が済んだ後にまとめて走る処理：『このスピリットの召喚時』効果 →「自分のスピリットが
 // 召喚されたとき」のフィールド誘発 → 天使長ファニムの疲労付与、の順。
@@ -266,7 +266,7 @@ export function summonFreeFromHandIndex(
     let short = voidToll > player.reserve
     if (!short) {
         player.reserve -= voidToll
-        short = askCores ? summonCoreOptions(state, owner, card, cost, opts?.reserveOnly === true).length === 0 : opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true) && !(state.interactiveTargets && voidToll === 0 && opts?.braveTargetInstanceId === undefined && summonCoreOptions(state, owner, card, surchargeOwed(state, owner, card, opts?.surchargeBatch === true)).length > 0)
+        short = askCores ? summonCoreOptions(state, owner, card, cost, opts?.reserveOnly === true).length === 0 : !summonPayable(state, owner, card, cost, maintain, 0, fromField, opts)
         player.reserve += voidToll
     }
     if (short) {
@@ -295,7 +295,7 @@ export function summonFreeFromHandIndex(
     if (voidToll > 0) payVoidToll(state, owner, card)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る。
     // 支払い元が維持コア割れしたらそこで消滅する）。無償のときは余分をここで払う
-    const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
+    const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts.paySources ?? summonPayPlan(state, owner, cost + maintain, opts.reserveOnly === true)?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
     state.summoningFromHand = true // 効果による手札からの召喚（fieldEvent.fromHandOnly。BS11-X05）
     if (opts?.payCost) state.summoningPaid = true
@@ -372,7 +372,7 @@ export function summonFreeFromTrashIndex(
     const askCores = opts?.payCost === true && !opts.costPaid && opts.placeCores === undefined && opts.paySources === undefined && state.interactiveTargets
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
     const voidToll = opts?.payCost ? summonVoidToll(state, card) : 0
-    if (askCores ? summonCoreOptions(state, owner, card, cost, opts?.reserveOnly === true).length === 0 : opts?.payCost ? player.reserve - voidToll + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true) && !(state.interactiveTargets && summonCoreOptions(state, owner, card, surchargeOwed(state, owner, card, opts?.surchargeBatch === true)).length > 0)) {
+    if (askCores ? summonCoreOptions(state, owner, card, cost, opts?.reserveOnly === true).length === 0 : !summonPayable(state, owner, card, cost, maintain, voidToll, fromField, opts)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
@@ -394,7 +394,7 @@ export function summonFreeFromTrashIndex(
     player.trashCards.splice(trashIndex, 1)
     if (voidToll > 0) payVoidToll(state, owner, card)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）。無償のときは余分をここで払う
-    const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
+    const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts.paySources ?? summonPayPlan(state, owner, cost + maintain, opts.reserveOnly === true)?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
     if (opts?.payCost) state.summoningPaid = true
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
@@ -498,3 +498,11 @@ export function summonFromHandFreeCandidateMatches(
     return true
 }
 
+
+// 効果による召喚を、置くコアの数を聞かずに払えるか（支払い元の指定があればそれで、無ければ summonPayPlan のおまかせで）。
+// toll は呼び出し時点でまだリザーブに残っているボイドの通行料
+function summonPayable(state: GameState, owner: PlayerId, card: CardData, cost: number, maintain: number, toll: number, fromField: number, opts?: { payCost?: true; paySources?: PaySource[]; surchargeBatch?: true; reserveOnly?: true }): boolean {
+    if (!opts?.payCost) return canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)
+    if (opts.paySources !== undefined) return state.players[owner].reserve - toll + fromField >= maintain + cost
+    return summonPayPlan(state, owner, cost + maintain + toll, opts.reserveOnly === true) !== null
+}

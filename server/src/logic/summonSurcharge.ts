@@ -1,10 +1,11 @@
 // 「コストを支払わずに」の召喚でも、相手の転召の祭壇などが課す余分のコストは払う
 // （公式Q&A Q3657/Q3718/Q3753、2026-10-15 ユーザー確認）。通常の召喚の余分は effectiveCost に入っている。
-// 支払い元はリザーブとフィールドのコア。対話中は効果のコストと同じ effectCostPay の待ちで聞き、非対話は autoPayPlan で払う
+// 支払い元はリザーブとフィールドのコア。対話中は効果のコストと同じ effectCostPay の待ちで聞き、非対話は summonPayPlan で払う
 import { summonSurcharge } from "../../../shared/cost"
 import { summonVoidToll } from "../../../shared/rules/summonToll"
 import type { CardData, EffectAction, GameState, PlayerId } from "../type"
-import { autoPayPlan, payCost } from "./EffectModules"
+import { payCost } from "./EffectModules"
+import { summonPayPlan } from "./summonCores"
 import { log, suspend } from "./GameState"
 import { normalReserveOf } from "./soulCore"
 import { fieldCoresSpendable } from "./actions/moveCards"
@@ -45,9 +46,7 @@ export function payVoidToll(state: GameState, pid: PlayerId, cardData: CardData)
 }
 
 function canPayFreeSummonSurchargeBase(state: GameState, pid: PlayerId, cardData: CardData, extraNeeded: number, batch: boolean): boolean {
-    const n = surchargeOwed(state, pid, cardData, batch)
-    if (n === 0) return state.players[pid].reserve >= extraNeeded
-    return autoPayPlan(state, pid, n + extraNeeded, true) !== null
+    return summonPayPlan(state, pid, surchargeOwed(state, pid, cardData, batch) + extraNeeded) !== null
 }
 
 // 余分を払い、置くコア（maintain）のうちフィールドのコアで賄えた数を返す（呼び出し側はリザーブから maintain - 戻り値 を引く）。
@@ -63,10 +62,11 @@ export function payFreeSummonSurchargeKeeping(state: GameState, pid: PlayerId, c
 
 function payFreeSummonSurchargeBase(state: GameState, pid: PlayerId, cardData: CardData, batch: boolean, maintain: number): number | null {
     const n = surchargeOwed(state, pid, cardData, batch)
-    if (n === 0) return 0
-    const plan = autoPayPlan(state, pid, n + maintain, true)
+    if (n === 0 && state.players[pid].reserve >= maintain) return 0
+    const plan = summonPayPlan(state, pid, n + maintain)
     if (plan === null) return null
     const placed = payCost(state, pid, n, plan.paySources, maintain, plan.soulFromReserve)
+    if (n === 0) return placed
     if (batch) state.summonSurchargePaid = pid
     log(state, `${state.players[pid].name}：転召の祭壇により${n}コスト余分に支払った。`)
     return placed

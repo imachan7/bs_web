@@ -80,15 +80,15 @@ scenario({
 })
 
 console.log("=== 5. 祭壇あり・余分の1コストを払えない → その召喚はできず、カードはトラッシュに残る ===")
-// リザーブ9＝ベルゼビートの7コスト＋1コアの後に1個残る。レッドキャップのLv1のコア1個は置けるが、余分の1コストまでは払えない
-// （ベルゼビートのコアは維持コアなので払いに使わない）。祭壇が無ければ出る盤面で「払えないから出ない」だけを見る
+// リザーブ8＝ベルゼビートの7コスト＋1コアで0。レッドキャップは余分1＋置くコア1の2個が要るが、場にはベルゼビートの1個しかない
+// （維持コアも消滅させれば払いに使える。#437 R9-2）。祭壇が無ければ出る盤面で「払えないから出ない」だけを見る
 scenario({
     name: "altar-cannot-pay",
-    start: { me: { reserve: 9, hand: [BEELZE], trash: [CAP] }, opp: { nexuses: [{ card: ALTAR, cores: 1 }] } },
+    start: { me: { reserve: 8, hand: [BEELZE], trash: [CAP] }, opp: { nexuses: [{ card: ALTAR, cores: 1 }] } },
     steps(t) {
         t.act("me", { type: "summon", handIndex: 0 })
     },
-    expect: [...BEELZE_ME, "自分.リザーブ: 9 → 1", "自分.トラッシュのコア: 0 → 7"],
+    expect: [...BEELZE_ME, "自分.リザーブ: 8 → 0", "自分.トラッシュのコア: 0 → 7"],
 })
 
 console.log("すべてのチェックに合格しました 🎉（part590）")

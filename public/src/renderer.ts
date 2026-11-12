@@ -9,6 +9,7 @@ import { CARD_TYPE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
 import { choiceCounterView } from "./choiceCounter"
 import { effectiveCost } from "../../shared/cost"
+import { minLevelCores } from "../../shared/rules/activation"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
@@ -671,7 +672,9 @@ export function render(view: GameView, ui: UiState): void {
             ui.paying.forBraveKeep !== undefined
                 ? `💎 残すブレイヴに置くコア: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forMeisai !== undefined
-                ? `💎 ${ui.paying.forMeisai.effectCost ? "効果" : "【迷彩】"}のコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                ? ui.paying.forMeisai.placing
+                    ? `💎 ${master(ui.paying.forMeisai.cardId).name}：${view.pendingChoice?.effectCostPay?.need ? "コストと" : ""}置くコア 残り ${remaining} 個。${Object.keys(ui.paying.assigned).length > 0 ? "おまかせの払い方を割り当ててあります（変えるときは「割り当てをやり直す」）" : "コアを出すスピリット・ネクサスを押してください"}${vanishingNote(view, ui.paying.assigned)}`
+                    : `💎 ${ui.paying.forMeisai.effectCost ? "効果" : "【迷彩】"}のコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forAttack !== undefined
                 ? `💎 アタックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forBlock !== undefined
@@ -755,7 +758,7 @@ export function render(view: GameView, ui: UiState): void {
                 .join(" ")
             $("targeting-info").innerHTML += `<br>${buttons}`
         }
-        if (ui.payMode === "manual") {
+        if (ui.payMode === "manual" || ui.paying.forMeisai?.placing) {
             const need = payingNeed(view, ui.paying)
             const fromField = Object.values(ui.paying.assigned).reduce((a, b) => a + b, 0)
             const fromReserve = Math.max(0, Math.min(view.players[view.you].reserve, need - fromField))
@@ -955,3 +958,11 @@ export function showToast(message: string): void {
 // カードは再描画のたびに作り直されるため、document への委譲で拾う。
 
 
+
+// 割り当てたコアで維持コアを割るスピリットの名前（「〜が消滅します」）。支払いの確定前に見せる
+function vanishingNote(view: GameView, assigned: Record<string, number>): string {
+    const names = view.players[view.you].field.spirits
+        .filter((sp) => (assigned[sp.instanceId] ?? 0) > 0 && sp.cores - (assigned[sp.instanceId] ?? 0) < minLevelCores(master(sp.cardId)))
+        .map((sp) => master(sp.cardId).name)
+    return names.length > 0 ? `／⚠️ ${names.join("、")}が消滅します` : ""
+}

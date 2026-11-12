@@ -1104,7 +1104,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/summonCores.ts
 
-- `summonCoreOptions`（fn）：支払い元はリザーブ（ソウルコアを除く）とフィールドの全コア（reserveOnly＝リザーブだけ。「リザーブから使用することで」）。味方を0個にして消滅させる払い方も含める（通常の…
+- `summonPayPlan`（fn）：効果による召喚の「払えるか」と「おまかせの払い方」は、すべてこれを通す（選択肢・召喚できるかの判定・自動の支払いの基準を揃える。#437 R9-2）。
+- `summonCoreOptions`（fn）：置けるコアの数の選択肢。ボイドの通行料（BS22-012）はリザーブから払うので、リザーブが足りなければ候補なし
 - `summonCoreLabel`（fn）
 - `askSummonCores`（fn）：Lv が2つ以上選べる、またはリザーブだけでは足りないとき、支払い待ち（effectCostPay）を立てて true。
 

@@ -3,7 +3,8 @@
 // 最低Lvぶんのコアを自分のリザーブ＋フィールドから置く。体数の上限は設けない（用意枚数は管理しない簡略化）
 import type { ActionRegistry, ActionHandler } from "./types"
 import { CARD_DB, createInstance, findSpirit, log } from "../GameState"
-import { autoPayPlan, payCost } from "../EffectModules"
+import { payCost } from "../EffectModules"
+import { summonPayPlan } from "../summonCores"
 import { moveSoulCore, wouldDeplete } from "../soulCore"
 import { destroySpirit } from "../removal"
 import { minLevelCores } from "../../../../shared/rules/activation"
@@ -19,9 +20,9 @@ const spawnTokenHandler: ActionHandler<"spawnToken"> = (ctx, action) => {
     }
     const maintain = minLevelCores(card)
     let made = 0
-    // ponytail: 「N体まで」は払える限り最大数を出し、置くコアの出どころも自動（autoPayPlan）。体数・支払い元を選ばせるなら PendingChoice を足す
+    // ponytail: 「N体まで」は払える限り最大数を出し、置くコアの出どころも自動（summonPayPlan）。体数・支払い元を選ばせるなら PendingChoice を足す
     for (let i = 0; i < action.count; i++) {
-        const plan = autoPayPlan(state, owner, maintain)
+        const plan = summonPayPlan(state, owner, maintain)
         if (plan === null) break
         const normal = maintain - (plan.soulFromReserve ? 1 : 0)
         const placedFromField = payCost(state, owner, 0, plan.paySources, normal)

@@ -874,7 +874,10 @@ async function init(): Promise<void> {
                 ui.targeting = null
                 ui.awakenTarget = null
                 ui.combineBrave = null
-                ui.paying = { handIndex: -1, forMeisai: { option, cardId: meisai.cardId, need: meisai.need, ...(meisai.effectCost ? { effectCost: true as const } : {}), ...(placing ? { placing: true as const } : {}) }, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
+                // 置くコアの支払いは、おまかせの払い方（サーバーの summonPayPlan）を割り当て済みにして開く。確定は人が押す
+                const suggest = placing ? pc?.effectCostPay?.suggestByOption?.[(pc.options ?? []).indexOf(option)] ?? [] : []
+                const assigned = Object.fromEntries(suggest.map((s) => [s.instanceId, s.count]))
+                ui.paying = { handIndex: -1, forMeisai: { option, cardId: meisai.cardId, need: meisai.need, ...(meisai.effectCost ? { effectCost: true as const } : {}), ...(placing ? { placing: true as const } : {}) }, assigned, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
                 rerender()
                 return
             }
