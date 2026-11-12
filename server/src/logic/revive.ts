@@ -1,5 +1,6 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
+import { takeFromTrash } from "./zones/trash"
 import { coreRemovalAllowed } from "./coreGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
@@ -501,7 +502,7 @@ export function applyFushiSummon(
             : askCostPay(state, info.pid, cost, maintain, `【不死】${card.name}：${cost}コストを支払ってください`, info.cardId, resume)
         if (asked) return
     }
-    player.trashCards.splice(index, 1)
+    if (takeFromTrash(state, info.pid, index, "effect") === null) return
     payVoidToll(state, info.pid, card)
     let placedFromField = 0
     if (!prepaid) {
@@ -605,7 +606,7 @@ export function applySpiritMillFreeSummon(
         log(state, `${card.name}：転召の祭壇などの余分のコストを払えず、召喚できなかった。`)
         return
     }
-    player.trashCards.splice(index, 1)
+    if (takeFromTrash(state, info.pid, index, "effect") === null) return
     // 召喚コストは無料だが、Lv1 に要るコアは通常の召喚と同じくリザーブから置く（フィールドのコアで賄えたぶんは除く）
     const cores = Math.min(maintain - placed, player.reserve) + placed
     player.reserve -= cores - placed
@@ -991,8 +992,7 @@ function tryReviveOnDestroy(
             // カード名が一致すればトラッシュから手札へ移す（CONJUNCTION.md「さらに」）
             if (thenHandIfNameIncludes !== undefined && !handGainDenial(state, { pid: ownerPid, from: "trash", cause: "effect" }) && milled.name.includes(thenHandIfNameIncludes)) {
                 const idx = player.trashCards.lastIndexOf(cardId)
-                if (idx !== -1) {
-                    player.trashCards.splice(idx, 1)
+                if (idx !== -1 && takeFromTrash(state, ownerPid, idx, "effect") !== null) {
                     player.hand.push(cardId)
                     notifyHandGained(state, ownerPid, 1)
                     log(state, `${player.name}は${milled.name}を手札に加えた。`)

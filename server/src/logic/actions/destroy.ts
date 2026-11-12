@@ -1,5 +1,6 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { takeFromTrash } from "../zones/trash"
 import { coreRemovalAllowed } from "../coreGate"
 import { kyokaBonus } from "../keywords/kyoka"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
@@ -947,7 +948,7 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             delete pending.pendingDestruction
         } else {
             // 破壊が確定した後（既にトラッシュへ行っている）経路への保険
-            player.trashCards.splice(trashIndex, 1)
+            if (takeFromTrash(state, owner, trashIndex, "effect") === null) return
             player.field.nexuses.push(createInstance(last.cardId, state.turn, 0))
             notifyNexusDeployed(state, owner)
         }

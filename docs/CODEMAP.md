@@ -463,7 +463,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `runExtraStep`（fn）：BS15-X04 Lv2：選んだステップを通常どおり丸ごと行う（そのステップの効果もすべて発揮する）
 - `runTurnStart`（fn）：ターン開始処理：start → core → draw → refresh を自動で進めて main で止める。
 - `toAttackPhase`（fn）：メインステップ → アタックステップ
-- `endTurn`（fn）：ターン終了処理：エンドステップを経て相手のターンを開始する
+- `EndTurnStage`（型）：ターン終了処理：エンドステップを経て相手のターンを開始する
+- `endTurn`（fn）
 
 ## server/src/logic/RuleValidator.ts
 
@@ -1183,6 +1184,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyDeckMillNegate`（fn）：保留していた「デッキ破棄の無効化」の確認で、承認されたときの処理。
 - `declineDeckMillNegate`（fn）：同上、断られたときの処理。見送っていた破棄をここで行う（skipNegate で確認の再入を防ぐ）
 - `resolveMilledFromDeck`（fn）：破棄されたカードのうち kind:"onMilledFromDeck" を持つものを解決する。
+
+## server/src/logic/zones/trash.ts
+
+- `TrashTakeBy`（型）：effect＝効果で動かす（保護を見る）。rule＝効果の対象にしない動き（《継召》のコストとして除外する・使ったマジックを場に残す）
+- `trashTakeableByEffect`（fn）：効果がトラッシュから動かせるカードか（候補を作るときに使う。選ばせてから取り出せない、を避けるため）
+- `takeFromTrash`（fn）：index のカードを取り出して返す。無い・保護されていて取り出せないときは null（トラッシュはそのまま。保護のときはログを出す）
 
 ## server/src/logic/zones/underCards.ts
 

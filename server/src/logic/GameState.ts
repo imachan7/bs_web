@@ -1,4 +1,5 @@
 // GameState / PlayerState の状態生成・更新の土台
+import { takeFromTrash } from "./zones/trash"
 import { validateEndTurn } from "./RuleValidator"
 import { noteCoverage, noteInstance } from "../../../shared/coverage"
 import type {
@@ -386,7 +387,7 @@ export function returnTrashCardToHand(state: GameState, pid: PlayerId, cardId: s
         if (isOnceNameUsed(state, pid, cardId, onceEffectId)) return
         markOnceNameUsed(state, pid, cardId, onceEffectId)
     }
-    player.trashCards.splice(index, 1)
+    if (takeFromTrash(state, pid, index, "effect") === null) return
     player.hand.push(cardId)
     log(state, `${getCard(cardId).name}はトラッシュから手札に戻った。`)
     notifyHandGained(state, pid, 1)

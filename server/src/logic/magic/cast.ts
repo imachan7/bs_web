@@ -1,4 +1,5 @@
 // マジックの使用（コスト支払いから解決まで）
+import { takeFromTrash } from "../zones/trash"
 import type { CardData, Color, GameState, PlayerId, EffectAction, PaySource, PendingChoice, EffectDef } from "../../type"
 import { getCard, opponentOf, suspend, findInstanceAnywhere, log } from "../GameState"
 import { findMagicFreeGrantSource, hasMagicRestriction, effectiveCost, exSymbolsOfTrashCard, magicEffectiveColors } from "../../../../shared/cost"
@@ -301,8 +302,8 @@ export function doCastMagic(
     if (exReductionTrashIndices !== undefined && exReductionTrashIndices.length > 0) {
         const excluded: string[] = []
         for (const idx of [...exReductionTrashIndices].sort((a, b) => b - a)) {
-            const [id] = player.trashCards.splice(idx, 1)
-            if (id !== undefined) excluded.unshift(id)
+            const id = takeFromTrash(state, pid, idx, "rule")
+            if (id !== null) excluded.unshift(id)
         }
         player.excludedCards.push(...excluded)
         state.keishoExcludedCardIds = excluded
