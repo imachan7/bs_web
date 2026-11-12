@@ -282,7 +282,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
             ids = pickTargets(ctx, { ...actionForChoice, count: resolvedCount }, {
                 candidates: pool.map((sp) => sp.instanceId),
                 count: resolvedCount,
-                upTo: false,
+                upTo: action.upTo === true,
                 prompt: own ? `${sourceName}の手札戻し：手札に戻す自分のスピリットを選んでください` : `${sourceName}の手札戻し：対象を選んでください`,
                 verb: "手札に戻す",
             })

@@ -7,6 +7,7 @@ const MIKENE = "BS03-049" // ミケネ（破壊時：自分のスピリット1�
 const GIGA = "BS12-016" // 骸巨人ギ・ガッシャ（召喚時：コスト合計13まで無魔を好きなだけ手札へ）
 const MUMA6 = "BS04-019" // 首無し馬車（無魔・コスト6）
 const MUMA8 = "BS19-X02" // 冥府三巨頭バロック・ボルドー（無魔・コスト8）
+const GRIFFON = "BS22-X04" // 黒皇機獣ダークネス・グリフォン（召喚時：相手のスピリット2体までを手札に戻す）
 const VANILLA = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）
 
 console.log("=== 前提: カードの機械確認 ===")
@@ -17,6 +18,7 @@ console.log("=== 前提: カードの機械確認 ===")
     assert(getCard(MUMA6).cost === 6 && getCard(MUMA6).family.includes("無魔") && getCard(MUMA6).type === "spirit", "MUMA6は無魔コスト6")
     assert(getCard(MUMA8).cost === 8 && getCard(MUMA8).family.includes("無魔") && getCard(MUMA8).type === "spirit", "MUMA8は無魔コスト8")
     assert(getCard(VANILLA).name === "ロクケラトプス" && getCard(VANILLA).cost === 1, "VANILLAはバニラ")
+    assert(getCard(GRIFFON).name === "黒皇機獣ダークネス・グリフォン", "GRIFFONはダークネス・グリフォン")
 }
 
 function game(seed: string): GameState {
@@ -96,6 +98,19 @@ console.log("=== 4. SP-2：ギ・ガッシャは予算内で選べる（8/6/6/6 
     // 残り予算1：選べるものが無いので確定する
     assert(s.pendingChoice === null, "予算が尽きたら確定する")
     assert(s.players.p1.hand.length === hand + 2 && s.players.p1.trashCards.length === 2, `コスト6の2枚が手札に戻る（+${s.players.p1.hand.length - hand}）`)
+}
+
+console.log("=== 5. ダークネス・グリフォン：「2体までを手札に戻す」は1体で確定できる（効果文の「まで」） ===")
+{
+    const s = game("p899-5")
+    const griffon = put(s, "p1", GRIFFON)
+    const [a] = [put(s, "p2", VANILLA), put(s, "p2", VANILLA), put(s, "p2", VANILLA)]
+    const hand = s.players.p2.hand.length
+    fireTrigger(s, "p1", griffon, "onSummon")
+    handleAction(s, "p1", { type: "resolveChoice", instanceId: a!.instanceId })
+    assert(s.pendingChoice?.optional === true, "2体目は選ばずに終えられる")
+    handleAction(s, "p1", { type: "resolveChoice" })
+    assert(s.players.p2.field.spirits.length === 2 && s.players.p2.hand.length === hand + 1, `選んだ1体だけ手札に戻る（場${s.players.p2.field.spirits.length}・手札+${s.players.p2.hand.length - hand}）`)
 }
 
 console.log("すべてのチェックに合格しました 🎉（part899）")
