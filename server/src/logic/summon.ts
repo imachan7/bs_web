@@ -13,7 +13,7 @@ import { summonDenial } from "./summonGate"
 import { fireSummonTrigger } from "./triggers"
 import { fireEventBursts } from "./EffectModules"
 import type { CollectedTrigger } from "./blockDeclared"
-import type { EventBurstCheck } from "../type"
+import type { EventBurstCheck, ResumeFrame, SummonTail } from "../type"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { bravesOf, currentLevel } from "../../../shared/rules"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
@@ -190,29 +190,59 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         frame: (i) => i.frame,
         askOrder: { pid: state.turnPlayer, label: (i) => i.label, key: (i) => i.key },
     })
-    if (!state.winner) {
-        if (state.pendingChoice) pushResumeFrames(state, [{ kind: "eventBursts", checks }])
-        else fireEventBursts(state, checks)
-    }
-    // 「anyBraveSummoned」（BS12-061剣の誕生地）：**両陣営**どちらかのブレイヴが召喚されたとき。
-    // ownSpiritSummonedと違い、field.spirits（スピリット状態）だけでなくfield.combinedBraves
-    // （ダイレクトブレイヴ）に入った場合も対象にするため isOnFieldAnyZone で判定する
-    if (!state.winner && isOnFieldAnyZone(player, inst.instanceId) && getCard(inst.cardId).type === "brave") {
-        const braveInfo = { paidCost: state.summoningPaid === true }
-        fireFieldEventTriggers(state, pid, "anyBraveSummoned", { pid, inst }, undefined, undefined, undefined, braveInfo)
-        if (!state.winner) fireFieldEventTriggers(state, opponentOf(pid), "anyBraveSummoned", { pid, inst }, undefined, undefined, undefined, braveInfo)
-    }
+    const tail: SummonTail = { stage: 0, paidCost: state.summoningPaid === true }
     delete state.summoningBySoku
     delete state.summoningFromHand
     delete state.summoningPaid
-    // トラッシュにあるカードの「〜が召喚されたとき、コストを支払わずに召喚できる」
-    // （kind:"trashSummonOnNameSummoned"。BS11-004 プロミネンスワイバーン）
-    if (!state.winner && stillOnField()) tryTrashSummonOnNameSummoned(state, pid, inst)
-    if (!state.winner) returnTrashOnNameSummoned(state, pid, inst)
-    // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
-    // 召喚されたこのスピリットは疲労する
-    if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid), inst)) {
-        exhaustSpirit(state, pid, inst, undefined, opponentOf(pid), "spirit")
+    if (state.winner) return
+    const tailFrame = (t: SummonTail): ResumeFrame => ({ kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", tail: t } })
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "eventBursts", checks }, tailFrame(tail)])
+        return
+    }
+    fireEventBursts(state, checks)
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [tailFrame(tail)])
+        return
+    }
+    finishSummonSequence(state, pid, inst, tail)
+}
+
+// 召喚の後半。段ごとに進め、選択待ちが立ったら続きの段を積んで止まる（以前は止まらずに走り、選択の上書き・順序の逆転が起きた。#437 F5）
+export function finishSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, tail: SummonTail): void {
+    const player = state.players[pid]
+    const stillOnField = (): boolean => player.field.spirits.some((s) => s.instanceId === inst.instanceId)
+    const stages: (() => void)[] = [
+        // 「anyBraveSummoned」（BS12-061剣の誕生地）：**両陣営**どちらかのブレイヴが召喚されたとき。
+        // ownSpiritSummonedと違い、field.spirits（スピリット状態）だけでなくfield.combinedBraves
+        // （ダイレクトブレイヴ）に入った場合も対象にするため isOnFieldAnyZone で判定する
+        () => {
+            if (!isOnFieldAnyZone(player, inst.instanceId) || getCard(inst.cardId).type !== "brave") return
+            fireFieldEventTriggers(state, pid, "anyBraveSummoned", { pid, inst }, undefined, undefined, undefined, { paidCost: tail.paidCost })
+        },
+        () => {
+            if (!isOnFieldAnyZone(player, inst.instanceId) || getCard(inst.cardId).type !== "brave") return
+            fireFieldEventTriggers(state, opponentOf(pid), "anyBraveSummoned", { pid, inst }, undefined, undefined, undefined, { paidCost: tail.paidCost })
+        },
+        // トラッシュにあるカードの「〜が召喚されたとき、コストを支払わずに召喚できる」
+        // （kind:"trashSummonOnNameSummoned"。BS11-004 プロミネンスワイバーン）
+        () => {
+            if (stillOnField()) tryTrashSummonOnNameSummoned(state, pid, inst)
+        },
+        () => returnTrashOnNameSummoned(state, pid, inst),
+        // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
+        // 召喚されたこのスピリットは疲労する
+        () => {
+            if (stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid), inst)) exhaustSpirit(state, pid, inst, undefined, opponentOf(pid), "spirit")
+        },
+    ]
+    for (let i = tail.stage; i < stages.length; i++) {
+        if (state.winner) return
+        stages[i]!()
+        if (state.pendingChoice && i + 1 < stages.length) {
+            pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", tail: { ...tail, stage: i + 1 } } }])
+            return
+        }
     }
 }
 

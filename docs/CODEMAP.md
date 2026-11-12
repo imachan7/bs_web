@@ -1098,6 +1098,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `startSummonBatch`（fn）：効果で複数体を同時に召喚するあいだは、召喚時効果を後回しにする（RESUME_STACK §6.2）
 - `flushSummonBatch`（fn）：全員を場に出し終えたら、それぞれの召喚時効果をターンプレイヤーが選んだ順に発揮する
 - `fireSummonSequence`（fn）
+- `finishSummonSequence`（fn）：召喚の後半。段ごとに進め、選択待ちが立ったら続きの段を積んで止まる（以前は止まらずに走り、選択の上書き・順序の逆転が起きた。#437 F5）
 - `summonFreeFromHandIndex`（fn）
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
 - `fchangeCostAs`（fn）：summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
@@ -1270,6 +1271,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `CardPick`（型）
 - `IfCond`（型）：last＝GameState.lastMoved に pick を満たすカードが1枚以上
 - `PickedTargets`（型）：複数の対象を選び終えた後の、耐性の確認の途中経過（logic/pickTargets.ts）
+- `SummonTail`（型）：召喚の後半（ブレイヴの召喚の誘発・トラッシュの同名召喚・同名で手札へ戻る・天使長ファニムの疲労）の続き。stage＝次に行う段。
 - `EffectAction`（型）
 
 ## server/src/types/effectCounter.ts
