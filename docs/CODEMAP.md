@@ -431,7 +431,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `createInstance`（fn）
 - `validateDeckCards`（fn）：カスタムデッキの内容を検証する。問題があれば日本語のエラーメッセージ、なければ null を返す
 - `buildDeck`（fn）：レシピのキーまたはカスタムカードリストからデッキ（cardId の配列）を構築する
-- `createGame`（fn）
+- `createGame`（fn）：first＝先攻。実対戦は index.ts の startGame がランダムに決めて渡す（テストは既定の p1）
 - `opponentOf`（fn）
 - `log`（fn）
 - `suspend`（fn）：── 中断と再開（docs/design/RESUME_STACK.md）──────────────────────────────
