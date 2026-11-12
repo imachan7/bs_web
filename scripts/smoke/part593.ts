@@ -64,7 +64,8 @@ function answerAll(t: Parameters<Parameters<typeof scenario>[0]["steps"]>[0], pa
             sawCostPay = true
             t.act(side, { type: "resolveChoice", option: pc.options?.[0], ...(pay ? { paySources: [{ instanceId: t.id(pay.label), count: pay.count }] } : {}) })
         } else {
-            t.act(side, { type: "resolveChoice", option: pc.options?.[0], ...(pc.candidates ? { instanceId: pc.candidates[0] } : { cardIndex: 0 }) })
+            // カードを選ぶ待ち（ベルゼビートの「好きなだけ召喚」は対話では1枚ずつ選ぶ。#437 SP-2）は先頭の候補を選ぶ
+            t.act(side, { type: "resolveChoice", option: pc.options?.[0], ...(pc.kind === "card" ? { cardIndex: pc.cardIndices?.[0] ?? 0 } : pc.candidates ? { instanceId: pc.candidates[0] } : { cardIndex: 0 }) })
         }
     }
     return { sawCostPay }

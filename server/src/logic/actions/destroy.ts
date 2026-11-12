@@ -45,6 +45,7 @@ import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
 import { recordDestroysOf, resolveHandFreeSummonOnDestroy } from "../removal"
+import { gatePickedTargets, pickTargets } from "../pickTargets"
 import { destroyDenial } from "../destroyGate"
 import { soulCoreLeavesField, wouldDeplete } from "../soulCore"
 import { currentRecordScope, lastMovedOf, recordDestroyedCount, recordLeftCost, recordMoved, recordNexusCost } from "../record"
@@ -191,7 +192,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         const excludedId = action.excludeTarget ? targetInstanceId : undefined
         const matchesFilter = (s: CardInstance) =>
             s.instanceId !== excludedId && matchesTarget(state, opp, s, filter, self?.instanceId)
-        if (targetInstanceId !== undefined && !action.excludeTarget) {
+        if (targetInstanceId !== undefined && !action.excludeTarget && !action.choosing && !action.picked) {
             // pendingChoice解決：選ばれた1体のみ破壊する。
             // 候補列挙（pickEnemyCandidates）では除外済みでも、この経路はここで改めて免疫を判定する
             // （coreRemove / returnToHand と同じ考え方。選択の提示から解決までの間に状態が変わりうる）。
@@ -241,18 +242,6 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                 return
             }
             destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
-            // upTo：1体破壊するたびに残数で聞き直す（exhaust の upTo と同じ形）
-            if (action.upTo && !state.pendingChoice && !state.winner && action.count > 1) {
-                const remaining = action.count - 1
-                requestUpToChoice(
-                    state,
-                    owner,
-                    `${sourceName}の破壊効果：破壊するスピリットを選んでください（あと${remaining}体まで）`,
-                    pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType).map((s) => s.instanceId),
-                    { ...action, count: remaining },
-                    self,
-                )
-            }
             return
         }
         // interactive の選択後に再入するときは excludeTarget を落とす。
@@ -272,220 +261,83 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             log(state, `${sourceName}の破壊効果：カウントが0のため発動しなかった。`)
             return
         }
-        // side:"own"：自分側のスピリットだけが対象（選択肢は候補全部＝pay { cost: destroy{side:"own"} } の器。
-        // 自分の効果は自分のスピリットに免疫が働かないため isResisted は挟まない＝anySideの自分側と同じ扱い）
-        if (action.side === "own") {
-            if (state.interactiveTargets) {
-                const candidates = ownSideDestroyCandidates(state, owner, self?.instanceId, filter)
-                if (
-                    tryInteractiveTargetChoice(
-                        state,
-                        owner,
-                        self,
-                        `${sourceName}の破壊効果：破壊する自分のスピリットを選んでください`,
-                        candidates,
-                        { ...actionForChoice, count: 1 },
-                        resolvedCount > 1 ? fixedCount(actionForChoice, resolvedCount - 1, true) : null,
-                    )
-                ) {
-                    return
-                }
-            }
-            for (let i = 0; i < resolvedCount; i++) {
-                const candidates = ownSideDestroyCandidates(state, owner, self?.instanceId, filter)
-                if (candidates.length === 0) {
-                    log(state, `${sourceName}の破壊効果：対象がいなかった。`)
-                    break
-                }
-                const target = candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
-                destroySpirit(state, owner, target.instanceId, "destroy", destroyContext, { allowSuspend: true })
-                if (state.pendingChoice) {
-                    const rest = resolvedCount - i - 1
-                    if (rest > 0) {
-                        pushResumeFrames(state, [{
-                            kind: "action",
-                            selfInstanceId: self ? self.instanceId : null,
-                            actorPid: owner,
-                            recordScope: currentRecordScope(state),
-                            action: fixedCount(action, rest, true),
-                        }])
-                    }
-                    return
-                }
-                if (state.winner) return
-            }
-            return
-        }
-        // anySide：自分/相手どちらのスピリットも対象にできる（destroyExhaustedのanySideと同じ非対称ルール。
-        // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
-        if (action.anySide) {
-            const anySideCandidates = pickAnySideCandidates(state, owner, matchesFilter, srcColors, srcType)
-            if (
-                state.interactiveTargets &&
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
-                    anySideCandidates,
-                    { ...actionForChoice, count: 1 },
-                    resolvedCount > 1
-                        ? fixedCount(actionForChoice, resolvedCount - 1, true)
-                        : null,
-                )
-            ) {
-                return
-            }
-            const handledAny = new Set<string>()
-            for (let i = 0; i < resolvedCount; i++) {
-                const target = pickAnySideByBp(state, owner, limitBp, (s) => matchesFilter(s) && !handledAny.has(s.instanceId), srcColors, srcType, "other", true)
-                if (!target) {
-                    log(state, `${sourceName}の破壊効果：対象がいなかった。`)
-                    break
-                }
-                handledAny.add(target.inst.instanceId)
-                // 自分側の対象には耐性を挟まない（このアクションの anySide の非対称ルール）
-                const resisted = target.pid === owner
-                    ? null
-                    : gateTargetedApply(state, target.pid, target.inst, attemptOf(ctx, "destroy", "targeted"), fixedCount(actionForChoice, 1), self, sourceName)
-                if (resisted === "asked") return
-                if (resisted) {
-                    log(state, `${getCard(target.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-                    continue
-                }
-                destroySpirit(state, target.pid, target.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
-                // 復活の確認で中断した。**残りの体数ぶん**を再開フレームに積んで抜ける
-                // （対象は毎回その時点の盤面から選び直すので、体数だけ持ち回れば足りる）
-                if (state.pendingChoice) {
-                    const rest = resolvedCount - i - 1
-                    if (rest > 0) {
-                        pushResumeFrames(state, [{
-                            kind: "action",
-                            selfInstanceId: self ? self.instanceId : null,
-                            actorPid: owner,
-                            recordScope: currentRecordScope(state),
-                            action: fixedCount(action, rest, true),
-                        }])
-                    }
-                    return
-                }
-                if (state.winner) return
-            }
-            return
-        }
-        if (state.interactiveTargets && action.upTo && !action.chooserIsTarget) {
-            requestUpToChoice(
-                state,
-                owner,
-                `${sourceName}の破壊効果：破壊するスピリットを選んでください（${resolvedCount}体まで）`,
-                pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType).map((s) => s.instanceId),
-                { ...actionForChoice, count: resolvedCount },
-                self,
-            )
-            return
-        }
+        // 複数の対象は全部選んでから同時に破壊する（2026-11-12 ユーザー決定。pickTargets.ts）。
+        // side:"own"＝自分側（持ち主が選ぶ。自分の効果なので耐性は挟まない）／anySide＝両陣営（相手側だけ耐性を見る）／
+        // chooserIsTarget（BS10-101 ハングドマン）＝破壊される側が選ぶ
+        // 体数はここで固定する（選択の再入で countCounter を数え直さない）
+        const pickAction = fixedCount(actionForChoice, resolvedCount)
+        const own = action.side === "own"
+        const pool: CardInstance[] = own
+            ? ownSideDestroyCandidates(state, owner, self?.instanceId, filter)
+            : action.anySide
+              ? pickAnySideCandidates(state, owner, matchesFilter, srcColors, srcType)
+              : (() => {
+                    const c = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
+                    // lowestCost：最低コストの同点だけが候補（同点なら使用者が選ぶ。BS19_PLAN §2.2）
+                    if (!action.lowestCost || c.length === 0) return c
+                    const low = Math.min(...c.map((x) => getCard(x.cardId).cost))
+                    return c.filter((x) => getCard(x.cardId).cost === low)
+                })()
+        let ids: string[] | null
         if (state.interactiveTargets) {
-            let candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
-            // lowestCost：最低コストの同点だけが候補（同点なら使用者が選ぶ。BS19_PLAN §2.2）
-            if (action.lowestCost && candidates.length > 0) {
-                const low = Math.min(...candidates.map((c) => getCard(c.cardId).cost))
-                candidates = candidates.filter((c) => getCard(c.cardId).cost === low)
-            }
-            if (
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    action.chooserIsTarget
-                        ? `${sourceName}：破壊する自分のスピリットを選んでください`
-                        : `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
-                    candidates,
-                    { ...actionForChoice, count: 1 },
-                    resolvedCount > 1 ? fixedCount(actionForChoice, resolvedCount - 1, true) : null,
-                    // chooserIsTarget（BS10-101ハングドマン＝「相手は、相手のスピリット1体を破壊する」）：
-                    // 破壊される側（相手＝opp）が対象を選ぶ。解決はowner（発生源の持ち主）の効果として続ける
-                    action.chooserIsTarget ? opp : undefined,
-                )
-            ) {
-                return
+            ids = pickTargets(ctx, pickAction, {
+                candidates: pool.map((sp) => sp.instanceId),
+                count: resolvedCount,
+                upTo: action.upTo === true,
+                prompt: own || action.chooserIsTarget ? `${sourceName}：破壊する自分のスピリットを選んでください` : `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
+                verb: "破壊する",
+                ...(action.chooserIsTarget ? { chooserPid: opp } : {}),
+            })
+            if (ids === null) return
+        } else {
+            // 自動選択：自分側は実効BP最大、両陣営は pickAnySideByBp、相手が選ぶなら相手が差し出すであろう実効BP最小（CHOOSER_RULES.md §2）、
+            // それ以外はコスト最小（lowestCost）か実効BP最大
+            ids = []
+            const picked = new Set<string>()
+            const fresh = (sp: CardInstance) => matchesFilter(sp) && !picked.has(sp.instanceId)
+            for (let i = 0; i < resolvedCount; i++) {
+                const target = own
+                    ? pool.filter((sp) => !picked.has(sp.instanceId)).reduce<CardInstance | null>((b, sp) => (b === null || effectiveBp(state, owner, sp) > effectiveBp(state, owner, b) ? sp : b), null)
+                    : action.anySide
+                      ? pickAnySideByBp(state, owner, limitBp, fresh, srcColors, srcType, "other", true)?.inst ?? null
+                      : action.lowestCost
+                        ? pickEnemyLowestCost(state, opp, fresh, srcColors, srcType)
+                        : action.chooserIsTarget
+                          ? pickEnemyCandidates(state, opp, limitBp, fresh, srcColors, srcType).reduce<CardInstance | null>((b, sp) => (b === null || effectiveBp(state, opp, sp) < effectiveBp(state, opp, b) ? sp : b), null)
+                          : pickEnemyByBp(state, opp, limitBp, fresh, srcColors, srcType)
+                if (!target) break
+                picked.add(target.instanceId)
+                ids.push(target.instanceId)
             }
         }
-        // drawPerDestroyed（BS11-006）：候補を先に選び切ってからバッチで破壊する
-        // （数え方と中断の扱いを destroyTargetsBatch に任せる）
-        if (action.drawPerDestroyed || action.millPerDestroyed || action.thenDrawFixed) {
-            const picked: { pid: PlayerId; instanceId: string }[] = []
-            // 受けなかった対象は picked に入らないので、選び直さないよう別に覚える。
-            // 対話中にここへ来るのは候補が0〜1体のときだけなので、聞いて中断しても積む残りは無い
-            const handled = new Set<string>()
-            for (let i = 0; i < resolvedCount; i++) {
-                const target = pickEnemyByBp(state, opp, limitBp, (s) => matchesFilter(s) && !handled.has(s.instanceId), srcColors, srcType)
-                if (!target) break
-                handled.add(target.instanceId)
-                const resisted = gateTargetedApply(state, opp, target, attemptOf(ctx, "destroy", "targeted"), fixedCount(actionForChoice, 1), self, sourceName)
-                if (resisted === "asked") return
-                if (resisted) {
-                    log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-                    continue
-                }
-                picked.push({ pid: opp, instanceId: target.instanceId })
-            }
-            if (picked.length === 0) {
-                // thenDrawFixed（BS14-010）：対象0体でも「その後」のドローは発火する
-                if (action.thenDrawFixed) draw(state, owner, action.thenDrawFixed)
-                log(state, `${sourceName}の破壊効果：対象がいなかった。`)
-                return
-            }
-            destroyTargetsBatch(state, owner, picked, destroyContext, {
+        const passed = gatePickedTargets(
+            ctx,
+            pickAction,
+            ids,
+            (id) => findSpiritAny(state, id) ?? undefined,
+            attemptOf(ctx, "destroy", "targeted"),
+            (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),
+            (pid) => pid === owner && (own || action.anySide === true),
+        )
+        if (passed === null) return
+        if (passed.length === 0) {
+            // thenDrawFixed（BS14-010）：対象0体でも「その後」のドローは発火する
+            if (action.thenDrawFixed) draw(state, owner, action.thenDrawFixed)
+            log(state, `${sourceName}の破壊効果：対象がいなかった。`)
+            return
+        }
+        destroyTargetsBatch(
+            state,
+            owner,
+            passed.map((instanceId) => ({ pid: findSpiritAny(state, instanceId)!.pid, instanceId })),
+            destroyContext,
+            {
                 ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
                 ...(action.millPerDestroyed ? { millPerDestroyed: action.millPerDestroyed } : {}),
                 ...(action.thenDrawFixed ? { thenDrawFixed: action.thenDrawFixed } : {}),
                 ...(self ? { selfInstanceId: self.instanceId } : {}),
-            })
-            return
-        }
-        // 1体ごとに適用の直前で耐性（手札を破棄して受けない、を含む）を通す。受けなかった対象は場に残るので、
-        // 次の回で選び直さないよう除く。対話中にここへ来るのは候補が0〜1体のときだけ（2体以上は上の選択に回る）
-        const handled = new Set<string>()
-        const matchesUnhandled = (s: CardInstance) => matchesFilter(s) && !handled.has(s.instanceId)
-        for (let i = 0; i < resolvedCount; i++) {
-            // 相手が選ぶ（chooserIsTarget）なら、相手が差し出すであろう実効BP最小から（CHOOSER_RULES.md §2）
-            const target = action.lowestCost
-                ? pickEnemyLowestCost(state, opp, matchesUnhandled, srcColors, srcType)
-                : action.chooserIsTarget
-                  ? pickEnemyCandidates(state, opp, limitBp, matchesUnhandled, srcColors, srcType).reduce<CardInstance | null>(
-                        (min, s) => (min === null || effectiveBp(state, opp, s) < effectiveBp(state, opp, min) ? s : min),
-                        null,
-                    )
-                  : pickEnemyByBp(state, opp, limitBp, matchesUnhandled, srcColors, srcType)
-            if (!target) {
-                log(state, `${sourceName}の破壊効果：対象がいなかった。`)
-                break
-            }
-            handled.add(target.instanceId)
-            const resisted = gateTargetedApply(state, opp, target, attemptOf(ctx, "destroy", "targeted"), fixedCount(actionForChoice, 1), self, sourceName)
-            if (resisted === "asked") return
-            if (resisted) {
-                log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-                continue
-            }
-            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext, { allowSuspend: true })
-            // 復活の確認で中断した。残りの体数ぶんを再開フレームに積んで抜ける
-            if (state.pendingChoice) {
-                const rest = resolvedCount - i - 1
-                if (rest > 0) {
-                    pushResumeFrames(state, [{
-                        kind: "action",
-                        selfInstanceId: self ? self.instanceId : null,
-                        actorPid: owner,
-                        recordScope: currentRecordScope(state),
-                        action: fixedCount(action, rest, true),
-                    }])
-                }
-                return
-            }
-            if (state.winner) return
-        }
-        return
+            },
+        )
 }
 
 type AllTargetsSpec = { filter?: TargetFilter; anySide?: boolean; side?: "own" | "both" }

@@ -934,6 +934,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `markOncePerBattleUsed`（fn）
 - `revertOncePerBattleUsed`（fn）
 
+## server/src/logic/pickTargets.ts
+
+- `PickProgress`（型）
+- `PickOptions`（型）
+- `pickTargets`（fn）：対話で選ばせる。確定した対象を返す。選択待ちを立てたら null。非対話では呼ばない（呼び出し側の自動選択を使う）
+- `gatePickedTargets`（fn）：選び終えた対象に、1体ずつ耐性（手札を破棄して受けない、を含む）を通す。通った対象を返す。確認を出したら null。
+
 ## server/src/logic/record.ts
 
 - `newRecordScope`（fn）
@@ -1246,6 +1253,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `CardPick`（型）
 - `IfCond`（型）：last＝GameState.lastMoved に pick を満たすカードが1枚以上
+- `PickedTargets`（型）：複数の対象を選び終えた後の、耐性の確認の途中経過（logic/pickTargets.ts）
 - `EffectAction`（型）
 
 ## server/src/types/effectCounter.ts

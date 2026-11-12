@@ -313,8 +313,9 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
         return
     }
     // 支払いがあるときと「N枚まで」「〜できる」(optional)は候補1枚でも聞く（やめる・支払い元を選ぶ機会がここにしか無い）
-    const optional = action.pay !== undefined || action.upTo === true || action.optional === true
-    if (state.interactiveTargets && action.costBudget === undefined && (choosable.length >= 2 || optional)) {
+    // costBudget（「合計コスト○まで好きなだけ」）も対話では1枚ずつ選ばせ、スキップで終える（#437 SP-2）
+    const optional = action.pay !== undefined || action.upTo === true || action.optional === true || action.costBudget !== undefined
+    if (state.interactiveTargets && (choosable.length >= 2 || optional)) {
         const chooser = action.chooserIsTarget ? pid : owner
         suspend(state, {
             pid: chooser,
@@ -561,6 +562,32 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
 
     // costBudget：コストの大きい順に、合計が予算以下になる範囲で取れるだけ（同コストは古い方。旧 recoverSpiritFromTrash.costBudget のまま）
     if (action.costBudget !== undefined) {
+        // 対話：「好きなだけ」なので、残り予算に収まるものから1枚ずつ選ばせ、スキップで確定する（#437 SP-2）。
+        // 動かすのは確定してからまとめて
+        if (state.interactiveTargets) {
+            const sel = chosenCardIndex !== undefined ? [...picked, chosenCardIndex] : picked
+            const left = action.costBudget - sel.reduce((n, j) => n + getCard(zone[j]!).cost, 0)
+            const next = choosable(sel).filter((j) => getCard(zone[j]!).cost <= left)
+            if (next.length === 0 || (action.picked !== undefined && chosenCardIndex === undefined)) {
+                finish(sel)
+                return
+            }
+            suspend(state, {
+                pid: chooser,
+                kind: "card",
+                prompt: `${sourceName}：${destLabel(action)}カードを選んでください（合計コスト${action.costBudget}まで。残り${left}。選び終えたらスキップ）`,
+                candidates: [],
+                cardZone: action.from,
+                cardOwner: zonePid,
+                cardIndices: next,
+                optional: true,
+                resolveOnSkip: true,
+                action: { ...action, picked: sel },
+                selfInstanceId: self ? self.instanceId : null,
+                ...(chooser !== owner ? { actorPid: owner } : {}),
+            })
+            return
+        }
         let remaining = action.costBudget
         const order: number[] = []
         for (;;) {
