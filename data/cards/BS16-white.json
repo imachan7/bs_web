@@ -703,6 +703,15 @@
   "effect": "Lv1･Lv2【氷壁：赤/青】『相手のターン』\n相手が赤/青のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv2『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
   "effects": [
    {
+    "id": "BS16-031-e0",
+    "kind": "keyword",
+    "keyword": "hyoheki",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
     "id": "BS16-031-e1",
     "kind": "magicNegate",
     "levels": [
@@ -771,6 +780,15 @@
   "limited": false,
   "effect": "Lv1･Lv2【氷壁：白/黄】『相手のターン』\n相手が白/黄のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv2\n自分の白のスピリットすべてをBP+1000する。",
   "effects": [
+   {
+    "id": "BS16-032-e0",
+    "kind": "keyword",
+    "keyword": "hyoheki",
+    "levels": [
+     1,
+     2
+    ]
+   },
    {
     "id": "BS16-032-e1",
     "kind": "magicNegate",

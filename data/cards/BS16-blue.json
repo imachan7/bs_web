@@ -739,6 +739,9 @@
         "id": "BS16-071-e2",
         "kind": "levelAs",
         "levels": null,
+        "sourceLevels": [
+          2
+        ],
         "target": "ownSpiritsByFamily",
         "familyFilter": "海首",
         "treatAs": {
