@@ -6,7 +6,7 @@ import { getCard, log } from "../GameState"
 import { fireFieldEventTriggers, placeCoresOnSpirit, requestChoice } from "../EffectModules"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
 import { takeCoresFromSpirit } from "../removal"
-import { canPayLife, lifeCostQuery, recordLifeLoss } from "../lifeGate"
+import { canPayLife, lifeCostQuery, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import { minLevelCores } from "../../../../shared/rules"
 
 type WidePlaceCores = Extract<EffectAction, { type: "placeCores" }>
@@ -73,11 +73,7 @@ function take(ctx: ActionCtx, src: Src, n: number): number {
         if (t <= 0 || !canPayLife(state, lifeCostQuery(owner, t, ctx.self))) return 0
         player.life -= t
         recordLifeLoss(state, owner, t, ctx.self)
-        if (player.life <= 0 && !state.winner) {
-            const opp = owner === "p1" ? "p2" : "p1"
-            state.winner = opp
-            log(state, `${state.players[opp].name}の勝利！`)
-        }
+        settleLifeZero(state, owner)
         return t
     }
     const inst = src.inst

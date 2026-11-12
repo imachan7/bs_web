@@ -1,5 +1,5 @@
 // ライフを減らすアクション（ライフを増やすのは placeCores の to:"life"）
-import { lifeLossAllowed, recordLifeLoss } from "../lifeGate"
+import { lifeLossAllowed, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import type { ActionHandler, ActionRegistry } from "./types"
 import { log } from "../GameState"
 import { fireTrigger } from "../triggers"
@@ -19,6 +19,7 @@ const opponentLifeToReserveHandler: ActionHandler<"opponentLifeToReserve"> = (ct
     recordLifeLoss(state, opp, moved, ctx.self)
     target.reserve += moved
     log(state, `${sourceName}：${target.name}のライフのコア${moved}個をリザーブに置いた。`)
+    if (settleLifeZero(state, opp) === "lost") return
     fireFieldEventTriggers(state, opp, "ownLifeLost")
     if (ctx.srcType === "spirit" && ctx.self) fireFieldEventTriggers(state, ctx.owner, "ownSpiritReducedLife", { pid: ctx.owner, inst: ctx.self })
     if (ctx.srcType === "spirit" && ctx.self && !state.winner) fireTrigger(state, ctx.owner, ctx.self, "onLifeReduced")

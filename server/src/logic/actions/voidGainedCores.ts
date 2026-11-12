@@ -2,7 +2,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log, opponentOf } from "../GameState"
 import { removeCoresToVoid } from "../EffectModules"
-import { lifeLossAllowed, recordLifeLoss } from "../lifeGate"
+import { lifeLossAllowed, recordLifeLoss, settleLifeZero } from "../lifeGate"
 
 // 「すべて」でも直近の1イベントぶんだけ。その場所のコアがすでに減っていれば残りぶんだけ戻す
 const voidGainedCoresHandler: ActionHandler<"voidGainedCores"> = (ctx) => {
@@ -23,10 +23,7 @@ const voidGainedCoresHandler: ActionHandler<"voidGainedCores"> = (ctx) => {
             gp.life -= n
             recordLifeLoss(state, g.gainerPid, n, ctx.self)
             if (n > 0) log(state, `${gp.name}のライフのコア${n}個をボイドに置いた。`)
-            if (gp.life <= 0 && !state.winner) {
-                state.winner = opponentOf(g.gainerPid)
-                log(state, `${state.players[state.winner].name}の勝利！`)
-            }
+            settleLifeZero(state, g.gainerPid)
         } else {
             const spirit = gp.field.spirits.find((i) => i.instanceId === pl.instanceId)
             if (spirit) {

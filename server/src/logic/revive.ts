@@ -9,7 +9,7 @@ import { summonVoidToll } from "../../../shared/rules/summonToll"
 import { coreZoneChoiceId } from "../../../shared/rules/activation"
 import { askSummonCores, summonCoreOptions } from "./summonCores"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "./summonSurcharge"
-import { canPayLife, lifeCostQuery, recordLifeLoss } from "./lifeGate"
+import { canPayLife, lifeCostQuery, recordLifeLoss, settleLifeZero } from "./lifeGate"
 import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId, ResolvedTargetFilter } from "../type"
 import { millAllowed, noteMilled } from "./zones/mill"
 import { trashUnderCards } from "./zones/underCards"
@@ -60,7 +60,6 @@ import {
     fireSummonSequence,
     resolveAction,
     resolveTensho,
-    tryOwnLifeFloorByCost
 } from "./EffectModules"
 
 // 「破壊される代わりに復活**できる**」の確認を保留リストへ積む。
@@ -1027,12 +1026,7 @@ function tryReviveOnDestroy(
             player.life -= 1
             recordLifeLoss(state, ownerPid, 1, inst)
             log(state, `${player.name}はライフのコア1個をボイドに置いた。（残りライフ${player.life}）`)
-            if (player.life <= 0 && !state.winner) {
-                state.winner = opponentOf(ownerPid)
-                log(state, `${state.players[opponentOf(ownerPid)].name}の勝利！`)
-            } else {
-                fireFieldEventTriggers(state, ownerPid, "ownLifeLost")
-            }
+            if (settleLifeZero(state, ownerPid) !== "lost") fireFieldEventTriggers(state, ownerPid, "ownLifeLost")
             return true
         }
         // 器AR：BS13-036星鳥クージャ「自分のライフのコア1個を自分のリザーブに置くことで」
@@ -1043,12 +1037,7 @@ function tryReviveOnDestroy(
             recordLifeLoss(state, ownerPid, 1, inst)
             player.reserve += 1
             log(state, `${player.name}はライフのコア1個を自分のリザーブに置いた。（残りライフ${player.life}）`)
-            if (player.life <= 0 && !state.winner) {
-                state.winner = opponentOf(ownerPid)
-                log(state, `${state.players[opponentOf(ownerPid)].name}の勝利！`)
-            } else {
-                fireFieldEventTriggers(state, ownerPid, "ownLifeLost")
-            }
+            if (settleLifeZero(state, ownerPid) !== "lost") fireFieldEventTriggers(state, ownerPid, "ownLifeLost")
             return true
         }
         if (effect.cost?.millSelfCount !== undefined) {
@@ -1075,16 +1064,8 @@ function tryReviveOnDestroy(
             recordLifeLoss(state, oppPid, 1, inst)
             oppPlayer.trashCores += 1
             log(state, `${oppPlayer.name}はライフのコア1個をトラッシュに置いた。（残りライフ${oppPlayer.life}）`)
-            if (oppPlayer.life <= 0 && !state.winner) {
-                // BS14-084永久凍土の王都：**相手の効果で**ライフが0になる瞬間も守る
-                // （効果文「自分のライフが0になるとき」は原因を限定していない。2026-09-13 ユーザー判断）。
-                // コスト自体は支払われた（ライフは実際に0まで減った）うえで、王都が0を回避する
-                if (!tryOwnLifeFloorByCost(state, oppPid)) {
-                    state.winner = ownerPid
-                    log(state, `${player.name}の勝利！`)
-                }
-            }
-            if (!state.winner) fireFieldEventTriggers(state, oppPid, "ownLifeLost")
+            // 王都は相手の効果で0になる瞬間も守る（コスト自体は支払われたうえで0を回避する）
+            if (settleLifeZero(state, oppPid) !== "lost") fireFieldEventTriggers(state, oppPid, "ownLifeLost")
             return true
         }
         // BS14-X05神獣鳥アン・ズール：「自分のバースト1つを破棄することで」。

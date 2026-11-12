@@ -564,13 +564,15 @@ export function draw(state: GameState, pid: PlayerId, count: number, fromDrawSte
     const player = state.players[pid]
     for (let i = 0; i < count; i++) {
         const cardId = player.deck.shift()
+        // デッキが0枚なら引けないだけ（負けはスタートステップで判定する。PhaseManager.ts）。引けた枚数で後を続ける
         if (cardId === undefined) {
-            state.winner = opponentOf(pid)
-            log(state, `${player.name}はデッキからカードを引けない！ デッキアウトで敗北。`)
-            return
+            log(state, `${player.name}はデッキが0枚のため、カードを${count - i}枚引けなかった。`)
+            count = i
+            break
         }
         player.hand.push(cardId)
     }
+    if (count === 0) return
     state.drawCount = { p1: 0, p2: 0, ...state.drawCount, [pid]: (state.drawCount?.[pid] ?? 0) + count }
     log(state, `${player.name}は${count}枚ドローした。`)
     emitEvent(state, { type: "draw", pid, count })

@@ -1,7 +1,7 @@
 // ブロック成立後のバトル解決（BP比較・破壊・ライフ減少）と、中断されたバトル解決の再開
 import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
-import { addLifeDealt, recordLifeLoss } from "./lifeGate"
+import { addLifeDealt, recordLifeLoss, settleLifeZero } from "./lifeGate"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { clearBattle, currentLevel, findSpirit, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
 import { destroyTargetsBatch } from "./removal"
@@ -31,7 +31,6 @@ import {
     hasKoboOnBlock,
     hasLifeDamageNegate,
     tryLifeDamageMillGuard,
-    tryOwnLifeFloorByCost,
     instanceSymbolCount,
     instColors,
     resolveAction,
@@ -153,13 +152,7 @@ function afterLifeDamage(state: GameState, attackerPid: PlayerId, attacker: Card
 
     let lifeTriggers = false
     if (defender.life <= 0) {
-        // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コスト（このネクサスをトラッシュに置く）で0を回避できる
-        if (tryOwnLifeFloorByCost(state, defenderPid)) {
-            lifeTriggers = true
-        } else {
-            state.winner = attackerPid
-            log(state, `${state.players[attackerPid].name}の勝利！`)
-        }
+        if (settleLifeZero(state, defenderPid) === "saved") lifeTriggers = true
     } else if (dealt > 0) {
         lifeTriggers = true
     }
