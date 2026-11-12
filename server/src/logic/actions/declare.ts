@@ -113,7 +113,7 @@ const declareHandler: ActionHandler<"declare"> = (ctx, action) => {
                 owner,
                 `${sourceName}：${what}を1つ指定してください`,
                 [],
-                false,
+                action.optional === true, // 「指定できる」は指定しなくてよい（指定しなければ続きの効果は発揮しない）
                 { ...action, picked },
                 self,
                 "option",
