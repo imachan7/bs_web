@@ -65,7 +65,7 @@ function resolveMagicInner(
     const declinedFree = state.magicFreeDeclined === true
     delete state.magicFreeDeclined
     if (!declinedFree) consumeOncePerBattleMagicFree(state, owner, card)
-    emitEvent(state, { type: "magic", pid: owner, cardName: card.name })
+    emitEvent(state, { type: "magic", pid: owner, cardName: card.name, cardId, timing })
 
     // マジックの無効化（鏡の回廊Lv2／今後の【氷壁】）。効果を1つも解決する前に判定する。
     // 実対戦（interactiveTargets）では防御側に「無効にするか」を確認し、
