@@ -646,6 +646,8 @@ export function fireFieldEventTriggers(
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
                 ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
+                // 「BP0になったとき」の対象（新しく BP0 になった体）は発火元が記録の枠に書いて渡す（stepTriggers.ts）。後回しの誘発にも同じ枠を渡す
+                ...(event === "opponentSpiritBpReachedZero" && state.recordScope !== undefined ? { recordScope: state.recordScope } : {}),
                 ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
             }
         },

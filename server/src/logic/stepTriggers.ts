@@ -9,6 +9,7 @@ import { requestActivationConfirm, resolveAction } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
+import { newRecordScope, recordTargets } from "./record"
 import { moveCardCandidates } from "./actions/moveCards"
 import { activationPrompt, confirmPromptIfOptional, isStillOnField } from "./triggers"
 
@@ -434,19 +435,38 @@ export function fireBpReachedTriggers(state: GameState): void {
         }
     }
     state.bpSeen = next
+    // 「BP0になったとき」は、同時に新しく BP0 になった体をまとめて1回だけ発動し、対象はその体だけ（TIMING_CHART「BP0になったとき」。2026-11-05 ユーザー確認）。
+    // 「このスピリットの効果で」（bySelfEffectOnly）を見分けるため、BP- の発生源ごとにまとめる。
+    // 対象は誘発の前に「直前の対象」として記録し、データは filter.lastTarget で引く（選択待ちの再開にも記録の枠が引き継がれる）
+    const zeroGroups = new Map<string, { pid: PlayerId; source: string | undefined; insts: CardInstance[] }>()
+    for (const r of reached) {
+        if (!(r.to <= 0 && r.from > 0)) continue
+        const source = state.bpMinusSourceBy?.[r.inst.instanceId]
+        const key = `${r.pid}|${source ?? ""}`
+        const g = zeroGroups.get(key) ?? { pid: r.pid, source, insts: [] }
+        g.insts.push(r.inst)
+        zeroGroups.set(key, g)
+    }
+    const fired = new Set<string>() // 発火済みのまとまりの体（中断で残りを戻すとき、もう一度 BP0 到達として拾わないように）
     for (const [i, r] of reached.entries()) {
         if (state.winner) return
         // 選択待ちで止まったら、残りは前回の値に戻しておき、次の操作の事後処理で拾い直す
         if (state.pendingChoice) {
-            for (const rest of reached.slice(i)) next[rest.inst.instanceId] = rest.from
+            for (const rest of reached.slice(i)) if (!fired.has(rest.inst.instanceId)) next[rest.inst.instanceId] = rest.from
             return
         }
         fireFieldEventTriggers(state, r.pid, "ownSpiritBpReached", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, { bpFrom: r.from, bpTo: r.to })
         // 「相手のスピリットがBP0になったとき」：減少して0に届いたときだけ（ownSpiritBpReached と同じ事後処理から）。
-        // 実効BPは負の値まで下がるが、BPは0未満にならない（0として扱う）ので0以下を0とみなす
-        if (r.to <= 0 && r.from > 0) {
-            const bpMinusSource = state.bpMinusSourceBy?.[r.inst.instanceId]
-            fireFieldEventTriggers(state, opponentOf(r.pid), "opponentSpiritBpReachedZero", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, bpMinusSource === undefined ? undefined : { sourceInstanceId: bpMinusSource })
+        // 実効BPは負の値まで下がるが、BPは0未満にならない（0として扱う）ので0以下を0とみなす。まとまりの先頭の体で1回だけ発火する
+        const group = [...zeroGroups.values()].find((g) => g.insts[0] === r.inst)
+        if (group && !state.pendingChoice) {
+            for (const inst of group.insts) fired.add(inst.instanceId)
+            const prevScope = state.recordScope
+            state.recordScope = newRecordScope()
+            recordTargets(state, group.insts.map((x) => x.instanceId))
+            fireFieldEventTriggers(state, opponentOf(group.pid), "opponentSpiritBpReachedZero", { pid: group.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, group.source === undefined ? undefined : { sourceInstanceId: group.source })
+            if (prevScope === undefined) delete state.recordScope
+            else state.recordScope = prevScope
         }
         // 原因の記録はこのBP変動の発火で使い切る（効果によらない下げ方で古い記録が残らないように）
         if (state.bpMinusSourceBy) delete state.bpMinusSourceBy[r.inst.instanceId]

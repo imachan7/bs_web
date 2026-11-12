@@ -7433,6 +7433,7 @@
     "id": "BS23-X05-e3",
     "kind": "fieldEvent",
     "event": "opponentSpiritBpReachedZero",
+    "selfMode": "source",
     "whileCombined": true,
     "duringSelfAttack": true,
     "levels": [
@@ -7441,8 +7442,11 @@
     ],
     "action": {
      "type": "destroy",
-     "target": "self",
-     "count": 1
+     "count": 1,
+     "all": true,
+     "filter": {
+      "lastTarget": true
+     }
     }
    }
   ]
