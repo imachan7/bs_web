@@ -8,7 +8,7 @@ import { askSummonCores } from "../summonCores"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardPick, EffectAction, Keyword, PlayerId, PlayerState } from "../../type"
 import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames } from "../GameState"
-import { payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, requestChoice, resolveTensho } from "../EffectModules"
+import { emitEvent, payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, requestChoice, resolveTensho } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
 import { fireNexusDeployed } from "../fieldEventTriggers"
 import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
@@ -366,6 +366,7 @@ const revealOpenHandler: ActionHandler<"revealOpen"> = (ctx, action) => {
     }
     log(state, `${srcPlayer.name}は${from === "burst" ? "バースト" : `デッキ上${revealed.length}枚`}（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`)
     state.revealedCards = { pid: srcPid, cardIds: revealed }
+    emitEvent(state, { type: "reveal", pid: srcPid, cardIds: [...revealed] })
     if (action.destroySelfIf && revealed.some((id) => matchesPick(id, action.destroySelfIf, undefined, ctx.sourceCardId))) ctx.resolve({ type: "destroy", target: "self", count: 1 })
 }
 
