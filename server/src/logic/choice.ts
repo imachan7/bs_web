@@ -1,4 +1,5 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
+import { summonPayPlan } from "./summonCores"
 import { payBurstThenPay } from "./burstThenPay"
 import { handGainDenial } from "./handGate"
 import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
@@ -352,7 +353,8 @@ function resolveChoiceInner(
         const placeCores = info.keepByOption?.[chosenAt]
         const keep = (placeCores ?? info.keep ?? 0) + (info.tollKeep ?? 0)
         // 後で置くコア（keep）もフィールドから払える。フィールドから置くコアに回したぶんはいったんリザーブへ戻し、続きがリザーブから置く
-        const auto = paySources === undefined && !soul ? autoPayPlan(state, info.pid, info.need + keep, true) : null
+        // 召喚で置くコアを含む支払い（keep あり）は、選択肢・判定と同じ summonPayPlan で払う（味方を消滅させる払い方も含む）
+        const auto = paySources === undefined && !soul ? (info.keep !== undefined ? summonPayPlan(state, info.pid, info.need + keep, info.reserveOnly === true) : autoPayPlan(state, info.pid, info.need + keep, true)) : null
         if (paySources === undefined && !soul && auto === null) return "コアが足りません"
         const plan = auto ?? { paySources: paySources ?? [], soulFromReserve: soul }
         const invalid = validatePaySources(state, info.pid, info.need + keep, plan.paySources, plan.soulFromReserve)

@@ -172,13 +172,15 @@ console.log("=== 帝竜騎サイクル6枚すべてが同じように発動で�
     }
 }
 
-console.log("=== 帝竜騎：リザーブが足りなければ候補にならない ===")
+console.log("=== 帝竜騎：リザーブとフィールドのコアを合わせても足りなければ候補にならない ===")
 {
+    // フィールドのコアも支払い元（味方を消滅させる払い方を含む。#437 R9-2）なので、場のコアぶんも足りなくする
     const { s, platinum } = setup("teiryuki-poor")
     s.players.p1.hand = [ZABURUGAN]
     const need = effectiveCost(s, "p1", getCard(ZABURUGAN)) + getCard(ZABURUGAN).levels[0]!.cores
-    s.players.p1.reserve = need - 1
+    const onField = s.players.p1.field.spirits.reduce((sum, sp) => sum + sp.cores, 0)
+    s.players.p1.reserve = need - 1 - onField
     act(s, "p1", { type: "activateAbility", instanceId: platinum.instanceId, effectId: "BS08-034-e1" })
     assert(s.players.p1.hand.includes(ZABURUGAN), "コストを払えないカードは召喚されない")
-    assert(s.players.p1.reserve === need - 1, "リザーブも減らない")
+    assert(s.players.p1.reserve === need - 1 - onField, "リザーブも減らない")
 }

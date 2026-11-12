@@ -1,17 +1,17 @@
 // 手札のスピリットを好きなだけ、コストを支払って召喚する（summon{from:"hand"} の repeatWhileChosen＋payCost。内部では summonBatchPaidInternal）
 // 2026-10-15 ユーザー確認：まとめて選ぶ → 【転召】の対象を選ぶ → 合計のコスト＋祭壇の余分1回を1回で払う → 一括で召喚 → 【転召】を順に解決。
 // 各カードのコストは召喚する前の盤面の軽減で数える（この効果で召喚したスピリットのシンボルは、同じ効果の別のカードの軽減に使えない）。
-// 破壊待機の発動元のコアはリザーブへ移さず、フィールドのコアとして全部払える（autoPayPlan／fieldCoresSpendable）
+// 破壊待機の発動元のコアはリザーブへ移さず、フィールドのコアとして全部払える（summonPayPlan／fieldCoresSpendable）
 import type { ActionCtx } from "./types"
 import type { CardData, EffectAction, PlayerId } from "../../type"
 import { createInstance, findSpirit, getCard, log, minLevelCores, pushResumeFrames, suspend } from "../GameState"
-import { autoPayPlan, payCost, requestChoice } from "../EffectModules"
+import { payCost, requestChoice } from "../EffectModules"
 import { askCostPay, payVoidToll } from "../summonSurcharge"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { dumpAllCoresTensho, tenshoCandidates, tenshoSelfCostBonus, tenshoSpecOf } from "../keywords/tensho"
 import { effectiveCost, summonSurcharge } from "../../../../shared/cost"
 import { fireSummonSequence } from "../summon"
-import { summonCoreLabel, summonCoreOptions } from "../summonCores"
+import { summonCoreLabel, summonCoreOptions, summonPayPlan } from "../summonCores"
 
 type Repeat = Extract<EffectAction, { type: "summonBatchPaidInternal" }>
 
@@ -51,7 +51,7 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
     }
     const affordable = (idx: number[]): boolean => {
         const t = totals(idx)
-        return autoPayPlan(state, owner, t.cost + t.keep + t.toll, true) !== null
+        return summonPayPlan(state, owner, t.cost + t.keep + t.toll) !== null
     }
     const matching = (): number[] => player.hand.map((_, i) => i).filter((i) => matches(player.hand[i]!))
 
@@ -66,7 +66,7 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
                 return
             }
             for (const c of cards) payVoidToll(state, owner, getCard(c))
-            const plan = autoPayPlan(state, owner, t.cost + t.keep, true)
+            const plan = summonPayPlan(state, owner, t.cost + t.keep)
             if (plan === null) {
                 log(state, `${sourceName}：コアが足りず召喚できなかった。`)
                 return

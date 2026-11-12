@@ -134,8 +134,9 @@ console.log("=== BS02-034 老賢樹トレントン：召喚時に手札の緑ス
     )
 }
 
-console.log("=== BS02-034 老賢樹トレントン：リザーブ不足なら無料召喚は不発 ===")
+console.log("=== BS02-034 老賢樹トレントン：リザーブ0でも、トレントン自身のコアで無料召喚の置くコアを払える ===")
 {
+    // おまかせの支払いは、維持コアを割って消滅させる払い方も使う（2026-11-12 ユーザー確認。#437 R9-2）
     const s = createGame(
         "bs02-trenton-insufficient-test",
         { p1: "アキラ", p2: "ユウキ" },
@@ -147,14 +148,9 @@ console.log("=== BS02-034 老賢樹トレントン：リザーブ不足なら無
 
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "老賢樹トレントンを召喚")
     assert(s.players.p1.reserve === 0, "リザーブを使い切った")
-    assert(
-        s.players.p1.field.spirits.length === 1,
-        "リザーブ不足のため無料召喚は発動せず、トレントンのみが場に出る",
-    )
-    assert(
-        s.players.p1.hand.length === 1 && s.players.p1.hand[0] === "BS01-061",
-        "エイプウィップは手札に残ったまま",
-    )
+    const ids = s.players.p1.field.spirits.map((sp) => sp.cardId)
+    assert(ids.length === 1 && ids[0] === "BS01-061", `エイプウィップが出て、コアを出したトレントンは消滅（${ids.join("、")}）`)
+    assert(s.players.p1.hand.length === 0, "手札は空")
 }
 
 console.log("=== BS02-048 竜戦車アースガルド：同系統（機獣）の手札カードだけが無料召喚される ===")

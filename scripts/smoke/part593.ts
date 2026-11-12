@@ -96,15 +96,15 @@ scenario({
     expect: [...BEELZE_ME, ...CAP_ARRIVES, "自分.リザーブ: 11 → 1", "自分.トラッシュのコア: 0 → 8"],
 })
 
-console.log("=== 4. 払える所がどこにも無い（リザーブ0・フィールドに維持コア1個だけ）→ 召喚しない ===")
-// ロクケラトプスの1コアはLv1の維持コアで払えない（維持コアを割る払い方は既存の支払いと同じ扱い。割ると消滅するのでここでは払えない側に倒す）
+console.log("=== 4. 残りがフィールドの維持コアだけ → そのスピリットを消滅させて払う ===")
+// おまかせの支払いでも、維持コアを割って消滅させる払い方を使う（選択肢と同じ基準。2026-11-12 ユーザー確認。#437 R9-2）
 scenario({
-    name: "nowhere-to-pay",
+    name: "only-maintain-core",
     start: { me: { reserve: 9, hand: [BEELZE], trash: [CAP], spirits: [{ card: ROKU, cores: 1 }] }, opp: OPP },
     steps(t) {
         t.act("me", { type: "summon", handIndex: 0 })
     },
-    expect: [...BEELZE_ME, "自分.リザーブ: 9 → 1", "自分.トラッシュのコア: 0 → 7"],
+    expect: [...BEELZE_ME, ...CAP_ARRIVES.filter((l) => !l.startsWith("自分.トラッシュ:")), "自分.ロクケラトプス.場所: フィールド → なし", "自分.トラッシュ: レッドキャップ → ロクケラトプス", "自分.リザーブ: 9 → 0", "自分.トラッシュのコア: 0 → 8"],
 })
 
 console.log("すべてのチェックに合格しました 🎉（part593）")

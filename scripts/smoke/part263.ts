@@ -356,16 +356,18 @@ console.log("=== X005R Lv1『召喚時』：ブレイヴを実際に召喚でき
     assert(s.players.p1.deck.length === deckLenBefore - 1, "召喚できたのでデッキから1枚引く")
 }
 
-console.log("=== X005R：召喚できなかった（リザーブ不足）ときは引かない ===")
+console.log("=== X005R：召喚しなかったときは引かない ===")
 {
-    const s = base("x005r-thendraw-fail", false)
+    // リザーブ0でも X005R 自身のコアで払える（味方を消滅させる払い方。#437 R9-2）ので、「召喚しない」を選んで確かめる
+    const s = base("x005r-thendraw-fail", true)
     const spirit = createInstance("X005R", s.turn, getCard("X005R").levels[0]!.cores)
     s.players.p1.field.spirits.push(spirit)
     s.players.p1.hand = [braveId]
     s.players.p1.reserve = 0
     const deckLenBefore = s.players.p1.deck.length
     fireTrigger(s, "p1", spirit, "onSummon")
-    assert(s.players.p1.hand.length === 1, "維持コアが払えず召喚できない")
+    while (s.pendingChoice) act(s, "p1", { type: "resolveChoice" })
+    assert(s.players.p1.hand.length === 1, "召喚しない")
     assert(s.players.p1.deck.length === deckLenBefore, "召喚できなかったので引かない")
 }
 

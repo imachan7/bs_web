@@ -7,7 +7,7 @@ import { noteCoverage, noteGrantedFrom, noteKeyword } from "../../../shared/cove
 import { summonSurcharge } from "../../../shared/cost"
 import { summonVoidToll } from "../../../shared/rules/summonToll"
 import { coreZoneChoiceId } from "../../../shared/rules/activation"
-import { askSummonCores, summonCoreOptions } from "./summonCores"
+import { askSummonCores, summonCoreOptions, summonPayPlan } from "./summonCores"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "./summonSurcharge"
 import { canPayLife, lifeCostQuery, recordLifeLoss, settleLifeZero } from "./lifeGate"
 import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId, ResolvedTargetFilter } from "../type"
@@ -326,9 +326,7 @@ function fushiCostOf(state: GameState, ownerPid: PlayerId, card: CardData): numb
 
 // 通常のコスト＋維持コアを、リザーブとフィールドのコアで払えるか（支払い元はフィールドも含む。2026-10-15 ユーザー確認）
 function fushiPayable(state: GameState, ownerPid: PlayerId, card: CardData): boolean {
-    // 対話中は味方を消滅させる払い方も含めて見る（置くコアを選ぶ待ちで払う。summonCores.ts）
-    if (state.interactiveTargets) return summonCoreOptions(state, ownerPid, card, fushiCostOf(state, ownerPid, card)).length > 0
-    return autoPayPlan(state, ownerPid, fushiCostOf(state, ownerPid, card) + minLevelCores(card), true) !== null
+    return summonCoreOptions(state, ownerPid, card, fushiCostOf(state, ownerPid, card)).length > 0
 }
 
 // kind:"fushiFreeByExhaust"（BS15-064冥府へ続く魔門Lv2）：未疲労のこのネクサスがあれば、
@@ -442,9 +440,9 @@ export function fushiSummonOrConfirm(state: GameState, ownerPid: PlayerId, trash
     const player = state.players[ownerPid]
     const card = getCard(cardId)
     const maintain = minLevelCores(card)
-    // 非対話（AI・テスト）の既定：通常どおり払えるならそちらを優先する（召喚時効果も発揮できて得なため）。
-    // 払えないときだけ、未疲労のLv2魔門があれば無償召喚を使う（BS15-064冥府へ続く魔門）
-    if (!fushiPayable(state, ownerPid, card)) {
+    // 非対話（テスト）の既定：味方のコアを削らずに通常どおり払えるならそちらを優先する（召喚時効果も発揮できて得なため）。
+    // そうでなければ、未疲労のLv2魔門があれば無償召喚を使う（BS15-064冥府へ続く魔門）。どちらの道を選ぶかの好みで、払えるかの判定ではない
+    if (autoPayPlan(state, ownerPid, fushiCostOf(state, ownerPid, card) + maintain + summonVoidToll(state, card), true) === null) {
         const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
         if (freeSource !== null && canPayFreeSummonSurcharge(state, ownerPid, card, maintain)) {
             applyFushiSummon(state, { pid: ownerPid, cardId, trashIndex, freeNexusInstanceId: freeSource }, true)
@@ -490,7 +488,7 @@ export function applyFushiSummon(
         return
     }
     if (!prepaid) {
-        const payable = state.interactiveTargets ? summonCoreOptions(state, info.pid, card, cost).length > 0 : autoPayPlan(state, info.pid, cost + maintain + voidToll, true) !== null
+        const payable = summonPayPlan(state, info.pid, cost + maintain + voidToll) !== null
         if (!payable) {
             log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
             return
@@ -507,7 +505,7 @@ export function applyFushiSummon(
     payVoidToll(state, info.pid, card)
     let placedFromField = 0
     if (!prepaid) {
-        const plan = autoPayPlan(state, info.pid, cost + maintain, true)!
+        const plan = summonPayPlan(state, info.pid, cost + maintain)!
         placedFromField = payCost(state, info.pid, cost, plan.paySources, maintain, plan.soulFromReserve)
     }
     if (freeNexus) {
