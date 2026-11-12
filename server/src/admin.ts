@@ -13,7 +13,8 @@ const ABANDONED_MS = 10 * 60 * 1000
 let notice: string | null = null
 
 function authorized(req: Request): boolean {
-    const key = process.env.ADMIN_KEY
+    // 鍵ファイル（openssl の出力）から Secret Manager へ入れると末尾の改行も入る。送る側（scripts/status.ts）は除いて送るので、こちらも除いて比べる
+    const key = process.env.ADMIN_KEY?.trim()
     const given = req.get("x-admin-key")
     if (!key || !given) return false
     const a = Buffer.from(key)

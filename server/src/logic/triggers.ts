@@ -179,15 +179,13 @@ export function fireSummonTrigger(
         log(state, `${getCard(selfInstance.cardId).name}：コストが低いため、召喚時効果は発揮されなかった。`)
         return
     }
-    // ponytail: 召喚時効果の中で別のスピリットが召喚されたら、内側の分を発火した後に外側へ戻す。内側が選択で中断したときは外側の分が落ちる
-    const outer = state.summonEffectSource
-    state.summonEffectSource = { pid: owner, instanceId: selfInstance.instanceId, cardId: selfInstance.cardId, level: currentLevel(selfInstance).level, cost: getCard(selfInstance.cardId).cost, colors: instColors(selfInstance) }
+    // 召喚時効果の中で別のスピリットが召喚されたら積み重ねる。選択待ちで止まったら、handleAction の事後フックが内側から順に閉じる
+    ;(state.summonEffectSources ??= []).push({ pid: owner, instanceId: selfInstance.instanceId, cardId: selfInstance.cardId, level: currentLevel(selfInstance).level, cost: getCard(selfInstance.cardId).cost, colors: instColors(selfInstance) })
     state.resolvingSummonTriggerPid = owner
     fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi, undefined, undefined, onlyEffectIds)
     if (!state.pendingChoice) {
         delete state.resolvingSummonTriggerPid
         finishSummonEffect(state)
-        if (outer !== undefined && state.summonEffectSource === undefined) state.summonEffectSource = outer
     }
 }
 
