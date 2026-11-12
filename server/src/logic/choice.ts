@@ -852,8 +852,8 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             continue
         }
         if (frame.kind === "endTurn") {
-            // メインから直接ターン終了して経由したアタックステップの開始時誘発が片付いたので、ターン終了をやり直す
-            endTurn(state)
+            // ターン終了の途中の選択待ちが片付いたので、止めた区切りから続ける
+            endTurn(state, frame.from)
             continue
         }
         if (frame.kind === "turnStart") {
