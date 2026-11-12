@@ -5247,8 +5247,7 @@
               "count": 2,
               "filter": {
                 "rested": true
-              },
-              "upTo": true
+              }
             },
             {
               "type": "draw",
