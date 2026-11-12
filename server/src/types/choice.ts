@@ -11,7 +11,7 @@ export type EventBurstCheck = {
     subject?: { pid: PlayerId; cardId?: string }
     colors?: Color[]
     targetInstanceId?: string
-    info?: { byOpponentEffect?: boolean; destroyedBp?: number; costs?: number[] }
+    info?: { byOpponentEffect?: boolean; destroyedBp?: number; costs?: number[]; members?: { colors: Color[]; cost: number; families: string[] }[]; lifeLossByNoOwnBurst?: boolean }
 }
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに

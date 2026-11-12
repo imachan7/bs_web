@@ -4,12 +4,12 @@ import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
-import type { CardInstance, CardType, Color, EffectAction, EffectDef, FieldEvent, GameState, Keyword, PlayerId, ResolvedTargetFilter } from "../type"
-import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, suspend, resolveInOrder } from "./GameState"
+import type { CardInstance, CardType, Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, Keyword, PlayerId, ResolvedTargetFilter } from "../type"
+import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, pushResumeFrames, suspend, resolveInOrder } from "./GameState"
 import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, bravesOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
-import { fireBurstOnEvent, fireOwnLifeReducedBurst } from "./keywords/burst"
+import { fireEventBursts } from "./keywords/burst"
 import type { CollectedTrigger } from "./blockDeclared"
 import { revertOncePerTurn, revertDestroyGroupUsage, fireTrigger, activationPrompt, confirmPromptIfOptional, isStillOnField } from "./triggers"
 
@@ -680,19 +680,27 @@ export function fireFieldEventTriggers(
     // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。上の解決で選択待ちが残っている間は割り込まない。
     // skipBurst指定時（破壊待機中のownSpiritDestroyed走査）はここで判定しない（BS16バッチ0：呼び出し元が
     // トラッシュ行き確定後にfireQueuedDestroyBursts経由でfireBurstOnEventを直接呼ぶ）
-    if (state.pendingChoice || skipBurst) return
+    if (skipBurst) return
     // 【自分のライフ減少後】は原因を問わず減少1回につき1回、ownLifeLost の側で聞く。
     // 相手起因の本番経路は ownLifeDamaged を skipBurst で呼ぶ（同じ減少で2回聞かないため）
-    if (event === "ownLifeLost") return fireOwnLifeReducedBurst(state, pid, eventInfo)
-    fireBurstOnEvent(
-        state,
-        pid,
-        event,
-        selfOverride ? { pid: selfOverride.pid, cardId: selfOverride.inst.cardId } : undefined,
-        eventColors,
-        targetInstanceId,
-        eventInfo,
-    )
+    const check: EventBurstCheck =
+        event === "ownLifeLost"
+            ? { pid, event: "ownLifeDamaged", ...(eventInfo !== undefined ? { info: eventInfo } : {}) }
+            : {
+                  pid,
+                  event,
+                  ...(selfOverride ? { subject: { pid: selfOverride.pid, cardId: selfOverride.inst.cardId } } : {}),
+                  ...(eventColors !== undefined ? { colors: eventColors } : {}),
+                  ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+                  ...(eventInfo !== undefined ? { info: eventInfo } : {}),
+              }
+    // 上の誘発が選択待ちを立てていたら、捨てずに後ろへ回し、誘発を解決し終えてから判定する
+    // （#437 F2：以前はここで return してバーストの確認ごと消え、ライフ減少後のバーストが二度と聞かれなかった）
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "eventBursts", checks: [check] }])
+        return
+    }
+    fireEventBursts(state, [check])
 }
 
 // フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：
