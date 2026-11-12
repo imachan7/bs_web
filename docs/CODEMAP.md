@@ -781,6 +781,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `finishBurstActivation`（fn）：発揮し終えたバーストの行き先（docs/design/BURST.md）。summon{from:"burst"} はアクション自身が場へ出すので
 - `burstEffectBlocked`（fn）：noBurstEffectForPid：効果の解決だけを飛ばす。宣言は成立済みなのでカードはトラッシュへ行き、発動後の誘発も起きる
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
+- `markSummonEffectResolved`（fn）：召喚時効果を発揮した印（効果を解決した・確認で「発動する」を押した）。入れ子のどの段でも、その発生源の分に付ける
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireEventBursts`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
 - `burstCardIgnoresEffects`（fn）：セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。
