@@ -783,7 +783,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireEventBursts`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
 - `burstCardIgnoresEffects`（fn）：セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。
-- `fireOwnLifeReducedBurst`（fn）：自分のライフが減るたびに1回だけ、セットしたバースト（条件【自分のライフ減少後】）の発動を聞く。原因は問わない（2026-11-06 ユーザー確認）。
 - `fireBurstOnEvent`（fn）
 - `activateBurstCard`（fn）：オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
 - `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
