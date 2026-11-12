@@ -2128,3 +2128,22 @@ button:active {
     border-color: var(--warning);
     color: var(--warning);
 }
+
+/* 運営からのお知らせ（サーバー更新の予告など。server/src/admin.ts が送る）。消されるまで画面上部に出し続ける */
+#notice-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: #5a4210;
+    border-bottom: 1px solid #d4a24a;
+    color: #fff3d6;
+    padding: 8px 16px;
+    font-size: 13px;
+    text-align: center;
+}
+/* 帯が出ている間は、上部の操作ボタンに重ならないよう全体を下げる */
+body:has(#notice-banner:not(.hidden)) {
+    padding-top: 34px;
+}

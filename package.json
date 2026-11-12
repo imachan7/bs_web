@@ -34,7 +34,8 @@
     "audit:immunity": "tsx scripts/audit-immunity.ts",
     "audit:paths": "tsx scripts/audit-paths.ts",
     "audit:parity": "tsx scripts/audit-client-server-parity.ts",
-    "audit:spec": "tsx scripts/audit-spec-vs-data.ts"
+    "audit:spec": "tsx scripts/audit-spec-vs-data.ts",
+    "status": "tsx scripts/status.ts"
   },
   "engines": {
     "node": ">=20"

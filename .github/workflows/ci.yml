@@ -7,7 +7,12 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "対戦中のルームが終わるのを待たずに出す（対戦中の試合は消える）"
+        type: boolean
+        default: false
 
 env:
   NODE_VERSION: "22"
@@ -112,6 +117,29 @@ jobs:
           mkdir -p public/imgs/cards
           gcloud storage rsync --recursive "gs://${{ vars.CARD_IMAGES_BUCKET }}" public/imgs/cards
           test -n "$(ls public/imgs/cards/md)" # 空なら止める
+
+      # 対戦中のルームはメモリ上にあり、デプロイで消える。対戦中の人にお知らせを出し、終わるまで最大20分待ってから出す（2026-11-12 ユーザー決定）。
+      # 空けばすぐ出す。時間切れならお知らせを消して止める（急ぐときは force）。鍵は secrets.ADMIN_KEY（本番の ADMIN_KEY と同じ値）
+      - name: Node をセットアップ（待機用）
+        if: inputs.force != true
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: 対戦中のルームが終わるのを待つ
+        if: inputs.force != true
+        env:
+          BS_ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+        run: |
+          npm ci --ignore-scripts
+          npx tsx scripts/status.ts
+          npx tsx scripts/status.ts notice "まもなくサーバーを更新します。いまの対戦が終わり次第反映します（更新の間は少しつながりにくくなります）"
+          if ! npx tsx scripts/status.ts wait 20; then
+            npx tsx scripts/status.ts notice --clear
+            echo "対戦中のルームが残っているので、デプロイを止めました。急ぐときは force を付けて実行してください"
+            exit 1
+          fi
 
       - name: Cloud Run へデプロイ
         run: |

@@ -249,6 +249,14 @@ socket.on("errorMessage", (message: string) => {
     showToast(message)
 })
 
+// 運営からのお知らせ（null で消える）
+socket.on("notice", (message: string | null) => {
+    const el = document.getElementById("notice-banner")
+    if (!el) return
+    el.textContent = message ?? ""
+    el.classList.toggle("hidden", message === null)
+})
+
 socket.on("opponentLeft", () => {
     showToast("相手が退出しました")
 })
