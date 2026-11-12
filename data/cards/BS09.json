@@ -3481,6 +3481,9 @@
         "id": "BS09-051-e1",
         "kind": "levelAs",
         "levels": null,
+        "sourceLevels": [
+          2
+        ],
         "target": "ownNexusesAll",
         "treatAs": 2
       }
@@ -5315,8 +5318,8 @@
           "type": "placeCores",
           "from": "void",
           "to": "nexus",
-          "target": "all",
-          "count": 1
+          "count": 1,
+          "targets": 2
         }
       },
       {

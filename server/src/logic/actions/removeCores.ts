@@ -333,7 +333,7 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
             log(state, `${sourceName}のコア除去：対象の数が0のため発動しなかった。`)
             return
         }
-        ctx.resolve({ ...rest, targets: n }, { sourceColors: srcColors, sourceType: srcType })
+        ctx.resolve({ ...rest, targets: n })
         return
     }
     const to = action.to ?? "reserve"

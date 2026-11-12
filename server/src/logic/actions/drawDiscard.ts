@@ -120,7 +120,7 @@ const discardHandler: ActionHandler<"discard"> = (ctx, action) => {
             return
         }
         const { countCounter: _cc, ...rest } = action
-        ctx.resolve({ ...rest, count: n }, { sourceType: srcType, sourceColors: srcColors })
+        ctx.resolve({ ...rest, count: n })
         return
     }
     if (action.from === "hand") {
@@ -143,7 +143,7 @@ function discardHand(ctx: ActionCtx, action: DiscardAction): void {
     if (action.downTo !== undefined) {
         const n = target.hand.length - action.downTo
         if (n <= 0) log(state, `${sourceName}：${target.name}の手札は${action.downTo}枚以下のため発動しなかった。`)
-        else { const { downTo: _, ...rest } = action; ctx.resolve({ ...rest, count: n }, { sourceType: srcType, sourceColors: srcColors }) }
+        else { const { downTo: _, ...rest } = action; ctx.resolve({ ...rest, count: n }) }
         return
     }
     // countAttackerSymbols：countを無視し、targetInstanceIdが指すスピリット（fieldEvent ownLifeDamaged が渡すアタッカー）の
@@ -151,7 +151,7 @@ function discardHand(ctx: ActionCtx, action: DiscardAction): void {
     if (action.countAttackerSymbols) {
         const attacker = targetInstanceId ? findSpiritAny(state, targetInstanceId) : null
         const { countAttackerSymbols: _cas, ...rest } = action
-        ctx.resolve({ ...rest, count: attacker ? instanceSymbolCount(attacker.inst) : 0 }, { sourceType: srcType, sourceColors: srcColors })
+        ctx.resolve({ ...rest, count: attacker ? instanceSymbolCount(attacker.inst) : 0 })
         return
     }
     // forcedTargetPid＝選択式の再突入。選択者は破棄される本人で、再突入時の owner は pending.pid になり元の効果所有者を指さないため、

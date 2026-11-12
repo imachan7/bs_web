@@ -1507,18 +1507,23 @@ export function resolveAction(
         chosenOption,
         chosenCardIndex,
         paySources,
-        resolve: (next, opts) =>
+        // 発生源（色・種別・カード）は、self を差し替えない限り引き継ぐ。効果の途中で発生源は変わらないため
+        // （以前は毎回手で渡す形で、渡し忘れた再入だけ【装甲】・色指定の耐性を素通りした。#437 R4-2 色F2）
+        resolve: (next, opts) => {
+            const sameSource = opts?.self === undefined
             resolveAction(
                 state,
                 owner,
                 opts?.self === undefined ? self : opts.self,
                 next,
                 opts?.targetInstanceId,
-                opts?.sourceColors,
-                opts?.sourceType,
+                opts?.sourceColors ?? (sameSource ? srcColors : undefined),
+                opts?.sourceType ?? (sameSource ? srcType : undefined),
                 opts?.chosenOption,
                 opts?.chosenCardIndex,
-            ),
+                sameSource ? srcCardId : undefined,
+            )
+        },
     }
     noteAction(action)
     const handler = ACTION_HANDLERS[action.type] as (c: ActionCtx, a: EffectAction) => void

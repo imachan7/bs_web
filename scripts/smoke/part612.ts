@@ -69,7 +69,7 @@ function setEffects(cardId: string, effects: EffectDef[]): void {
     c.effects = effects
 }
 function restore(): void {
-    for (const [id, effects] of originals) getCard(id).effects = effects
+    for (const [id, effects] of originals.reverse()) getCard(id).effects = effects // 同じカードを2回差し替えても元に戻るよう逆順
     originals.length = 0
 }
 

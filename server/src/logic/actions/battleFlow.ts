@@ -1347,7 +1347,7 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
             else returnCombinedBraveToHand(state, opp, host, chosen)
             return
         }
-        if (action.mode === "destroy") destroyNexus(state, opp, chosen.instanceId, { ...destroyContext, sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}), ...(ctx.srcColors ? { sourceColors: ctx.srcColors } : {}) })
+        if (action.mode === "destroy") destroyNexus(state, opp, chosen.instanceId, destroyContext)
         else if (action.mode === "toDeckBottom") returnNexusToDeckBottom(state, opp, chosen.instanceId)
         else returnNexusToHand(state, opp, chosen.instanceId)
     }
