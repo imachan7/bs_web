@@ -2219,7 +2219,8 @@ body:has(#notice-banner:not(.hidden)) {
     animation-timing-function: ease-in;
 }
 .leave-ghost.leave-vanish { animation-name: leave-vanish; }
-.leave-ghost.leave-destroy { animation-name: leave-destroy; }
+/* 破壊は破片（.shatter-piece）が主役なので、写しはすぐ消し、場所を空けておく役だけにする */
+.leave-ghost.leave-destroy { animation-name: leave-destroy; animation-duration: 120ms; }
 .leave-ghost.leave-bounce { animation-name: leave-bounce; }
 .leave-ghost::after {
     position: absolute;
@@ -2233,7 +2234,7 @@ body:has(#notice-banner:not(.hidden)) {
     text-shadow: 0 0 6px #000, 0 0 2px #000;
 }
 .leave-ghost.leave-vanish::after { content: "消滅"; }
-.leave-ghost.leave-destroy::after { content: "破壊"; }
+.leave-ghost.leave-destroy::after { content: ""; }
 .leave-ghost.leave-bounce::after { content: "戻る"; }
 @keyframes leave-vanish {
     0% { opacity: 1; filter: none; transform: none; }
@@ -2319,4 +2320,32 @@ body:has(#notice-banner:not(.hidden)) {
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
+}
+
+/* 破壊：割れて飛び散る破片と、爆発の光 */
+.shatter-piece {
+    position: fixed;
+    margin: 0;
+    z-index: 61;
+    pointer-events: none;
+    animation: shatter-fly 950ms cubic-bezier(0.2, 0.6, 0.4, 1) forwards;
+}
+@keyframes shatter-fly {
+    0% { transform: none; opacity: 1; filter: brightness(1.6); }
+    15% { filter: brightness(1.1); }
+    100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.7); opacity: 0; }
+}
+.destroy-burst {
+    position: fixed;
+    z-index: 62;
+    pointer-events: none;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 250, 220, 0.95) 0%, rgba(255, 170, 60, 0.75) 30%, rgba(255, 70, 20, 0.35) 55%, rgba(255, 40, 0, 0) 72%);
+    mix-blend-mode: screen;
+    animation: destroy-burst 650ms ease-out forwards;
+}
+@keyframes destroy-burst {
+    0% { transform: scale(0.2); opacity: 1; }
+    60% { opacity: 0.8; }
+    100% { transform: scale(1.8); opacity: 0; }
 }
