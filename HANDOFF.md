@@ -77,6 +77,8 @@
 
 ### 既知の残り（触るときに読む）
 
+- **保留（2026-11-12 ユーザー判断）：ソウルコアを有効にする前に直すもの**（Muse 監査 #437 R9-4・R11A-3〜5）。いまはソウルコアが無効（`soulCore: null` が既定）か、使うカードが0枚なので起きない。有効にするときに、自動の支払いでソウルコアを使わない（SOULCORE §2）・ボイドへ取り除く処理と【覚醒】がソウルコアを通常コアと区別する・【迷彩】の支払いが維持コアを残す・トークンの支払い元を選ばせる・reveal 経由の pay:"cost" がフィールドから払えない、を点検する
+- 見えない経路で情報を運ぶ既存の state の一時フィールド（`payNegateDecision`・`meisaiPaidFor`・`magicRedirectDecision`・`magicSideDecision`・`magicFreeDeclined`・`destroyOrderPick`・`triggerOrderPick`・`summoningFromHand`・`effectFizzled`・`bpMinusSourceBy` など）は、設計の原則3に反する。触るときに action・引数へ移す（2026-11-12 の棚卸し）
 - 保留：使ったマジックを手札に戻す（`returnLastUsedMagicToHand`。26RBS01-X14 だけ）にトラッシュ回収の禁止を効かせるか。このリポジトリのプールに無い
 - 専用 type の統一は一区切り（[ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md) §4）。新しく統一するときは、分かれている理由がルール上の処理の違いかを先に確かめる
 - 「〜することで」の確認関門：規則と既知の限界は [COST_MODEL.md](./docs/design/COST_MODEL.md) §10。`if` の器は [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・§5（残した2枚は §5「残す」）
