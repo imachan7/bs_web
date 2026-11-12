@@ -362,6 +362,7 @@ function showLeaveGhost(instanceId: string, kind: "vanish" | "destroy" | "bounce
     const el = document.querySelector<HTMLElement>(`.card[data-instance-id="${CSS.escape(instanceId)}"]`)
     if (!el) return
     const rect = el.getBoundingClientRect()
+    if (kind === "destroy") showShatter(el, rect)
     const ghost = el.cloneNode(true) as HTMLElement
     ghost.classList.add("leave-ghost", `leave-${kind}`)
     ghost.removeAttribute("data-instance-id")
@@ -383,6 +384,54 @@ function showLeaveGhost(instanceId: string, kind: "vanish" | "destroy" | "bounce
 }
 
 const LEAVE_MS = 1200
+
+// 破壊：カードを破片に割って飛び散らせ、爆発の光を重ねる（2026-11-13 ユーザー要望：破壊された感じがしない）。
+// 破片は同じカードの写しを clip-path で切り抜いたもの。3×4 のマス目の角を少しずらして、ガラスが割れたような形にする
+function showShatter(el: HTMLElement, rect: DOMRect): void {
+    const cols = 3
+    const rows = 4
+    // マス目の交点（端は動かさず、内側だけずらす）
+    const pt = (c: number, r: number): [number, number] => {
+        const jitter = (edge: boolean) => (edge ? 0 : (Math.random() - 0.5) * 18)
+        return [(c / cols) * 100 + jitter(c === 0 || c === cols), (r / rows) * 100 + jitter(r === 0 || r === rows)]
+    }
+    const grid = Array.from({ length: rows + 1 }, (_, r) => Array.from({ length: cols + 1 }, (_, c) => pt(c, r)))
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const corners = [grid[r]![c]!, grid[r]![c + 1]!, grid[r + 1]![c + 1]!, grid[r + 1]![c]!]
+            // 四角を対角線で2枚の三角に割る
+            for (const tri of [[0, 1, 2], [0, 2, 3]]) {
+                const pts = tri.map((i) => corners[i]!)
+                const piece = el.cloneNode(true) as HTMLElement
+                piece.removeAttribute("data-instance-id")
+                piece.classList.add("shatter-piece")
+                piece.style.left = `${rect.left}px`
+                piece.style.top = `${rect.top}px`
+                piece.style.width = `${rect.width}px`
+                piece.style.height = `${rect.height}px`
+                piece.style.clipPath = `polygon(${pts.map(([x, y]) => `${x}% ${y}%`).join(",")})`
+                // 中心から外へ飛ぶ向き（破片の重心の位置で決める）
+                const cx = pts.reduce((a, p) => a + p[0], 0) / 3 - 50
+                const cy = pts.reduce((a, p) => a + p[1], 0) / 3 - 50
+                const power = 1.4 + Math.random() * 1.2
+                piece.style.setProperty("--dx", `${cx * power * (rect.width / 100) + (Math.random() - 0.5) * 20}px`)
+                piece.style.setProperty("--dy", `${cy * power * (rect.height / 100) + 30 + Math.random() * 30}px`)
+                piece.style.setProperty("--rot", `${(Math.random() - 0.5) * 120}deg`)
+                document.body.appendChild(piece)
+                setTimeout(() => piece.remove(), 1000)
+            }
+        }
+    }
+    const burst = document.createElement("div")
+    burst.className = "destroy-burst"
+    const size = Math.max(rect.width, rect.height) * 1.2
+    burst.style.left = `${rect.left + rect.width / 2 - size / 2}px`
+    burst.style.top = `${rect.top + rect.height / 2 - size / 2}px`
+    burst.style.width = `${size}px`
+    burst.style.height = `${size}px`
+    document.body.appendChild(burst)
+    setTimeout(() => burst.remove(), 700)
+}
 const leavingSlots = new Map<string, { zoneId: string; index: number; width: number; height: number }>()
 
 // 場を描き直したあとに、消えている途中のカードの場所へ同じ大きさの空きを入れ直す
@@ -463,7 +512,7 @@ function processNewEvents(view: GameView): Set<PlayerId> {
             continue
         }
         if ((ev.type === "destroy" || ev.type === "returnToHand" || ev.type === "returnToDeck") && ev.instanceId !== undefined) {
-            showLeaveGhost(ev.instanceId, ev.type === "destroy" ? (ev.vanish ? "vanish" : "destroy") : "bounce")
+            pendingLeaves.set(ev.instanceId, ev.type === "destroy" ? (ev.vanish ? "vanish" : "destroy") : "bounce")
         }
         const mine = ev.pid === view.you
         if (ev.type === "magic" && layer) {
@@ -490,7 +539,28 @@ function processNewEvents(view: GameView): Set<PlayerId> {
     if (newEvents.length > 0) {
         lastEventSeq = newEvents.reduce((max, ev) => Math.max(max, ev.seq), lastEventSeq)
     }
+    flushPendingLeaves(view)
     return lifeDamagedPids
+}
+
+// 場を離れるイベントを受けたカード。エフェクトは、そのカードが実際に場から無くなった描画で出す
+// （破壊のイベントは破壊待機に入った時点で届き、誘発を解決し終えるまで場に残るため。待機から場に残ったら出さない。2026-11-13）
+const pendingLeaves = new Map<string, "vanish" | "destroy" | "bounce">()
+function flushPendingLeaves(view: GameView): void {
+    const onField = new Map<string, CardInstance>()
+    for (const pid of ["p1", "p2"] as const) {
+        const f = view.players[pid].field
+        for (const inst of [...f.spirits, ...f.nexuses, ...f.combinedBraves, ...(f.magics ?? [])]) onField.set(inst.instanceId, inst)
+    }
+    for (const [id, kind] of pendingLeaves) {
+        const inst = onField.get(id)
+        if (inst === undefined) {
+            showLeaveGhost(id, kind) // 描き直す前なので、まだ元のカードの位置が取れる
+            pendingLeaves.delete(id)
+        } else if (!inst.pendingDestruction && !inst.pendingVanish && !inst.pendingBounce) {
+            pendingLeaves.delete(id) // 「フィールドに残る」などで残った
+        }
+    }
 }
 
 export function render(view: GameView, ui: UiState): void {
