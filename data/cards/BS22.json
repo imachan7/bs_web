@@ -3949,6 +3949,7 @@
        },
        "then": {
         "type": "declare",
+        "optional": true,
         "what": "color",
         "from": "nexuses",
         "fromSide": "opponent",

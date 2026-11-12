@@ -142,14 +142,20 @@ const linkNexusCoresChoiceHandler: ActionHandler<"linkNexusCoresChoice"> = (ctx,
         // クロスシザース：自分のネクサス1つを指定し、コア数をこのスピリットのコア数と同じものとして扱う
         // （selfがnullなら不発。requestChoiceが候補0件/1件/複数件を判定する）
         if (!self) return
-        if (targetInstanceId === undefined) {
+        const designated = action.designated ?? targetInstanceId
+        if (designated === undefined) {
             const candidates = state.players[owner].field.nexuses.map((n) => n.instanceId)
             // 指定は必須（2026-10-08 ユーザー確認）
             requestChoice(state, owner, "コア数をリンクするネクサスを選んでください", candidates, false, action, self)
             return
         }
-        const nexus = state.players[owner].field.nexuses.find((n) => n.instanceId === targetInstanceId)
+        const nexus = state.players[owner].field.nexuses.find((n) => n.instanceId === designated)
         if (!nexus) return
+        // 「同じとして扱うことができる」：指定したあと、扱うかを確かめる（断れば何もしない。2026-11-12 ユーザー確認）
+        if (state.interactiveTargets && chosenOption === undefined) {
+            requestChoice(state, owner, `${sourceName}：${getCard(nexus.cardId).name}のコア数を、このスピリットのコア数と同じとして扱いますか？`, [], true, { ...action, designated }, self, "option", ["同じとして扱う"])
+            return
+        }
         nexus.coresLinkedTo = self.instanceId
         log(
             state,

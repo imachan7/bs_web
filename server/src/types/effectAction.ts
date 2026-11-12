@@ -218,14 +218,14 @@ export type EffectAction =
  | { type: "summonBatchFlush" } // 内部専用：オープンから複数体を同時に召喚し終えたあと、後回しにした召喚時効果をまとめて発揮する（summon.ts flushSummonBatch）
  | { type: "revealFinishSummon"; noSummonEffects?: true } // 内部専用：revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き。selfが召喚済みのインスタンス
  | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドにも手札にも1枚もなければ不発。あれば全系統から選び、CardInstance.lentChoiceFamily に載せた仮想発生源を積む（lendSelfThisTurnと同じ貸与。以後は familyGrant の familyFromChoice エントリが継続付与する）
- | { type: "linkNexusCoresChoice" } // 自分のネクサス1つの指定は必須。そのネクサスの coresLinkedTo に self の instanceId を設定する（selfがnullなら不発）
+ | { type: "linkNexusCoresChoice"; designated?: string } // 自分のネクサス1つの指定は必須。「同じとして扱うことができる」なので、指定したあと扱うかを確認する（designated＝指定済みのネクサス。2026-11-12 ユーザー確認：「〜できる」は確認式）。扱えばそのネクサスの coresLinkedTo に self の instanceId を設定する（selfがnullなら不発）
  // what の値を1つ指定し、then の中の declared を実際の値に置き換えて解決する（DECLARE_UNIFY）。picked は再開用
  | { type: "replayOpponentSummonEffect"; chosenId?: string } // バーストのきっかけになった相手の『召喚時』効果を、自分のスピリット1体（選ぶ）が発揮したものとして解決する（BURST.md §7.4。BS18-081）。条件・任意はエントリごとには見ない
  | { type: "revealHandCard"; pick?: CardPick } // 自分の手札の条件に合う1枚を移さずに相手へ見せ、lastMoved に載せる（pay の cost に置く。選べる札は pay が then の解決できるものに絞る）
  | { type: "revealOpponentBurst" } // 相手のバーストを両者に公開する（セットされたまま。lastMoved に載せるので続きは if { last } と discardOpponentBurst）。peekOpponentBurst は持ち主だけが見る別物
  | { type: "fireSoryoSelf" } // このスピリット自身の【操霊】（keyword:"soryo" の召喚時効果）の中身をそのまま発揮する（26RBS02-023。レベルが合うものだけ）
  | { type: "fireEffect"; trigger: "onSummon" | "onDestroy" | "onBlock"; all?: true; filter?: TargetFilter; oneEffect?: true; soryoOnly?: true; bunshinOnly?: true; ofSelf?: true; chosenId?: string; instanceIds?: string[] } // chosenId・instanceIds は再開用。bunshinOnly＝【分身】の節を、誘発の種類（召喚時／破壊時）と条件を問わず直接解決する（trigger は使わない）。ofSelf＝候補を発生源自身だけにする（BS23-060「このスピリットが持つ【分身】」）
- | { type: "declare"; what: "color" | "family" | "cost" | "level" | "name"; options?: (string | number)[]; from?: "spirits" | "nexuses"; fromSide?: "opponent"; minSameName?: number; chooser?: "opponent" | "each"; autoFrom?: { ownTrash: CardPick }; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
+ | { type: "declare"; optional?: true; what: "color" | "family" | "cost" | "level" | "name"; options?: (string | number)[]; from?: "spirits" | "nexuses"; fromSide?: "opponent"; minSameName?: number; chooser?: "opponent" | "each"; autoFrom?: { ownTrash: CardPick }; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
  | { type: "if"; cond?: IfCond; then: EffectAction; else?: EffectAction; oncePerTurn?: string } // 「〜とき／〜なら」（docs/design/IF_UNIFY.md §5）。oncePerTurn は then の「ターンに1回」の枠名（発生源の個体ごと。条件を満たさなかった発火では枠を使わない。エントリ全体の oncePerTurn との違い。BS22 X01・X13-01）
  | { type: "takeLast"; pick: CardPick; to: "hand" | "summon"; skipOnSummon?: true } // 直前に動いたカード（record.ts）のうち pick に合う最後の1枚を、まだトラッシュにあれば to へ（「その後、トラッシュにあるそのカード」）
  | { type: "grantKeywordToHandCard"; keyword: Keyword; familyFilter?: FamilyFilter; cardType?: "spirit" | "nexus" | "magic"; all?: true } // 自分の手札の条件一致カード1枚に、このターンの間キーワードを付与（PlayerState.tempHandKeywordGrants。自動選択は手札末尾。付与はcardId単位＝同名重複カードにも効く簡略化）。all＝選択を挟まず条件一致する手札カードすべて
