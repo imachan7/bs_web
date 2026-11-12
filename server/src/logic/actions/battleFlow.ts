@@ -527,6 +527,16 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                 ...summonOpts,
                 ...(combineTargetInstanceId !== undefined ? { braveTargetInstanceId: combineTargetInstanceId } : {}),
             })
+            if (state.pendingChoice && player.hand.length === beforeHandLen) {
+                // 置くコアの数の待ちで中断した。召喚は再開後に成立するので、続き（ドロー・次の1枚）を後ろに積む
+                const { combineHandIndex: _idx, ...rest } = action
+                const frames: EffectAction[] = [
+                    ...(action.thenDraw ? [{ type: "draw" as const, count: action.thenDraw }] : []),
+                    ...(action.repeatWhileChosen ? [{ ...rest, ...(action.costBudget !== undefined ? { costBudgetSpent: budgetSpent } : {}) }] : []),
+                ]
+                pushResumeFrames(state, frames.map((a) => ({ kind: "action" as const, selfInstanceId: self?.instanceId ?? null, action: a, actorPid: owner })))
+                return
+            }
             if (action.thenDraw && !state.winner && player.hand.length < beforeHandLen) {
                 draw(state, owner, action.thenDraw)
             }
@@ -656,7 +666,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
         // 合体選択の中断から再開（targetInstanceId＝合体先、未指定＝単体召喚。RESUME_STACK.md）
         if (action.combineHandIndex !== undefined) {
             finishBraveSummon(action.combineHandIndex, targetInstanceId)
-            if (!state.winner && action.repeatWhileChosen) askNextRepeatBrave()
+            if (!state.winner && action.repeatWhileChosen && !state.pendingChoice) askNextRepeatBrave()
             return
         }
         if (action.repeatWhileChosen && chosenCardIndex === undefined) {

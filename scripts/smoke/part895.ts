@@ -1,5 +1,5 @@
 // smoke パート895（コストを払う効果召喚でも置くコアの数＝Lvをプレイヤーが選ぶ。2026-11-11 ユーザー決定。実装前に落ちてよい）
-// 選ぶのは支払いの時点（場に出す前）。待ち：kind="option"・effectCostPay{need,keepByOption}・options "Lv2（コア2個）"。
+// 選ぶのは支払いの時点（場に出す前）。待ち：kind="option"・effectCostPay{need,keepByOption}・options "コア2個（Lv2）"。
 // 答えは resolveChoice の option（フィールドのコアを使うなら paySources も）。払う額は軽減込みの召喚コスト。
 // BS12-075 は「リザーブから使用」なのでフィールドのコアは使えない。非対話は維持コア（Lv1）で出る。
 import { assert, act, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
@@ -92,9 +92,9 @@ console.log("=== 1. 帝竜騎：【転召】持ちを Lv2 で出す。コスト4
     const pc = toCorePrompt(s)
     assert(pc?.kind === "option" && pc.effectCostPay?.pid === "p1", "置くコアの数を選ぶ待ちが出る")
     assert(pc?.effectCostPay?.need === 4, `払うのはハクタクのコスト4（${pc?.effectCostPay?.need}）`)
-    assert(Array.isArray(pc?.options) && pc.options.includes("Lv1（コア1個）") && pc.options.includes("Lv2（コア2個）"), `Lv1・Lv2が選べる（${JSON.stringify(pc?.options)}）`)
+    assert(Array.isArray(pc?.options) && pc.options.includes("コア1個（Lv1）") && pc.options.includes("コア2個（Lv2）"), `Lv1・Lv2が選べる（${JSON.stringify(pc?.options)}）`)
     assert(onField(s, HAKU) === undefined, "選ぶ時点ではまだ場に出ていない")
-    act(s, "p1", { type: "resolveChoice", option: "Lv2（コア2個）" })
+    act(s, "p1", { type: "resolveChoice", option: "コア2個（Lv2）" })
     settle(s)
     assert(onField(s, HAKU)?.cores === 2, `ハクタクはコア2個（Lv2）で出る（${onField(s, HAKU)?.cores}）`)
     assert(s.players.p1.reserve === 0, `リザーブはコスト4＋コア2で0になる（${s.players.p1.reserve}）`)
@@ -112,8 +112,8 @@ console.log("=== 2. トラッシュから有償召喚（アンドレアルファ
     for (let i = 0; i < 4 && s.pendingChoice && !(s.pendingChoice as any).effectCostPay; i++) answerOther(s, s.pendingChoice)
     const pc: any = s.pendingChoice
     assert(pc?.kind === "option" && pc.effectCostPay?.need === 3, `置くコアの待ちが出てコスト3を払う（${JSON.stringify(pc?.effectCostPay)}）`)
-    assert(Array.isArray(pc?.options) && pc.options.includes("Lv2（コア3個）"), `Lv2が選べる（${JSON.stringify(pc?.options)}）`)
-    act(s, "p1", { type: "resolveChoice", option: "Lv2（コア3個）" })
+    assert(Array.isArray(pc?.options) && pc.options.includes("コア3個（Lv2）"), `Lv2が選べる（${JSON.stringify(pc?.options)}）`)
+    act(s, "p1", { type: "resolveChoice", option: "コア3個（Lv2）" })
     settle(s)
     assert(onField(s, VOLZA)?.cores === 3, `ヴォルザはコア3個で出る（${onField(s, VOLZA)?.cores}）`)
     assert(!s.players.p1.trashCards.includes(VOLZA), "トラッシュから出ている")
@@ -124,8 +124,8 @@ console.log("=== 3. フィールドのコアを paySources で使い、味方（
     // Lv2＝4＋2＝6。リザーブ5では足りず、味方のコア1個を足す
     const { s, al } = reibuScene("reibu-field", true, 5, true)
     const pc = toCorePrompt(s)
-    assert(pc?.options?.includes("Lv2（コア2個）"), `フィールドのコアを足せばLv2も選べる（${JSON.stringify(pc?.options)}）`)
-    act(s, "p1", { type: "resolveChoice", option: "Lv2（コア2個）", paySources: [{ instanceId: al!.instanceId, count: 1 }] })
+    assert(pc?.options?.includes("コア2個（Lv2）"), `フィールドのコアを足せばLv2も選べる（${JSON.stringify(pc?.options)}）`)
+    act(s, "p1", { type: "resolveChoice", option: "コア2個（Lv2）", paySources: [{ instanceId: al!.instanceId, count: 1 }] })
     settle(s)
     assert(onField(s, HAKU)?.cores === 2, `ハクタクはコア2個で出る（${onField(s, HAKU)?.cores}）`)
     assert(onField(s, ROKU) === undefined && s.players.p1.trashCards.includes(ROKU), "コアを0個にされた味方は消滅してトラッシュへ")
@@ -148,8 +148,8 @@ console.log("=== 4a. ボオーテスコール：リザーブだけで Lv2 まで
     // マジック3＋ベルドゴールのコスト3＋コア3＝9
     const { s } = booScene("boo-lv2", 9, 0)
     const pc = toCorePrompt(s)
-    assert(pc?.effectCostPay?.need === 3 && pc.options?.includes("Lv2（コア3個）"), `置くコアの待ちにLv2がある（${JSON.stringify(pc?.options)}）`)
-    act(s, "p1", { type: "resolveChoice", option: "Lv2（コア3個）" })
+    assert(pc?.effectCostPay?.need === 3 && pc.options?.includes("コア3個（Lv2）"), `置くコアの待ちにLv2がある（${JSON.stringify(pc?.options)}）`)
+    act(s, "p1", { type: "resolveChoice", option: "コア3個（Lv2）" })
     settle(s)
     assert(onField(s, BELD)?.cores === 3, `ベルドゴールはコア3個で出る（${onField(s, BELD)?.cores}）`)
     assert(s.players.p1.reserve === 0, `リザーブを使い切る（${s.players.p1.reserve}）`)
@@ -170,8 +170,8 @@ console.log("=== 4c. ボオーテスコール：Lv2 が選べる場面でも、p
 {
     const { s, ally } = booScene("boo-paysrc", 9, 1)
     const pc = toCorePrompt(s)
-    assert(pc?.options?.includes("Lv2（コア3個）"), "Lv2が選べる")
-    const err = act(s, "p1", { type: "resolveChoice", option: "Lv2（コア3個）", paySources: [{ instanceId: ally!.instanceId, count: 1 }] })
+    assert(pc?.options?.includes("コア3個（Lv2）"), "Lv2が選べる")
+    const err = act(s, "p1", { type: "resolveChoice", option: "コア3個（Lv2）", paySources: [{ instanceId: ally!.instanceId, count: 1 }] })
     assert(err !== null, "フィールドのコアを指定した答えは拒否される")
     assert(s.pendingChoice !== null && onField(s, ROKU)?.cores === 1, "待ちは残り、味方のコアは減らない")
 }
@@ -187,8 +187,8 @@ console.log("=== 5. ジェネレートファイア：相手のスピリットを
     const pc = toCorePrompt(s)
     assert(s.players.p2.field.spirits.length === 0, "BP3000以下の相手のスピリットが破壊された")
     assert(pc?.kind === "option" && pc.effectCostPay?.need === 2, `払う額はコスト3−1＝2（${pc?.effectCostPay?.need}）`)
-    assert(Array.isArray(pc?.options) && pc.options.includes("Lv2（コア3個）"), `Lv2が選べる（${JSON.stringify(pc?.options)}）`)
-    act(s, "p1", { type: "resolveChoice", option: "Lv2（コア3個）" })
+    assert(Array.isArray(pc?.options) && pc.options.includes("コア3個（Lv2）"), `Lv2が選べる（${JSON.stringify(pc?.options)}）`)
+    act(s, "p1", { type: "resolveChoice", option: "コア3個（Lv2）" })
     settle(s)
     assert(onField(s, VOLZA)?.cores === 3, `ヴォルザはコア3個で出る（${onField(s, VOLZA)?.cores}）`)
     assert(s.players.p1.reserve === 0, `リザーブはマジック5＋2＋3で0（${s.players.p1.reserve}）`)

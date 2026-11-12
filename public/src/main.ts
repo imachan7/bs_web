@@ -857,14 +857,16 @@ async function init(): Promise<void> {
             if (meisai && view) {
                 const me = view.players[view.you]
                 const soulSelectable = me.soulCore !== null && me.soulCore.zone !== "trash"
-                if (pc?.effectCostPay?.reserveOnly || (!soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need)) {
+                // 効果による召喚の置くコアは、フィールドにコアがあれば自動でも支払い元を選ばせる（アタックステップなどでは後から動かせない）
+                const placing = pc?.effectCostPay?.keepByOption !== undefined && [...me.field.spirits, ...me.field.nexuses].some((x) => x.cores > 0)
+                if (pc?.effectCostPay?.reserveOnly || (!placing && !soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need)) {
                     send({ type: "resolveChoice", option })
                     return
                 }
                 ui.targeting = null
                 ui.awakenTarget = null
                 ui.combineBrave = null
-                ui.paying = { handIndex: -1, forMeisai: { option, cardId: meisai.cardId, need: meisai.need, ...(meisai.effectCost ? { effectCost: true as const } : {}) }, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
+                ui.paying = { handIndex: -1, forMeisai: { option, cardId: meisai.cardId, need: meisai.need, ...(meisai.effectCost ? { effectCost: true as const } : {}), ...(placing ? { placing: true as const } : {}) }, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
                 rerender()
                 return
             }

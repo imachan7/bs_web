@@ -16,7 +16,18 @@ export function summonCoreOptions(state: GameState, pid: PlayerId, card: CardDat
         const own = inst.cores - (soulCoreOnInstance(player, inst.instanceId) ? 1 : 0)
         total += Math.min(own, coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: own, cause: "cost", actorPid: pid }))
     }
-    return card.levels.filter((l) => cost + l.cores <= total).map((l) => ({ level: l.level, cores: l.cores }))
+    // 置く数は Lv の境目に限らない。効果による召喚はアタックステップでも起き、後からコアを動かせないため（2026-11-12 ユーザー指摘）
+    const levels = [...card.levels].sort((a, b) => a.cores - b.cores)
+    const min = levels[0]?.cores ?? 0
+    const options: { level: number; cores: number }[] = []
+    for (let n = min; cost + n <= total; n++) {
+        options.push({ level: levels.filter((l) => l.cores <= n).at(-1)!.level, cores: n })
+    }
+    return options
+}
+
+export function summonCoreLabel(o: { level: number; cores: number }): string {
+    return `コア${o.cores}個（Lv${o.level}）`
 }
 
 // Lv が2つ以上選べる、またはリザーブだけでは足りないとき、支払い待ち（effectCostPay）を立てて true。
@@ -32,11 +43,13 @@ export function askSummonCores(state: GameState, pid: PlayerId, card: CardData, 
         pid,
         kind: "option",
         candidates: [],
-        prompt: `${card.name}：置くコアの数（Lv）を選んでください`,
-        options: options.map((o) => `Lv${o.level}（コア${o.cores}個）`),
+        prompt: `${card.name}：置くコアの数を選んでください`,
+        options: options.map(summonCoreLabel),
+        stepper: true,
         optional: false,
         action: resume,
-        selfInstanceId: null,
+        // 再開後も「この効果で召喚された」を判定できるよう、発生源を引き継ぐ
+        selfInstanceId: state.currentEffectSource?.pid === pid ? state.currentEffectSource.instanceId ?? null : null,
         effectCostPay: { pid, need: cost, sourceCardId: card.cardId, keep: first.cores, keepByOption: options.map((o) => o.cores), ...(toll > 0 ? { tollKeep: toll } : {}), ...(surcharge ? { surcharge: true as const } : {}), ...(reserveOnly ? { reserveOnly: true as const } : {}) },
     })
     return true

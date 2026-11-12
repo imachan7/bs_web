@@ -48,7 +48,7 @@ console.log("=== 1. オープンした札の召喚（無償）：Lv2 を選ぶ�
     const s = game("reveal-free")
     resolveAction(s, "p1", null, { type: "revealApplyOne", cardId: BELD, srcPid: "p1", dest: "summon" })
     assert(spiritOf(s, BELD) === undefined, "選ぶ時点ではまだ場に出ていない")
-    askLv(s, "Lv2（コア3個）")
+    askLv(s, "コア3個（Lv2）")
     assert(spiritOf(s, BELD)?.cores === 3, `コア3個で出る（${spiritOf(s, BELD)?.cores}）`)
     assert(s.players.p1.reserve === 7, `リザーブは10→7（${s.players.p1.reserve}）`)
 }
@@ -57,7 +57,7 @@ console.log("=== 2. オープンした札の召喚（pay:cost）：コスト3を
 {
     const s = game("reveal-cost")
     resolveAction(s, "p1", null, { type: "revealApplyOne", cardId: BELD, srcPid: "p1", dest: "summon", pay: "cost" })
-    askLv(s, "Lv2（コア3個）")
+    askLv(s, "コア3個（Lv2）")
     assert(spiritOf(s, BELD)?.cores === 3, `コア3個で出る（${spiritOf(s, BELD)?.cores}）`)
     assert(s.players.p1.reserve === 4, `リザーブは10→4（コスト3＋置く3。${s.players.p1.reserve}）`)
     assert(s.players.p1.trashCores === 3, `コスト分3個はトラッシュへ（${s.players.p1.trashCores}）`)
@@ -67,7 +67,7 @@ console.log("=== 3. オープンした札の配置（ネクサス）：Lv2 を�
 {
     const s = game("reveal-nexus")
     resolveAction(s, "p1", null, { type: "revealApplyOne", cardId: GATE, srcPid: "p1", dest: "placeNexus" })
-    askLv(s, "Lv2（コア2個）")
+    askLv(s, "コア2個（Lv2）")
     const n = s.players.p1.field.nexuses.find((x) => x.cardId === GATE)
     assert(n?.cores === 2 && s.players.p1.reserve === 8, `コア2個・リザーブ10→8（${n?.cores}・${s.players.p1.reserve}）`)
 }
@@ -77,7 +77,7 @@ console.log("=== 4. ミノガメン（無償召喚）：Lv2 を選ぶとコア3�
     const s = game("mill")
     s.players.p1.trashCards = [BELD]
     applySpiritMillFreeSummon(s, { pid: "p1", cardId: BELD, trashIndex: 0 })
-    askLv(s, "Lv2（コア3個）")
+    askLv(s, "コア3個（Lv2）")
     assert(spiritOf(s, BELD)?.cores === 3 && s.players.p1.reserve === 7, `コア3個・リザーブ10→7（${spiritOf(s, BELD)?.cores}・${s.players.p1.reserve}）`)
     assert(!s.players.p1.trashCards.includes(BELD), "トラッシュから消える")
 }
@@ -91,7 +91,7 @@ console.log("=== 5. フィールドのコアで払う配置：コストは自動
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, { type: "moveCards", from: "trash", count: 1, dest: "placeNexus", pay: "fieldCoresOnly", pick: { cardType: "nexus" } })
     for (let i = 0; i < 3 && s.pendingChoice && (s.pendingChoice as any).kind === "card"; i++) act(s, "p1", { type: "resolveChoice", cardIndex: (s.pendingChoice as any).cardIndices[0] })
-    askLv(s, "Lv2（コア2個）")
+    askLv(s, "コア2個（Lv2）")
     const n = s.players.p1.field.nexuses.find((x) => x.cardId === GATE)
     assert(n?.cores === 2, `コア2個で置かれる（${n?.cores}）`)
     assert(host.cores === 6 - getCard(GATE).cost, `コストはフィールドのコアから払う（${host.cores}）`)
@@ -104,7 +104,7 @@ console.log("=== 6. バーストの召喚：Lv2 を選ぶとコア3個で出る 
     s.players.p1.burst = BELD
     s.players.p1.burstSet = true
     resolveAction(s, "p1", null, { type: "summon", from: "burst" })
-    askLv(s, "Lv2（コア3個）")
+    askLv(s, "コア3個（Lv2）")
     assert(spiritOf(s, BELD)?.cores === 3 && s.players.p1.burst === null, `コア3個で出て、バーストエリアは空（${spiritOf(s, BELD)?.cores}）`)
     assert(s.players.p1.reserve === 7, `リザーブは10→7（${s.players.p1.reserve}）`)
 }
@@ -114,9 +114,9 @@ console.log("=== 7. ネクサスの一括配置（all）：1枚ずつ Lv を聞�
     const s = game("deploy-all")
     s.players.p1.trashCards = [GATE, GATE]
     resolveAction(s, "p1", null, { type: "deployNexus", from: "trash", all: true })
-    askLv(s, "Lv2（コア2個）")
+    askLv(s, "コア2個（Lv2）")
     assert(s.players.p1.field.nexuses.length === 1 && s.pendingChoice !== null, "1枚目の Lv を答えたあと、2枚目の Lv を聞かれる")
-    askLv(s, "Lv1（コア0個）")
+    askLv(s, "コア0個（Lv1）")
     const cores = s.players.p1.field.nexuses.map((n) => n.cores).sort()
     assert(s.players.p1.field.nexuses.length === 2 && JSON.stringify(cores) === "[0,2]", `2枚が別の Lv で置かれる（${JSON.stringify(cores)}）`)
     assert(s.pendingChoice === null && s.players.p1.trashCards.length === 0, "待ちは残らず、トラッシュは空")
@@ -131,9 +131,9 @@ console.log("=== 8. 同時召喚：1体ずつ Lv を聞き、全員分が決ま�
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
     act(s, "p1", { type: "resolveChoice", cardIndex: 1 })
     act(s, "p1", { type: "resolveChoice" })
-    askLv(s, "Lv2（コア3個）")
+    askLv(s, "コア3個（Lv2）")
     assert(s.players.p1.field.spirits.length === 0 && s.players.p1.reserve === 20, "全員の Lv が決まるまで、払いも召喚も始まらない")
-    askLv(s, "Lv1（コア1個）")
+    askLv(s, "コア1個（Lv1）")
     for (let i = 0; i < 3 && s.pendingChoice; i++) act(s, "p1", { type: "resolveChoice", option: (s.pendingChoice as any).options?.[0] ?? "支払う" })
     const cores = s.players.p1.field.spirits.filter((x) => x.cardId === BELD).map((x) => x.cores).sort()
     assert(JSON.stringify(cores) === "[1,3]", `2体が別の Lv（コア3個と1個）で出る（${JSON.stringify(cores)}）`)
@@ -147,7 +147,7 @@ console.log("=== 9. ボイドの通行料つき：通行料を除いて Lv が�
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, { type: "revealApplyOne", cardId: CANNON, srcPid: "p1", dest: "summon" })
     // 通行料1＋Lv2の3コア＝4 ≤ 5。通行料を引かずに数えると Lv2 が出ない／足りないのに出る、のどちらかになる
-    askLv(s, "Lv2（コア3個）")
+    askLv(s, "コア3個（Lv2）")
     assert(spiritOf(s, CANNON)?.cores === 3, `コア3個で出る（${spiritOf(s, CANNON)?.cores}）`)
     assert(s.players.p1.reserve === 1, `リザーブは5→1（通行料1＋置く3。${s.players.p1.reserve}）`)
 }
@@ -156,8 +156,10 @@ console.log("=== 9. ボイドの通行料つき：通行料を除いて Lv が�
     s.players.p2.field.spirits.push(createInstance(IMP, 1, 1))
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, { type: "revealApplyOne", cardId: CANNON, srcPid: "p1", dest: "summon" })
-    // リザーブ3：通行料1＋Lv2の3コア＝4 は足りない。Lv1（通行料1＋1）だけなので待ちは立たず、そのまま出る
-    assert(s.pendingChoice === null && spiritOf(s, CANNON)?.cores === 1 && s.players.p1.reserve === 1, `足りない Lv は選べず Lv1 で出る（${spiritOf(s, CANNON)?.cores}・${s.players.p1.reserve}）`)
+    // リザーブ3：通行料1＋Lv2の3コア＝4 は足りない。置けるのは1〜2個（どちらも Lv1）
+    assert(JSON.stringify(s.pendingChoice?.options) === JSON.stringify(["コア1個（Lv1）", "コア2個（Lv1）"]), `足りない Lv は選べない（${JSON.stringify(s.pendingChoice?.options)}）`)
+    askLv(s, "コア2個（Lv1）")
+    assert(spiritOf(s, CANNON)?.cores === 2 && s.players.p1.reserve === 0, `コア2個で出る（${spiritOf(s, CANNON)?.cores}・${s.players.p1.reserve}）`)
 }
 
 console.log("すべてのチェックに合格しました 🎉（part893）")

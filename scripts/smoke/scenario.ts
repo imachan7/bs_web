@@ -201,7 +201,7 @@ function runOnce(spec: ScenarioSpec, me: PlayerId): void {
             const err = act(s, pidOf(side), action)
             assert(err === null, `${tag} ${sideName(side)}の ${action.type} が通る${err === null ? "" : `（拒否: ${err}）`}`)
             // 効果召喚の「置くコアの数（Lv）」の待ちは、場面の本題ではないので Lv1 で自動的に答える
-            while (err === null && !spec.start.manualCoreLevel && s.pendingChoice?.kind === "option" && s.pendingChoice.options?.[0]?.startsWith("Lv")) {
+            while (err === null && !spec.start.manualCoreLevel && s.pendingChoice?.kind === "option" && s.pendingChoice.options?.[0]?.startsWith("コア")) {
                 const e2 = act(s, s.pendingChoice.pid, { type: "resolveChoice", option: s.pendingChoice.options[0] })
                 assert(e2 === null, `${tag} 置くコアの数（Lv）に答える${e2 === null ? "" : `（拒否: ${e2}）`}`)
             }

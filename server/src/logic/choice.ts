@@ -363,7 +363,7 @@ function resolveChoiceInner(
         if (info.need > 0) log(state, info.surcharge ? `${state.players[info.pid].name}：転召の祭壇により${info.need}コスト余分に支払った。` : `${getCard(info.sourceCardId).name}：${info.need}コストを支払った。`)
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         const resume = placeCores === undefined ? pending.action : ({ ...pending.action, placeCores } as typeof pending.action)
-        resolveAction(state, pending.actorPid ?? pending.pid, self, resume, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, resume, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

@@ -1,5 +1,5 @@
 // smoke パート620（BS17 白：期待値役が効果文だけから書いた場面テスト）
-import { act, assert, createGame, createInstance, effectiveBp, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { act, answerCoreLevel, assert, createGame, createInstance, effectiveBp, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { scenario } from "./scenario"
 import type { ScenarioCtx, ScenarioSpec, Side } from "./scenario"
@@ -395,6 +395,7 @@ both("034 自分のアタックステップ開始時", (me, opp, s) => {
     if (s.pendingChoice!.kind === "option") answerYes(s, me)
     if (s.pendingChoice !== null && s.pendingChoice.kind === "card") ok(act(s, me, { type: "resolveChoice", cardIndex: 0 }), "ブレイヴを選ぶ")
     if (s.pendingChoice !== null && s.pendingChoice.kind === "target") ok(act(s, me, { type: "resolveChoice" }), "合体させず単体で召喚する") // 合体先の選択は任意（選ばなければ単体で召喚）
+    answerCoreLevel(s, me)
     assert(!s.players[me].hand.includes(BRAVE_B), "ブレイヴが手札から出た")
     assert(s.players[me].reserve >= reserve - 1, "召喚コストは支払わない（置くコア以外は減らない）")
     assert(s.players[me].trashCores === 0, "コストのコアはトラッシュへ行かない")
@@ -609,6 +610,7 @@ function oseBurst(name: string, accept: boolean, destroyedByOpp: boolean): void 
             return
         }
         answerYes(s, me)
+        answerCoreLevel(s, me)
         assert(s.players[me].burst === null, "バーストが消費された")
         assert(s.players[me].field.spirits.some((x) => x.cardId === OSE) || s.players[me].field.combinedBraves.some((x) => x.cardId === OSE), "ブレイヴカードが召喚された")
         // このターンの間、自分のスピリットすべては相手のスピリットの効果を受けない（後から出たものを含む）
@@ -805,6 +807,7 @@ function quel(name: string, o: { trashBrave: boolean; payAfter: boolean; handBra
             return
         }
         ok(act(s, me, { type: "resolveChoice", option: pc!.options?.[0] ?? "" }), "払う")
+        answerCoreLevel(s, me)
         const want = o.handBrave[0] ?? BRAVE_R // 手札にブレイヴがあればそれ、無ければトラッシュから戻した赤のブレイヴ
         const summoned = [...s.players[me].field.spirits, ...s.players[me].field.combinedBraves].some((x) => x.cardId === want)
         const hasCand = o.handBrave.length > 0 || o.trashBrave
@@ -831,6 +834,7 @@ both("080 フラッシュ：白のブレイヴを無償召喚（コストは払�
     const tc = s.players[me].trashCores
     ok(act(s, me, { type: "castMagic", handIndex: 0 }), "使用")
     if (s.pendingChoice?.kind === "card") ok(act(s, me, { type: "resolveChoice", cardIndex: 0 }), "選ぶ")
+    answerCoreLevel(s, me)
     assert(s.players[me].field.spirits.some((x) => x.cardId === BRAVE_W), "白のブレイヴが召喚された")
     assert(s.players[me].trashCores - tc === 4, "支払ったのはクヴェルドウールヴの使用コスト4だけ")
     assert(opp !== me, "")

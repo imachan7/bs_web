@@ -11,7 +11,7 @@ import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { dumpAllCoresTensho, tenshoCandidates, tenshoSelfCostBonus, tenshoSpecOf } from "../keywords/tensho"
 import { effectiveCost, summonSurcharge } from "../../../../shared/cost"
 import { fireSummonSequence } from "../summon"
-import { summonCoreOptions } from "../summonCores"
+import { summonCoreLabel, summonCoreOptions } from "../summonCores"
 
 type Repeat = Extract<EffectAction, { type: "summonBatchPaidInternal" }>
 
@@ -153,9 +153,10 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
         suspend(state, {
             pid: owner,
             kind: "option",
-            prompt: `${card.name}：置くコアの数（Lv）を選んでください`,
+            prompt: `${card.name}：置くコアの数を選んでください`,
             candidates: [],
-            options: options.map((o) => `Lv${o.level}（コア${o.cores}個）`),
+            options: options.map(summonCoreLabel),
+            stepper: true,
             optional: false,
             action: { ...action, choosing: true, chosenIdx: idx, tenshoPicks: pk, lvCores: lv, lvAsk: true },
             selfInstanceId: ctx.self ? ctx.self.instanceId : null,

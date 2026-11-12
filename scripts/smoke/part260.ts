@@ -8,6 +8,7 @@
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・コストを機械検証してから使う。
 import {
     act,
+    answerCoreLevel,
     assert,
     createGame,
     createInstance,
@@ -195,6 +196,7 @@ console.log("=== ブレイヴ召喚の合体選択：対話でスキップする
     const { s } = setupCombineTest("olympic-flag-combine-skip", true)
     assert(s.pendingChoice !== null, "合体先を選ぶ選択待ちが立つ")
     assert(act(s, "p1", { type: "resolveChoice" }) === null, "選ばずにスキップできる")
+    answerCoreLevel(s, "p1")
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === combineBraveId),
         "スキップすると単体スピリットとして召喚される",

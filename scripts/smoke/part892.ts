@@ -1,7 +1,7 @@
 // smoke パート892（効果による召喚・配置でも置くコアの数＝Lvをプレイヤーが選ぶ。2026-11-11 ユーザー決定。実装前に落ちてよい）
 // 規則：選ぶのは支払いの時点（場に出す前）。選べるのは「コスト＋置くコア」を賄えるLvだけ。
 // 支払い元はリザーブとフィールドのコア（味方を0個にして消滅させてもよい）。非対話は維持コア（Lv1）だけ置く。
-// 選択の形：pendingChoice.kind="option"・effectCostPay{need,keep,keepByOption}・options "Lv2（コア3個）"。答えは resolveChoice の option（＋paySources）。
+// 選択の形：pendingChoice.kind="option"・effectCostPay{need,keep,keepByOption}・options "コア3個（Lv2）"。答えは resolveChoice の option（＋paySources）。
 // 【不死】は無償ではなくコストを払う召喚なので「コスト＋置くコア」で数える（BS09-X36 はコスト3・軽減は紫シンボルが場に無いので0）
 import { assert, act, createGame, createInstance, getCard, handleAction, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
@@ -88,11 +88,11 @@ console.log("=== 1a. 【不死】対話：Lv1/Lv2 を選ぶ待ちが出て、Lv2
     confirmFushi(s)
     const pc: any = s.pendingChoice
     assert(pc?.kind === "option" && pc.effectCostPay?.pid === "p1", "置くコアの数（Lv）を選ぶ待ち（effectCostPay）が出る")
-    assert(JSON.stringify(pc.options) === JSON.stringify(["Lv1（コア1個）", "Lv2（コア3個）"]), `選べるのはLv1・Lv2（${JSON.stringify(pc?.options)}）`)
-    assert(JSON.stringify(pc.effectCostPay.keepByOption) === JSON.stringify([1, 3]), "keepByOption は [1, 3]")
+    assert(JSON.stringify(pc.options) === JSON.stringify(["コア1個（Lv1）", "コア2個（Lv1）", "コア3個（Lv2）", "コア4個（Lv2）"]), `Lv の境目に限らず1〜4個を選べる（2026-11-12 ユーザー指摘）（${JSON.stringify(pc?.options)}）`)
+    assert(JSON.stringify(pc.effectCostPay.keepByOption) === JSON.stringify([1, 2, 3, 4]), "keepByOption は [1, 2, 3, 4]")
     assert(pc.effectCostPay.need === 3 && pc.effectCostPay.keep === 1, "need はコスト3、keep は最小の1")
     assert(chosen(s, BELD) === undefined, "選ぶ時点ではまだ場に出ていない")
-    act(s, "p1", { type: "resolveChoice", option: "Lv2（コア3個）" })
+    act(s, "p1", { type: "resolveChoice", option: "コア3個（Lv2）" })
     settle(s)
     const b = chosen(s, BELD)
     assert(b?.cores === 3, `ベルドゴールはコア3個（Lv2）で出る（${b?.cores}）`)
@@ -106,7 +106,7 @@ console.log("=== 1b. 【不死】対話：Lv1 を選ぶとコア1個で出る（
 {
     const { s } = fushiScene("fushi-lv1", true, 6, false)
     confirmFushi(s)
-    act(s, "p1", { type: "resolveChoice", option: "Lv1（コア1個）" })
+    act(s, "p1", { type: "resolveChoice", option: "コア1個（Lv1）" })
     settle(s)
     assert(chosen(s, BELD)?.cores === 1, `コア1個で出る（${chosen(s, BELD)?.cores}）`)
     assert(chosen(s, IBAN, "p2") === undefined, "Lv1でも召喚時が発揮される")
@@ -118,8 +118,8 @@ console.log("=== 1c. 【不死】対話：リザーブが足りないとき味�
     const { s, ally } = fushiScene("fushi-field", true, 5, true)
     confirmFushi(s)
     const pc: any = s.pendingChoice
-    assert(pc?.options?.includes("Lv2（コア3個）"), "フィールドのコアを足せばLv2も選べる")
-    act(s, "p1", { type: "resolveChoice", option: "Lv2（コア3個）", paySources: [{ instanceId: ally!.instanceId, count: 1 }] })
+    assert(pc?.options?.includes("コア3個（Lv2）"), "フィールドのコアを足せばLv2も選べる")
+    act(s, "p1", { type: "resolveChoice", option: "コア3個（Lv2）", paySources: [{ instanceId: ally!.instanceId, count: 1 }] })
     settle(s)
     assert(chosen(s, BELD)?.cores === 3, `ベルドゴールはコア3個で出る（${chosen(s, BELD)?.cores}）`)
     assert(chosen(s, ROKU) === undefined && s.players.p1.trashCards.includes(ROKU), "コアを0個にされた味方は消滅してトラッシュへ")
@@ -165,8 +165,8 @@ console.log("=== 2. トラッシュから無償召喚（ヘルズバースディ
     }
     assert(pc?.effectCostPay?.pid === "p1" && pc.kind === "option", "置くコアの数を選ぶ待ちが出る")
     assert(pc?.effectCostPay?.need === 0, `無償召喚なので need は0（${pc?.effectCostPay?.need}）`)
-    assert(JSON.stringify(pc?.options) === JSON.stringify(["Lv1（コア1個）", "Lv2（コア3個）"]), `Lv1・Lv2が並ぶ（${JSON.stringify(pc?.options)}）`)
-    act(s, "p1", { type: "resolveChoice", option: "Lv2（コア3個）" })
+    assert(JSON.stringify(pc?.options) === JSON.stringify(["コア1個（Lv1）", "コア2個（Lv1）", "コア3個（Lv2）", "コア4個（Lv2）", "コア5個（Lv2）", "コア6個（Lv2）"]), `1〜6個が並ぶ（${JSON.stringify(pc?.options)}）`)
+    act(s, "p1", { type: "resolveChoice", option: "コア3個（Lv2）" })
     settle(s)
     assert(chosen(s, BELD)?.cores === 3, `コア3個で出る（${chosen(s, BELD)?.cores}）`)
     assert(!s.players.p1.trashCards.includes(BELD), "トラッシュから出ている")
@@ -189,8 +189,8 @@ console.log("=== 3. ネクサスの無償配置（ネクサスリペアー）：
         pc = s.pendingChoice
     }
     assert(pc?.effectCostPay?.pid === "p1" && pc.kind === "option", "置くコアの数を選ぶ待ちが出る")
-    assert(JSON.stringify(pc?.options) === JSON.stringify(["Lv1（コア0個）", "Lv2（コア2個）"]), `Lv1（0個）・Lv2（2個）が並ぶ（${JSON.stringify(pc?.options)}）`)
-    act(s, "p1", { type: "resolveChoice", option: "Lv2（コア2個）" })
+    assert(JSON.stringify(pc?.options) === JSON.stringify(["コア0個（Lv1）", "コア1個（Lv1）", "コア2個（Lv2）", "コア3個（Lv2）", "コア4個（Lv2）", "コア5個（Lv2）", "コア6個（Lv2）"]), `0〜6個が並ぶ（${JSON.stringify(pc?.options)}）`)
+    act(s, "p1", { type: "resolveChoice", option: "コア2個（Lv2）" })
     settle(s)
     const n = s.players.p1.field.nexuses.find((x) => x.cardId === GATE)
     assert(n?.cores === 2, `ネクサスにコア2個が置かれる（${n?.cores}）`)
