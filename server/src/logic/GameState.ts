@@ -200,17 +200,19 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
     }
 }
 
+// first＝先攻。実対戦は index.ts の startGame がランダムに決めて渡す（テストは既定の p1）
 export function createGame(
     gameId: string,
     names: Record<PlayerId, string>,
     decks: Record<PlayerId, DeckSpec>,
+    first: PlayerId = "p1",
 ): GameState {
     const state: GameState = {
         gameId,
         turn: 1,
-        turnPlayer: "p1",
+        turnPlayer: first,
         phase: "start",
-        priorityPlayer: "p1",
+        priorityPlayer: first,
         isFlashTiming: false,
         flashCount: 0,
         battle: null,

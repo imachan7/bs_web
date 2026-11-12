@@ -377,11 +377,15 @@ function startGame(room: Room): void {
     const p1 = room.players.p1
     const p2 = room.players.p2
     if (!p1 || !p2 || room.game) return
+    // 先攻はランダム（以前は先に入った側＝p1 が必ず先攻だった。2026-11-13 ユーザー要望）
+    const first: PlayerId = Math.random() < 0.5 ? "p1" : "p2"
     room.game = createGame(
         room.roomId,
         { p1: p1.name, p2: p2.name },
         { p1: p1.deck, p2: p2.deck },
+        first,
     )
+    room.game.log.push(`先攻は${room.players[first]!.name}に決まった。`)
     // 実対戦は誘発効果の対象をプレイヤーに選ばせる（smokeは既定falseのまま自動選択）。
     // AI戦でも true にする：AI 側の選択待ちは AI が自分で resolveChoice に答える
     room.game.interactiveTargets = true
