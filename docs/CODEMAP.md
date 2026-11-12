@@ -781,6 +781,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `finishBurstActivation`（fn）：発揮し終えたバーストの行き先（docs/design/BURST.md）。summon{from:"burst"} はアクション自身が場へ出すので
 - `burstEffectBlocked`（fn）：noBurstEffectForPid：効果の解決だけを飛ばす。宣言は成立済みなのでカードはトラッシュへ行き、発動後の誘発も起きる
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
+- `markSummonEffectResolved`（fn）：召喚時効果を発揮した印（効果を解決した・確認で「発動する」を押した）。入れ子のどの段でも、その発生源の分に付ける
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireEventBursts`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
 - `burstCardIgnoresEffects`（fn）：セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。
@@ -1098,6 +1099,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `startSummonBatch`（fn）：効果で複数体を同時に召喚するあいだは、召喚時効果を後回しにする（RESUME_STACK §6.2）
 - `flushSummonBatch`（fn）：全員を場に出し終えたら、それぞれの召喚時効果をターンプレイヤーが選んだ順に発揮する
 - `fireSummonSequence`（fn）
+- `finishSummonSequence`（fn）：召喚の後半。段ごとに進め、選択待ちが立ったら続きの段を積んで止まる（以前は止まらずに走り、選択の上書き・順序の逆転が起きた。#437 F5）
 - `summonFreeFromHandIndex`（fn）
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
 - `fchangeCostAs`（fn）：summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
@@ -1270,6 +1272,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `CardPick`（型）
 - `IfCond`（型）：last＝GameState.lastMoved に pick を満たすカードが1枚以上
 - `PickedTargets`（型）：複数の対象を選び終えた後の、耐性の確認の途中経過（logic/pickTargets.ts）
+- `SummonTail`（型）：召喚の後半（ブレイヴの召喚の誘発・トラッシュの同名召喚・同名で手札へ戻る・天使長ファニムの疲労）の続き。stage＝次に行う段。
 - `EffectAction`（型）
 
 ## server/src/types/effectCounter.ts

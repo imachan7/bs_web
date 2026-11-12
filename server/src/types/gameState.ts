@@ -95,7 +95,9 @@ export interface GameState {
     lastOpponentSpiritDestroyedFamilies: string[] // 直近に発火した fieldEvent "opponentSpiritDestroyed" の対象（破壊された相手のスピリット）の系統。
     // TargetFilter.sameFamilyAsDestroyed が読む（removal.ts の発火直前にセット。BS16-027コーカサス・リョフ・ビートル）
     lastOpponentSummonEffect?: { cardId: string; level: number } // opponentSummonEffectResolved の発火時に記録（replayOpponentSummonEffect が読む。召喚した個体が場を離れていても残る）
-    summonEffectSource?: { pid: PlayerId; instanceId: string; cardId?: string; level?: number; cost: number; colors: Color[]; resolved?: true } // resolved＝召喚時効果を実際に発揮した（BURST.md §10 C）
+    // 召喚時効果を発揮中のスピリット。召喚時効果の中で別のスピリットが召喚されると積み重なる（末尾が内側）。resolved＝召喚時効果を実際に発揮した（BURST.md §10 C）。
+    // 以前は1つだけ持ち、外側を退避して戻す形で、内側が選択待ちで止まると外側が消えた（#437 F4）
+    summonEffectSources?: { pid: PlayerId; instanceId: string; cardId?: string; level?: number; cost: number; colors: Color[]; resolved?: true }[]
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
     // （fireSummonTrigger が設定し、選択待ちで中断した場合は残して handleAction の事後フックがクリアする。
     // ConstraintDef.immuneToOpponentSummonEffects を isEffectBlocked が判定するために使う。BS05リトルナイト・ランスロットLv3）
