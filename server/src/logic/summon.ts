@@ -1,4 +1,5 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
+import { takeFromTrash } from "./zones/trash"
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { braveCombinableWithHost } from "../../../shared/summon"
 import { noteCoverage } from "../../../shared/coverage"
@@ -80,7 +81,7 @@ function returnTrashOnNameSummoned(state: GameState, pid: PlayerId, summoned: Ca
         const hit = card.effects.find((e) => e.kind === "trashReturnOnNameSummoned" && summonedCard.name.includes(e.nameIncludes))
         if (!hit) continue
         noteCoverage(hit, "trashReturnOnNameSummoned")
-        player.trashCards.splice(i, 1)
+        if (takeFromTrash(state, pid, i, "effect") === null) continue
         player.hand.push(cardId)
         log(state, `トラッシュの${card.name}は手札に戻った。`)
     }
@@ -391,7 +392,7 @@ export function summonFreeFromTrashIndex(
         if (askSummonCores(state, owner, card, owed, resume, owed > 0)) return
     }
     if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, resume)) return
-    player.trashCards.splice(trashIndex, 1)
+    if (takeFromTrash(state, owner, trashIndex, "effect") === null) return
     if (voidToll > 0) payVoidToll(state, owner, card)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）。無償のときは余分をここで払う
     const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts.paySources ?? summonPayPlan(state, owner, cost + maintain, opts.reserveOnly === true)?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0

@@ -1,5 +1,6 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { takeFromTrash } from "../zones/trash"
 import { requestActivationConfirm } from "../targeting"
 import { redirectMagicInUse } from "../magic/inUse"
 import { coreRemovalAllowed } from "../coreGate"
@@ -576,7 +577,7 @@ const returnLastUsedMagicToHandHandler: ActionHandler<"returnLastUsedMagicToHand
         log(state, `${sourceName}：手札に戻せるマジックがトラッシュになかった。`)
         return
     }
-    player.trashCards.splice(idx, 1)
+    if (takeFromTrash(state, owner, idx, "effect") === null) return
     player.hand.push(used.cardId)
     notifyHandGained(state, owner, 1)
     log(state, `${sourceName}：${getCard(used.cardId).name}をトラッシュから手札に戻した。`)
