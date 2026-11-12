@@ -2225,7 +2225,8 @@
      "filter": {
       "rested": true
      },
-     "count": 2
+     "count": "any",
+     "anyMax": 2
     }
    }
   ]
