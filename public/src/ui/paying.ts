@@ -104,7 +104,7 @@ export interface PayingState {
     forAttack?: { instanceId: string; need: number; targetSpiritInstanceId?: string }
     // 支払いの6つ目の起点：**【迷彩：N】のコスト**（PendingChoice.meisaiPay）。起点は指定しようとしている相手のスピリット。
     // resolveChoice（option＋paySources＋paySoulCoreFromReserve）を送る
-    forMeisai?: { option: string; cardId: string; need: number; effectCost?: true } // effectCost：効果の「Nコスト支払う」（PendingChoice.effectCostPay）。表示文言だけ違う
+    forMeisai?: { option: string; cardId: string; need: number; effectCost?: true; placing?: true } // effectCost：効果の「Nコスト支払う」（PendingChoice.effectCostPay）。表示文言だけ違う。placing：効果による召喚の置くコア（自動でも確定ボタンまで送らない）
     // 手札のマジックのバースト効果を発揮する支払い（handBurstEffectGrant）。マジックの使用ではないので castMagic ではなく useHandBurstEffect を送る
     forHandBurst?: true
     assigned: Record<string, number> // instanceId -> 割り当てたコア数

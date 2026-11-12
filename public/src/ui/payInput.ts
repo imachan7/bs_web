@@ -239,7 +239,8 @@ export function assignPayCore(instanceId: string): void {
     if (pay.forMeisai !== undefined) {
         const soulLoc = player.soulCore
         const normals = inst.cores - (soulLoc?.zone === "instance" && soulLoc.instanceId === inst.instanceId ? 1 : 0)
-        assignOneCore(pay, instanceId, normals, pay.forMeisai.need, player.reserve - (soulLoc?.zone === "reserve" ? 1 : 0))
+        // 効果による召喚の置くコアは、同じスピリットから何個でも取れるよう、確定ボタンまで送らない（後からコアを動かせない場面があるため）
+        assignOneCore(pay, instanceId, normals, pay.forMeisai.need, player.reserve - (soulLoc?.zone === "reserve" ? 1 : 0), pay.forMeisai.placing !== true)
         return
     }
     // 任意分離（BRAVE.md §6.4）は**手札が起点ではない**ので、先にここで分岐する。
@@ -300,6 +301,7 @@ export function assignOneCore(
     instCores: number,
     need: number,
     reserve: number,
+    autoSubmit = true,
 ): void {
     const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
     const already = pay.assigned[instanceId] ?? 0
@@ -307,7 +309,7 @@ export function assignOneCore(
     if (assignedTotal + (pay.soulPayInstanceId !== undefined ? 1 : 0) >= need) return
     if (already >= instCores) return // このスピリットのコアを使い切った
     pay.assigned[instanceId] = already + 1
-    if (ui.payMode === "auto" && reserve + assignedTotal + 1 + (pay.soulPayInstanceId !== undefined ? 1 : 0) >= need) {
+    if (autoSubmit && ui.payMode === "auto" && reserve + assignedTotal + 1 + (pay.soulPayInstanceId !== undefined ? 1 : 0) >= need) {
         // 必要数に達したので送信する（代替コストの選択も submitPaying が一緒に送る）
         submitPaying()
         return

@@ -1090,6 +1090,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/summonCores.ts
 
 - `summonCoreOptions`（fn）：支払い元はリザーブ（ソウルコアを除く）とフィールドの全コア（reserveOnly＝リザーブだけ。「リザーブから使用することで」）。味方を0個にして消滅させる払い方も含める（通常の…
+- `summonCoreLabel`（fn）
 - `askSummonCores`（fn）：Lv が2つ以上選べる、またはリザーブだけでは足りないとき、支払い待ち（effectCostPay）を立てて true。
 
 ## server/src/logic/summonCostRules.ts

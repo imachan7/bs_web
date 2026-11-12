@@ -467,7 +467,9 @@ export function render(view: GameView, ui: UiState): void {
         minus.disabled = value <= 0
         const readout = document.createElement("span")
         readout.className = "stepper-value"
-        readout.textContent = `${String(value)} / ${String(max)}`
+        // 数だけの選択肢は「n / 最大」、文面のある選択肢（置くコアの数など）はその文面を出す
+        const label = opts[value] ?? ""
+        readout.textContent = /^\d+$/.test(label) ? `${String(value)} / ${String(max)}` : label
         const plus = document.createElement("button")
         plus.dataset.stepper = "+"
         plus.textContent = "＋"

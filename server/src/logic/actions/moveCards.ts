@@ -382,6 +382,8 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
         type: "revealApplyOne",
         cardId,
         srcPid: zone.pid,
+        // 自分の番が来るまで公開ゾーンに残す。まとめて抜くと、前のカードの選択待ちの間どのゾーンにも無いカードができる
+        fromRevealed: true,
         dest,
         ...(action.ignoreBurstCondition ? { ignoreBurstCondition: true as const } : {}),
         ...(action.tensho !== undefined ? { tensho: action.tensho } : {}),
@@ -406,7 +408,7 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || reserve >= minLevelCores(getCard(id)) + effectiveCost(state, owner, getCard(id), false, [], false, false)
     const candidates = (): number[] => zone.cardIds.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick, undefined, ctx.sourceCardId) && payable(x.id)).map((x) => x.i)
     if (chosenCardIndex !== undefined) {
-        const [id] = zone.cardIds.splice(chosenCardIndex, 1)
+        const id = zone.cardIds[chosenCardIndex]
         if (id === undefined) return
         const left = typeof action.count === "number" ? action.count - 1 : 0
         sendAll([id], left > 0 ? { ...action, count: left, upTo: true } : undefined)
@@ -420,7 +422,6 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     }
     if (action.count === "all") {
         const ids = cands.map((i) => zone.cardIds[i]!)
-        zone.cardIds = zone.cardIds.filter((_, i) => !cands.includes(i))
         recordMoved(state, ids)
         sendAll(ids)
         return
@@ -447,14 +448,12 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     if (n >= 2) {
         const take = cands.slice(0, n)
         const ids = take.map((i) => zone.cardIds[i]!)
-        zone.cardIds = zone.cardIds.filter((_, i) => !take.includes(i))
         sendAll(ids)
         return
     }
     let best = cands[0]!
     for (const i of cands) if (getCard(zone.cardIds[i]!).cost > getCard(zone.cardIds[best]!).cost) best = i
-    const [id] = zone.cardIds.splice(best, 1)
-    sendAll([id!])
+    sendAll([zone.cardIds[best]!])
 }
 
 // ⚠️ 選び終わるまでゾーンから抜かない（インデックスで控える）。途中で抜くと「どのゾーンにも無いカード」ができ、保存則の検査に引っかかる。
