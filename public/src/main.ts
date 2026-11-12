@@ -6,7 +6,7 @@ import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbols
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
 import { braveCombineCandidates } from "../../shared/summon"
-import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, rebuildDeckSelects, rememberDeckSelection, loadChangelog } from "./ui/lobby"
+import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, rebuildDeckSelects, rememberDeckSelection, rememberLobbyInputs, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
@@ -302,6 +302,7 @@ async function init(): Promise<void> {
     setDeckRecipes(await (await fetch("/api/deck-recipes")).json())
     rebuildDeckSelects()
     rememberDeckSelection()
+    rememberLobbyInputs()
     setupEffectTooltip()
 
     // お知らせ（Gitコミット履歴）を非同期で取得・表示

@@ -10,14 +10,15 @@ import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { randomUUID } from "node:crypto"
 import { askNextPickMany } from "./revivePickMany"
-import type { CardInstance, CardType, Color, EffectAction, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
-import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, suspend } from "./GameState"
+import type { CardInstance, CardType, Color, EffectAction, EventBurstCheck, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
+import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, resolveInOrder, suspend } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
 import { getAllFamilies, resolveAction } from "./EffectModules"
 import { destroyDenial } from "./destroyGate"
 import { coreRemovalAllowed } from "./coreGate"
 
-import { fireBurstOnEvent } from "./keywords/burst"
+import { fireBurstOnEvent, fireEventBursts } from "./keywords/burst"
+import type { CollectedTrigger } from "./blockDeclared"
 import { hasGrantedTrigger, notifySpiritCoresRemovedByOpponent } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import type { FieldEventExtraItem } from "./fieldEventTriggers"
@@ -246,7 +247,7 @@ export function destroySpirit(
         state.ownSpiritDestroyedByOwnEffectColors = { ...(state.ownSpiritDestroyedByOwnEffectColors ?? {}), [ownerPid]: [...(state.ownSpiritDestroyedByOwnEffectColors?.[ownerPid] ?? []), ...instColors(inst)] }
         if (getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onDestroy")) state.ownSpiritWithOnDestroyDestroyedByOwnEffect = { ...(state.ownSpiritWithOnDestroyDestroyedByOwnEffect ?? {}), [ownerPid]: true }
     }
-    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name, ...(cause === "deplete" ? { vanish: true as const } : {}) })
+    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name, instanceId: inst.instanceId, ...(cause === "deplete" ? { vanish: true as const } : {}) })
 
     // 破壊された時点でまだバトルが生きているので、アタッカー側だったかをここで確定させる
     // （clearBattle 後には判定できない。attackerOnly の判定に使う）
@@ -438,6 +439,7 @@ function fireOwnSpiritDestroyed(
     // 色・系統は付与込み（破壊待機中でまだ場にいるので、場を離れる直前の状態を読める）
     const colors = instColors(inst)
     const families = grantedFamilies(state, ownerPid, inst)
+    const items: CollectedTrigger[] = []
     fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, colors, undefined, undefined, {
         vanilla: instIsVanilla(inst),
         vanishedByOpponent: inst.pendingVanishByOpponent === true,
@@ -454,7 +456,7 @@ function fireOwnSpiritDestroyed(
         costs: instAllCosts(inst),
         // extraSources に破壊された個体自身を渡す。effectSources はもう場にいないものを返さないため、
         // これが無いと fieldEvent の selfOnly（「このスピリットが破壊されたとき」）が無言で発火しない
-    }, [inst], extraItems, undefined, true) // skipBurst：破壊後バーストはここでは判定しない（commitPendingDestruction が積み、fireQueuedDestroyBursts がトラッシュ行き確定後に発火させる）
+    }, [inst], extraItems, undefined, true, items) // skipBurst：破壊後バーストはここでは判定しない（commitPendingDestruction が積み、fireQueuedDestroyBursts がトラッシュ行き確定後に発火させる）
     // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た相手のフィールドで発火する。手段は問わない
     // sameFamilyAsDestroyed が読む橋渡し。同時破壊なら破壊待機の全員の系統
     state.lastOpponentSpiritDestroyedFamilies = state.destroyGroup?.familiesByPid[ownerPid] ?? families
@@ -471,7 +473,20 @@ function fireOwnSpiritDestroyed(
         ...(ownEffect?.sourceInstanceId !== undefined ? { ownEffectSourceInstanceId: ownEffect.sourceInstanceId } : {}),
         families,
         costs: instAllCosts(inst),
+    }, undefined, undefined, undefined, undefined, items)
+    // 持ち主側と相手側を1つの列で、ターンプレイヤーが順番を決めて解決する（TIMING_CHART「破壊で誘発した効果は1つの列」。
+    // #437 R11B-1：以前は相手側を別に即解決し、持ち主側が選択待ちのあいだに盤面が動いた・質問が上書きされた）
+    resolveInOrder(state, items, {
+        skip: (i) => i.skip?.() === true,
+        resolve: (i) => i.run(),
+        frame: (i) => i.frame,
+        askOrder: { pid: state.turnPlayer, label: (i) => i.label, key: (i) => i.key },
     })
+    const oppBurst: EventBurstCheck = { pid: opponentOf(ownerPid), event: "opponentSpiritDestroyed", subject: { pid: ownerPid, cardId: inst.cardId }, colors, info: { destroyedBp: effectiveBp(state, ownerPid, inst), costs: instAllCosts(inst) } }
+    if (!state.winner) {
+        if (state.pendingChoice) pushResumeFrames(state, [{ kind: "eventBursts", checks: [oppBurst] }])
+        else fireEventBursts(state, [oppBurst])
+    }
     if (inst.pendingVanish !== true) returnTrashOnOwnSpiritDestroyed(state, ownerPid, master.family)
 }
 
@@ -1279,7 +1294,7 @@ export function returnNexusToHand(
     player.reserve += inst.cores
     player.hand.push(inst.cardId)
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は手札に戻った。`)
-    emitEvent(state, { type: "returnToHand", pid: ownerPid, cardName: getCard(inst.cardId).name })
+    emitEvent(state, { type: "returnToHand", pid: ownerPid, cardName: getCard(inst.cardId).name, instanceId: inst.instanceId })
     notifyHandGained(state, ownerPid, 1)
 }
 
@@ -1444,6 +1459,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
                     type: "returnToHand",
                     pid,
                     cardName: name,
+                    instanceId: inst.instanceId,
                     ...(sourceName !== undefined ? { sourceName } : {}),
                 })
             } else if (pb.to === "burst") {
@@ -1462,6 +1478,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
                     type: "returnToDeck",
                     pid,
                     cardName: name,
+                    instanceId: inst.instanceId,
                     position: top ? "top" : "bottom",
                     ...(sourceName !== undefined ? { sourceName } : {}),
                 })
