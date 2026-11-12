@@ -477,8 +477,9 @@ export function resumeTriggerBatch(
     if (groups.length >= 2) {
         const pick = state.triggerOrderPick
         if (pick === undefined) {
-            // まだ聞いていない：このバッチをそのまま積み直してから聞く
-            pushResumeFrames(state, [frame])
+            // まだ聞いていない：聞いてから、このバッチをそのまま積み直す。
+            // ⚠️ 順番を逆にしない：suspend は積む位置を先頭へ戻すので、先に積むと、あとで外側が積む続き（破壊の確定・ライフの解決など）が
+            // このバッチより前に入って追い越す（#437 R11B-2。RESUME_STACK.md §3「内側→外側」）
             suspend(state, {
                 pid: frame.askPid,
                 kind: "option",
@@ -490,6 +491,7 @@ export function resumeTriggerBatch(
                 action: { type: "noop" },
                 selfInstanceId: null,
             })
+            pushResumeFrames(state, [frame])
             return
         }
         delete state.triggerOrderPick
