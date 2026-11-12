@@ -63,6 +63,33 @@ gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
 Azure 時代の `azure-deploy.yml` は 2026-09-12 に `ci.yml` へ改名し、
 Azure へのデプロイ手順を落とした（クレジット切れで宛先が死んでいたため）。
 
+## 1.2.1 対戦中のルームを待ってから出す・状態を見る（2026-11-12）
+
+デプロイの前に、対戦中の人へ画面上部の帯でお知らせを出し、**対戦中のルームが無くなるまで最大20分待ってから**出す（空けばすぐ出す）。
+時間切れなら、お知らせを消してデプロイを止める。急ぐときは「Run workflow」の **force** にチェックを入れる（対戦中の試合は消える）。
+
+- 「対戦中」＝決着前・人間が接続中・最後の操作から10分以内のルーム（`server/src/admin.ts`）。相手待ちや放置のルームは待たない
+- 状態は `npm run status` で見る（`-- notice "文面"`／`-- notice --clear`／`-- wait 20` も使える。`scripts/status.ts`）
+- 口は `GET /api/admin/status`・`POST /api/admin/notice`。鍵を `x-admin-key` ヘッダーで渡したときだけ応答し、ほかは 404
+
+**鍵の準備（1回だけ。ルームが空いているときに行う。2〜3はリビジョンが入れ替わる）**
+
+```bash
+# 1. 鍵を作る（中身は表示しない。ユーザーと Claude はこのファイルから読む）
+openssl rand -hex 24 > ~/.config/bs_web_admin_key && chmod 600 ~/.config/bs_web_admin_key
+# 2. Secret Manager に入れ、実行用のサービスアカウントに読ませる
+gcloud secrets create bs-web-admin-key --data-file="$HOME/.config/bs_web_admin_key" --project=bs-web-imachan
+SA=$(gcloud run services describe bs-web --region asia-northeast1 --project bs-web-imachan --format='value(spec.template.spec.serviceAccountName)')
+SA=${SA:-910728969072-compute@developer.gserviceaccount.com}   # 空なら既定のサービスアカウント
+gcloud secrets add-iam-policy-binding bs-web-admin-key --project=bs-web-imachan --member="serviceAccount:$SA" --role=roles/secretmanager.secretAccessor
+# 3. Cloud Run に環境変数 ADMIN_KEY として渡す（以後の gcloud run deploy でも残る）
+gcloud run services update bs-web --region asia-northeast1 --project bs-web-imachan --update-secrets=ADMIN_KEY=bs-web-admin-key:latest
+# 4. GitHub Actions に同じ値を渡す
+gh secret set ADMIN_KEY < ~/.config/bs_web_admin_key
+```
+
+**この仕組みが入る最初のデプロイは force で出す**（それまでの本番には口が無く、待機の手順が 404 で止まるため）。
+
 ## 1.3 カスタムドメイン（2026-09-12 に設定）
 
 `bs-web-battle.app`（name.com で取得）を **Cloud Run のドメインマッピング**で繋いである。

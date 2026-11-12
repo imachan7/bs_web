@@ -342,6 +342,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `accessLogMiddleware`（fn）：Express ミドルウェア。**express.static より前に登録すること**
 - `logSocketJoin`（fn）：Socket.IO 側。HTTPのページビューは「開いただけ」を含むので、
 
+## server/src/admin.ts
+
+- `RoomStatus`（型）
+- `registerAdmin`（fn）
+
 ## server/src/ai/evaluate.ts
 
 - `scoreMove`（fn）：1手の点数。高いほど「打ちたい手」

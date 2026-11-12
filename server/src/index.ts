@@ -14,6 +14,7 @@ import { handleAction } from "./logic/GameEngine"
 import { applyDebugBoard, type DebugBoard } from "./logic/debugBoard"
 import { DECK_RECIPES } from "../../data/constants"
 import { accessLogMiddleware, logSocketJoin } from "./accessLog"
+import { registerAdmin } from "./admin"
 
 const PORT = Number(process.env.PORT ?? 3000)
 
@@ -43,6 +44,7 @@ const server = http.createServer(app)
 const io = new Server(server)
 const roomManager = new RoomManager()
 const matchQueue = new MatchQueue()
+registerAdmin(app, io, roomManager, matchQueue)
 
 // Azure App Service 等のヘルスチェック用エンドポイント
 app.get("/health", (_req, res) => {
@@ -351,6 +353,7 @@ app.post("/api/debug/setup", express.json({ limit: "256kb" }), (req, res) => {
 // AI戦のルームなら、配信のあとに AI が打てる手を打ち切るまで進める（1手ごとに再びここへ戻る）
 function broadcastState(room: Room): void {
     if (!room.game) return
+    room.lastActivityAt = Date.now()
     for (const pid of ["p1", "p2"] as const) {
         const player = room.players[pid]
         if (player?.connected) {

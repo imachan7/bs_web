@@ -15,6 +15,7 @@ export interface Room {
     players: Partial<Record<PlayerId, RoomPlayer>>
     game: GameState | null
     ai?: { pid: PlayerId } // AI戦のとき、AI が座っている席。無ければ人間同士の対戦
+    lastActivityAt?: number // 最後に盤面が配信された時刻（admin.ts が放置の判定に使う）
 }
 
 export class RoomManager {
@@ -46,6 +47,10 @@ export class RoomManager {
         }
         this.rooms.set(roomId, room)
         return { room, playerId: "p1" }
+    }
+
+    list(): Room[] {
+        return [...this.rooms.values()]
     }
 
     // 現在のルーム数を返す（ヘルスチェック用）
