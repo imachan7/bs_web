@@ -1,6 +1,7 @@
 // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに
 // 解決できるときだけ発揮する。判定を通すのはこのファイルだけの責務で、実際の解決は
 // 各typeの既存ハンドラへ resolveInOrder 経由でそのまま委譲する（sequenceと同じ frame の作り方）。
+import { markSummonEffectResolved } from "../keywords/burst"
 import { costExhaustLocked } from "../../../../shared/rules/constraints"
 import { bounceDenial } from "../bounceGate"
 import { entryActive } from "../../../../shared/rules/effectStop"
@@ -661,7 +662,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
         }
     }
     // 確認で「発動する」を押した後の不発は、発動した扱い（【相手の『召喚時』発揮後】が反応する。2026-10-03 ユーザー確認）
-    if (action.confirmed && self && state.summonEffectSource?.instanceId === self.instanceId) state.summonEffectSource.resolved = true
+    if (action.confirmed && self) markSummonEffectResolved(state, self)
     // 税（effectTax.ts）の確認文・不発ログは、税の発生源と、効果を止められるカードの名前で出す
     const unpaidLine = (reason: string): string =>
         action.tax ? `${action.tax.source}：${reason}ため、${action.tax.target}の効果を発揮できなかった。` : unpayableLine(sourceName, reason)
