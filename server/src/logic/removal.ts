@@ -985,6 +985,8 @@ export function destroyTargetsBatch(
     targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[],
     context?: DestroyContext,
     after?: Extract<ResumeFrame, { kind: "destroyBatch" }>["after"],
+    // バトルの破壊（BP比較）：破壊後バーストはここで発動せず、勝った側のバトルの誘発の後で発動する（battleResolve の step 5。#536）
+    deferBurst?: true,
 ): number {
     // 同時破壊グループ（他カードの「破壊されたとき」を1回にする単位）。入れ子の破壊に備え、
     // このバッチが始まる前の値を退避して完了時に戻す（docs/design/TIMING_CHART.md）
@@ -1008,6 +1010,7 @@ export function destroyTargetsBatch(
             ...(context ? { context } : {}),
             ...(after ? { after } : {}),
             ...(prevGroup ? { prevGroup } : {}),
+            ...(deferBurst ? { deferBurst } : {}),
         }])
         return 0
     }
@@ -1022,13 +1025,14 @@ export function destroyTargetsBatch(
             ...(context ? { context } : {}),
             ...(after ? { after } : {}),
             ...(prevGroup ? { prevGroup } : {}),
+            ...(deferBurst ? { deferBurst } : {}),
         }])
         return partial
     }
     const destroyed = finishDestroyGroup(state, context)
     restoreDestroyGroup(state, prevGroup)
     // グループの外（入れ子の破壊でなければ）に戻ったところで、破壊後バーストをまとめて発火する
-    if (!state.destroyGroup) fireQueuedDestroyBursts(state)
+    if (!state.destroyGroup && !deferBurst) fireQueuedDestroyBursts(state)
     if (state.winner) return destroyed
     if (after) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
     return destroyed
@@ -1060,7 +1064,7 @@ export function resumeDestroyBatch(
     }
     const total = finishDestroyGroup(state, frame.context)
     restoreDestroyGroup(state, frame.prevGroup)
-    if (!state.destroyGroup) fireQueuedDestroyBursts(state)
+    if (!state.destroyGroup && !frame.deferBurst) fireQueuedDestroyBursts(state)
     if (state.winner) return
     applyDestroyBatchAfter(state, frame.ownerPid, total, frame.after)
 }
