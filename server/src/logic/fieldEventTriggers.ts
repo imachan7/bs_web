@@ -584,12 +584,19 @@ export function fireFieldEventTriggers(
         (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") && selfOverride?.inst.pendingDestruction === true
             ? selfOverride.inst.instanceId
             : undefined
+    // 「疲労したとき」は、解決する時点で主語のスピリットが疲労状態でなくなっていれば発揮しない（同じ列で先に回復を解決したとき。
+    // 公式Q230「参照先がその状態でなくなったら『〜したとき』効果は発揮されない」。2026-11-14 ユーザー確認。#537）
+    const restedGuard =
+        (event === "anySpiritExhausted" || event === "ownSpiritExhausted" || event === "opponentSpiritExhaustedByOwnSpiritEffect") && selfOverride !== undefined
+            ? selfOverride.inst.instanceId
+            : undefined
     const handlers: Parameters<typeof resolveInOrder<PoolItem>>[2] = {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) =>
             (e.extra === undefined && !isVirtualSource(e.inst) && !extraSources?.some((x) => x.instanceId === e.inst.instanceId) && !isStillOnField(state, pid, e.inst.instanceId)) ||
             (e.extra === undefined && destroyGuard !== undefined && findInstanceAnywhere(state, destroyGuard)?.pendingDestruction !== true) ||
+            (e.extra === undefined && restedGuard !== undefined && findInstanceAnywhere(state, restedGuard)?.isRested !== true) ||
             (e.extra === undefined && !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id })),
         resolve: (e) => {
             if (e.extra !== undefined) {
@@ -650,6 +657,7 @@ export function fireFieldEventTriggers(
                 levelRecheck: { instanceId: e.inst.instanceId, effectId: e.effect.id },
                 ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
                 ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
+                ...(restedGuard !== undefined ? { requiresRestedOf: restedGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
                 ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
