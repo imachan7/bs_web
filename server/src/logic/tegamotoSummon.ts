@@ -13,7 +13,7 @@ export function doSummonFromTegamoto(state: GameState, pid: PlayerId, action: Ex
     player.tegamoto.splice(action.handIndex, 1)
     player.tegamotoPlayable.splice(playableIdx, 1)
     player.hand.push(cardId)
-    const error = doSummon(state, pid, player.hand.length - 1, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices, action.payOffInstanceId)
+    const error = doSummon(state, pid, player.hand.length - 1, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices, action.payOffInstanceId, true)
     const asking = error === null ? state.pendingChoice?.sokuFreeChoice : undefined
     if (error !== null || asking !== undefined) {
         player.hand.pop()
