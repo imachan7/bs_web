@@ -413,7 +413,7 @@ function tryMatch(): void {
         pair.forEach((entry, i) => {
             const socket = sockets[i]
             if (!socket) return
-            const result = roomManager.join(roomId, entry.socketId, entry.name, entry.deck)
+            const result = roomManager.join(roomId, entry.socketId, entry.name, entry.deck, entry.playerRef)
             if (!("room" in result)) return
             socket.join(roomId)
             socket.emit("matchFound", { roomId })
@@ -432,6 +432,9 @@ function tryMatch(): void {
 // クライアントは次の操作で黙って再接続する（ロビーの状態はクライアントにしか無いので失うものは無い）
 const IDLE_DISCONNECT_MS = Number(process.env.IDLE_DISCONNECT_MS ?? 15 * 60 * 1000)
 const idleSince = new Map<string, number>()
+const ROOM_IDLE_MS = Number(process.env.ROOM_IDLE_MS ?? 20 * 60 * 1000)
+// 人間が全員切れた対局を残しておく時間。全員が切れるとインスタンス自体が15分ほどで止まり部屋ごと消えるので、それより長くしても意味がない
+const RESUME_GRACE_MS = Number(process.env.RESUME_GRACE_MS ?? 15 * 60 * 1000)
 
 // 待機列に並んでいる・ルームで相手を待っている・決着前で相手も接続中の対局、のどれかなら対戦中
 function isPlaying(socketId: string): boolean {
@@ -455,10 +458,38 @@ setInterval(() => {
         if (since === undefined) idleSince.set(socket.id, now)
         else if (now - since >= IDLE_DISCONNECT_MS) socket.disconnect(true)
     }
+    // 決着前のまま誰も操作しない対局は、接続を切って課金を止める（2026-11-13 ユーザー決定：20分）。
+    // 席は残るので、戻ってきて操作すればクライアントが繋ぎ直して続きから遊べる
+    for (const room of roomManager.list()) {
+        if (!room.game || room.game.winner || now - (room.lastActivityAt ?? now) < ROOM_IDLE_MS) continue
+        for (const pid of ["p1", "p2"] as const) {
+            const player = room.players[pid]
+            if (!player?.connected || player.isAi) continue
+            io.to(player.socketId).emit("errorMessage", "しばらく操作が無かったため接続を切りました。画面を操作すると続きから再開します")
+            io.sockets.sockets.get(player.socketId)?.disconnect(true)
+        }
+    }
+    roomManager.sweepAbandoned(now, RESUME_GRACE_MS)
 }, Math.min(60_000, IDLE_DISCONNECT_MS)).unref()
 
 io.on("connection", (socket: Socket) => {
     socket.on("disconnect", () => idleSince.delete(socket.id))
+    const givenRef: unknown = socket.handshake.auth?.["playerRef"]
+    const playerRef = typeof givenRef === "string" && givenRef.length >= 16 && givenRef.length <= 64 ? givenRef : undefined
+
+    // 接続が切れて繋ぎ直したクライアントが、決着前の対局の席に戻る
+    socket.on("resume", () => {
+        const found = playerRef === undefined ? null : roomManager.resume(playerRef, socket.id)
+        if (!found) {
+            socket.emit("resumeFailed")
+            return
+        }
+        if (found.replaced) io.sockets.sockets.get(found.replaced)?.disconnect(true)
+        socket.join(found.room.roomId)
+        const other = found.room.players[found.playerId === "p1" ? "p2" : "p1"]
+        if (other?.connected && !other.isAi) io.to(other.socketId).emit("opponentBack")
+        broadcastState(found.room)
+    })
     socket.on(
         "join",
         (payload: {
@@ -482,7 +513,7 @@ io.on("connection", (socket: Socket) => {
             }
             const deckSpec: DeckSpec = resolved.deck
 
-            const result = roomManager.join(roomId, socket.id, name, deckSpec)
+            const result = roomManager.join(roomId, socket.id, name, deckSpec, playerRef)
             if ("error" in result) {
                 socket.emit("errorMessage", result.error)
                 return
@@ -540,7 +571,7 @@ io.on("connection", (socket: Socket) => {
                 socket.handshake.address,
                 "（ランダムマッチ）",
             )
-            matchQueue.add({ socketId: socket.id, name, deck: resolved.deck })
+            matchQueue.add({ socketId: socket.id, name, deck: resolved.deck, ...(playerRef !== undefined && { playerRef }) })
             socket.emit("matchQueued", { waiting: matchQueue.size })
             broadcastQueueSize()
             tryMatch()
@@ -599,6 +630,7 @@ io.on("connection", (socket: Socket) => {
                 mine.deck,
                 aiName,
                 theirs.deck,
+                playerRef,
             )
             socket.join(room.roomId)
             socket.emit("joined", { playerId, roomId: room.roomId })
