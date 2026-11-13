@@ -8,7 +8,6 @@ import { millDeck } from "./zones/mill"
 import { kyokaBonus } from "./keywords/kyoka"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
-import { randomUUID } from "node:crypto"
 import { askNextPickMany } from "./revivePickMany"
 import type { CardInstance, CardType, Color, EffectAction, EventBurstCheck, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, resolveInOrder, suspend } from "./GameState"
@@ -998,7 +997,7 @@ export function destroyTargetsBatch(
         familiesByPid[t.pid] = [...new Set([...(familiesByPid[t.pid] ?? []), ...grantedFamilies(state, t.pid, inst)])]
     }
     // 「破壊した数」はバッチを始めた効果の枠に書く（まとめての確定は中断明けに走ることがあり、そのときの recordScope は別の効果のもの）
-    state.destroyGroup = { id: randomUUID(), memberIds: targets.map((t) => t.instanceId), used: [], familiesByPid, recordScope: currentRecordScope(state) }
+    state.destroyGroup = { id: crypto.randomUUID(), memberIds: targets.map((t) => t.instanceId), used: [], familiesByPid, recordScope: currentRecordScope(state) }
     if (askNextPickMany(state, targets, context)) {
         pushResumeFrames(state, [{
             kind: "destroyBatch",
