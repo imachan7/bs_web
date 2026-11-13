@@ -1394,6 +1394,7 @@
     "subjectFilter": {
      "maxBp": 6000
     },
+    "selfMode": "source",
     "action": {
      "type": "exhaust",
      "count": 1,
