@@ -4,7 +4,7 @@
 //   - 「『アタック時』効果は発揮されない」は印刷された見出しで照合する：書き換えで発揮する『ブロック時』効果は止めない（Q24751）。
 //     『アタック時』の結果連動型は止める
 //   - 『アタック時』の結果連動型は、ブロックして勝っても発揮しない（旧 battleRole を見出しで置き換え）
-import { assert, createGame, createInstance, effectiveBp, getCard, resolveAction, timedHas } from "./helpers"
+import { act, assert, createGame, createInstance, effectiveBp, getCard, resolveAction, runTurnStart, timedHas } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { attachBrave, fireTrigger } from "../../server/src/logic/EffectModules"
 import { currentLevel } from "../../shared/rules"
@@ -13,6 +13,7 @@ const HATI = "BS03-045" // 銀狐ハティ：『このスピリットのブロ�
 const SCOUT = "BS01-004" // ドラグノ偵察兵：『このスピリットのアタック時』BP+2000
 const SHARK = "BS10-072" // セイバーシャーク：【合体時】『ブロック時』BPを比べ相手のスピリットだけを破壊したとき、相手のライフ1個をリザーブへ
 const CONDOR = "BS04-025" // ファル・コンドル：『アタック時』BPを比べ破壊したとき、ボイドからリザーブへコア1個
+const GORADON = "BS01-001" // ゴラドン：BP1000 のバニラ
 const SNAKE = "SD01-012" // 双頭ヘビ：Lv2『アタック時』BPを比べ破壊したとき、1枚ドロー
 
 console.log("=== 前提: カードの機械確認 ===")
@@ -22,6 +23,7 @@ console.log("=== 前提: カードの機械確認 ===")
     assert(getCard(SHARK).name === "セイバーシャーク" && getCard(SHARK).type === "brave", "SHARK はセイバーシャーク")
     assert(getCard(CONDOR).name === "ファル・コンドル", "CONDOR はファル・コンドル")
     assert(getCard(SNAKE).name === "双頭ヘビ", "SNAKE は双頭ヘビ")
+    assert(getCard(GORADON).name === "ゴラドン", "GORADON はゴラドン")
 }
 
 function game(seed: string): GameState {
@@ -44,7 +46,7 @@ const put = (s: GameState, pid: PlayerId, cardId: string, cores = 1) => {
 }
 // all＝アタックシフトの形（両陣営すべて）。それ以外は指定した1体：triggerSwap は自分のスピリット（マクラーンスラッシュの形）、
 // suppressTrigger は相手（p2）が p1 のスピリットに掛ける（月光姫マーニの形）
-type C = { type: "triggerSwap"; from: "onBlock" } | { type: "suppressTrigger"; trigger: "onAttack" }
+type C = { type: "triggerSwap"; from: "onBlock" | "onAttack" } | { type: "suppressTrigger"; trigger: "onAttack" }
 const timed = (s: GameState, targetId: string, c: C, all = false): void => {
     const actor: PlayerId = c.type === "suppressTrigger" ? "p2" : "p1"
     const action = all ? { type: "timedEffect", content: [c], duration: "turn", side: "both", all: true } : { type: "timedEffect", content: [c], duration: "turn", count: 1, ...(actor === "p1" ? { side: "own" } : {}) }
@@ -124,6 +126,50 @@ console.log("=== 『アタック時』の結果連動型は、ブロックして
     assert(s.players.p1.hand.length === hand, "ブロックして勝ってもドローしない")
     fireTrigger(s, "p1", snake, "onBattleWin", "attacker")
     assert(s.players.p1.hand.length === hand + 1, "アタックして勝てばドローする")
+}
+
+console.log("=== セイバーシャーク：実際のバトルの流れ（アタック→ブロック→BP比較）でも、書き換え後はアタック側で発揮する（Q20008） ===")
+for (const swap of [false, true]) {
+    const s = createGame(`t929-shark-flow-${swap}`, { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "red" })
+    runTurnStart(s)
+    const hati = createInstance(HATI, s.turn, 1)
+    s.players.p1.field.spirits.push(hati)
+    attachBrave(s, "p1", hati, createInstance(SHARK, s.turn, 0))
+    const goradon = createInstance(GORADON, s.turn, 1)
+    s.players.p2.field.spirits.push(goradon)
+    if (swap) timed(s, hati.instanceId, { type: "triggerSwap", from: "onBlock" })
+    const life = s.players.p2.life
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: hati.instanceId }) === null, "ハティでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
+    assert(act(s, "p2", { type: "block", instanceId: goradon.instanceId }) === null, "ゴラドンでブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
+    assert(!s.players.p2.field.spirits.some((sp) => sp.instanceId === goradon.instanceId), "テスト前提: ゴラドンだけが破壊される")
+    assert(s.players.p2.life === life - (swap ? 1 : 0), swap ? "書き換え後は相手のライフが1減る" : "書き換えが無ければライフは減らない（ブロックされている）")
+}
+
+console.log("=== 逆向き（ブレイブチャージの形）：『アタック時』の結果連動型は、ブロックして勝ったときにも発揮する ===")
+{
+    const s = game("t929-condor-reverse")
+    const condor = put(s, "p1", CONDOR)
+    const reserve = s.players.p1.reserve
+    fireTrigger(s, "p1", condor, "onBattleWin", "blocker")
+    assert(s.players.p1.reserve === reserve, "対照：書き換えが無ければ、ブロックして勝っても増えない")
+    timed(s, condor.instanceId, { type: "triggerSwap", from: "onAttack" })
+    fireTrigger(s, "p1", condor, "onBattleWin", "blocker")
+    assert(s.players.p1.reserve === reserve + 1, "書き換え後は、ブロックして勝ったときにも増える")
+}
+
+console.log("=== 海の主の大口（コアを置かなかったアタッカーの『アタック時』効果を止める）も、『アタック時』の結果連動型を止める ===")
+{
+    const s = game("t929-toll")
+    const condor = put(s, "p1", CONDOR)
+    s.battle = { attackerInstanceId: condor.instanceId, attackEffectsSuppressed: true } as never
+    const reserve = s.players.p1.reserve
+    fireTrigger(s, "p1", condor, "onBattleWin", "attacker")
+    assert(s.players.p1.reserve === reserve, "コアが増えない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part929）")

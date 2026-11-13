@@ -2,12 +2,12 @@
 // 収録セクション:
 //   - BS04-002 カメレウィップ：Lv1 cantBlock（制約） / Lv2 selfBuff（アタック時BP+1000）
 //   - BS04-006 骸竜ゾン・サウル：e1オーラ（自分のアタックステップ中のみ紫スピリット+1000）/ e2 destroyExhausted（Lv3アタック時）
-//   - BS04-016 堕天使アゼル：バトル勝利時（battleRole:attacker）に天霊のスピリット数ぶんドロー（drawPer/ownFamily）
+//   - BS04-016 堕天使アゼル：バトル勝利時（heading:attack）に天霊のスピリット数ぶんドロー（drawPer/ownFamily）
 //   - BS04-078 魔影街：Lv2のみ exhaustOnManualCoreAdd が発揮される（Lv1では発揮されない）
 //   - BS04-095 ヴェノムショット：フラッシュ効果BP+1000（メインのcoreRemove dest:voidはpart44で検証。
 //     BS04エンジン拡張バッチ2でメイン行も構造化されたため、バトル外キャストはメイン効果を優先する
 //     ようになった。ここではバトル中のフラッシュ優先権下でキャストしてflash効果を検証する）
-//   - BS04-X14 魔界七将パンデミウム：battleRole省略のためブロッカー勝利でもドロー1枚（onBattle）
+//   - BS04-X14 魔界七将パンデミウム：heading なしのためブロッカー勝利でもドロー1枚（onBattle）
 import { assert, act, takeLifeAndResolve, createGame, createInstance, effectiveBp, runTurnStart, bpBuffOf } from "./helpers"
 
 console.log("=== BS04-002 カメレウィップ: Lv1 cantBlock（制約） / Lv2 selfBuff（アタック時BP+1000） ===")

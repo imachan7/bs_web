@@ -1,6 +1,6 @@
 // smoke パート3（scripts/smoke.ts から機械分割）
 // 収録セクション:
-//   - battleRole: onBattleの役割限定（キングタウロス大公）
+//   - heading: onBattleの役割限定（キングタウロス大公）
 //   - battleWon: ネクサスのバトル結果誘発（無限蟲の蟻塚）
 //   - battleWon: 古龍の縄張り（アタッカー勝利でドロー）
 //   - 制約：必ずアタック（mustAttack、ウィル・オーブ）
@@ -43,7 +43,7 @@ import {
     runTurnStart, bpBuffOf } from "./helpers"
 import type { GameState } from "./helpers"
 
-console.log("=== battleRole: onBattleの役割限定（キングタウロス大公） ===")
+console.log("=== heading: onBattleの役割限定（キングタウロス大公） ===")
 {
     const s = createGame(
         "battlerole-attacker-test",
@@ -68,7 +68,7 @@ console.log("=== battleRole: onBattleの役割限定（キングタウロス大�
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
 
-    assert(s.players.p2.life === p2LifeBefore - 1, "battleRole=attackerで勝利：相手のライフが1減る（lifeCrush）")
+    assert(s.players.p2.life === p2LifeBefore - 1, "heading=attackで勝利：相手のライフが1減る（lifeCrush）")
     // +1はlifeCrushで移ったライフのコア、+1は破壊されたゴラドン自身が持っていたコア（1個）がリザーブへ戻る分
     assert(s.players.p2.reserve === p2ReserveBefore + 2, "減ったライフのコア＋破壊されたゴラドンのコアが相手のリザーブへ移る")
 
@@ -96,7 +96,7 @@ console.log("=== battleRole: onBattleの役割限定（キングタウロス大�
 
     assert(
         s2.players.p2.life === 5,
-        "battleRole=attacker指定のため、ブロッカーとして勝利しても発火しない（相手ライフ不変）",
+        "heading=attack指定のため、ブロッカーとして勝利しても発火しない（相手ライフ不変）",
     )
 }
 
