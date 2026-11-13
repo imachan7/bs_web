@@ -8,7 +8,7 @@ import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { entryActive } from "./rules/effectStop"
-import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, flexibleSymbolUnits, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
+import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, instanceSymbolColors, flexibleSymbolUnits, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -484,10 +484,11 @@ export function ownFieldSymbolColors(board: Board, pid: PlayerId, symbolAs?: { f
     const colors = new Set<Color>()
     const all = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
     for (const inst of all) {
-        // countSymbols と同じ規則で数える（2026-08-20 に揃えた）:
-        // 待機状態も数える／symbolFix で固定されたシンボルを優先する／
+        // countSymbols と同じ規則で数える（同じ symbolsOf を通す。#508）:
+        // 待機状態も数える／色とシンボルを無いものとして扱う個体は飛ばす／固定・合体ブレイヴ・追加・失うを反映する／
         // 「◯色としても扱う」で得た色は、そのシンボルの色としても数える（元の色も残る）
-        const symbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
+        if (inst.colorlessThisBattle) continue
+        const symbols = instanceSymbolColors(inst)
         if (symbols.length === 0) continue
         for (const sym of symbols) colors.add(sym)
         if (symbolAs && matchesFamilyFilter(board, pid, inst, symbolAs.family)) colors.add(symbolAs.color)
