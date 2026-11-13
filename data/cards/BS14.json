@@ -6936,11 +6936,8 @@
      "type": "timedEffect",
      "content": [
       {
-       "type": "playerRule",
-       "rule": {
-        "type": "cantUseHandCardsForPid",
-        "cardType": "magic"
-       }
+       "type": "battleLock",
+       "lock": "magic"
       }
      ],
      "duration": "turn"
