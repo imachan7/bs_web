@@ -8,7 +8,7 @@ import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { entryActive } from "./rules/effectStop"
-import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, instanceSymbolColors, flexibleSymbolUnits, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
+import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, grantedColorsOf, instanceSymbolColors, flexibleSymbolUnits, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -492,8 +492,7 @@ export function ownFieldSymbolColors(board: Board, pid: PlayerId, symbolAs?: { f
         if (symbols.length === 0) continue
         for (const sym of symbols) colors.add(sym)
         if (symbolAs && matchesFamilyFilter(board, pid, inst, symbolAs.family)) colors.add(symbolAs.color)
-        for (const c of inst.timedColors) colors.add(c)
-        for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
+        for (const c of grantedColorsOf(inst)) colors.add(c)
     }
     return colors
 }

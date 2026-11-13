@@ -314,6 +314,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## shared/rules/symbols.ts
 
+- `grantedColorsOf`（fn）：「◯色としても扱う」で与えられた色（期間つき・継続・合体中のブレイヴに与えられた色）。
 - `instanceSymbolColors`（fn）：画面に出すシンボルの色の列（効果の増減・合体を含む今の値）。ダブルハートの追加は持っている色で埋める
 - `instanceSymbolUnits`（fn）：画面用：シンボル1つずつを「数えられる色の集合」で返す。「◯色としても扱う」を持つ個体のシンボルは
 - `combinedSpiritSymbolColors`（fn）：合体スピリット全体のシンボルの色（BS21_PLAN §3 の N7）。instanceSymbolColors は braveComposite の

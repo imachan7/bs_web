@@ -76,7 +76,7 @@ console.log("=== 1. opponentFieldColorCount：色の種類数 ===")
 
     const s4 = game("p330-colorcount-brave")
     const host = putSpirit(s4, "p2", "T330-RED-A")
-    host.braveComposite = { cost: 0, colors: ["blue"], symbols: [] }
+    host.braveComposite = { cost: 0, colors: ["blue"], symbols: [], grantedColors: [] }
     assert(opponentFieldColorCount(s4, "p1") === 2, "合体中ブレイヴの色（青）も足される（赤+青=2色）")
 
     const s5 = game("p330-colorcount-colorless")
