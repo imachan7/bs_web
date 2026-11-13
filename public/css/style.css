@@ -1263,9 +1263,10 @@ button:active {
     width: 76px;
     height: 76px;
     border-radius: 6px;
+    /* 縁はそのスピリットの今の色（--frame。多色は左右に等分。fieldCard.ts の splitGradient） */
     background: linear-gradient(#2a2e39, #2a2e39) padding-box,
-                linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
-    border: 2px solid transparent;
+                var(--frame, linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333))) border-box;
+    border: 3px solid transparent;
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     margin-right: 22px; /* ボタンが右にはみ出す分の余白 */
 }
@@ -1344,6 +1345,11 @@ button:active {
     border: none;
 }
 
+/* どれか1色として数えるシンボル：色ごとの画像を重ね、clip-path で縦に等分して見せる */
+.sym-icon.sym-either { overflow: hidden; }
+.sym-icon.sym-either > .sym-icon { position: absolute; inset: 0; width: 100%; height: 100%; box-shadow: none; }
+/* 境目の白線（2色のときだけ。3色以上は線を引かず等分のまま） */
+.sym-icon.sym-either.two::after { content: ''; position: absolute; top: 0; bottom: 0; left: calc(50% - 0.5px); width: 1px; background: rgba(255, 255, 255, 0.9); }
 .sym-icon.bg-red { background-image: url('/imgs/symbols/red_symbol.png'); }
 .sym-icon.bg-purple { background-image: url('/imgs/symbols/violet_symbol.png'); }
 .sym-icon.bg-green { background-image: url('/imgs/symbols/green_symbol.png'); }
