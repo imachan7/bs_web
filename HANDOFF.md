@@ -34,13 +34,6 @@
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：プロボケイションと `moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
-### 進行中：効果の見出しをタグにする（#505 を含む。2026-11-13 確定）
-
-- **タグ**：誘発エントリに `heading?: "attack" | "block" | "attackOrBlock"`（`effectDefTrigger.ts`）。印刷された見出し（『このスピリットのアタック時』『ブロック時』『アタック/ブロック時』）。onAttack／onBlock は trigger から導くので書かない。結果連動型（onBattleWin・onBlocked・onLifeDealt 等）だけに書く。**`battleRole` はタグに吸収して消す**（attack＝アタック側、block＝ブロック側）
-- **共有関数** `shared/rules/effectHeading.ts`：`printedSides`／`printedTrigger`＝印刷の見出し、`firesAs`／`firesAt`＝書き換え（9枚、**すべて追加**）を足した見出し。書き換えた写しは個体に持たず、読むたびに導く
-- **使い分け（2026-11-13 ユーザー決定）**：借りる・与える・繰り返す（イリテバン・パンドランサー・メサイア・フィンヴェール・スフィエル）は `firesAs`。月光姫マーニのような「『アタック時』効果を止める」は印刷の見出し（Q20010・Q24529・Q24751）。「〜時効果になる」書き換えは今のプールに無い。現れたら printedSides 側に足す
-- **PR**：①タグと検査 #509 ②発揮の判定を見出しで（`feat/effect-heading-fire`。battleRole を消した・抑止はエントリごと）③（`feat/borrow-by-heading`）借りる・繰り返す・貸す・合体後に発揮させるの4か所の候補を `firesAs` に「アタック」を含むもので選ぶ。借りた結果連動型は新しい部品 timedContent `grantEntry`（このバトルの間、別カードの誘発エントリ1つをこの個体の効果として持つ。fireTrigger が entries に足す）で与える。`grantTrigger` は action しか運べず条件・eventTarget・optional が落ちるため。`Closes #505`
-
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
 - 実測（直近30日）：Cloud Run の稼働 92.9 時間（無料枠は月約50時間）。対戦開始 1,626 件の 88% が AI戦。AI戦をサーバーから外せば、接続を張るのは対人戦だけになる

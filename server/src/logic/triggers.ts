@@ -59,6 +59,7 @@ import {
     KEYWORDS,
     instMatchesCostFilter, matchesFamilyFilter,
     noOpponentTriggerByColor,
+    firesAs,
     firesAt,
     headingRewritesOn,
     printedTrigger,
@@ -477,7 +478,7 @@ export function fireTrigger(
         })
         .map((g): EffectAction => (g.optional ? { type: "grantedTriggerAskInternal", action: g.action } : g.action))
     const grantedActions = onlyEffectIds !== undefined || asCard !== undefined ? [] : [
-        ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId).filter(() => !stopped(event) || noteStopped()),
+        ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId, battleRole).filter(() => !stopped(event) || noteStopped()),
         ...tempGranted,
     ]
 
@@ -494,6 +495,10 @@ export function fireTrigger(
         ...card.effects.map((e) => ({ effect: e, src: selfInstance })),
         ...(asCard !== undefined ? [] : bravesOf(state.players[owner], selfInstance)).flatMap((b) =>
             getCard(b.cardId).effects.map((e) => ({ effect: wrapWithRepeat(state, owner, selfInstance, b, e), src: b })),
+        ),
+        // このバトルの間与えられた別カードのエントリ（イリテバンが借りた結果連動型）。「このスピリット」は借りた側（#505）
+        ...(asCard !== undefined ? [] : timed).flatMap((c) =>
+            c.type === "grantEntry" ? getCard(c.cardId).effects.filter((e) => e.id === c.effectId).map((e) => ({ effect: e, src: selfInstance })) : [],
         ),
     ]
     const resolveEntry = (entry: { effect: EffectDef; src: CardInstance }): void => {
@@ -645,12 +650,14 @@ export function fireCombinedAttackTrigger(
 ): void {
     // 海の主の大口（BS20-072）で抑止されたアタッカーの『アタック時』『バトル時』は、この経路でも撃たない
     if ((event === "onAttack" || event === "onBattleStart") && state.battle?.attackEffectsSuppressed === true && host.instanceId === state.battle.attackerInstanceId) return
+    // 見出し（書き換えを足したもの）で選ぶ。結果連動型は、合体したブレイヴのエントリとして出来事のときに発揮する（#505）
+    const rewrites = headingRewritesOn(state, owner, host)
     const entries = bravesOf(state.players[owner], host).flatMap((brave) =>
         getCard(brave.cardId)
             .effects.filter(
                 (e): e is Extract<EffectDef, { kind: "triggered" }> =>
                     e.kind === "triggered" &&
-                    e.trigger === event &&
+                    firesAt(e, event, sideOf(event, "attacker"), rewrites) &&
                     e.whileCombined === true &&
                     effectActiveAtLevel(e.levels, currentLevel(brave).level),
             )
@@ -689,6 +696,7 @@ function collectGrantedTriggerActions(
     selfInstance: CardInstance,
     event: TriggerEvent,
     targetInstanceId?: string,
+    battleRole?: "attacker" | "blocker",
 ): EffectAction[] {
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS03ブリッツ）も含める。
     // 破壊後に誘発する『バトル時』破壊されたとき等は、場を離れた直前の状態を見るので、誘発している個体自身も発生源に含める
@@ -704,7 +712,8 @@ function collectGrantedTriggerActions(
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (effect.whileCombined && !instIsCombined(source)) continue
             if (!entryActive(state, owner, source, effect, sourceLevel)) continue
-            if (effect.granted.trigger !== event) continue
+            // 貸す効果（lendFrom）は、貸すエントリ自身の見出しで発揮の時を決める（下）
+            if (effect.lendFrom === undefined && effect.granted.trigger !== event) continue
             if (effect.nameIncludes && !cardNameContains(selfInstance, effect.nameIncludes)) {
                 continue
             }
@@ -737,7 +746,10 @@ function collectGrantedTriggerActions(
                 const lv = effect.lendFrom === "self" ? currentLevel(selfInstance).level : sourceLevel
                 for (const holder of holders) {
                     for (const e of getCard(holder.cardId).effects) {
-                        if (e.kind !== "triggered" || e.trigger !== "onAttack" || e.whileCombined !== true) continue
+                        // 見出し（書き換えを足したもの）が『アタック時』の【合体時】エントリ。結果連動型も、その出来事のときに発揮する（#505）
+                        const rewrites = headingRewritesOn(state, owner, selfInstance)
+                        if (e.kind !== "triggered" || e.whileCombined !== true || !firesAs(e, rewrites).includes("attack")) continue
+                        if (!firesAt(e, event, sideOf(event, battleRole), rewrites)) continue
                         if (e.levels !== null && !e.levels.includes(lv)) continue
                         // 借りた側（selfInstance）で条件を見る（スピリット状態の 056 は 055 と合体していない）。
                         // ponytail: 読むのは selfHasBraveNamed だけ。ほかの条件付きエントリを貸すカードが出たら fireTrigger の条件判定を関数に切り出して使う

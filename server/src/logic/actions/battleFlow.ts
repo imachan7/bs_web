@@ -71,6 +71,8 @@ import {
     matchesCostFilter,
     matchesTarget,
     braveCombineOntoSelfCandidates,
+    firesAs,
+    headingRewritesOn,
 } from "../../../../shared/rules"
 import { flushBraveKeeps } from "../brave"
 import { braveCombineCandidates } from "../../../../shared/summon"
@@ -1235,21 +1237,24 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
     const level = currentLevel(self).level
     type Candidate = { inst: CardInstance; effect: Extract<EffectDef, { kind: "triggered" }> }
     const candidates: Candidate[] = []
-    const collect = (inst: CardInstance): void => {
+    // 見出し（書き換えを足したもの）が『アタック時』の【合体時】エントリ。結果連動型（BPを比べ破壊したとき 等）も含む（#505）。
+    // 書き換えは持っている個体（スピリット状態のブレイヴ自身／合体先のホスト）に掛かっているものを見る
+    const collect = (inst: CardInstance, holder: CardInstance): void => {
+        const rewrites = headingRewritesOn(state, owner, holder)
         for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "triggered" || effect.trigger !== "onAttack" || effect.whileCombined !== true) continue
+            if (effect.kind !== "triggered" || effect.whileCombined !== true || !firesAs(effect, rewrites).includes("attack")) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             candidates.push({ inst, effect })
         }
     }
     // 自分のスピリット状態のブレイヴ
     for (const sp of player.field.spirits) {
-        if (getCard(sp.cardId).type === "brave") collect(sp)
+        if (getCard(sp.cardId).type === "brave") collect(sp, sp)
     }
     // 自分の合体スピリットのブレイヴ（発生源自身が合体しているホストも含むため、
     // イリテバン自身がここで拾われる＝2026-09-07 ユーザー確認）
     for (const host of player.field.spirits) {
-        for (const brave of bravesOf(player, host)) collect(brave)
+        for (const brave of bravesOf(player, host)) collect(brave, host)
     }
     // 「自身を選ぶ」＝候補の中に、この借用アクション自身と同じ種類（type:"borrowCombinedAttackEffect"）の
     // エントリを持つカードが含まれる場合（イリテバン自身がこの効果のエントリを持つため候補に入る）。
@@ -1273,6 +1278,12 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         log(state, `${player.name}は${sourceName}の効果として、${getCard(chosen.inst.cardId).name}の効果を借りて発揮した。`)
         const wasSelfBorrow = isSelfBorrow(chosen)
         if (wasSelfBorrow) self.borrowedAttackEffectOnce = true
+        // 結果連動型（アタック宣言の後に起きる出来事で発揮する）は、このバトルの間エントリごと与え、出来事が起きたら発揮する
+        // （2026-11-13 ユーザー確認。BRAVE.md §12.4。#505）
+        if (!wasSelfBorrow && chosen.effect.trigger !== "onAttack" && chosen.effect.trigger !== "onBlock") {
+            recordTimed(state, { content: [{ type: "grantEntry", cardId: chosen.inst.cardId, effectId: chosen.effect.id }], target: { kind: "instance", instanceId: self.instanceId }, until: "battle", ownerPid: owner })
+            return
+        }
         // 自身を選んだ2回目は同じ発揮の連鎖なので、確認は聞き直さない
         resolveAction(state, owner, self, wasSelfBorrow ? { type: "borrowCombinedAttackEffect", confirmed: true } : chosen.effect.action)
         if (wasSelfBorrow) delete self.borrowedAttackEffectOnce
