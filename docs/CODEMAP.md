@@ -490,6 +490,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `summonHandDiscardPayAmount`（fn）：スピリットの召喚コストのうち、手札破棄で支払う枚数を決める。「どこまで手札破棄で払うか」は**プレイヤーが選ぶ**
 - `validateHandFlash`（fn）：バトル中に手札のカードを使うときの共通検証（フラッシュマジック・神速召喚・kind:"handActivated" の3者で共有。BS15_PLAN.md §7.2）。
 - `validateUseHandAbility`（fn）：手札から使うフラッシュ（kind:"handActivated"）の検証。バトル中の共通判定は validateHandFlash に任せ、
+- `magicUseRestriction`（fn）：マジックの「使用」の制限（タイミング以外）。手札・手元からの使用と、効果による使用（magic/effectUse.ts）が共有する。
 - `validateCastMagic`（fn）
 - `validateCombineBrave`（fn）：メインステップの任意合体（docs/design/BRAVE.md §6.4）。
 - `validateDetachBrave`（fn）：メインステップの任意分離（§6.4）。**効果による分離（コア不要）とは別の手順**で、
@@ -693,11 +694,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `negateBurstActivation`（fn）：バーストが発動する全経路（発動確認の承認・非対話の自動発動・効果でめくった／条件を無視した発動）が、効果の解決とバーストカードの公開の前に呼ぶ。
 - `applyBurstNegate`（fn）：破壊することを選んだ：スピリットを破壊し、バーストカードをトラッシュへ置く（発動の後始末や「バースト発動後」の誘発は起きない）
 
-## server/src/logic/burstThenPay.ts
-
-- `canPayBurstThenPay`（fn）
-- `payBurstThenPay`（fn）：払えるときだけ払って action を解決する。対話ではどのコアから払うかを聞く（effectCostPay）
-
 ## server/src/logic/choice.ts
 
 - `doResolveChoice`（fn）：pendingChoice（効果解決中のプレイヤー選択）への応答を処理する。
@@ -896,6 +892,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `offerOpponentMainEndMagic`（fn）：kind:"magic" usableAtOpponentMainEnd（BS15-079プロボケイション）：相手（＝これからアタックステップに
 - `applyProvocationUse`（fn）：プロボケイションの使用確定：コストを払い、手札から取り除いてフラッシュ効果を解決する
 
+## server/src/logic/magic/effectUse.ts
+
+- `effectMagicUseDenial`（fn）
+- `useMagicByEffect`（fn）：使用を確定して解決する。カードは呼び出し側がゾーンから抜き、コストも払い済み
+
 ## server/src/logic/magic/inUse.ts
 
 - `beginMagicUse`（fn）
@@ -911,6 +912,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `payMagicNegate`（fn）：無効化のコストを支払い、ログを残す。呼び出し側はこのあとマジックの効果を解決しない
 - `applyMagicNegateChoice`（fn）：pendingChoice（無効化の確認）で「無効にする」が選ばれたときの後処理。
 - `declineMagicNegateChoice`（fn）：pendingChoice（無効化の確認）で「無効にしない」が選ばれたときの後処理。中断していた解決を続ける
+
+## server/src/logic/magic/payThenResolve.ts
+
+- `canPayMagicCost`（fn）
+- `payMagicCostThenResolve`（fn）：払えるときだけ払って action を解決する。対話ではどのコアから払うかを聞く（effectCostPay）
 
 ## server/src/logic/magic/redirect.ts
 
@@ -993,7 +999,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lastDrawnCount`（fn）
 - `lastCoresCount`（fn）
 - `recordTargets`（fn）：直前に疲労させた個体（カードは動かないので lastMoved とは別に instanceId で持つ）
-- `recordMagicUsed`（fn）：このターンのマジック使用（回数は magicRestriction 用、カードIDは26系「このターンに【X】を持つマジックカードを使用していたなら」用）
+- `recordMagicUse`（fn）：このターンのマジック使用（回数は magicRestriction 用、カードIDは26系「このターンに【X】を持つマジックカードを使用していたなら」用）
+- `recordMagicUsed`（fn）
 - `lastTargetsOf`（fn）
 - `recordLifeLost`（fn）
 

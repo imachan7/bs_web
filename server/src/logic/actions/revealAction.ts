@@ -1,6 +1,6 @@
 // オープン統合の器 reveal（docs/design/REVEAL_UNIFY.md §4）。
 // reveal.ts（旧17 type の置き場）は増やさず、こちらに新設する。
-import { beginMagicUse, finishMagicUseOrDefer } from "../magic/inUse"
+import { effectMagicUseDenial, useMagicByEffect } from "../magic/effectUse"
 import { handGainDenial } from "../handGate"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "../summonSurcharge"
@@ -9,7 +9,6 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardPick, EffectAction, Keyword, PlayerId, PlayerState } from "../../type"
 import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames } from "../GameState"
 import { emitEvent, payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, requestChoice, resolveTensho } from "../EffectModules"
-import { resolveMagicEffects } from "../triggers"
 import { fireNexusDeployed } from "../fieldEventTriggers"
 import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
 import { summonDenial } from "../summonGate"
@@ -173,12 +172,15 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 failDest(ctx, action.orHand, cardId)
                 return
             }
+            // 「使用」なので使用の制限を受ける。使えなければ「使用しない」として扱う（magic/effectUse.ts）
+            const denial = effectMagicUseDenial(state, owner, card, "flash")
+            if (denial) {
+                log(state, `${sourceName}：${card.name}を使用できなかった（${denial}）。`)
+                failDest(ctx, action.orHand, cardId)
+                return
+            }
             log(state, `${sourceName}：${card.name}のフラッシュ効果をコストを支払わずに使用した。`)
-            state.keishoExcludedCardIds = []
-            // 解決し終えてからトラッシュへ（手札からの使用と同じ。magic/inUse.ts。以前はどこにも置かず消えていた）
-            beginMagicUse(state, owner, cardId)
-            resolveMagicEffects(state, owner, cardId, "flash", undefined)
-            finishMagicUseOrDefer(state)
+            useMagicByEffect(state, owner, cardId, "flash", false)
             return
         }
         case "summon": {
