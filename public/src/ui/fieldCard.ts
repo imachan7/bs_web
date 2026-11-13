@@ -155,7 +155,7 @@ export function fieldCardEl(
     el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
     // 縁は**今の色**（合体したブレイヴ・付与された色を含む）。多色はカードの周りを等分に塗り分ける
     //（下から時計回りなので、2色は左半分・右半分。6色でもどの辺にも複数の色が出る）
-    el.style.setProperty("--frame", frameGradient(instColors(inst)))
+    el.style.setProperty("--frame", frameGradient(displayOrder(instColors(inst))))
     if (inst.isRested) el.classList.add("rested")
     if (inst.heavyRested) el.classList.add("heavy-rested")
     el.dataset.instanceId = inst.instanceId
@@ -329,7 +329,7 @@ export function fieldCardEl(
         symbolsDiv.style.color = "var(--text-muted)"
         symbolsDiv.style.fontSize = "10px"
     } else {
-        symbols.forEach((colors) => symbolsDiv.appendChild(symbolIcon(colors)))
+        symbols.forEach((colors) => symbolsDiv.appendChild(symbolIcon(displayOrder(colors))))
     }
     el.appendChild(symbolsDiv)
 
@@ -650,6 +650,20 @@ export function fieldCardEl(
     }
 
     return el
+}
+
+// 縁とシンボルで色を並べる順。固定順にして、同じ色の組み合わせは同じ見た目にする。
+// 白と紫は見分けにくいので隣り合わせない（2026-11-13 ユーザー指示）。縁もシンボルも一周つながるので、端どうしも隣とみなす。
+// 2〜3色はどう並べても隣になるので固定順のまま
+const DISPLAY_ORDER: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+function displayOrder(colors: readonly Color[]): Color[] {
+    const ordered = DISPLAY_ORDER.filter((c) => colors.includes(c))
+    const p = ordered.indexOf("purple")
+    const w = ordered.indexOf("white")
+    const n = ordered.length
+    if (n < 4 || p < 0 || w < 0 || (Math.abs(p - w) !== 1 && Math.abs(p - w) !== n - 1)) return ordered
+    const others = ordered.filter((c) => c !== "purple" && c !== "white")
+    return ["purple", others[0]!, "white", ...others.slice(1)]
 }
 
 // 色の列を、カードの周りに等分した円錐グラデーションにする（色が無ければ灰色）。
