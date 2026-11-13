@@ -1040,13 +1040,13 @@ async function init(): Promise<void> {
         }
         const soulOnlyEl = closestData(e, "data-soulonly")
         if (soulOnlyEl && ui.soulCoreOnlySelect) {
-            const { handIndex, cardId, targetInstanceId } = ui.soulCoreOnlySelect
+            const { handIndex, fromTegamoto, cardId, targetInstanceId } = ui.soulCoreOnlySelect
             ui.soulCoreOnlySelect = null
             if (soulOnlyEl.dataset.soulonly === "yes") {
-                send({ type: "castMagic", handIndex, ...(targetInstanceId ? { targetInstanceId } : {}), ...(ui.magicTiming ? { timing: ui.magicTiming } : {}), useSoulCoreOnly: true })
+                send({ type: "castMagic", handIndex, ...(fromTegamoto ? { fromTegamoto } : {}), ...(targetInstanceId ? { targetInstanceId } : {}), ...(ui.magicTiming ? { timing: ui.magicTiming } : {}), useSoulCoreOnly: true })
             } else {
                 // 「通常どおり」を選んだ済み（再入しない）。継召を持つカードならここから選択モードへ入る
-                tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, undefined, true)
+                tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, undefined, true, undefined, fromTegamoto)
             }
             return
         }
@@ -1056,10 +1056,10 @@ async function init(): Promise<void> {
                 ui.exReductionSelect.phase = "select"
                 rerender()
             } else {
-                const { handIndex, cardId, targetInstanceId } = ui.exReductionSelect
+                const { handIndex, fromTegamoto, cardId, targetInstanceId } = ui.exReductionSelect
                 ui.exReductionSelect = null
                 // 空配列＝「使わない」を選んだ済み（選択モードへ再入しない）
-                tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, [])
+                tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, [], undefined, undefined, fromTegamoto)
             }
             return
         }
@@ -1087,27 +1087,27 @@ async function init(): Promise<void> {
         }
         const exConfirmEl = closestData(e, "data-ex-confirm")
         if (exConfirmEl && ui.exReductionSelect) {
-            const { handIndex, cardId, targetInstanceId, groups } = ui.exReductionSelect
+            const { handIndex, fromTegamoto, cardId, targetInstanceId, groups } = ui.exReductionSelect
             const picked = exReductionPickedIndices(groups)
             ui.exReductionSelect = null
             // 空配列＝「使わない」を選んだ済み（選択モードへ再入しない）
-            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, picked.length > 0 ? picked : [])
+            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, picked.length > 0 ? picked : [], undefined, undefined, fromTegamoto)
             return
         }
         const levelEl = closestData(e, "data-summon-level")
         if (levelEl && ui.summonLevelSelect) {
             const level = Number(levelEl.dataset.summonLevel)
-            const { handIndex, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
+            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
             ui.summonLevelSelect = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, level, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices)
+            tryPlay(handIndex, master(cardId), targetInstanceId, level, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, undefined, fromTegamoto)
             return
         }
         // 《真界放》のwaiver配置ボタン（[ソウルコア]1個のみでLv2。2026-10-07）
         const waiverEl = closestData(e, "data-soul-waiver")
         if (waiverEl && ui.summonLevelSelect) {
-            const { handIndex, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
+            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
             ui.summonLevelSelect = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, true)
+            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, true, fromTegamoto)
             return
         }
     })
@@ -1203,9 +1203,8 @@ async function init(): Promise<void> {
         const cardEl = closestData(e, "data-tegamoto-index")
         if (cardEl) {
             const index = Number(cardEl.dataset.tegamotoIndex)
-            const tegamotoCard = master(cardEl.dataset.cardId ?? "")
-            if (tegamotoCard.type === "magic") send({ type: "castMagic", handIndex: index, fromTegamoto: true })
-            else send({ type: "summon", handIndex: index, fromTegamoto: true })
+            // 手札と同じ支払いの流れ（フィールドのコアからの支払い・レベル選択）を通す（#512）
+            tryPlay(index, master(cardEl.dataset.cardId ?? ""), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true)
             byId("tegamoto-panel").classList.add("hidden")
         }
     })

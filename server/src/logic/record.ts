@@ -1,6 +1,6 @@
 // 「直前のアクションで動いたカード」の記録（if の cond.last・カウンタ lastMoved/lastCost・sameCostAsLast が読む）。
 // 効果ごとの枠（recordScope）に分けて持つ。中断しても、ステップの間に別の効果が挟まっても混ざらないため（IF_UNIFY.md §6）
-import type { GameState, PlayerId } from "../type"
+import type { CardData, GameState, PlayerId } from "../type"
 
 export function newRecordScope(): string {
     return crypto.randomUUID()
@@ -90,6 +90,16 @@ export function recordTargets(state: GameState, instanceIds: string[], scope: st
 }
 
 // このターンのマジック使用（回数は magicRestriction 用、カードIDは26系「このターンに【X】を持つマジックカードを使用していたなら」用）
+// マジックの使用の記録（手札からの使用と、効果による使用が共有する）。直前の使用・使用回数・カード名ごとのターンに1回
+export function recordMagicUse(state: GameState, pid: PlayerId, card: CardData, timing: "main" | "flash"): void {
+    // 解決中の効果から returnLastUsedMagicToHand がこの使用自身を見えるように、使用の時点で記録する（BS19-102）
+    state.lastMagicUsed = { pid, cardId: card.cardId }
+    recordMagicUsed(state, pid, card.cardId)
+    if (card.effects.some((e) => e.kind === "magic" && e.timing === timing && e.oncePerTurnByName)) {
+        ;((state.magicEffectsUsedByName ??= {})[pid] ??= []).push(`${card.name}|${timing}`)
+    }
+}
+
 export function recordMagicUsed(state: GameState, pid: PlayerId, cardId: string): void {
     state.magicUsedThisTurn[pid] = (state.magicUsedThisTurn[pid] ?? 0) + 1
     state.magicIdsUsedThisTurn = { ...(state.magicIdsUsedThisTurn ?? {}), [pid]: [...(state.magicIdsUsedThisTurn?.[pid] ?? []), cardId] }
