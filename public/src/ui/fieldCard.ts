@@ -153,8 +153,9 @@ export function fieldCardEl(
     el.className = "card"
     el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
     el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
-    // 縁は**今の色**（合体したブレイヴ・付与された色を含む）。多色は左右で等分に塗り分ける
-    el.style.setProperty("--frame", splitGradient(instColors(inst), "90deg"))
+    // 縁は**今の色**（合体したブレイヴ・付与された色を含む）。多色はカードの周りを等分に塗り分ける
+    //（下から時計回りなので、2色は左半分・右半分。6色でもどの辺にも複数の色が出る）
+    el.style.setProperty("--frame", frameGradient(instColors(inst)))
     if (inst.isRested) el.classList.add("rested")
     if (inst.heavyRested) el.classList.add("heavy-rested")
     el.dataset.instanceId = inst.instanceId
@@ -651,11 +652,11 @@ export function fieldCardEl(
     return el
 }
 
-// 色の列を、境目のはっきりした等分のグラデーションにする（色が無ければ灰色）
-function splitGradient(colors: readonly string[], direction: string): string {
-    if (colors.length === 0) return "#555"
+// 色の列を、境目のはっきりした等分の円錐グラデーションにする（色が無ければ灰色）
+function frameGradient(colors: readonly string[]): string {
+    if (colors.length === 0) return "linear-gradient(#555, #555)"
     const step = 100 / colors.length
-    return `linear-gradient(${direction}, ${colors.map((c, i) => `var(--c-${c}) ${i * step}% ${(i + 1) * step}%`).join(", ")})`
+    return `conic-gradient(from 180deg, ${colors.map((c, i) => `var(--c-${c}) ${i * step}% ${(i + 1) * step}%`).join(", ")})`
 }
 
 // シンボル1つ。どれか1色として数えられるシンボル（「◯色としても扱う」）は、1つの丸を色ごとに縦に等分して描く

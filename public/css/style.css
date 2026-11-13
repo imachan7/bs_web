@@ -1263,7 +1263,7 @@ button:active {
     width: 76px;
     height: 76px;
     border-radius: 6px;
-    /* 縁はそのスピリットの今の色（--frame。多色は左右に等分。fieldCard.ts の splitGradient） */
+    /* 縁はそのスピリットの今の色（--frame。多色は周りを等分。fieldCard.ts の frameGradient） */
     background: linear-gradient(#2a2e39, #2a2e39) padding-box,
                 var(--frame, linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333))) border-box;
     border: 3px solid transparent;
@@ -1825,7 +1825,9 @@ button:active {
     height: auto;
     aspect-ratio: 675 / 985;
     padding: 0;
-    background: #111;
+    /* 縁（border-box）は文字表示と同じく今の色。ここを単色にすると縁が消える */
+    background: linear-gradient(#111, #111) padding-box,
+                var(--frame, linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333))) border-box;
 }
 .spirit-zone .card.has-art > .card-art {
     position: absolute;
