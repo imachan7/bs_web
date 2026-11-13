@@ -2213,7 +2213,23 @@ body:has(#notice-banner:not(.hidden)) {
     background: rgba(26, 29, 36, 0.85);
     border: 1px solid #8e6cf0;
     color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#last-magic .tip-card {
     cursor: help;
+}
+
+.last-magic-close {
+    border: none;
+    background: none;
+    color: var(--text-main);
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 4px;
+    cursor: pointer;
 }
 
 /* 場を離れたカードの写し（消滅・破壊・手札/デッキへ戻る） */

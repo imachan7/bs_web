@@ -343,18 +343,29 @@ function showDetailBanner(layer: HTMLElement, kind: string, title: string, body:
     setTimeout(() => banner.remove(), mine ? 4000 : 8000)
 }
 
-// 直前に使われたマジックを画面の隅に残す（次のマジックまで。カーソルを合わせると効果文）
-function showLastMagic(ev: Extract<GameEvent, { type: "magic" }>, you: PlayerId): void {
-    let chip = document.getElementById("last-magic")
-    if (!chip) {
-        chip = document.createElement("div")
-        chip.id = "last-magic"
-        document.getElementById("game")?.appendChild(chip)
-    }
-    chip.textContent = `📜 直前のマジック：${ev.pid === you ? "あなた" : "相手"}の${ev.cardName}${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`
+// 直前に使われたマジックを画面の隅に残す（次のマジックか、ターンが変わるまで。×で閉じられる。カーソルを合わせると効果文）
+function showLastMagic(ev: Extract<GameEvent, { type: "magic" }>, view: GameView): void {
+    document.getElementById("last-magic")?.remove()
+    const chip = document.createElement("div")
+    chip.id = "last-magic"
+    chip.dataset.turn = String(view.turn)
+    const text = document.createElement("span")
+    text.textContent = `📜 直前のマジック：${ev.pid === view.you ? "あなた" : "相手"}の${ev.cardName}${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`
     // カードと同じ効果のツールチップを出す（tooltip.ts の .tip-card）
-    chip.classList.add("tip-card")
-    if (ev.cardId !== undefined) chip.dataset.cardId = ev.cardId
+    text.classList.add("tip-card")
+    if (ev.cardId !== undefined) text.dataset.cardId = ev.cardId
+    const close = document.createElement("button")
+    close.className = "last-magic-close"
+    close.textContent = "×"
+    close.setAttribute("aria-label", "閉じる")
+    close.addEventListener("click", () => chip.remove())
+    chip.append(text, close)
+    document.getElementById("game")?.appendChild(chip)
+}
+
+function clearStaleLastMagic(view: GameView): void {
+    const chip = document.getElementById("last-magic")
+    if (chip && chip.dataset.turn !== String(view.turn)) chip.remove()
 }
 
 // 場を離れたカードの位置に、消えていく写しを重ねる（描き直す前に呼ぶ。急に消えたように見えないため）
@@ -505,6 +516,7 @@ function renderRevealPanel(view: GameView): void {
 function processNewEvents(view: GameView): Set<PlayerId> {
     const layer = document.getElementById("event-layer")
     const lifeDamagedPids = new Set<PlayerId>()
+    clearStaleLastMagic(view)
     const newEvents = view.events.filter((ev) => ev.seq > lastEventSeq)
     for (const ev of newEvents) {
         if (ev.type === "lifeDamage") {
@@ -516,7 +528,7 @@ function processNewEvents(view: GameView): Set<PlayerId> {
         }
         const mine = ev.pid === view.you
         if (ev.type === "magic" && layer) {
-            showLastMagic(ev, view.you)
+            showLastMagic(ev, view)
             showDetailBanner(layer, "magic", `📜 ${mine ? "あなた" : "相手"}が ${ev.cardName} を使用${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`, ev.cardId !== undefined ? magicEffectText(ev.cardId, ev.timing) : "", mine)
             continue
         }
