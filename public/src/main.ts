@@ -19,17 +19,49 @@ interface SocketLike {
     connect: () => void
 }
 
-declare const io: (opts?: { autoConnect?: boolean }) => SocketLike
+// 端末ごとの合言葉。接続が切れても、これが同じなら対戦中の席に戻れる（server/src/roomManager.ts の resume）
+function loadPlayerRef(): string {
+    try {
+        const saved = localStorage.getItem("bs_player_ref")
+        if (saved) return saved
+        const created = crypto.randomUUID()
+        localStorage.setItem("bs_player_ref", created)
+        return created
+    } catch {
+        return crypto.randomUUID() // 保存できない環境では、このページを開いている間だけ有効
+    }
+}
+
+// 「サーバー上に決着前の対局がある」の目印。ページを読み直したときに席へ戻るかどうかを決める
+const IN_MATCH_KEY = "bs_in_match"
+function setInMatch(on: boolean): void {
+    try {
+        if (on) localStorage.setItem(IN_MATCH_KEY, "1")
+        else localStorage.removeItem(IN_MATCH_KEY)
+    } catch {
+        // 保存できなくても、ページを開いている間の再接続は動く（inMatch を見る）
+    }
+}
+let inMatch = (() => {
+    try {
+        return localStorage.getItem(IN_MATCH_KEY) === "1"
+    } catch {
+        return false
+    }
+})()
+
+declare const io: (opts?: { autoConnect?: boolean; auth?: Record<string, string> }) => SocketLike
 
 // ページ読み込み時には接続しない（Cloud Run は min-instances=0 のため、ロビーを開いただけの
 // 訪問者にも常時接続させるとコストが伸びる。docs/ops/PERF_PLAN.md §5）。
 // 実際に対戦操作をするボタンを押したときだけ connectAndRun() 経由で接続する
-const socket = io({ autoConnect: false })
+const socket = io({ autoConnect: false, auth: { playerRef: loadPlayerRef() } })
 
 // 対戦していない接続はサーバーが15分で切る（課金対策。server/src/index.ts の「放置接続の切断」）。
 // サーバーから切られたときだけ socket.io は自動で再接続しないので、次の操作かタブ復帰で繋ぎ直す。
 // 切断中の emit は socket.io が溜めて再接続後に送るので、押したボタンはそのまま効く
 socket.on("disconnect", (reason: string) => {
+    if (inMatch && reason !== "io server disconnect") showToast("接続が切れました。再接続しています…")
     if (reason !== "io server disconnect") return
     const events = ["pointerdown", "keydown", "visibilitychange"] as const
     const reconnect = () => {
@@ -258,7 +290,27 @@ socket.on("notice", (message: string | null) => {
 })
 
 socket.on("opponentLeft", () => {
-    showToast("相手が退出しました")
+    showToast("相手の接続が切れました（しばらくは相手が戻れます）")
+})
+
+socket.on("opponentBack", () => {
+    showToast("相手が戻りました")
+})
+
+// ---- 席に戻る ----
+// サーバー上の対局（socket 経由の state）が決着前のあいだだけ目印を立て、繋がるたびに席へ戻してもらう
+socket.on("state", (v: GameView) => {
+    inMatch = !v.winner
+    setInMatch(inMatch)
+})
+socket.on("connect", () => {
+    if (inMatch) socket.emit("resume")
+})
+socket.on("resumeFailed", () => {
+    const wasPlaying = view !== null
+    inMatch = false
+    setInMatch(false)
+    if (wasPlaying) showToast("対戦が終了していたため、戻れませんでした")
 })
 
 // ---- 手札クリック ----
@@ -300,6 +352,8 @@ async function init(): Promise<void> {
     const cards = (await (await fetch("/api/cards")).json()) as CardData[]
     setCardDb(cards)
     setDeckRecipes(await (await fetch("/api/deck-recipes")).json())
+    // ページを読み直した・タブを開き直したときは、こちらから繋いで席に戻る（盤面を描くのにカードデータが要るので、読み終えてから）
+    if (inMatch) socket.connect()
     rebuildDeckSelects()
     rememberDeckSelection()
     rememberLobbyInputs()
