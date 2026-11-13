@@ -652,14 +652,21 @@ export function fieldCardEl(
     return el
 }
 
-// 色の列を、境目のはっきりした等分の円錐グラデーションにする（色が無ければ灰色）
+// 色の列を、カードの周りに等分した円錐グラデーションにする（色が無ければ灰色）。
+// 境目は線にせず、前後 BLUR% ずつ隣の色と混ぜてぼかす。下の継ぎ目（0%＝100%）も最後と最初の色の中間でつなぐ
+const FRAME_BLUR = 4
 function frameGradient(colors: readonly string[]): string {
     if (colors.length === 0) return "linear-gradient(#555, #555)"
+    if (colors.length === 1) return `linear-gradient(var(--c-${colors[0]}), var(--c-${colors[0]}))`
     const step = 100 / colors.length
-    return `conic-gradient(from 180deg, ${colors.map((c, i) => `var(--c-${c}) ${i * step}% ${(i + 1) * step}%`).join(", ")})`
+    const blur = Math.min(FRAME_BLUR, step / 4)
+    const seam = `color-mix(in srgb, var(--c-${colors[colors.length - 1]}), var(--c-${colors[0]}))`
+    const stops = colors.map((c, i) => `var(--c-${c}) ${i * step + blur}% ${(i + 1) * step - blur}%`)
+    return `conic-gradient(from 180deg, ${seam} 0%, ${stops.join(", ")}, ${seam} 100%)`
 }
 
-// シンボル1つ。どれか1色として数えられるシンボル（「◯色としても扱う」）は、1つの丸を色ごとに縦に等分して描く
+// シンボル1つ。どれか1色として数えられるシンボル（「◯色としても扱う」）は、1つの丸を中心から角度で等分して描く。
+// 右上（-45°）から時計回りに切るので、2色は右上→左下の斜めの線で半分になる
 function symbolIcon(colors: Color[]): HTMLElement {
     const sym = document.createElement("span")
     if (colors.length === 1) {
@@ -669,12 +676,24 @@ function symbolIcon(colors: Color[]): HTMLElement {
     }
     sym.className = `sym-icon sym-either${colors.length === 2 ? " two" : ""}`
     sym.title = `${colors.map((c) => COLOR_LABELS[c]).join("または")}のシンボル1つとして数える`
-    const step = 100 / colors.length
+    const sweep = 360 / colors.length
     colors.forEach((c, i) => {
         const part = document.createElement("span")
         part.className = `sym-icon bg-${c}`
-        part.style.clipPath = `inset(0 ${100 - (i + 1) * step}% 0 ${i * step}%)`
+        part.style.clipPath = wedge(-45 + i * sweep, -45 + (i + 1) * sweep)
         sym.appendChild(part)
     })
     return sym
+}
+
+// 中心から from°〜to°（0°＝右、時計回り）の扇形。半径は丸の外まで取り、弧は15°ごとの折れ線で近似する
+function wedge(from: number, to: number): string {
+    const point = (deg: number) => {
+        const r = (deg * Math.PI) / 180
+        return `${(50 + 75 * Math.cos(r)).toFixed(1)}% ${(50 + 75 * Math.sin(r)).toFixed(1)}%`
+    }
+    const pts = ["50% 50%"]
+    for (let d = from; d < to; d += 15) pts.push(point(d))
+    pts.push(point(to))
+    return `polygon(${pts.join(", ")})`
 }
