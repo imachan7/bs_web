@@ -201,6 +201,7 @@
     "id": "BS13-004-e2",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "heading": "attack",
     "eventTarget": "ignore",
     "battleRole": "attacker",
     "levels": [
@@ -541,6 +542,7 @@
     "id": "BS13-008-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      2
@@ -5190,6 +5192,7 @@
     "id": "BS13-039-e3",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "heading": "attack",
     "eventTarget": "use",
     "whileCombined": true,
     "levels": [
@@ -5288,6 +5291,7 @@
     "id": "BS13-040-e3",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "use",
     "whileCombined": true,
     "levels": [

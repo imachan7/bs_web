@@ -1414,6 +1414,7 @@
     "id": "BS07-023-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -1551,6 +1552,7 @@
     "id": "BS07-025-e1",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      2
@@ -1620,6 +1622,7 @@
     "id": "BS07-026-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "levels": [
      1,
      2
@@ -1699,6 +1702,7 @@
     "id": "BS07-027-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -1717,6 +1721,7 @@
     "id": "BS07-027-e3",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2
     ],
@@ -2530,6 +2535,7 @@
     "id": "BS07-040-e2",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2,
      3
@@ -2893,6 +2899,7 @@
     "id": "BS07-044-e4",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2
     ],
@@ -2981,6 +2988,7 @@
     "id": "BS07-045-e3",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2,
@@ -2998,6 +3006,7 @@
     "id": "BS07-045-e4",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "use",
     "levels": [
      3
@@ -5634,6 +5643,7 @@
     "id": "BS07-X26-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -5652,6 +5662,7 @@
     "id": "BS07-X26-e3",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2
     ],
@@ -5757,6 +5768,7 @@
     "id": "BS07-X27-e4",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2,
      3

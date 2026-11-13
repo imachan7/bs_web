@@ -1135,6 +1135,7 @@
     "id": "BS08-017-e1",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2,
      3
@@ -1506,6 +1507,7 @@
     "id": "BS08-023-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -1816,6 +1818,7 @@
     "id": "BS08-027-e3",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -1834,6 +1837,7 @@
     "id": "BS08-027-e4",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2
     ],
@@ -2477,6 +2481,7 @@
     "id": "BS08-036-e4",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "block",
     "battleRole": "blocker",
     "levels": [
      3
@@ -2758,6 +2763,7 @@
     "id": "BS08-041-e2",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2,
@@ -2854,6 +2860,7 @@
     "id": "BS08-042-e2",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2,
@@ -3143,6 +3150,7 @@
     "id": "BS08-045-e4",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      3
     ],
@@ -5855,6 +5863,7 @@
     "id": "BS08-X31-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "levels": [
      1,
      2,
@@ -5870,6 +5879,7 @@
     "id": "BS08-X31-e3",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2,
      3

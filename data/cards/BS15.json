@@ -1365,6 +1365,7 @@
     "id": "BS15-020-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -1587,6 +1588,7 @@
     "id": "BS15-023-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -1680,6 +1682,7 @@
     "id": "BS15-024-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -1714,6 +1717,7 @@
     "id": "BS15-024-e4",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2
     ],
@@ -2943,6 +2947,7 @@
     "id": "BS15-041-e2",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2
@@ -5891,6 +5896,7 @@
     "id": "BS15-X01-e3",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      3
     ],

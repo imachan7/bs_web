@@ -3200,6 +3200,7 @@
     "id": "BS20-045-e3",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2
     ],

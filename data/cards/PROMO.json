@@ -49,6 +49,7 @@
         "id": "P069-e2",
         "kind": "triggered",
         "trigger": "onLifeDealt",
+        "heading": "attack",
         "levels": null,
         "whileCombined": true,
         "optional": false,
@@ -398,6 +399,7 @@
         "id": "P004-e1",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "attack",
         "levels": [
           1,
           2
@@ -675,6 +677,7 @@
         "id": "P009-e1",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "attack",
         "levels": [
           1,
           2
@@ -4532,6 +4535,7 @@
         "id": "P062-e2",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "heading": "attack",
         "levels": [
           1,
           2
@@ -6533,6 +6537,7 @@
         "id": "PX08-e4",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "attack",
         "levels": [
           2
         ],
@@ -6606,6 +6611,7 @@
         "id": "PX09-e2",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "heading": "attack",
         "levels": [
           1,
           2
@@ -6623,6 +6629,7 @@
         "id": "PX09-e3",
         "kind": "triggered",
         "trigger": "onLifeDealt",
+        "heading": "attack",
         "levels": [
           1,
           2
@@ -6868,6 +6875,7 @@
         "id": "PX11-e4",
         "kind": "triggered",
         "trigger": "onLifeDealt",
+        "heading": "attack",
         "levels": [
           2,
           3
@@ -7069,6 +7077,7 @@
         "id": "PX13-e3",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "heading": "attack",
         "eventTarget": "ignore",
         "levels": [
           2,
@@ -7285,6 +7294,7 @@
         "id": "PX15-e3",
         "kind": "triggered",
         "trigger": "onLifeDealt",
+        "heading": "attack",
         "levels": [
           2
         ],
@@ -7486,6 +7496,7 @@
         "id": "PX17-e3",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "heading": "attackOrBlock",
         "levels": [
           2,
           3
@@ -7572,6 +7583,7 @@
         "id": "PX18-e2",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "attack",
         "levels": [
           3
         ],

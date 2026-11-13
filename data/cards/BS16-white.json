@@ -731,6 +731,7 @@
     "id": "BS16-031-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "block",
     "battleRole": "blocker",
     "levels": [
      2

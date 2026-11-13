@@ -423,6 +423,7 @@
     "id": "e1",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "use",
     "levels": [
      1,
@@ -687,6 +688,7 @@
     "id": "BS03-012-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "levels": [
      3
     ],
@@ -1175,6 +1177,7 @@
     "id": "BS03-021-e1",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      3
@@ -1292,6 +1295,7 @@
     "id": "BS03-023-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "block",
     "levels": [
      2
     ],
@@ -2657,6 +2661,7 @@
     "id": "BS03-048-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "block",
     "battleRole": "blocker",
     "levels": [
      2
@@ -5345,6 +5350,7 @@
     "id": "BS03-097-e1",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2
@@ -5617,6 +5623,7 @@
     "id": "BS03-101-e1",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      1,
@@ -8547,6 +8554,7 @@
     "id": "BS03-X12-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "levels": [
      2
     ],
