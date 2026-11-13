@@ -161,12 +161,14 @@ export function validateSummon(
     sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（doSummon と同じ意味）
     extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（discardHandIndices はコストの肩代わり用で別物）
     payOffInstanceId?: string, // kind:"summonPayOff"：破壊することで召喚コストを払ったものとして扱う個体
+    // 手元から「手札にあるときと同様に」召喚する（手札へ一時的に移して検証する）。手札に限った使用禁止は掛からない（Q2592 と同じ考え方。#528）
+    fromTegamoto?: boolean,
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
-    const banned = handCardBanned(state, pid, cardId)
+    const banned = fromTegamoto === true ? null : handCardBanned(state, pid, cardId)
     if (banned) return banned
     // ブレイヴは単体で場に出すと**スピリットとして扱われる**ので、どちらもここを通る（§1.1）
     if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
@@ -637,6 +639,7 @@ export function validateCastMagic(
     const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
     if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
+    // 手札に限った使用禁止は、手元からの使用には掛からない（Q2592 と同じ考え方。#528）
     const bannedMagic = fromTegamoto ? null : handCardBanned(state, pid, cardId)
     if (bannedMagic) return bannedMagic
     if (card.type !== "magic") return "マジックカードではありません"
