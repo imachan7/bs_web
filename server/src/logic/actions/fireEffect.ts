@@ -53,14 +53,15 @@ const fireBunshinHandler: ActionHandler<"fireEffect"> = (ctx, action) => {
     const { state, owner, self, sourceName } = ctx
     const pool = action.ofSelf ? (self ? [self] : []) : state.players[owner].field.spirits
     const candidates = pool.filter((s) => bunshinEntries(state, owner, s).length > 0)
-    // targetInstanceId は読まない：selfMode:"source" の誘発ではイベントの相手（召喚されたブレイヴ等）が入っている
-    const inst = action.chosenId !== undefined ? candidates.find((s) => s.instanceId === action.chosenId) : candidates.length === 1 || !state.interactiveTargets ? candidates[0] : undefined
+    // targetInstanceId は選択の答えとして戻ってきたとき（awaitingPick）だけ読む：初回の selfMode:"source" の誘発ではイベントの相手（召喚されたブレイヴ等）が入っている
+    const chosenId = action.chosenId ?? (action.awaitingPick ? ctx.targetInstanceId : undefined)
+    const inst = chosenId !== undefined ? candidates.find((s) => s.instanceId === chosenId) : candidates.length === 1 || !state.interactiveTargets ? candidates[0] : undefined
     if (inst === undefined) {
-        if (candidates.length === 0 || action.chosenId !== undefined) {
+        if (candidates.length === 0 || chosenId !== undefined) {
             log(state, `${sourceName}：【分身】を発揮できる自分のスピリットがいなかった。`)
             return
         }
-        requestChoice(state, owner, `${sourceName}：【分身】を発揮させるスピリットを選んでください`, candidates.map((s) => s.instanceId), false, action, self)
+        requestChoice(state, owner, `${sourceName}：【分身】を発揮させるスピリットを選んでください`, candidates.map((s) => s.instanceId), false, { ...action, awaitingPick: true }, self)
         return
     }
     log(state, `${sourceName}：${getCard(inst.cardId).name}の【分身】を発揮させる。`)
