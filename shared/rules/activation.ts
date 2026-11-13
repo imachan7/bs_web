@@ -12,6 +12,8 @@ import type {
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
+import { effectiveCost } from "../cost"
+import { summonVoidToll } from "./summonToll"
 import { activeConstraints, canDiscardHand, costExhaustLocked, hasGlobalConstraint, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords, timedPlayerRules } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
@@ -291,6 +293,14 @@ export function activatedActionResolvable(board: Board, pid: PlayerId, source: C
     // sequence の中の pay は「払えなければそこだけ不発」で前の文は解決する（ウィンガルのランサー）ので、払えるかを見ない＝最上位の pay だけが起動可否を決める
     if (action.type === "sequence") return action.actions.every((a) => a.type === "pay" || activatedActionResolvable(board, pid, source, a))
     if (action.type === "pay") return activatedPayResolvable(board, pid, source, action)
+    // 対象を見てからやめられる手札からの召喚：候補が無ければ必ず不発で「ターンに1回」も戻るだけなので、起動できない扱いにする（#497）
+    // ponytail: 候補の絞り込みは keywordFilter と payCost だけ見る（cancelable を使うのは帝竜騎の6枚だけ）。ほかの絞り込みと併せるカードが出たら server/src/logic/summon.ts の summonFromHandFreeCandidateMatches を共有層へ移す
+    if (action.type === "summon" && action.from === "hand" && action.cancelable) {
+        return (board.players[pid].hand ?? []).some((id) => {
+            const c = card(id)
+            return c !== null && c.type === "spirit" && (action.keywordFilter === undefined || hasKeyword(id, action.keywordFilter)) && (!action.payCost || handSummonCostPayable(board, pid, c))
+        })
+    }
     if (action.type === "timedEffect") return timedTargetsExist(board, pid, source, action)
     if (action.type === "grantKeywordToHandCard") {
         const fams = action.familyFilter === undefined ? undefined : [action.familyFilter].flat()
@@ -393,7 +403,7 @@ function activatableAbilityOf(
         if (e.condition === "selfAttacking" && board.battle?.attackerInstanceId !== host.instanceId) continue
         if (e.condition === "selfBlocking" && board.battle?.blockerInstanceId !== host.instanceId) continue
         if (e.action.type === "combineOwnBrave" && e.action.hostSelf && braveCombineOntoSelfCandidates(board, pid, source).length === 0) continue
-        if ((e.cost !== undefined || e.action.type === "pay") && !activatedActionResolvable(board, pid, source, e.action)) continue
+        if ((e.cost !== undefined || e.action.type === "pay" || ("cancelable" in e.action && e.action.cancelable === true)) && !activatedActionResolvable(board, pid, source, e.action)) continue
         // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回（キーは server/src/logic/oncePerTurn.ts の onceNameKey と同じ）
         if (e.oncePerTurn) {
             const used =
@@ -513,6 +523,13 @@ export function directAttackFilter(
 // （アルティメット。ULTIMATE.md §4）では Lv1 が存在しないため、最小レベルを見る必要がある。
 // 旧名 lv1Cores（2026-07-26 改名。挙動は不変）。
 // サーバー側は server/src/logic/GameState.ts の re-export 経由で使う
+// 効果で手札から召喚するとき、通常の召喚コスト（維持コア・ボイドの通行料込み）をリザーブとフィールドのコアで払えるか。paid＝払ったものとして扱うコスト
+export function handSummonCostPayable(board: Board, pid: PlayerId, cardData: CardData, paid = 0): boolean {
+    const p = board.players[pid]
+    const fieldCores = [...p.field.spirits, ...p.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
+    return p.reserve + fieldCores >= minLevelCores(cardData) + Math.max(0, effectiveCost(board, pid, cardData) - paid) + summonVoidToll(board, cardData)
+}
+
 export function minLevelCores(cardData: CardData): number {
     return minLevelCoresOf(cardData.levels)
 }

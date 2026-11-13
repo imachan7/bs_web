@@ -18,7 +18,7 @@ import { entryActive } from "../../../shared/rules/effectStop"
 import { bravesOf, currentLevel } from "../../../shared/rules"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { effectiveCost } from "../../../shared/cost"
-import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter } from "../../../shared/rules"
+import { cardHasColor, handSummonCostPayable, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter } from "../../../shared/rules"
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "./summonSurcharge"
@@ -516,16 +516,7 @@ export function summonFromHandFreeCandidateMatches(
     // **リザーブだけでなくフィールドのコアも支払いに使える**（通常の召喚と同じ。paySources）。
     // 2026-08-23 まではリザーブだけで判定しており、盤面のコアでなら払えるカードが
     // 候補にすら出なかった（利用者報告。BS08空帝竜騎プラチナム等の帝竜騎サイクル6枚）
-    if (action.payCost) {
-        const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce(
-            (sum, i) => sum + i.cores,
-            0,
-        )
-        const paid = action.costPaidAsIfCounter === undefined ? 0 : countEffectCounter(state, owner, self, action.costPaidAsIfCounter)
-        if (player.reserve + fieldCores < minLevelCores(candidate) + Math.max(0, effectiveCost(state, owner, candidate) - paid) + summonVoidToll(state, candidate)) {
-            return false
-        }
-    }
+    if (action.payCost && !handSummonCostPayable(state, owner, candidate, action.costPaidAsIfCounter === undefined ? 0 : countEffectCounter(state, owner, self, action.costPaidAsIfCounter))) return false
     return true
 }
 
