@@ -408,6 +408,7 @@ export type ResumeFrame =
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
           sourceType?: CardType // 発生源の種別（同上）
+          sourceCardId?: string // 発生源のカード（同上。名前と召喚時効果の印・「〜の効果で」の記録に使う）
           // 解決の直前に対象の付け替え（magicTargetRedirect）を掛け直す。誘発を同時発揮の列から解決するとき、
           // 列を作った時点では掛けられない（付け替えは解決中だけ有効な一時状態）ので印だけ持ち回る
           redirectTarget?: true
