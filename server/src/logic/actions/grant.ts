@@ -28,10 +28,10 @@ import {
 } from "../EffectModules"
 import { KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { normalReserveOf, wouldDeplete } from "../soulCore"
 import { destroySpirit } from "../removal"
-import { notifyHandGained, placeCoresOnSpirit } from "../EffectModules"
+import { gateTargetedApply, notifyHandGained, placeCoresOnSpirit } from "../EffectModules"
 import { recordTargets } from "../record"
 
 const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (ctx, action) => {
@@ -311,7 +311,7 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
         // 「相手のスピリット1体を指定する」＝対話中は常に持ち主が選ぶ（非対話は従来どおり自動。2026-10-02 ユーザー確認）
         const filter = normalizeFilter(ctx, action)
-        const pool = filter === SELF_REQUIRED ? [] : state.players[opp].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+        const pool = filter === SELF_REQUIRED ? [] : pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, owner, s, filter, self?.instanceId), srcColors, srcType)
         if (targetInstanceId === undefined && state.interactiveTargets && pool.length > 0) {
             requestChoice(
                 state,
@@ -333,6 +333,12 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
               })()
         if (!found) {
             log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        const resisted = gateTargetedApply(state, found.pid, found.inst, attemptOf(ctx, "other", "targeted"), action, self, sourceName)
+        if (resisted === "asked") return
+        if (resisted) {
+            log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
             return
         }
         recordTimed(state, { content: [action.cap !== undefined ? { type: "lifeCap", max: action.cap } : { type: "noLifeDamage", ...(action.includeEffects ? { includeEffects: true } : {}) }], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })

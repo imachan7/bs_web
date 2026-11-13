@@ -332,7 +332,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.type !== "negateLifeDamageFromTarget") return false
         if (action.filter !== undefined) {
             const f = { ...action.filter } as unknown as ResolvedTargetFilter
-            return state.players[opponentOf(owner)].field.spirits.some((s) => matchesTarget(state, owner, s, f, _self?.instanceId))
+            return pickEnemyCandidates(state, opponentOf(owner), Infinity, (s) => matchesTarget(state, owner, s, f, _self?.instanceId), srcColors, srcType).length > 0
         }
         return pickEnemyByBp(state, opponentOf(owner), Infinity, undefined, srcColors, srcType) !== null
     },

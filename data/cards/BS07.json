@@ -2616,7 +2616,7 @@
        "set": 1
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "side": "own"
     },
     "optional": false
@@ -2637,7 +2637,7 @@
        "set": 1
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "side": "own"
     },
     "optional": false

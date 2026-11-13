@@ -437,7 +437,7 @@ function bounceNexusOnly(ctx: ActionCtx, action: NexusBounceAction): void {
 // nexus:"only"/"also" 版：対話時は候補（ネクサス/スピリット）を1つの一覧から選ぶ、非対話は
 // 実効BP最大のスピリット優先→残り枠を場の並び順のネクサスへ（exhaustNexusOrSpiritと同じ選び方に揃える）
 function returnToHandNexusOrSpirit(ctx: ActionCtx, action: HandReturn): void {
-    const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     const filter = normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) {
         log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
@@ -446,7 +446,7 @@ function returnToHandNexusOrSpirit(ctx: ActionCtx, action: HandReturn): void {
     const oppField = state.players[opp].field
     const spiritCandidates = () =>
         action.nexus === "also"
-            ? oppField.spirits.filter((s) => !s.pendingBounce && matchesTarget(state, opp, s, filter, self?.instanceId))
+            ? pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType, "bounce")
             : []
     const nexusCandidates = () => oppField.nexuses
     const label = action.nexus === "also" ? "スピリット/ネクサス" : "ネクサス"
@@ -469,6 +469,13 @@ function returnToHandNexusOrSpirit(ctx: ActionCtx, action: HandReturn): void {
         if (nexus) {
             returnNexusToHand(state, opp, nexus.instanceId)
         } else if (spirit) {
+            const r = gateTargetedApply(state, opp, spirit, attemptOf(ctx, "bounce", "targeted"), action, self, sourceName)
+            if (r === "asked") return
+            if (r) {
+                log(state, `${getCard(spirit.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`)
+                askNext(action.count - 1)
+                return
+            }
             returnSpiritToHand(state, opp, spirit, sourceName)
         } else {
             log(state, `${sourceName}の手札戻し：対象がいなかった。`)
