@@ -4,6 +4,7 @@
 import type { ActionRegistry } from "./types"
 import { magicMirrorRepeatHandler, resumeMagicAfterEffectsHandler, resumeMagicEntryHandler } from "../magic/resolve"
 import { finishMagicUseHandler } from "../magic/inUse"
+import { useMagicCardHandler } from "../magic/effectUse"
 import battleFlow from "./battleFlow"
 import burstActivate from "./burstActivate"
 import bounce from "./bounce"
@@ -62,6 +63,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     resumeMagicEntry: resumeMagicEntryHandler,
     resumeMagicAfterEffects: resumeMagicAfterEffectsHandler,
     finishMagicUse: finishMagicUseHandler,
+    useMagicCard: useMagicCardHandler,
     ...mill,
     ...pay,
     ...peekHand,

@@ -8,6 +8,7 @@ import { magicUseRestriction } from "../RuleValidator"
 import { recordMagicUse } from "../record"
 import { beginMagicUse, finishMagicUseOrDefer } from "./inUse"
 import { resolveMagic } from "./cast"
+import type { ActionHandler } from "../actions/types"
 
 export function effectMagicUseDenial(state: GameState, pid: PlayerId, card: CardData, timing: "main" | "flash", paySources?: PaySource[]): string | null {
     const restricted = magicUseRestriction(state, pid, card, timing, paySources)
@@ -28,4 +29,8 @@ export function useMagicByEffect(state: GameState, pid: PlayerId, cardId: string
     resolveMagic(state, pid, cardId, timing, undefined, paidCost)
     if (state.lastMagicCast === before) state.lastMagicCast = { pid, cardId, timing }
     finishMagicUseOrDefer(state)
+}
+
+export const useMagicCardHandler: ActionHandler<"useMagicCard"> = (ctx, action) => {
+    useMagicByEffect(ctx.state, ctx.owner, action.cardId, action.timing, action.paidCost)
 }
