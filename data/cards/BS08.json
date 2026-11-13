@@ -2482,7 +2482,6 @@
     "kind": "triggered",
     "trigger": "onBattleWin",
     "heading": "block",
-    "battleRole": "blocker",
     "levels": [
      3
     ],

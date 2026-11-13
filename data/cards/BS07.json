@@ -1627,7 +1627,6 @@
      1,
      2
     ],
-    "battleRole": "attacker",
     "action": {
      "type": "lifeCrush",
      "count": 1

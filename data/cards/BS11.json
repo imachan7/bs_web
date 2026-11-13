@@ -3530,7 +3530,6 @@
     "heading": "block",
     "levels": null,
     "whileCombined": true,
-    "battleRole": "blocker",
     "optional": false,
     "action": {
      "type": "removeOneOfAnyType",
@@ -5287,7 +5286,6 @@
      3
     ],
     "whileCombined": true,
-    "battleRole": "attacker",
     "optional": false,
     "action": {
      "type": "removeOneOfAnyType",

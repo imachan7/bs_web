@@ -21,7 +21,8 @@ import {
     answerPayConfirm,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { placeBurst, hasBlockTriggersAsAttack } from "../../server/src/logic/EffectModules"
+import { placeBurst } from "../../server/src/logic/EffectModules"
+import { headingRewritesOn } from "../../shared/rules"
 import { fireTrigger, resolveMagic } from "../../server/src/logic/triggers"
 import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { destroySpirit } from "../../server/src/logic/removal"
@@ -133,9 +134,9 @@ console.log("=== BS14-041 バスター・フェンリルキャノン：白1体�
     // 見出しは『自分のアタックステップ』（2026-09-16 に限定を実装へ反映）
     s2.turnPlayer = "p1"
     s2.phase = "attack"
-    assert(!hasBlockTriggersAsAttack(s2, "p1", cannon2), "バースト未セット時はブロック時→アタック時の移し替えが無い")
+    assert(!headingRewritesOn(s2, "p1", cannon2).blockToAttack, "バースト未セット時はブロック時→アタック時の移し替えが無い")
     placeBurst(s2, "p1", "BS14-104")
-    assert(hasBlockTriggersAsAttack(s2, "p1", cannon2), "バースト中は系統「機獣」のブロック時効果がアタック時に発揮される")
+    assert(headingRewritesOn(s2, "p1", cannon2).blockToAttack, "バースト中は系統「機獣」のブロック時効果がアタック時に発揮される")
 }
 
 console.log("=== BS14-042 鉄の機人モージ：【重装甲：緑/青】+ 同色BP比較で破壊された代わりに回復状態で残る ===")

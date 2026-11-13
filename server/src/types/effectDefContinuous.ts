@@ -660,7 +660,6 @@ export type EffectDefContinuous =
           familyFilter?: FamilyFilter
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           whileOwnBurstSet?: true
-          alsoBlock?: true // 付け替えず、『ブロック時』のままアタック時にも発揮する
       }
     | {
           id: string

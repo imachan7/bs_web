@@ -1,7 +1,7 @@
 // smoke パート78（効果の無効化・読み替え層 その1）
 //
 //   - BS05-075 ブレイブチャージ: action "attackTriggersAsBlockThisTurn"
-//     （CardInstance.attackTriggersAsBlockThisTurn。fireTrigger が『アタック時』効果を『ブロック時』へ移す）
+//     （CardInstance.attackTriggersAsBlockThisTurn。『アタック時』効果を『ブロック時』にも発揮する）
 //   - BS04-086 古代闘技場 Lv1: kind "bpBuffSuppression"
 //     （相手の「BPを+する」効果を発揮させない。BP増加アクション＝buff.ts のレジストリ包み込み、
 //      BP増加オーラ＝effectiveBp のオーラ走査、の2経路をふさぐ）
@@ -58,10 +58,11 @@ console.log("=== BS05-075 ブレイブチャージ：『アタック時』効果
     const afterBlock = effectiveBp(s, "p1", spirit)
     assert(afterBlock > before, "読み替え後はブロック時に『アタック時』効果が発揮される")
 
+    // 書き換えは「追加」で、元の『アタック時』でも発揮する（Q24677。2026-11-13 ユーザー確定）
     fireTrigger(s, "p1", spirit, "onAttack")
     assert(
-        effectiveBp(s, "p1", spirit) === afterBlock,
-        "『アタック時』には発揮されなくなる（＝ブロック時へ移し替え）",
+        effectiveBp(s, "p1", spirit) > afterBlock,
+        "『アタック時』にも引き続き発揮する（追加）",
     )
 
     endTurn(s)

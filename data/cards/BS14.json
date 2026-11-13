@@ -1985,7 +1985,6 @@
     "levels": [
      3
     ],
-    "battleRole": "attacker",
     "optional": false,
     "action": {
      "type": "lifeCrush",
@@ -4388,7 +4387,6 @@
     "heading": "attack",
     "levels": null,
     "whileCombined": true,
-    "battleRole": "attacker",
     "optional": false,
     "action": {"type": "placeCores", "from": "void", "to": "spirit", "target": "self", "count": 1}
    }

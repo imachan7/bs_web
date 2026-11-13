@@ -201,6 +201,17 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `coreIntakeRefused`（fn）：置く側の発生源が inst 自身なら false（自分の効果なので置ける）
 
+## shared/rules/effectHeading.ts
+
+- `HeadingSide`（型）
+- `HeadingRewrites`（型）
+- `printedSides`（fn）
+- `firesAs`（fn）
+- `firesAt`（fn）：誘発 event が起きたとき、e がその側（side）の効果として発揮するか。
+- `printedTrigger`（fn）：「『〜時』効果は発揮されない」の照合に使う、印刷された見出しの誘発名。見出しの無いものは trigger のまま。
+- `sideOf`（fn）
+- `headingRewritesOn`（fn）
+
 ## shared/rules/effectStop.ts
 
 - `entryActive`（fn）：effectActiveOn（Lv＋【合体時】）に、「持つ効果すべては発揮されない」個体でないこと、場のネクサスなら「個体ごと止められていない」「エントリ単位の停止（targetE…
@@ -391,9 +402,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryOwnLifeFloorByCost`（fn）：kind:"ownLifeFloor" の costSelfToTrash 版：自分のライフが0になるとき、このネクサスをトラッシュに置いてライフを0にしない。呼び出し側が lif…
 - `hasSummonedExhaustGrant`（fn）：kind:"summonedExhaustGrant"：ownerPid のフィールドに「相手のスピリットは召喚されたとき疲労する」を持つ有効な発生源があるか（condition.…
 - `hasBurstMagicFreeEffect`（fn）：kind:"burstMagicFreeEffect"：ownerPid のフィールドに、自分のバーストがマジックで発動したときコストを支払わずメイン/フラッシュを発揮できる発生源…
-- `hasBlockTriggersAsAttack`（fn）：kind:"attackTriggersAsBlockGrant"：対象スピリットの『アタック時』効果が『ブロック時』へ**移し替え**られているか。
-- `blockTriggersAlsoOnAttack`（fn）：付け替えず両方で発揮する版（alsoBlock）。発揮の判定のたびに読む
-- `hasAttackTriggersAsBlock`（fn）
 - `hasLifeDamageNegate`（fn）：kind:"lifeDamageNegate"：ブロックされなかったアタッカーの実効BPが、発生源（defenderPid側）の実効BP以下のとき、ライフダメージそのものを打ち消す…
 - `drawStepBonusFor`（fn）：持ち主のドローステップで引く枚数の追加数（kind: "drawStepBonus"）。uniqueByName は同名の発生源を1回だけ数える
 - `coreStepBonusFor`（fn）：持ち主のコアステップで得られるコアの追加数（kind:"coreStepBonus"）。フィールド（スピリット＋ネクサス）の発動条件を満たす発生源をすべて合算する。

@@ -130,8 +130,7 @@
      "bravesOnly": true,
      "familyFilter": "剣刃",
      "combinableWithSelf": true
-    },
-    "battleRole": "attacker"
+    }
    },
    {
     "id": "BS23-002-e2",
@@ -1954,8 +1953,7 @@
      "bravesOnly": true,
      "familyFilter": "剣刃",
      "combinableWithSelf": true
-    },
-    "battleRole": "attacker"
+    }
    },
    {
     "id": "BS23-024-e2",
@@ -4213,8 +4211,7 @@
      "bravesOnly": true,
      "familyFilter": "剣刃",
      "combinableWithSelf": true
-    },
-    "battleRole": "attacker"
+    }
    },
    {
     "id": "BS23-050-e2",

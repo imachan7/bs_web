@@ -5,8 +5,8 @@
 // 「発生源が場にある間ずっと」の継続版が無く2枚が未実装だった。
 //
 // 新設した機構:
-//   - kind:"attackTriggersAsBlockGrant"（『アタック時』効果を『ブロック時』へ**移し替え**る継続付与。
-//     target:"anyAll" で両陣営が対象。fireTrigger が hasAttackTriggersAsBlock 経由で参照）
+//   - kind:"attackTriggersAsBlockGrant"（『アタック時』効果を『ブロック時』**にも**発揮させる継続付与。
+//     target:"anyAll" で両陣営が対象。shared/rules/effectHeading.ts）
 //   - kind:"koboOnBlock"（【光芒】を『ブロック時』**にも**発揮させる。funsaiOnBlock の光芒版）
 // 実装したカード:
 //   - BS04-007 ドラグノ近衛兵 Lv1･Lv2（相手のアタックステップ中、「竜人」のアタック時効果をブロック時に）
@@ -98,11 +98,10 @@ console.log("=== BS04-007：『相手のアタックステップ』限定なの�
     )
 }
 
-console.log("=== BS04-007：相手のアタックステップでは、相手の竜人のアタック時効果が消える（移し替え） ===")
+console.log("=== BS04-007：相手の竜人にも効くが「追加」なので、相手のアタック時効果は消えない ===")
 {
-    // 「系統：「竜人」を持つスピリット」は**修飾なし＝両陣営**。相手のアタックステップ中は
-    // 相手の竜人にも移し替えが効くので、相手がアタックしてもアタック時効果は発揮されない
-    // （移った先の『ブロック時』はアタックしている本人には訪れない）。これがこのカードの主眼
+    // 「系統：「竜人」を持つスピリット」は**修飾なし＝両陣営**。書き換えは「追加」で、元の『アタック時』でも
+    // 発揮する（Q1953。2026-11-13 ユーザー確定。以前は移し替えとして相手のアタック時効果を消していた）
     const s = createGame("bs04-007-oppattacker", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
     runTurnStart(s)
     s.turnPlayer = "p2"
@@ -112,8 +111,8 @@ console.log("=== BS04-007：相手のアタックステップでは、相手の�
     const baseBp = effectiveBp(s, "p2", oppScout)
     assert(act(s, "p2", { type: "attack", instanceId: oppScout.instanceId }) === null, "相手がアタックできる")
     assert(
-        effectiveBp(s, "p2", oppScout) === baseBp,
-        `相手の竜人のアタック時効果は発揮されない（実際+${effectiveBp(s, "p2", oppScout) - baseBp}）`,
+        effectiveBp(s, "p2", oppScout) === baseBp + 2000,
+        `相手の竜人のアタック時効果は発揮される（実際+${effectiveBp(s, "p2", oppScout) - baseBp}）`,
     )
 }
 

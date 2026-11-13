@@ -815,7 +815,6 @@
         "heading": "block",
         "levels": null,
         "whileCombined": true,
-        "battleRole": "blocker",
         "action": {
           "type": "lifeCrush",
           "count": 1
@@ -5095,7 +5094,6 @@
         "kind": "triggered",
         "trigger": "onBattleWin",
         "heading": "block",
-        "battleRole": "blocker",
         "levels": [
           2,
           3
@@ -7335,7 +7333,6 @@
         "kind": "triggered",
         "trigger": "onBattleWin",
         "heading": "attack",
-        "battleRole": "attacker",
         "whileCombined": true,
         "levels": [
           3

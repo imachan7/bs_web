@@ -1304,7 +1304,6 @@
      2
     ],
     "optional": false,
-    "battleRole": "attacker",
     "action": {
      "type": "refresh",
      "all": true,
@@ -5400,7 +5399,6 @@
     "kind": "triggered",
     "trigger": "onBattleWin",
     "heading": "attack",
-    "battleRole": "attacker",
     "levels": [
      3
     ],

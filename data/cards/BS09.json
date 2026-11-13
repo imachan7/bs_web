@@ -5921,7 +5921,6 @@
           1,
           2
         ],
-        "battleRole": "attacker",
         "optional": false,
         "action": {
           "type": "discard",

@@ -874,7 +874,6 @@ function splitSentences(text: string): string[] {
 const EXCLUSIVE_KEYS = new Set([
     "levels", // レベルで排他
     "role", // 1回のバトルで自分は attacker か blocker のどちらか
-    "battleRole",
     "heading", // アタック時とブロック時は同じバトルで同じ個体に両方は起きない
     "trigger", // 誘発イベントが別（onSummon / onAttack / onBlock…）
     "event", // fieldEvent のイベントが別（ownMagicUsed / opponentMagicUsed…）

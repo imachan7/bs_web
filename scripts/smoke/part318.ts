@@ -433,9 +433,12 @@ console.log("=== BS14-X06：相手のスピリットすべての『破壊時』�
 {
     const s = game("t318-x06-b")
     put(s, "p1", "BS14-X06", 1)
-    const foe = put(s, "p2", "BS01-133", 1)
+    // BS01-042 ミストウィゼル（紫・『このスピリットの破壊時』3枚ドロー）。以前は BS01-133（マジック）を置いており、ログしか見ていなかった
+    const foe = put(s, "p2", "BS01-042", 1)
     const before = s.log.length
+    const hand = s.players.p2.hand.length
     fireTrigger(s, "p2", foe, "onDestroy")
+    assert(s.players.p2.hand.length === hand, "破壊時のドローが起きない")
     assert(
         s.log.slice(before).some((l) => l.includes("発揮されなかった")),
         "相手のスピリットの『このスピリットの破壊時』効果は発揮されない",

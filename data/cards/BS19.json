@@ -1301,7 +1301,6 @@
     "trigger": "onBattleEnd",
     "heading": "attack",
     "eventTarget": "ignore",
-    "battleRole": "attacker",
     "whileCombined": true,
     "levels": [
      2,
@@ -2054,7 +2053,6 @@
     "kind": "triggered",
     "trigger": "onBattleWin",
     "heading": "attack",
-    "battleRole": "attacker",
     "levels": [
      1,
      2
@@ -2098,8 +2096,7 @@
        "target": "self"
       }
      }
-    },
-    "battleRole": "attacker"
+    }
    }
   ]
  },
@@ -8260,7 +8257,6 @@
     "kind": "triggered",
     "trigger": "onBattleWin",
     "heading": "attack",
-    "battleRole": "attacker",
     "levels": null,
     "whileCombined": true,
     "optional": false,

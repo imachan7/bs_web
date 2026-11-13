@@ -692,7 +692,6 @@
     "levels": [
      3
     ],
-    "battleRole": "attacker",
     "action": {
      "type": "moveCards",
      "from": "trash",
@@ -1178,7 +1177,6 @@
     "kind": "triggered",
     "trigger": "onBattleWin",
     "heading": "attack",
-    "battleRole": "attacker",
     "levels": [
      3
     ],
@@ -1299,7 +1297,6 @@
     "levels": [
      2
     ],
-    "battleRole": "blocker",
     "action": {
      "type": "exhaust",
      "count": 1
@@ -2662,7 +2659,6 @@
     "kind": "triggered",
     "trigger": "onBattleWin",
     "heading": "block",
-    "battleRole": "blocker",
     "levels": [
      2
     ],
@@ -5624,7 +5620,6 @@
     "kind": "triggered",
     "trigger": "onBattleWin",
     "heading": "attack",
-    "battleRole": "attacker",
     "levels": [
      1,
      2,
@@ -8558,7 +8553,6 @@
     "levels": [
      2
     ],
-    "battleRole": "attacker",
     "action": {
      "type": "discard",
      "from": "deck",

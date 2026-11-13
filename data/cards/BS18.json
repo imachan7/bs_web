@@ -3763,7 +3763,6 @@
     "kind": "triggered",
     "trigger": "onBattleWin",
     "heading": "attack",
-    "battleRole": "attacker",
     "levels": [
      2
     ],
@@ -6025,7 +6024,6 @@
     "kind": "triggered",
     "trigger": "onBattleWin",
     "heading": "attack",
-    "battleRole": "attacker",
     "levels": [
      3
     ],
