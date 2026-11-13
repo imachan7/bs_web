@@ -92,7 +92,7 @@ export function submitPaying(): void {
         ui.paying = null
         return
     }
-    const cardId = view.players[view.you].hand?.[pay.handIndex]
+    const cardId = pay.fromTegamoto === true ? view.players[view.you].tegamoto[pay.handIndex] : view.players[view.you].hand?.[pay.handIndex]
     if (cardId === undefined) {
         ui.paying = null
         rerender()
@@ -137,6 +137,7 @@ export function submitPaying(): void {
         pay.useSoulCore === true ? true : undefined,
         pay.placeSoulCore === true ? true : undefined,
         pay.payOffInstanceId,
+        pay.fromTegamoto,
     )
     ui.paying = null
 }
@@ -159,7 +160,7 @@ export function changeAltPay(delta: number): void {
 export function toggleDiscardPay(handIndex: number): void {
     if (!view || !ui.paying) return
     const pay = ui.paying
-    if (handIndex === pay.handIndex) return // 召喚するカード自身は破棄に使えない
+    if (pay.fromTegamoto !== true && handIndex === pay.handIndex) return // 召喚するカード自身は破棄に使えない
     const alt = payingAltPay(view, pay)
     if (alt.kind !== "handDiscard") return
     const at = pay.discardHandIndices.indexOf(handIndex)
@@ -258,7 +259,7 @@ export function assignPayCore(instanceId: string): void {
         assignOneCore(pay, instanceId, inst.cores - (soulOnDetachSrc ? 1 : 0), minLevelCores(master(brave.cardId)), player.reserve)
         return
     }
-    const cardId = player.hand?.[pay.handIndex]
+    const cardId = pay.fromTegamoto === true ? player.tegamoto[pay.handIndex] : player.hand?.[pay.handIndex]
     if (cardId === undefined) {
         ui.paying = null
         rerender()

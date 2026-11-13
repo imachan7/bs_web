@@ -3501,7 +3501,7 @@
     "action": {
      "type": "magicFreeUseFromHandOrTegamoto",
      "colorFilter": "yellow",
-     "handOnly": true
+     "anyTegamoto": true
     }
    }
   ]

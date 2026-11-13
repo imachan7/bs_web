@@ -96,12 +96,15 @@ export function sendPlay(
     paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う
     placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして召喚/配置した個体に置く
     payOffInstanceId?: string, // kind:"summonPayOff"：破壊して召喚コストを払ったものとして扱う個体
+    fromTegamoto?: boolean, // handIndex は手元の添字（#512）
 ): void {
+    const tg = fromTegamoto === true ? { fromTegamoto: true as const } : {}
     // ブレイヴは単体で場に出すとスピリットとして扱われるので、召喚はこちらを通る（BRAVE.md §1.1）
     if (isSummonableCardType(cardType)) {
         send({
             type: "summon",
             handIndex,
+            ...tg,
             ...(paySources ? { paySources } : {}),
             ...(level !== undefined ? { level } : {}),
             ...(substituteInstanceId ? { substituteInstanceId } : {}),
@@ -124,6 +127,7 @@ export function sendPlay(
         send({
             type: "castMagic",
             handIndex,
+            ...tg,
             ...(ui.magicTiming ? { timing: ui.magicTiming } : {}),
             ...(targetInstanceId ? { targetInstanceId } : {}),
             ...(paySources ? { paySources } : {}),
@@ -139,8 +143,11 @@ export function sendPlay(
 }
 
 // 軽減後コスト（+維持コア）がリザーブで足りるなら即送信、足りなければ支払いモードを開始する
-export function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | undefined, level?: number, substituteInstanceId?: string, braveTargetInstanceId?: string, altSummonNexusInstanceIds?: string[], exReductionTrashIndices?: number[], soulOnlyDeclined?: boolean, soulWaiver?: boolean): void {
+export function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | undefined, level?: number, substituteInstanceId?: string, braveTargetInstanceId?: string, altSummonNexusInstanceIds?: string[], exReductionTrashIndices?: number[], soulOnlyDeclined?: boolean, soulWaiver?: boolean, fromTegamoto?: boolean): void {
     if (!view) return
+    // 手元（tegamoto）から出すときは、途中の選択画面の状態にも印を持たせて送信まで運ぶ（#512）
+    const tg = fromTegamoto === true ? { fromTegamoto: true as const } : {}
+    const zoneCards = fromTegamoto === true ? view.players[view.you].tegamoto : view.players[view.you].hand
     // 《ソウルマジック》(kind:"soulCoreOnlyCast")：「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」。
     // 無償化（cost0）のときは軽減も支払いも不要なので選択を出さない。soulOnlyDeclinedは「通常どおり」を選んだ済みの印
     const v = view // view はモジュール変数のためクロージャ内では絞り込みが効かない。先に取り出す
@@ -161,7 +168,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
         ui.braveSummonSelect = null
         ui.altSummonSelect = null
         ui.exReductionSelect = null
-        ui.soulCoreOnlySelect = { handIndex, cardId: card.cardId, ...(targetInstanceId ? { targetInstanceId } : {}) }
+        ui.soulCoreOnlySelect = { handIndex, ...tg, cardId: card.cardId, ...(targetInstanceId ? { targetInstanceId } : {}) }
         rerender()
         return
     }
@@ -199,7 +206,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
             ui.battleSwapSummon = null
             ui.braveSummonSelect = null
             ui.altSummonSelect = null
-            ui.exReductionSelect = { handIndex, cardId: card.cardId, ...(targetInstanceId ? { targetInstanceId } : {}), phase: "ask", groups }
+            ui.exReductionSelect = { handIndex, ...tg, cardId: card.cardId, ...(targetInstanceId ? { targetInstanceId } : {}), phase: "ask", groups }
             rerender()
             return
         }
@@ -212,7 +219,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
     // 入れ替え召喚と同じくレベル選択をスキップする（サーバーもレベル指定を受け付けない）
     if (level === undefined && substituteInstanceId === undefined && braveTargetInstanceId === undefined && soulWaiver !== true && (card.type === "spirit" || card.type === "nexus")) {
         const reserve = view.players[view.you].reserve
-        const cardIdForField = view.players[view.you].hand?.[handIndex]
+        const cardIdForField = zoneCards?.[handIndex]
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える（2026-08-01）ため、
         // 選択肢に出すレベルの判定にもフィールドのコアを含める
         const fieldCores = cardIdForField ? payableFieldCores(view, cardIdForField) : 0
@@ -225,14 +232,14 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
 
         // If they can afford Lv2 or higher, show level selection
         if (affordableLevels.length > 1 || waiverAvailable) {
-            const cardId = view.players[view.you].hand?.[handIndex]
+            const cardId = zoneCards?.[handIndex]
             if (!cardId) return
             ui.targeting = null
             ui.awakenTarget = null
             ui.paying = null
             ui.directedAttack = null
             // 空配列＝「《継召》を使わない」を選んだ済みの印。レベル選択を挟んでも引き継ぐ（落とすと無限ループ）
-            ui.summonLevelSelect = { handIndex, cardId, ...(targetInstanceId ? { targetInstanceId } : {}), ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {}), ...(exReductionTrashIndices !== undefined ? { exReductionTrashIndices } : {}) }
+            ui.summonLevelSelect = { handIndex, ...tg, cardId, ...(targetInstanceId ? { targetInstanceId } : {}), ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {}), ...(exReductionTrashIndices !== undefined ? { exReductionTrashIndices } : {}) }
             rerender()
             return
         }
@@ -266,7 +273,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
     // **召喚するカード自身は破棄に使えない**ので手札枚数から1枚引く
     const handDiscardPayable =
         card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)
-            ? Math.min(cost, Math.max(0, view.players[view.you].handCount - 1))
+            ? Math.min(cost, Math.max(0, view.players[view.you].handCount - (fromTegamoto === true ? 0 : 1)))
             : 0
 
     // 代替コスト（手札破棄／デッキ破棄）が使えるなら、**コアが足りていても支払いモードへ入る**。
@@ -279,11 +286,11 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
     const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
     // waiver配置は維持コア1個を[ソウルコア]が担うため、通常コアはコストぶんだけで足りる
     if (soulWaiver === true && ui.payMode === "auto" && !altAvailable && soulInReserve && reserve - 1 >= cost) {
-        sendPlay(card.type, handIndex, targetInstanceId, undefined, undefined, substituteInstanceId, undefined, undefined, braveTargetInstanceId, altSummonNexusInstanceIds, undefined, exReductionTrashIndices, undefined, true)
+        sendPlay(card.type, handIndex, targetInstanceId, undefined, undefined, substituteInstanceId, undefined, undefined, braveTargetInstanceId, altSummonNexusInstanceIds, undefined, exReductionTrashIndices, undefined, true, undefined, fromTegamoto)
         return
     }
     if (ui.payMode === "auto" && !altAvailable && soulWaiver !== true && reserve - (soulInReserve ? 1 : 0) >= cost + maintain) {
-        sendPlay(card.type, handIndex, targetInstanceId, undefined, level, substituteInstanceId, undefined, undefined, braveTargetInstanceId, altSummonNexusInstanceIds)
+        sendPlay(card.type, handIndex, targetInstanceId, undefined, level, substituteInstanceId, undefined, undefined, braveTargetInstanceId, altSummonNexusInstanceIds, undefined, undefined, undefined, undefined, undefined, fromTegamoto)
         return
     }
     // コアが足りない、または代替コストを選べる → 支払いモードを開始（他のモードは排他的に解除する）
@@ -300,6 +307,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
     ui.combineBrave = null
     ui.paying = { 
         handIndex, 
+        ...tg,
         ...(targetInstanceId ? { targetInstanceId } : {}), 
         assigned: {}, 
         discardHandIndices: [],
