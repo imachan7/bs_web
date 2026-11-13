@@ -6,7 +6,7 @@ import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { negateBurstActivation } from "../burstNegate"
 import { burstActivationFee, burstFeeUnpayable, payBurstActivationFee } from "../burstActivationFee"
 import { withEffectTax } from "../effectTax"
-import { canPayBurstThenPay, payBurstThenPay } from "../burstThenPay"
+import { canPayMagicCost, payMagicCostThenResolve } from "../magic/payThenResolve"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { CardInstance, Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -129,7 +129,7 @@ function tryBurstThenPay(
     const cost = effectiveCost(state, pid, card)
     // 払えないなら払う確認は出さず不発（2026-10-02 ユーザー確認。バースト自体の発動確認は済んでいる）。
     // 簡略化：判定するのはコストのコアだけで、効果本体（entry.action）が解決できるかは見ない
-    if (!canPayBurstThenPay(state, pid, cost)) {
+    if (!canPayMagicCost(state, pid, cost)) {
         log(state, unpayableLine(card.name, "コストのコアが足りない"))
         return
     }
@@ -150,7 +150,7 @@ function tryBurstThenPay(
         if (state.pendingChoice) state.pendingChoice.burstThenPay = { pid, cost, cardId }
         return
     }
-    payBurstThenPay(state, pid, cardId, cost, entry.action)
+    payMagicCostThenResolve(state, pid, cardId, cost, entry.action)
 }
 
 // burstMagicFreeEffect持ち（BS16-070）の分岐：「コストを払ってthenPay」「無償でメイン」「無償でフラッシュ」
@@ -169,7 +169,7 @@ function tryBurstMagicFreeOrThenPay(
     const flashEntry = magicEntry("flash")
     const payEntry = thenPay !== undefined ? magicEntry(thenPay) : undefined
     const payCost = payEntry ? effectiveCost(state, pid, card) : 0
-    const canPay = payEntry !== undefined && canPayBurstThenPay(state, pid, payCost)
+    const canPay = payEntry !== undefined && canPayMagicCost(state, pid, payCost)
     const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
         if (!entry) return
         // マジックの「使用」ではないのでresolveMagicは通さない（Q22399。docs/design/BURST.md §7.1）
@@ -179,7 +179,7 @@ function tryBurstMagicFreeOrThenPay(
         // 非対話の既定：無償でフラッシュがあればそれ、無ければ無償でメイン（2026-09-28ユーザー決定）
         if (flashEntry) return resolveFree(flashEntry)
         if (mainEntry) return resolveFree(mainEntry)
-        if (canPay && payEntry) payBurstThenPay(state, pid, cardId, payCost, payEntry.action)
+        if (canPay && payEntry) payMagicCostThenResolve(state, pid, cardId, payCost, payEntry.action)
         return
     }
     const options: string[] = []

@@ -4030,9 +4030,15 @@
     "phase": "attack",
     "turn": "opponent",
     "subjectSide": "opponent",
+    "selfMode": "source",
     "action": {
      "type": "removeCores",
-     "count": 1
+     "side": "opponent",
+     "from": [
+      "spirit"
+     ],
+     "count": 1,
+     "chooser": "owner"
     }
    },
    {

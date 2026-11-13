@@ -178,7 +178,7 @@ export interface CardInstance {
     // （CardData.braveLevels）を返し、currentLevel がホストのコア数で正しいレベルを出す。
     // ⚠️ ここを素の levels のままにすると、合体中のブレイヴはコア0なので **Lv0 になり、
     // 【合体中】効果が無言で発火しない**（TURN_EFFECT_SOURCES.md §3.3 と同型の事故）
-    braveComposite?: { cost: number; colors: Color[]; symbols: Color[] }
+    braveComposite?: { cost: number; colors: Color[]; symbols: Color[]; grantedColors: Color[] }
     // **合体しているブレイヴがホストへ足すぶん**（docs/design/BRAVE.md §3）。
     // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築する（他の継続上書きと同じ扱い）。
     // ここに入るのは**レベルに依らない値だけ**：コスト・色・シンボル。
