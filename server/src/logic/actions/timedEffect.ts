@@ -2,7 +2,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, CardType, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log, suspend } from "../GameState"
-import { applyMagicBuffBonus, recordBp, findSpiritAny, pickAnySideByBp, pickAnySideCandidates, resistanceAgainst, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
+import { applyMagicBuffBonus, gateTargetedApply, recordBp, findSpiritAny, pickAnySideByBp, pickAnySideCandidates, resistanceAgainst, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
@@ -403,6 +403,13 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         return
     }
     const until = action.duration === "battle" ? "battle" : "turn"
+    // 適用点は probing でなく判定し、手札を払って防ぐ耐性（円卓）の確認もここで出す。弾いた・確認を出したら true
+    const gated = (inst: CardInstance, pid: PlayerId): boolean => {
+        const r = gateTargetedApply(state, pid, inst, attemptOf(ctx, "other", "targeted"), action, self, sourceName)
+        if (r === null) return false
+        if (r !== "asked") log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`)
+        return true
+    }
     const maxLevelOf = (s: CardInstance) => getCard(s.cardId).levels.reduce((m, l) => Math.max(m, l.level), 1)
     if (content.set !== undefined || content.max === true) {
         // max＝そのスピリットのカードの最高Lv（個体ごとに違うので、選んだ個体で決める）
@@ -428,6 +435,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
             log(state, `${sourceName}：対象が条件を満たさなかった。`)
             return
         }
+        if (gated(found.inst, found.pid)) return
         const level = levelOf(found.inst)
         recordFrom(ctx, { content: [{ type: "level", set: level }], target: { kind: "instance", instanceId: found.inst.instanceId }, until, ownerPid: owner })
         log(state, `${sourceName}：${getCard(found.inst.cardId).name}はこの${until === "battle" ? "バトル" : "ターン"}の間Lv${level}として扱われる。`)
@@ -435,7 +443,9 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     }
     let target: CardInstance | undefined
     if (targetInstanceId !== undefined) {
-        target = findSpiritAny(state, targetInstanceId)?.inst
+        const found = findSpiritAny(state, targetInstanceId)
+        if (found && gated(found.inst, found.pid)) return
+        target = found?.inst
     } else {
         const candidates =
             action.side === "both" ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType) : state.players[owner].field.spirits.slice()
@@ -459,7 +469,7 @@ const ALL_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"
 // 1体に色を与える（「〜としても扱う」。個体の tempColors に書く）。色を使う人が選ぶときは、対象を選ぶ→色を選ぶ、の2段階で、
 // 選ばれた対象は次の選択の self として持ち回る（選択の再開は targetInstanceId を渡さず chosenOption だけを渡すため）
 function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
-    const { state, owner, opp, self, sourceName, targetInstanceId, chosenOption } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId, chosenOption } = ctx
     const content = action.content.find((c): c is Extract<Content, { type: "color" }> => c.type === "color")
     if (!content) return
     const give = (target: CardInstance, color: Color) => {
@@ -491,7 +501,13 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         return
     }
     if (targetInstanceId === undefined) {
-        const candidates = (action.side === "both" ? [...state.players.p1.field.spirits, ...state.players.p2.field.spirits] : state.players[action.side === "own" ? owner : opp].field.spirits).map((s) => s.instanceId)
+        const candidates = (
+            action.side === "both"
+                ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
+                : action.side === "own"
+                  ? state.players[owner].field.spirits
+                  : pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
+        ).map((s) => s.instanceId)
         if (candidates.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
@@ -499,8 +515,15 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         requestChoice(state, owner, "色を与える対象のスピリットを選んでください", candidates, false, action, self)
         return
     }
-    const target = findSpiritAny(state, targetInstanceId)?.inst
-    if (target) askColor(target)
+    const found = findSpiritAny(state, targetInstanceId)
+    if (!found) return
+    const r = gateTargetedApply(state, found.pid, found.inst, attemptOf(ctx, "other", "targeted"), action, self, sourceName)
+    if (r === "asked") return
+    if (r) {
+        log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`)
+        return
+    }
+    askColor(found.inst)
 }
 
 // bannedColors:"last" を、直前に動いたカード（lastMovedOf）の色の和集合へ解決する
