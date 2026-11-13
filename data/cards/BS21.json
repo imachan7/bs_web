@@ -1315,6 +1315,11 @@
     "optional": false,
     "action": {
      "type": "removeCores",
+     "side": "opponent",
+     "from": [
+      "spirit",
+      "nexus"
+     ],
      "count": 1
     }
    },
@@ -4454,6 +4459,11 @@
        },
        "then": {
         "type": "removeCores",
+        "side": "opponent",
+        "from": [
+         "spirit",
+         "nexus"
+        ],
         "count": 1
        }
       }
