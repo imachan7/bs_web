@@ -211,13 +211,13 @@ export interface UiState {
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
     directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
     // 召喚・配置レベル選択モード
-    summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string; altSummonNexusInstanceIds?: string[]; exReductionTrashIndices?: number[] } | null
+    summonLevelSelect: { handIndex: number; fromTegamoto?: true; cardId: string; targetInstanceId?: string; altSummonNexusInstanceIds?: string[]; exReductionTrashIndices?: number[] } | null
     // 《継召》(kind:"exTrashReduction")の除外カード選択モード。手札のスピリット/ブレイヴが効果を持ち、
     // トラッシュにEXシンボル持ちカードがあるとき、コストを支払う通常の召喚の前に開く。
     // candidateIndices/selected はどちらも自分の trashCards 内インデックス
-    exReductionSelect: { handIndex: number; cardId: string; targetInstanceId?: string; phase: "ask" | "select"; groups: ExReductionGroup[] } | null // 《継召》の「する／しない」→ 対象選択（同一カードはグループまとめ）
+    exReductionSelect: { handIndex: number; fromTegamoto?: true; cardId: string; targetInstanceId?: string; phase: "ask" | "select"; groups: ExReductionGroup[] } | null // 《継召》の「する／しない」→ 対象選択（同一カードはグループまとめ）
     // 《ソウルマジック》（kind:"soulCoreOnlyCast"）の選択モード:「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」
-    soulCoreOnlySelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
+    soulCoreOnlySelect: { handIndex: number; fromTegamoto?: true; cardId: string; targetInstanceId?: string } | null
     // メインステップでマジックのメイン効果／フラッシュ効果を選ぶモードと、選んだ結果（castMagic を送るときに付ける）
     magicTimingSelect: { handIndex: number; cardId: string } | null
     magicTiming: "main" | "flash" | null
