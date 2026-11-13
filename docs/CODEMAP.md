@@ -91,7 +91,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `activatedActionResolvable`（fn）：起動能力の「〜することで」の後半を解決できるか（COST_MODEL §1。2026-10-16 ユーザー確認：できないなら起動できない）。
 - `DirectAttackFilter`（型）：指定アタック（canDirectAttack）の対象条件（targetFilter状態条件＋targetMinBpのBP条件）
 - `directAttackFilter`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
-- `minLevelCores`（fn）：維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
+- `handSummonCostPayable`（fn）：維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
+- `minLevelCores`（fn）
 - `minLevelCoresOf`（fn）：レベル表から最小レベルの必要コア数を求める素の計算（minLevelCores / instMinLevelCores の共通実体）
 - `placedCoresForSummon`（fn）：召喚/配置で置く維持コア数。サーバー（validateSummon/doSummon/validateSetNexus/doSetNexus）と
 - `isFlashLockedFor`（fn）：pid がいま「フラッシュで手札のカードを使えない」状態か。
