@@ -5999,7 +5999,13 @@
     },
     "action": {
      "type": "removeCores",
+     "side": "opponent",
+     "from": [
+      "spirit",
+      "nexus"
+     ],
      "to": "trash",
+     "target": "spread",
      "count": 2
     }
    }
