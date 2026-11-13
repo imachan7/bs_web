@@ -14,7 +14,7 @@ import type { Board, BoardPlayer } from "../board"
 import { card } from "../cardDb"
 import { minLevelCoresOf } from "./activation"
 import { activeConstraints, braveBpBonusZeroFor, braveExtraMinCostFor, hasGlobalConstraint, timedBattleContents, timedPlayerRules, trashFrozen } from "./constraints"
-import { instanceSymbolColors, instanceSymbolCount } from "./symbols"
+import { grantedColorsOf, instanceSymbolColors, instanceSymbolCount } from "./symbols"
 import { LABELED_KEYWORDS, spiritHasFamily, spiritHasKeyword } from "./keywordState"
 import { cardNameContains, instMatchesCostFilter } from "./targetFilter"
 import { extraCombineAllowed } from "./braveExtraCombine"
@@ -409,7 +409,7 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
     if (inst.colorlessThisBattle) return false
     if (cardHasColor(card(inst.cardId), color)) return true
     if (inst.timedColors.includes(color)) return true
-    if ((inst.colorsAsContinuous ?? []).includes(color)) return true
+    if (grantedColorsOf(inst).includes(color)) return true
     // 合体スピリットは合体しているブレイヴの色も持つ（BRAVE §12.2。色の絞り込みはすべて合成後の色。instColors と同じ）
     return (inst.braveComposite?.colors ?? []).includes(color)
 }
@@ -420,8 +420,7 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
 export function instColors(inst: CardInstance): Color[] {
     if (inst.colorlessThisBattle) return []
     const colors = new Set<Color>(card(inst.cardId).colors)
-    for (const c of inst.timedColors) colors.add(c)
-    for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
+    for (const c of grantedColorsOf(inst)) colors.add(c)
     // 合体しているブレイヴの色が加わり、合体スピリットは**混色扱い**になる
     // （BRAVE.md §12.2。2026-08-25 ユーザー確認）。装甲・軽減・「相手の〈色〉のスピリット」の
     // 絞り込みはすべてこの合成後の色で行う。
