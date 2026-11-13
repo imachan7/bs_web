@@ -4,6 +4,7 @@ node_modules
 .claude
 docs
 scripts
+!scripts/build-ai-worker.mjs
 tools
 public/dist
 *.md
