@@ -1,6 +1,6 @@
 // 合体スピリットが持つ「ブレイヴの『合体アタック時』効果をもう1度だけ発揮できる」（BS22-009）
 import { entryActive } from "../../../../shared/rules/effectStop"
-import { currentLevel, instIsCombined } from "../../../../shared/rules"
+import { currentLevel, firesAs, headingRewritesOn, instIsCombined } from "../../../../shared/rules"
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectDef, GameState, PlayerId } from "../../type"
 import { getCard, log } from "../GameState"
@@ -12,7 +12,8 @@ type Triggered = Extract<EffectDef, { kind: "triggered" }>
 // host の目印が有効なとき、ブレイヴの『合体アタック時』効果を「解決→もう1度の確認」の列に包む。
 // 発揮した効果だけが対象なので、確認を断った・不発の効果には付かない（包んだ列ごと確認の内側に入る）
 export function wrapWithRepeat(state: GameState, owner: PlayerId, host: CardInstance, brave: CardInstance, effect: EffectDef): EffectDef {
-    if (brave === host || effect.kind !== "triggered" || effect.trigger !== "onAttack" || effect.whileCombined !== true) return effect
+    // 見出し（書き換えを足したもの）が『アタック時』のエントリ。結果連動型（BPを比べ破壊したとき 等）も含む（#505）
+    if (brave === host || effect.kind !== "triggered" || effect.whileCombined !== true || !firesAs(effect, headingRewritesOn(state, owner, host)).includes("attack")) return effect
     if (!instIsCombined(host)) return effect
     // 見出しが『合体アタック時』か【合体時】『アタック時』かは区別しない（2026-11-08 ユーザー決定。BS23-031・044 と同じ）。
     // 対象はブレイヴのカード自身のエントリだけで、合体先のスピリットの【合体時】の効果は含めない

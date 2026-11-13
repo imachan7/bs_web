@@ -2,6 +2,7 @@
 import { act, assert, createGame, createInstance, effectiveBp, getCard, playerHas, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameAction, GameState, PlayerId } from "./helpers"
 import { scenario } from "./scenario"
+import { timedMagicLocked } from "../../shared/rules"
 import type { ScenarioCtx } from "./scenario"
 
 type Pending = NonNullable<GameState["pendingChoice"]>
@@ -489,7 +490,7 @@ scenario({
         assert(pick.cardIndices?.length === 2, "006: 候補は条件の合う2枚だけ（ロクケラトプスは入らない）")
         t.act("me", { type: "resolveChoice", cardIndex: pick.cardIndices?.find((i) => t.state.revealedCards?.cardIds[i] === BURST_SEAL) ?? -1 })
         for (let i = 0; i < 6 && t.state.pendingChoice !== null; i++) t.act("me", { type: "resolveChoice" }) // バーストの後ろにあるコスト支払いは払わない
-        assert(playerHas(t.state, t.opp, "cantUseHandCardsForPid"), "006: 封渦斬のバースト効果で相手はマジックを使用できない")
+        assert(timedMagicLocked(t.state, t.opp), "006: 封渦斬のバースト効果で相手はマジックを使用できない")
     },
     expect: [
         "自分.ツクヨミドラグーン.疲労: false → true",

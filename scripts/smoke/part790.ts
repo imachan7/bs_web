@@ -371,12 +371,15 @@ console.log("=== 18. 016 ワイボーン：アタック時に相手のコア1個
     put(s, "p1", VAN, 1) // 赤シンボル
     const opp = put(s, "p2", VAN, 3)
     const reserve = s.players.p2.reserve
-    assert(act(s, "p1", { type: "attack", instanceId: wyvern.instanceId }) === null, "ワイボーンでアタックできる")
-    assert(s.pendingChoice !== null, "連鎖[赤]で相手スピリットを指定する選択が出る（コア除去は候補1つで自動）")
-    settle(s, [opp.instanceId])
+    // 指定アタック（アタック宣言で相手を指定する。BS20_PLAN。#534）
+    assert(act(s, "p1", { type: "attack", instanceId: wyvern.instanceId, targetSpiritInstanceId: opp.instanceId }) === null, "連鎖[赤]で相手スピリットを指定してアタックできる")
+    settle(s)
     assert(opp.cores === 2 && s.players.p2.reserve === reserve + 1, "アタック時に相手のコア1個を相手のリザーブに置く")
-    noBlockFinish(s, "p1", "p2")
-    assert(s.players.p2.life === 4, "指定したスピリットがブロックしないのでライフは減る")
+    // アタック時効果の解決が終わった時点で、フラッシュを挟まず指定先のブロックが確定する（TIMING_CHART §1.10）
+    assert(s.battle?.blockerInstanceId === opp.instanceId, "指定したスピリットがブロックする")
+    passFlash(s)
+    settle(s)
+    assert(s.players.p2.life === 5, "ライフは減らない")
 }
 
 console.log("=== 19. 016：赤シンボルが無ければ指定は出ず、コア除去だけ起きる ===")
@@ -385,8 +388,8 @@ console.log("=== 19. 016：赤シンボルが無ければ指定は出ず、コ�
     const wyvern = put(s, "p1", WYVERN, 1)
     const opp = put(s, "p2", VAN, 3)
     const reserve = s.players.p2.reserve
+    assert(act(s, "p1", { type: "attack", instanceId: wyvern.instanceId, targetSpiritInstanceId: opp.instanceId }) !== null, "赤シンボルが無いので指定アタックはできない")
     assert(act(s, "p1", { type: "attack", instanceId: wyvern.instanceId }) === null, "ワイボーンでアタックできる")
-    assert(s.pendingChoice === null, "赤シンボルが無いので指定の選択は出ない")
     settle(s)
     assert(opp.cores === 2 && s.players.p2.reserve === reserve + 1, "コア除去は起きる")
     noBlockFinish(s, "p1", "p2")
@@ -480,12 +483,14 @@ console.log("=== 26. 058 スカルプレイン：合体時のアタック時、�
     put(s, "p1", VAN, 1) // 赤シンボル
     const opp = put(s, "p2", VAN, 3)
     const reserve = s.players.p2.reserve
-    assert(act(s, "p1", { type: "attack", instanceId: host.instanceId }) === null, "合体スピリットでアタックできる")
-    assert(s.pendingChoice !== null, "連鎖[赤]で相手スピリットを指定する選択が出る（コア除去は候補1つで自動）")
-    settle(s, [opp.instanceId])
+    assert(act(s, "p1", { type: "attack", instanceId: host.instanceId, targetSpiritInstanceId: opp.instanceId }) === null, "連鎖[赤]で相手スピリットを指定してアタックできる")
+    settle(s)
     assert(opp.cores === 1 && s.players.p2.reserve === reserve + 2, "相手スピリット1体のコアを1個だけになるようにリザーブに置く")
-    noBlockFinish(s, "p1", "p2")
-    assert(s.players.p2.life === 3, "指定したスピリットがブロックしないのでライフは減る（合体スピリットは赤＋紫のシンボル2つ）")
+    // アタック時効果の解決が終わった時点で、フラッシュを挟まず指定先のブロックが確定する（TIMING_CHART §1.10）
+    assert(s.battle?.blockerInstanceId === opp.instanceId, "指定したスピリットがブロックする")
+    passFlash(s)
+    settle(s)
+    assert(s.players.p2.life === 5, "ライフは減らない")
 }
 
 console.log("=== 27. 058：赤シンボルが無ければ指定は出ない ===")
@@ -495,8 +500,8 @@ console.log("=== 27. 058：赤シンボルが無ければ指定は出ない ==="
     combine(s, "p1", host, SKULL)
     const opp = put(s, "p2", VAN, 3)
     const reserve = s.players.p2.reserve
+    assert(act(s, "p1", { type: "attack", instanceId: host.instanceId, targetSpiritInstanceId: opp.instanceId }) !== null, "赤シンボルが無いので指定アタックはできない")
     assert(act(s, "p1", { type: "attack", instanceId: host.instanceId }) === null, "合体スピリットでアタックできる")
-    assert(s.pendingChoice === null, "赤シンボルが無いので指定の選択は出ない")
     settle(s)
     assert(opp.cores === 1 && s.players.p2.reserve === reserve + 2, "コアを1個だけにする効果は起きる")
     noBlockFinish(s, "p1", "p2")

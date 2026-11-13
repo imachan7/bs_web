@@ -474,6 +474,7 @@ export type ResumeFrame =
           // このバッチが始まる前の state.destroyGroup（入れ子の破壊があっても正しく戻すため。
           // 完了時に state.destroyGroup へ書き戻す）
           prevGroup?: GameState["destroyGroup"]
+          deferBurst?: true // バトルの破壊。破壊後バーストはバトル解決の step 5 で発動する（#536）
           after?: {
               // 全体を破壊し終えたあとの処理（破壊できた数を使うもの）
               drawPerDestroyed?: number

@@ -535,8 +535,9 @@ export function doSummon(
     sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（undefined=まだ聞いていない / true=無償 / false=あえて支払う）
     extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（省略時は自動で選ぶ）
     payOffInstanceId?: string, // kind:"summonPayOff"：破壊することで召喚コストを払ったものとして扱う個体
+    fromTegamoto?: boolean, // 手元から召喚する（validateSummon と同じ意味）
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices, payOffInstanceId)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices, payOffInstanceId, fromTegamoto)
     if (error) return error
 
     const player = state.players[pid]

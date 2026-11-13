@@ -1064,28 +1064,27 @@
     ],
     "optional": false,
     "action": {
-     "type": "sequence",
-     "actions": [
-      {
-       "type": "removeCores",
-       "count": 1
-      },
-      {
-       "type": "if",
-       "cond": {
-        "count": {
-         "ownColorSymbols": "red"
-        },
-        "atLeast": 1
-       },
-       "then": {
-        "type": "designate",
-        "side": "opponent",
-        "count": 1,
-        "upTo": true
-       }
-      }
-     ]
+ "type": "removeCores",
+ "count": 1
+}
+   },
+   {
+    "id": "BS20-016-e2",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "condition": {
+     "ownColorSymbolsAtLeast": {
+      "color": "red",
+      "count": 1
+     }
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any"
     }
    }
   ]
@@ -4060,30 +4059,26 @@
     "whileCombined": true,
     "optional": false,
     "action": {
-     "type": "sequence",
-     "actions": [
-      {
-       "type": "removeCores",
-       "targets": 1,
-       "count": "all",
-       "leaveAtLeast": 1
-      },
-      {
-       "type": "if",
-       "cond": {
-        "count": {
-         "ownColorSymbols": "red"
-        },
-        "atLeast": 1
-       },
-       "then": {
-        "type": "designate",
-        "side": "opponent",
-        "count": 1,
-        "upTo": true
-       }
-      }
-     ]
+ "type": "removeCores",
+ "targets": 1,
+ "count": "all",
+ "leaveAtLeast": 1
+}
+   },
+   {
+    "id": "BS20-058-e2",
+    "kind": "constraint",
+    "levels": null,
+    "whileCombined": true,
+    "condition": {
+     "ownColorSymbolsAtLeast": {
+      "color": "red",
+      "count": 1
+     }
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any"
     }
    }
   ]
