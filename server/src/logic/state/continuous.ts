@@ -78,7 +78,8 @@ function applyTimedCopies(state: GameState): void {
             delete inst.timedEffectsDisabled
             delete inst.timedAttackStepEffectsDisabled
         }
-        all.push(...field.spirits, ...field.nexuses)
+        // 合体中のブレイヴにも写す。スピリット状態で与えた色は合体しても残る（#507。2026-11-14 ユーザー確認）
+        all.push(...field.spirits, ...field.nexuses, ...field.combinedBraves)
     }
     // 照合は写しを空にした状態で全員ぶん先に済ませる（写しを書きながら照合すると処理順で結果が変わるため）
     const hits = all.map((inst) => [inst, timedContentsOn(state, inst)] as const)
@@ -219,13 +220,15 @@ export function refreshLevelAsOverrides(state: GameState): void {
         for (const host of player.field.spirits) {
             const braves = bravesOf(player, host)
             if (braves.length === 0) continue
-            const composite = { cost: 0, colors: [] as Color[], symbols: [] as Color[] }
+            const composite = { cost: 0, colors: [] as Color[], symbols: [] as Color[], grantedColors: [] as Color[] }
             const costZero = braveCostZeroFor(state, pid)
             for (const brave of braves) {
                 const master = getCard(brave.cardId)
                 if (!costZero) composite.cost += master.cost
                 for (const c of master.colors) if (!composite.colors.includes(c)) composite.colors.push(c)
                 composite.symbols.push(...master.symbol)
+                // ブレイヴに与えられた色（「本来の色とは別に与える」）は、合体スピリットに与えられた色になる（#507）
+                for (const c of [...brave.timedColors, ...(brave.colorsAsContinuous ?? [])]) if (!composite.grantedColors.includes(c)) composite.grantedColors.push(c)
             }
             host.braveComposite = composite
             for (const brave of braves) {

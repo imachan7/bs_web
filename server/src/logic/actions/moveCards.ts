@@ -1,5 +1,5 @@
 // カードを選んで動かす統合の器（旧 toHand／toDeck ほか「選ぶ＋送る」の type をここへ寄せる）
-import { beginMagicUse, finishMagicUseOrDefer } from "../magic/inUse"
+import { effectMagicUseDenial, useMagicByEffect } from "../magic/effectUse"
 import { coreRemovalAllowed } from "../coreGate"
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
@@ -8,13 +8,12 @@ import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { summonDenial } from "../summonGate"
-import { handImmuneFor, notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
+import { handImmuneFor, notifyHandGained, payCost, recordTimed, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
 import { handGainDenial } from "../handGate"
-import { canDiscardHand, instMinLevelCores, isTrashCardProtected, timedMagicLocked, magicColorBanned, trashCardNameMatches } from "../../../../shared/rules"
+import { canDiscardHand, instMinLevelCores, isTrashCardProtected, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalCoresOn } from "../soulCore"
-import { recordMagicUsed } from "../record"
 import { countedAmount } from "../counted"
 import { matchesPick } from "./revealAction"
 import { lastMovedOf, recordMoved } from "../record"
@@ -222,14 +221,12 @@ function castWithCost(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number):
     const { state, sourceName } = ctx
     const player = state.players[pid]
     const cardId = zone[j]!
-    // battleLock "magic"（BS16-X06）：トラッシュからの使用も「使用」に含む
-    if (timedMagicLocked(state, pid)) {
-        log(state, `${sourceName}：効果によりマジックを使用できなかった。`)
-        return false
-    }
     const card = getCard(cardId)
-    if (magicColorBanned(state, pid, card.colors, card.cost)) {
-        log(state, `${sourceName}：効果によりこの色のマジックを使用できなかった。`)
+    const hasMain = card.effects.some((e) => e.kind === "magic" && e.timing === "main")
+    const timing: "main" | "flash" = state.battle ? "flash" : hasMain ? "main" : "flash"
+    const denial = effectMagicUseDenial(state, pid, card, timing, ctx.paySources)
+    if (denial) {
+        log(state, `${sourceName}：${card.name}を使用できなかった（${denial}）。`)
         return false
     }
     const cost = effectiveCost(state, pid, card)
@@ -243,18 +240,8 @@ function castWithCost(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number):
     }
     zone.splice(j, 1)
     payCost(state, pid, cost, ctx.paySources)
-    // 解決し終えるまで使用中（トラッシュへは最後に戻す。magic/inUse.ts）
-    beginMagicUse(state, pid, cardId)
     log(state, `${player.name}はトラッシュの${card.name}を手札にあるときと同様に使用した。（コスト${cost}）`)
-    recordMagicUsed(state, pid, cardId)
-    const hasMain = card.effects.some((e) => e.kind === "magic" && e.timing === "main")
-    const timing: "main" | "flash" = state.battle ? "flash" : hasMain ? "main" : "flash"
-    // マジックミラー用の記録（解決中に書き換わっていれば＝使ったカード自身がマジックミラーなら上書きしない）
-    const beforeLastMagicCast = state.lastMagicCast
-    state.keishoExcludedCardIds = []
-    resolveMagic(state, pid, cardId, timing)
-    if (state.lastMagicCast === beforeLastMagicCast) state.lastMagicCast = { pid, cardId, timing }
-    finishMagicUseOrDefer(state)
+    useMagicByEffect(state, pid, cardId, timing, true)
     return true
 }
 

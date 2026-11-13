@@ -622,19 +622,9 @@ export function validateUseHandAbility(
     return null
 }
 
-export function validateCastMagic(
-    state: GameState,
-    pid: PlayerId,
-    handIndex: number,
-    targetInstanceId?: string,
-    paySources?: PaySource[],
-    fromTegamoto?: boolean,
-    exReductionTrashIndices?: number[],
-    paySoulCoreFromReserve?: boolean,
-    // 「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」（kind:"soulCoreOnlyCast"）で使用する
-    useSoulCoreOnly?: boolean,
-    timing?: "main" | "flash",
-): string | null {
+// マジックの「使用」の制限（タイミング以外）。手札・手元からの使用と、効果による使用（magic/effectUse.ts）が共有する。
+// 場の効果の制限・カード自身の「自分のターンでは使えない」「ターンに1回」・使用条件（RULES_BATSPI_WIKI §6。#510）
+export function magicUseRestriction(state: GameState, pid: PlayerId, card: CardData, useTiming: "main" | "flash", paySources?: PaySource[]): string | null {
     const player = state.players[pid]
     const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
     if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
@@ -646,21 +636,6 @@ export function validateCastMagic(
     // battleLock "magic"（BS16-X06）：手札・手元どちらの経路でも「使用」自体を止める。バースト発動は別経路なので掛からない
     if (timedMagicLocked(state, pid)) return "効果により、このバトルの間マジックを使用できません"
     if (magicColorBanned(state, pid, card.colors, card.cost)) return "効果により、この色のマジックは使用できません"
-
-    // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto" の無償化が有効な場合のみ許可する
-    // （noFreeCastOpponent が有効なら無償化自体が打ち消される）
-    if (fromTegamoto) {
-        // 手元へ置かれたカードは「手札にあるときと同様に」使える（無償ではなく通常どおりコストを支払う）。使用権は PlayerState.tegamotoPlayable
-        const playableAsHand = player.tegamotoPlayable.includes(cardId)
-        if (
-            !playableAsHand &&
-            (!hasMagicFreeGrant(state, pid, card, true) ||
-                hasMagicRestriction(state, pid, "noFreeCastOpponent"))
-        ) {
-            return "手元のマジックカードを使用できる効果がありません"
-        }
-    }
-
     // フィールドに発生源があれば、お互いターンに1回しかマジックの効果を使用できない
     if (hasMagicRestriction(state, pid, "oncePerTurnAll") && (state.magicUsedThisTurn[pid] ?? 0) >= 1) {
         return "このターンはすでにマジックの効果を使用しているため使用できません"
@@ -708,6 +683,70 @@ export function validateCastMagic(
         }
     }
 
+    // ownTurnForbidden：発生源の持ち主のターン中はこのマジックを使用できない（battle/main どちらの経路でも宣言自体を拒否）
+    if (
+        state.turnPlayer === pid &&
+        card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.ownTurnForbidden)
+    ) {
+        return "このマジックは自分のターンでは使用できません"
+    }
+    // 「この効果は〜ないと使えない」（useCondition）：使う前に見る（2026-09-26 ユーザー確認）。使うことになる timing のエントリで判定する
+    for (const e of card.effects) {
+        if (e.kind !== "magic" || e.timing !== useTiming || !e.useCondition) continue
+        const failure = magicConditionFailure(state, pid, e.useCondition)
+        if (failure) return `${failure}ため、このマジックは使用できません`
+    }
+    // 「〜とき、〜する」（condition）も、そのタイミングの効果がすべて条件を満たさず不発になるなら使用できない
+    // （2026-10-29 ユーザー指摘。対象がいないマジックと同じ考え方＝targetRequirement.ts）
+    const useEntries = card.effects.filter((e) => e.kind === "magic" && e.timing === useTiming)
+    const condFailures = useEntries.map((e) => (e.kind === "magic" && e.condition ? magicConditionFailure(state, pid, e.condition) : null))
+    if (condFailures.length > 0 && condFailures.every((f) => f !== null)) return `${condFailures[0]}ため、このマジックは使用できません`
+    const usedKey = `${card.name}|${useTiming}`
+    if (
+        card.effects.some((e) => e.kind === "magic" && e.timing === useTiming && e.oncePerTurnByName) &&
+        state.magicEffectsUsedByName?.[pid]?.includes(usedKey)
+    ) {
+        return "このカードの効果はこのターンすでに使用しています"
+    }
+    return null
+}
+
+
+export function validateCastMagic(
+    state: GameState,
+    pid: PlayerId,
+    handIndex: number,
+    targetInstanceId?: string,
+    paySources?: PaySource[],
+    fromTegamoto?: boolean,
+    exReductionTrashIndices?: number[],
+    paySoulCoreFromReserve?: boolean,
+    // 「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」（kind:"soulCoreOnlyCast"）で使用する
+    useSoulCoreOnly?: boolean,
+    timing?: "main" | "flash",
+): string | null {
+    const player = state.players[pid]
+    const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
+    if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
+    const card = getCard(cardId)
+    const bannedMagic = fromTegamoto ? null : handCardBanned(state, pid, cardId)
+    if (bannedMagic) return bannedMagic
+    if (card.type !== "magic") return "マジックカードではありません"
+
+    // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto" の無償化が有効な場合のみ許可する
+    // （noFreeCastOpponent が有効なら無償化自体が打ち消される）
+    if (fromTegamoto) {
+        // 手元へ置かれたカードは「手札にあるときと同様に」使える（無償ではなく通常どおりコストを支払う）。使用権は PlayerState.tegamotoPlayable
+        const playableAsHand = player.tegamotoPlayable.includes(cardId)
+        if (
+            !playableAsHand &&
+            (!hasMagicFreeGrant(state, pid, card, true) ||
+                hasMagicRestriction(state, pid, "noFreeCastOpponent"))
+        ) {
+            return "手元のマジックカードを使用できる効果がありません"
+        }
+    }
+
     if (targetInstanceId !== undefined) {
         const exists =
             findSpirit(state.players[pid], targetInstanceId) !== undefined ||
@@ -734,36 +773,13 @@ export function validateCastMagic(
         }
     }
 
-    // ownTurnForbidden：発生源の持ち主のターン中はこのマジックを使用できない（battle/main どちらの経路でも宣言自体を拒否）
-    if (
-        state.turnPlayer === pid &&
-        card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.ownTurnForbidden)
-    ) {
-        return "このマジックは自分のターンでは使用できません"
-    }
-    // 「この効果は〜ないと使えない」（useCondition）：使う前に見る（2026-09-26 ユーザー確認）。
-    // 使うことになる timing のエントリで判定する
     const useTiming = magicUseTiming(card, !!state.battle, timing)
     if (useTiming === null) return timing === "main" ? "フラッシュタイミングではメイン効果を使用できません" : "このマジックにはその効果がありません"
-    for (const e of card.effects) {
-        if (e.kind !== "magic" || e.timing !== useTiming || !e.useCondition) continue
-        const failure = magicConditionFailure(state, pid, e.useCondition)
-        if (failure) return `${failure}ため、このマジックは使用できません`
-    }
-    // 「〜とき、〜する」（condition）も、そのタイミングの効果がすべて条件を満たさず不発になるなら使用できない
-    // （2026-10-29 ユーザー指摘。対象がいないマジックと同じ考え方＝targetRequirement.ts）
+    const restricted = magicUseRestriction(state, pid, card, useTiming, paySources)
+    if (restricted) return restricted
     const useEntries = card.effects.filter((e) => e.kind === "magic" && e.timing === useTiming)
-    const condFailures = useEntries.map((e) => (e.kind === "magic" && e.condition ? magicConditionFailure(state, pid, e.condition) : null))
-    if (condFailures.length > 0 && condFailures.every((f) => f !== null)) return `${condFailures[0]}ため、このマジックは使用できません`
     if (state.phase === "main" && card.effects.some((e) => e.kind === "castRestriction" && e.notInMainStep)) {
         return "このカードはメインステップでは使用できない"
-    }
-    const usedKey = `${card.name}|${useTiming}`
-    if (
-        card.effects.some((e) => e.kind === "magic" && e.timing === useTiming && e.oncePerTurnByName) &&
-        state.magicEffectsUsedByName?.[pid]?.includes(usedKey)
-    ) {
-        return "このカードの効果はこのターンすでに使用しています"
     }
     const windowDenial = magicUseWindowDenial(state, pid, cardId, useTiming)
     if (windowDenial) return windowDenial
