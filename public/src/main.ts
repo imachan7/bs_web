@@ -19,17 +19,49 @@ interface SocketLike {
     connect: () => void
 }
 
-declare const io: (opts?: { autoConnect?: boolean }) => SocketLike
+// 端末ごとの合言葉。接続が切れても、これが同じなら対戦中の席に戻れる（server/src/roomManager.ts の resume）
+function loadPlayerRef(): string {
+    try {
+        const saved = localStorage.getItem("bs_player_ref")
+        if (saved) return saved
+        const created = crypto.randomUUID()
+        localStorage.setItem("bs_player_ref", created)
+        return created
+    } catch {
+        return crypto.randomUUID() // 保存できない環境では、このページを開いている間だけ有効
+    }
+}
+
+// 「サーバー上に決着前の対局がある」の目印。ページを読み直したときに席へ戻るかどうかを決める
+const IN_MATCH_KEY = "bs_in_match"
+function setInMatch(on: boolean): void {
+    try {
+        if (on) localStorage.setItem(IN_MATCH_KEY, "1")
+        else localStorage.removeItem(IN_MATCH_KEY)
+    } catch {
+        // 保存できなくても、ページを開いている間の再接続は動く（inMatch を見る）
+    }
+}
+let inMatch = (() => {
+    try {
+        return localStorage.getItem(IN_MATCH_KEY) === "1"
+    } catch {
+        return false
+    }
+})()
+
+declare const io: (opts?: { autoConnect?: boolean; auth?: Record<string, string> }) => SocketLike
 
 // ページ読み込み時には接続しない（Cloud Run は min-instances=0 のため、ロビーを開いただけの
 // 訪問者にも常時接続させるとコストが伸びる。docs/ops/PERF_PLAN.md §5）。
 // 実際に対戦操作をするボタンを押したときだけ connectAndRun() 経由で接続する
-const socket = io({ autoConnect: false })
+const socket = io({ autoConnect: false, auth: { playerRef: loadPlayerRef() } })
 
 // 対戦していない接続はサーバーが15分で切る（課金対策。server/src/index.ts の「放置接続の切断」）。
 // サーバーから切られたときだけ socket.io は自動で再接続しないので、次の操作かタブ復帰で繋ぎ直す。
 // 切断中の emit は socket.io が溜めて再接続後に送るので、押したボタンはそのまま効く
 socket.on("disconnect", (reason: string) => {
+    if (inMatch && reason !== "io server disconnect") showToast("接続が切れました。再接続しています…")
     if (reason !== "io server disconnect") return
     const events = ["pointerdown", "keydown", "visibilitychange"] as const
     const reconnect = () => {
@@ -87,9 +119,55 @@ let lastErrorText: string = ""
 // joined の種別を区別する（"room" = 合言葉ルーム、"random" / "ai" = 即対戦）
 let joinMode: "room" | "random" | "ai" = "room"
 
+// AI戦はブラウザの中の Worker（public/src/aiWorker/worker.ts）が相手をする。サーバーへは接続しない
+// （接続を張っている間ずっと Cloud Run の課金が続くため。docs/ops/DEPLOY_CLOUDRUN.md §5）
+let aiWorker: Worker | null = null
+// 対戦の進行を受けるハンドラ。サーバー（socket）と Worker が同じイベント名で送ってくる
+const gameHandlers: Record<string, (payload: any) => void> = {}
+function onGame(event: string, handler: (payload: any) => void): void {
+    socket.on(event, handler)
+    gameHandlers[event] = handler
+}
+
+// Worker を起動して AI戦を始める。起動できないブラウザでは、従来どおりサーバーの AI と対戦する
+function startLocalAi(button: HTMLElement, payload: unknown): void {
+    const btn = button as HTMLButtonElement
+    if (btn.disabled) return
+    const original = btn.textContent
+    btn.disabled = true
+    btn.textContent = "準備中…"
+    const restore = () => {
+        btn.disabled = false
+        btn.textContent = original
+    }
+    let worker: Worker
+    const fallback = () => {
+        if (view) return showToast("AI戦でエラーが起きました。ロビーに戻ってやり直してください")
+        worker?.terminate()
+        aiWorker = null
+        restore()
+        connectAndRun(btn, () => socket.emit("startAi", payload))
+    }
+    try {
+        worker = new Worker("/dist/aiWorker.js")
+    } catch {
+        return fallback()
+    }
+    worker.onerror = fallback
+    worker.onmessage = (e: MessageEvent<{ event: string; payload?: unknown }>) => {
+        if (e.data.event !== "state") restore() // joined か、デッキ不正などの errorMessage
+        gameHandlers[e.data.event]?.(e.data.payload)
+    }
+    aiWorker = worker
+    worker.postMessage({ event: "startAi", payload })
+    // 対戦開始の件数の記録（失敗しても対戦には関係ない）
+    fetch("/api/ai-start", { method: "POST" }).catch(() => {})
+}
+
 export function send(action: GameAction): void {
     if (!confirmExtraCost(action)) return
-    socket.emit("action", action)
+    if (aiWorker) aiWorker.postMessage({ event: "action", payload: action })
+    else socket.emit("action", action)
 }
 
 function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
@@ -175,7 +253,7 @@ export function rerender(): void {
 
 // ---- サーバーからのイベント ----
 
-socket.on("joined", () => {
+onGame("joined", () => {
     if (joinMode === "room") {
         showWaiting()
     }
@@ -217,7 +295,7 @@ socket.on("matchFound", () => {
     if (status) status.classList.add("hidden")
 })
 
-socket.on("state", (v: GameView) => {
+onGame("state", (v: GameView) => {
     view = v
     ui.targeting = null // 状態が変わったら対象選択はリセット
     ui.awakenTarget = null // 覚醒モードもリセット（続けて移す場合は再度バッジをクリック）
@@ -244,7 +322,7 @@ socket.on("state", (v: GameView) => {
     }
 })
 
-socket.on("errorMessage", (message: string) => {
+onGame("errorMessage", (message: string) => {
     lastErrorText = message
     showToast(message)
 })
@@ -258,7 +336,27 @@ socket.on("notice", (message: string | null) => {
 })
 
 socket.on("opponentLeft", () => {
-    showToast("相手が退出しました")
+    showToast("相手の接続が切れました（しばらくは相手が戻れます）")
+})
+
+socket.on("opponentBack", () => {
+    showToast("相手が戻りました")
+})
+
+// ---- 席に戻る ----
+// サーバー上の対局（socket 経由の state）が決着前のあいだだけ目印を立て、繋がるたびに席へ戻してもらう
+socket.on("state", (v: GameView) => {
+    inMatch = !v.winner
+    setInMatch(inMatch)
+})
+socket.on("connect", () => {
+    if (inMatch) socket.emit("resume")
+})
+socket.on("resumeFailed", () => {
+    const wasPlaying = view !== null
+    inMatch = false
+    setInMatch(false)
+    if (wasPlaying) showToast("対戦が終了していたため、戻れませんでした")
 })
 
 // ---- 手札クリック ----
@@ -300,6 +398,8 @@ async function init(): Promise<void> {
     const cards = (await (await fetch("/api/cards")).json()) as CardData[]
     setCardDb(cards)
     setDeckRecipes(await (await fetch("/api/deck-recipes")).json())
+    // ページを読み直した・タブを開き直したときは、こちらから繋いで席に戻る（盤面を描くのにカードデータが要るので、読み終えてから）
+    if (inMatch) socket.connect()
     rebuildDeckSelects()
     rememberDeckSelection()
     rememberLobbyInputs()
@@ -407,7 +507,7 @@ async function init(): Promise<void> {
         payload.aiName = oppLabel
 
         joinMode = "ai"
-        connectAndRun(byId("start-ai-btn"), () => socket.emit("startAi", payload))
+        startLocalAi(byId("start-ai-btn"), payload)
     })
 
     byId("btn-return-lobby").addEventListener("click", () => {

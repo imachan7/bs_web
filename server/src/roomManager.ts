@@ -8,6 +8,10 @@ export interface RoomPlayer {
     deck: DeckSpec // デッキレシピ名（"red" 等）またはカスタムデッキのカードリスト
     connected: boolean
     isAi?: true // AI が座っている席（socketId は実在しないダミー）。切断判定から除外する
+    // 端末ごとの合言葉（クライアントが localStorage に持つ乱数）。接続が切れて socketId が変わっても、これが一致すれば同じ席に戻す。
+    // 知っていれば席に座れる値なので、相手や一覧には出さない
+    playerRef?: string
+    disconnectedAt?: number
 }
 
 export interface Room {
@@ -34,12 +38,13 @@ export class RoomManager {
         deck: DeckSpec,
         aiName: string,
         aiDeck: DeckSpec,
+        playerRef?: string,
     ): { room: Room; playerId: PlayerId } {
         const roomId = this.newRoomId("ai")
         const room: Room = {
             roomId,
             players: {
-                p1: { socketId, name, deck, connected: true },
+                p1: { socketId, name, deck, connected: true, ...(playerRef !== undefined && { playerRef }) },
                 p2: { socketId: `ai:${roomId}`, name: aiName, deck: aiDeck, connected: true, isAi: true },
             },
             game: null,
@@ -69,6 +74,7 @@ export class RoomManager {
         socketId: string,
         name: string,
         deck: DeckSpec,
+        playerRef?: string,
     ): { room: Room; playerId: PlayerId } | { cancelled: PlayerId } | { error: string } {
         let room = this.rooms.get(roomId)
         if (!room) {
@@ -94,7 +100,7 @@ export class RoomManager {
               : null
         if (!seat) return { error: "このルームは満員です" }
 
-        room.players[seat] = { socketId, name, deck, connected: true }
+        room.players[seat] = { socketId, name, deck, connected: true, ...(playerRef !== undefined && { playerRef }) }
         return { room, playerId: seat }
     }
 
@@ -125,13 +131,18 @@ export class RoomManager {
         return null
     }
 
-    // 切断処理。全員いなくなったらルームを破棄する
+    // 切断処理。全員いなくなったらルームを破棄する。
+    // ただし決着前の対局は残す（席の持ち主が resume で戻れるように。片付けは sweepAbandoned）
     leave(socketId: string): { room: Room; playerId: PlayerId } | null {
         const found = this.findBySocket(socketId)
         if (!found) return null
         const { room, playerId } = found
         const player = room.players[playerId]
-        if (player) player.connected = false
+        if (player) {
+            player.connected = false
+            player.disconnectedAt = Date.now()
+        }
+        if (room.game && !room.game.winner) return found
 
         // AI の席は常に connected なので、これを数えるとAI戦のルームが永久に残る。
         // 「人間が誰も残っていなければ破棄する」で数える
@@ -142,6 +153,33 @@ export class RoomManager {
         if (!anyHumanConnected) this.rooms.delete(room.roomId)
         return found
     }
+
+    // 決着前の対局の席に、同じ端末（playerRef）の新しい接続を座らせ直す。
+    // 前の接続がまだ生きて見えていても置き換える（回線が黙って切れたとき、サーバーが気づくより先にクライアントが繋ぎ直すため）。
+    // replaced は置き換えられた前の socketId（呼び出し側が切る）
+    resume(playerRef: string, socketId: string): { room: Room; playerId: PlayerId; replaced: string | null } | null {
+        for (const room of this.rooms.values()) {
+            if (!room.game || room.game.winner) continue
+            for (const pid of ["p1", "p2"] as const) {
+                const player = room.players[pid]
+                if (!player || player.isAi || player.playerRef !== playerRef) continue
+                const replaced = player.connected && player.socketId !== socketId ? player.socketId : null
+                player.socketId = socketId
+                player.connected = true
+                delete player.disconnectedAt
+                return { room, playerId: pid, replaced }
+            }
+        }
+        return null
+    }
+
+    // 人間が全員切れたまま graceMs 経った対局を破棄する
+    sweepAbandoned(now: number, graceMs: number): void {
+        for (const room of this.rooms.values()) {
+            const humans = (["p1", "p2"] as const).map((pid) => room.players[pid]).filter((p) => p && !p.isAi)
+            if (humans.every((p) => !p!.connected && now - (p!.disconnectedAt ?? 0) >= graceMs)) this.rooms.delete(room.roomId)
+        }
+    }
 }
 
 // ---- ランダムマッチの待機キュー ----
@@ -151,6 +189,7 @@ export interface MatchQueueEntry {
     socketId: string
     name: string
     deck: DeckSpec
+    playerRef?: string
     queuedAt: number
 }
 
