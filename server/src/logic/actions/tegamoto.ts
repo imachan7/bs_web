@@ -26,12 +26,10 @@ const magicFreeUseFromHandOrTegamotoHandler: ActionHandler<"magicFreeUseFromHand
         .map((id, i) => ({ id, i, zone: "hand" as const }))
         .filter(({ id }) => matchesFilter(id))
     // 手元(tegamoto)は tegamotoPlayable にある（＝手札同様に使用できる権利がある）カードだけが対象。
-    // handOnly指定時は候補から外す（BS14-055ミスティック・ヒミコLv3：「自分の黄のマジックカード」＝手札限定）
-    const tegamotoCandidates = action.handOnly
-        ? []
-        : player.tegamoto
-              .map((id, i) => ({ id, i, zone: "tegamoto" as const }))
-              .filter(({ id }) => matchesFilter(id) && player.tegamotoPlayable.includes(id))
+    // anyTegamoto は権利を問わず手元のカードすべて（BS14-055 ミスティック・ヒミコ Lv3。Q3417「手札かオープンしているマジック」）
+    const tegamotoCandidates = player.tegamoto
+        .map((id, i) => ({ id, i, zone: "tegamoto" as const }))
+        .filter(({ id }) => matchesFilter(id) && (action.anyTegamoto === true || player.tegamotoPlayable.includes(id)))
     const all = [...handCandidates, ...tegamotoCandidates]
     if (all.length === 0) {
         log(state, `${sourceName}：コストを支払わずに使用できるマジックカードがなかった。`)
