@@ -1,14 +1,14 @@
 // smoke パート40（BS04第四弾 緑・白バッチ: 構造化した代表効果の検証）
 // 収録セクション:
-//   - BS04-025 ファル・コンドル：onBattle battleRole:attacker で Lv1/2 coreGain・Lv2のみ追加でrefreshSelf
-//   - BS04-032 槍蟲ルカニドス：onBattle（battleRole省略）でブロッカー勝利でもrefreshSelf
+//   - BS04-025 ファル・コンドル：onBattle heading:attack で Lv1/2 coreGain・Lv2のみ追加でrefreshSelf
+//   - BS04-032 槍蟲ルカニドス：onBattle（heading なし）でブロッカー勝利でもrefreshSelf
 //   - BS04-036 オッドセイ：constraint cantAttack（アタック不可）／ fieldEvent ownLifeDamaged で refreshSelf
 //   - BS04-039 宝石虫スカラベール：aura keywordFilter:soku + phaseTurn（自分のアタックステップ中のみ+1000）
 //   - BS04-043 ワルキューレ・ヒルド：fieldEvent ownLifeDamaged の refreshSelf はLv2のみ発揮
 //   - BS04-100 ジャングルロウ：メイン exhaustAllByLevel(1) ／ フラッシュ bpBuff+4000
 import { assert, act, takeLifeAndResolve, createGame, createInstance, effectiveBp, runTurnStart } from "./helpers"
 
-console.log("=== BS04-025 ファル・コンドル: onBattle battleRole:attacker で coreGain(Lv1/2) / refreshSelf(Lv2のみ) ===")
+console.log("=== BS04-025 ファル・コンドル: onBattle heading:attack で coreGain(Lv1/2) / refreshSelf(Lv2のみ) ===")
 {
     const s = createGame(
         "bs04-025-test",
@@ -50,7 +50,7 @@ console.log("=== BS04-025 ファル・コンドル: onBattle battleRole:attacker
     assert(!falconLv2.isRested, "Lv2: refreshSelfが発揮されアタック後も回復状態に戻る")
 }
 
-console.log("=== BS04-032 槍蟲ルカニドス: onBattle（battleRole省略）でブロッカー勝利でもrefreshSelf ===")
+console.log("=== BS04-032 槍蟲ルカニドス: onBattle（heading なし）でブロッカー勝利でもrefreshSelf ===")
 {
     const s = createGame(
         "bs04-032-test",
@@ -74,7 +74,7 @@ console.log("=== BS04-032 槍蟲ルカニドス: onBattle（battleRole省略）�
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
 
-    assert(!lucanidos.isRested, "battleRole省略のためブロッカー勝利でもrefreshSelfが発揮され回復状態")
+    assert(!lucanidos.isRested, "heading なしのためブロッカー勝利でもrefreshSelfが発揮され回復状態")
 }
 
 console.log("=== BS04-036 オッドセイ: constraint cantAttack / fieldEvent ownLifeDamaged で refreshSelf ===")

@@ -38,7 +38,7 @@ export type TimedContent =
     | { type: "symbolLoss"; color?: Color } // 指定した色のシンボルを1つ失う。color を省くと使う人が色を選ぶ
     | { type: "alsoCost"; cost: number } // 元のコストに加えて、このコストとしても扱う（PX19。tempAlsoCosts へ写す。元のコストは残る）
     | { type: "cost"; amount: number } // コストを増減する（元のコストは残らない）
-    | { type: "triggerSwap"; from: "onAttack" | "onBlock" } // from の効果を、もう片方（アタック時⇔ブロック時）に発揮する（元のタイミングでは発揮しない）
+    | { type: "triggerSwap"; from: "onAttack" | "onBlock" } // from の効果を、もう片方（アタック時⇔ブロック時）にも発揮する（追加。shared/rules/effectHeading.ts）
     | { type: "color"; color?: Color } // color を省くと使う人が色を選ぶ（対象を選ぶ→色を選ぶ、の2段階）
     | { type: "level"; set?: number; up?: number; max?: true; requireLevelExists?: true }
     | { type: "bpAs"; levels: number[]; amount: number } // Lv◯BP を amount として扱う（ブレイヴの合体時BP+ は含めて置き換わり、BP+ は上に乗る。RULES_BATSPI_WIKI §5.1）

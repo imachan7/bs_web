@@ -4,7 +4,7 @@
 //     含む自分のスピリット数ぶんBP+1000（kind:aura counter:{ownNameIncludes}・phaseTurn限定）
 //   - BS02-X06 魔界七将デストロード e2：アタック時BPを比べ相手のブロッカーだけを破壊したとき、
 //     破壊直前のブロッカーのコア数ぶんボイドから自分のリザーブへ（kind:triggered onBattle
-//     battleRole:attacker・coreGainPer counter:lastBattleDestroyedCores）。相打ちでは発火しない
+//     heading:attack・coreGainPer counter:lastBattleDestroyedCores）。相打ちでは発火しない
 //   - BS02-X08 大天使ミカファール e1：召喚時、自分の黄スピリット/ネクサス数ぶんデッキ上を公開し
 //     マジックカードだけ手札へ・残りはデッキ下へ（deckReveal countPer/pickAllOfType）
 //   - BS02-033 騎獣スレイプホース：緑マジックでBP+されたとき、アタックステップ中ならさらに

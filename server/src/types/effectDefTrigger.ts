@@ -30,7 +30,6 @@ export type EffectDefTrigger =
           eventTarget?: "use" | "ignore" // onBlock/onBlocked/onBattleStart/onBattleEnd では必須。"ignore"＝行動に渡さない（condition 等の判定には常に渡す）
           oncePerTurn?: true // 発生源1体につきターン1回
           onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤー・カード名ごとに1回
-          battleRole?: "attacker" | "blocker" // 省略時は常に発火
           heading?: "attack" | "block" | "attackOrBlock" // 印刷された見出し（『このスピリットのアタック時』等）。結果連動型（onBattleWin 等）にだけ書く。onAttack／onBlock は trigger から導く（shared/rules/effectHeading.ts。#505）
           fromHandOnly?: true // trigger:"onDeploy" 限定。手札から配置されたときのみ
           burstSummonOnly?: true // バースト効果の解決中の召喚のみ（バーストで自身を召喚した場合を含む）

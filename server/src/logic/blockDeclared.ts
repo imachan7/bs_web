@@ -63,7 +63,7 @@ export function resolveBlockDeclared(
         fieldEvent(pid, "ownSpiritDeclaredBlock", blocker, pid, attackerId)
         fieldEvent(pid, "anySpiritDeclaredBlock", blocker, pid, attackerId)
         fieldEvent(opponentOf(pid), "anySpiritDeclaredBlock", blocker, pid, attackerId)
-        fireTrigger(state, pid, blocker, "onBattleStart", undefined, attackerId, undefined, undefined, undefined, undefined, items)
+        fireTrigger(state, pid, blocker, "onBattleStart", "blocker", attackerId, undefined, undefined, undefined, undefined, items)
         if (hasFunsaiOnBlock(state, pid)) {
             items.push({
                 key: `funsaiOnBlock:${pid}`,
@@ -88,7 +88,7 @@ export function resolveBlockDeclared(
         }
     }
     if (attacker) {
-        fireTrigger(state, attackerPid, attacker, "onBlocked", undefined, instanceId, undefined, undefined, undefined, undefined, items)
+        fireTrigger(state, attackerPid, attacker, "onBlocked", "attacker", instanceId, undefined, undefined, undefined, undefined, items)
         fieldEvent(attackerPid, "ownSpiritBlocked", attacker, attackerPid, instanceId)
     }
     resolveInOrder(state, items, {

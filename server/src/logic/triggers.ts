@@ -59,6 +59,10 @@ import {
     KEYWORDS,
     instMatchesCostFilter, matchesFamilyFilter,
     noOpponentTriggerByColor,
+    firesAt,
+    headingRewritesOn,
+    printedTrigger,
+    sideOf,
     noSummonTriggerByCost,
     spiritHasFamily, spiritHasKeyword,
     spiritHasKeywordOrLabel, instHasStaticKeyword,
@@ -110,9 +114,7 @@ export {
 
 import {
     findSpiritAny,
-    hasAttackTriggersAsBlock,
-    hasBlockTriggersAsAttack,
-    blockTriggersAlsoOnAttack, requestActivationConfirm,
+    requestActivationConfirm,
     resolveAction
 } from "./EffectModules"
 import { setTargetRedirect } from "./magic/redirect"
@@ -130,9 +132,8 @@ export { resolveMagicEffects, MAGIC_REPEAT_OPTIONS, applyMagicRepeatChoice } fro
 
 // selfInstance が持つ、指定イベントの誘発効果を実行する。
 // レベル条件を満たすものだけ発動する。
-// battleRole は onBattleWin 専用の追加引数：勝利した側の役割（attacker/blocker）を渡す。
-// 効果側に battleRole の指定があれば、渡された役割と一致する場合のみ発火する
-// （指定なしの効果は従来通り常に発火＝相打ちを含まない「勝った側」全体で発火）。
+// battleRole はバトルの結果で起きる誘発のとき、selfInstance がアタッカーかブロッカーか。
+// 見出し（heading）を持つエントリはその側で発揮するときだけ発火する（shared/rules/effectHeading.ts）。
 // 指定プレイヤーのスピリットの指定トリガーが「発揮されない」状態か判定する。
 // ①このターン限りの抑止（ユーサネイジア＝suppressTriggerThisTurn）
 // ②フィールドの発生源による継続抑止（kind:"triggerSuppression"。古代闘技場Lv2）
@@ -220,72 +221,36 @@ export function fireTrigger(
     collect?: CollectedTrigger[], // 渡されたら解決せず、同時発揮の1件ずつとして積んで返る（blockDeclared.ts）
     asCard?: { cardId: string; level: number }, // 別カードの効果エントリを selfInstance が発揮したものとして解く（replayOpponentSummonEffect）。Lv は記録した値、ブレイヴと付与分は見ない
 ): void {
-    // BS20-072 Lv2（attackEffectsToll）でコアを置かなかったアタッカー：このバトルの間、
-    // 『このスピリットのアタック/バトル時』効果すべて（合体中のブレイヴの『合体アタック時』なども含む）を出さない。
-    // ブロッカーの『バトル時』は対象外（印はアタッカーのinstanceIdと突き合わせる）
-    if ((event === "onAttack" || event === "onBattleStart") && state.battle?.attackEffectsSuppressed === true && selfInstance.instanceId === state.battle.attackerInstanceId) {
-        log(state, `${getCard(selfInstance.cardId).name}の『アタック/バトル時』効果は発揮されない。`)
-        return
-    }
-    // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
-    if (isTriggerSuppressed(state, owner, event)) {
-        log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
-        return
-    }
-    // globalConstraint "noOpponentTriggerByColor"（SD01-031 朝焼け岬Lv2）：
-    // 相手の指定色のスピリットの、指定した『〇〇時』効果は発揮されない。
-    // ここ（fireTrigger の入口）で落とすので、封じられるのは『』でカテゴライズされた効果だけになり、
-    // ネクサスの常在効果による reviveOnDestroy は素通りする（docs/design/CONJUNCTION.md）
-    if (noOpponentTriggerByColor(state, owner, selfInstance, event)) {
-        log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
-        return
-    }
     // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ／BS03ゴーレムクラフトで
     // スピリット化されたネクサス）は誘発も出さない
     if (instEffectsSuppressed(selfInstance) || nexusEffectsStopped(state, owner, selfInstance)) {
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
-    // timedEffect の suppressTrigger（1体）：**この個体1体だけ**が対象の一時抑止（BS14-043月光姫マーニLv2）。
-    // trigger:"onAttack"は【合体時】の『合体アタック時』も同時に防ぐ（どちらも内部的にonAttack）
     const timed = timedContentsOn(state, selfInstance)
-    if (timed.some((c) => c.type === "suppressTrigger" && c.trigger === event)) {
-        log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
-        return
-    }
+    // 「『〜時』効果は発揮されない」は、エントリごとに印刷された見出しで照合する（printedTrigger。書き換えで別の時に発揮しても止めない。Q24751）
+    const stopped = (printed: TriggerEvent): boolean =>
+        // BS20-072 Lv2（attackEffectsToll）でコアを置かなかったアタッカー：このバトルの間、『アタック時』『バトル時』効果すべて
+        // （合体中のブレイヴの『合体アタック時』も含む）。ブロッカーの『バトル時』は対象外
+        ((printed === "onAttack" || printed === "onBattleStart") && state.battle?.attackEffectsSuppressed === true && selfInstance.instanceId === state.battle.attackerInstanceId) ||
+        isTriggerSuppressed(state, owner, printed) ||
+        // globalConstraint "noOpponentTriggerByColor"：封じられるのは『』でカテゴライズされた効果だけで、
+        // ネクサスの常在効果による reviveOnDestroy は素通りする（docs/design/CONJUNCTION.md）
+        noOpponentTriggerByColor(state, owner, selfInstance, printed) ||
+        // timedEffect の suppressTrigger（1体）：この個体1体だけの一時抑止（BS14-043月光姫マーニLv2）
+        timed.some((c) => c.type === "suppressTrigger" && c.trigger === printed)
+    let anyStopped = false
     const card = getCard(asCard?.cardId ?? selfInstance.cardId)
     const level = asCard?.level ?? currentLevel(selfInstance).level
-    // ブレイブチャージ：この個体の『アタック時』効果は、このターンの間『ブロック時』へ移る。
-    // アタック時には発揮されなくなり（＝移し替え）、ブロック時に『ブロック時』効果と一緒に発揮される
-    // ターン限定（ブレイブチャージ）に加え、継続付与（ドラグノ近衛兵）でも移し替えが起きる
-    const movedToBlock =
-        timed.some((c) => c.type === "triggerSwap" && c.from === "onAttack") ||
-        hasAttackTriggersAsBlock(state, owner, selfInstance)
-    // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果は『アタック時』へ移る
-    // （ブロック時には発揮されなくなり＝移し替え、アタック時に『アタック時』効果と一緒に発揮される。BS01-149）
-    // アタックシフト（全体・このターン）に加えて、個体単位の移し替え（BS07マクラーンスラッシュ）と
-    // 継続付与（BS07大械獣ギガ・テリウム）も見る
-    const movedToAttack =
-        timed.some((c) => c.type === "triggerSwap" && c.from === "onBlock") ||
-        hasBlockTriggersAsAttack(state, owner, selfInstance)
-    if (movedToBlock && event === "onAttack") {
-        return
-    }
-    if (movedToAttack && event === "onBlock") {
-        return
-    }
-    const firedEvents: TriggerEvent[] =
-        movedToBlock && event === "onBlock"
-            ? ["onBlock", "onAttack"]
-            : (movedToAttack || blockTriggersAlsoOnAttack(state, owner, selfInstance)) && event === "onAttack"
-              ? ["onAttack", "onBlock"]
-              : [event]
+    // 見出しの書き換え（アタックシフト・ブレイブチャージ・ドラグノ近衛兵 等）は「追加」：元の時にも発揮する（shared/rules/effectHeading.ts）
+    const rewrites = headingRewritesOn(state, owner, selfInstance)
+    const side = sideOf(event, battleRole)
     // src は**その効果エントリを持っているカードの個体**。ホスト自身のこともあれば、
     // 合体しているブレイヴのこともある（下の entries を参照）。
     // レベル判定と【合体時】のゲートは src で行う（ブレイヴは合体状態のレベル表を引く）
     const matches = (effect: EffectDef, src: CardInstance = selfInstance): effect is Extract<EffectDef, { kind: "triggered" }> => {
         if (effect.kind !== "triggered") return false
-        if (!firedEvents.includes(effect.trigger)) return false
+        if (!firesAt(effect, event, side, rewrites)) return false
         if (onlyEffectIds !== undefined && !onlyEffectIds.includes(effect.id)) return false
         // 【合体時】＝合体しているときだけ発揮する（BRAVE.md §12.3）。
         // 『このスピリットの**合体アタック時**』もこの形で表す（＝ブレイヴが付いているときだけの『アタック時』。
@@ -298,7 +263,6 @@ export function fireTrigger(
         ) {
             return false
         }
-        if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         // 器BS16：fromHandOnly（trigger:"onDeploy"限定。BS16-062／BS16-064）
         if (effect.fromHandOnly && !fromHand) return false
         // trigger:"onSummon"限定：バースト効果そのものが起こした召喚のみ（currentEffectSource.burst で見る）（BS17-044）
@@ -489,7 +453,13 @@ export function fireTrigger(
                 if (src.summonedBy !== effect.condition.summonedBy) return false
             }
         }
+        if (stopped(printedTrigger(effect, side))) return noteStopped()
         return true
+    }
+    const noteStopped = (): false => {
+        if (!anyStopped) log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
+        anyStopped = true
+        return false
     }
     // 付与された誘発効果（kind: "effectGrant"。アルカナビースト・ケン）：持ち主フィールドの発生源から
     // target/nameIncludes 一致でこのインスタンスに継続付与された誘発効果を、静的effectsの末尾に合成する
@@ -498,7 +468,8 @@ export function fireTrigger(
     // 誘発効果も同様に合成する（BS08メテオストーム）
     const tempGranted = timed
         .filter((g): g is Extract<TimedContent, { type: "grantTrigger" }> => g.type === "grantTrigger")
-        .filter((g) => firedEvents.includes(g.trigger) && (g.battleRole === undefined || g.battleRole === battleRole))
+        .filter((g) => firesAt(g, event, side, rewrites) && (g.battleRole === undefined || g.battleRole === battleRole))
+        .filter((g) => !stopped(printedTrigger(g, side)) || noteStopped())
         .filter((g) => {
             if (g.targetFilter === undefined) return true
             const other = targetInstanceId !== undefined ? findSpiritAny(state, targetInstanceId) : null
@@ -506,7 +477,7 @@ export function fireTrigger(
         })
         .map((g): EffectAction => (g.optional ? { type: "grantedTriggerAskInternal", action: g.action } : g.action))
     const grantedActions = onlyEffectIds !== undefined || asCard !== undefined ? [] : [
-        ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId),
+        ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId).filter(() => !stopped(event) || noteStopped()),
         ...tempGranted,
     ]
 
@@ -518,7 +489,7 @@ export function fireTrigger(
     // **self はホストのまま**にする：合体スピリットは1体なので、効果文の「このスピリット」は
     // 合体スピリット＝ホスト側の個体を指す（refresh{target:"self"}・selfBuff などが正しく当たる）。
     // レベル判定だけはブレイヴ側の合体状態のレベル表を引く必要があるので、発生源を持ち回る
-    if (firedEvents.includes("onAttack")) delete selfInstance.combinedAttackRepeated
+    if (event === "onAttack" || (event === "onBlock" && rewrites.attackToBlock)) delete selfInstance.combinedAttackRepeated
     const entries: { effect: EffectDef; src: CardInstance }[] = [
         ...card.effects.map((e) => ({ effect: e, src: selfInstance })),
         ...(asCard !== undefined ? [] : bravesOf(state.players[owner], selfInstance)).flatMap((b) =>

@@ -558,7 +558,7 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
     delete state.lastAttackerCombinedPid
     delete state.prevAttackerCombinedPid
     // このターンの「ブロックされない」無視（レッドウォール）もリセット
-    // このターンの「ブロック時→アタック時」移し替え（アタックシフト）もリセット
+    // このターンの「ブロック時→アタック時」の書き換え（アタックシフト）もリセット
     // このターンのマジック使用回数（作戦参謀フォクシンのoncePerTurnAll用）もリセット
     state.magicUsedThisTurn = { p1: 0, p2: 0 }
     delete state.magicIdsUsedThisTurn

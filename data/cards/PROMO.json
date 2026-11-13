@@ -404,7 +404,6 @@
           1,
           2
         ],
-        "battleRole": "attacker",
         "optional": false,
         "action": {
           "type": "removeCores",
@@ -6541,7 +6540,6 @@
         "levels": [
           2
         ],
-        "battleRole": "attacker",
         "optional": false,
         "action": {
           "type": "sequence",
@@ -7587,7 +7585,6 @@
         "levels": [
           3
         ],
-        "battleRole": "attacker",
         "oncePerTurn": true,
         "onceScope": "name",
         "action": {

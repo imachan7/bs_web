@@ -203,7 +203,6 @@
     "trigger": "onBattleEnd",
     "heading": "attack",
     "eventTarget": "ignore",
-    "battleRole": "attacker",
     "levels": [
      3
     ],
@@ -5198,7 +5197,6 @@
     "levels": [
      3
     ],
-    "battleRole": "attacker",
     "oncePerTurn": true,
     "optional": true,
     "action": {

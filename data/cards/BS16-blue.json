@@ -1010,7 +1010,6 @@
         "trigger": "onBattleEnd",
         "heading": "attack",
         "eventTarget": "use",
-        "battleRole": "attacker",
         "levels": [
           2,
           3

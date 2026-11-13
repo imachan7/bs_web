@@ -113,7 +113,7 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
   ※ 2026-07-24 追記: 手元ゾーン実装により マジックブック main（手札マジック→手元＋ドロー）と
   ミカファール Lv2（手元/手札マジック無償使用）も構造化完了（2章「手元ゾーン」参照）
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
-  `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
+  `triggered onBattleWin + heading`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が
   `<br>` で分断されていたが、個別ページで「Lv2スピリットすべてを疲労させる。」（レベル2の全スピリット疲労）が
   正であることを確認し修正済み
@@ -585,7 +585,7 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 
 | 効果文 | トリガー |
 | :-- | :-- |
-| 『バトル時』**BPを比べ相手のスピリットだけを破壊したとき**〜 | `onBattleWin`（役割限定は `battleRole`） |
+| 『バトル時』**BPを比べ相手のスピリットだけを破壊したとき**〜 | `onBattleWin`（『アタック時』『ブロック時』の見出しは `heading`） |
 | 『バトル時』〜（勝利条件なし） | `onBattleStart`（アタック宣言時・ブロック宣言時に発火。勝敗不問） |
 | 『バトル時』**BPを比べ相手のスピリットに破壊されたとき**〜 | `onBattleLose`（相打ちでは発火しない） |
 | 『バトル時』バトル終了時に〜 | `onBattleEnd` |
@@ -1031,27 +1031,30 @@ SD01-028 呪われし神殿Lv2 がこれで相手にドローさせていた。
 
 ### 「アタック時 → ブロック時」の読み替え
 
-同じ「読み替え」でも**ターン限定**と**継続**、**移し替え**と**追加**の区別がある。混同しないこと。
+**書き換えはすべて「追加」**で、元の時にも発揮する（Q24527・Q1953・Q24677。2026-11-13 ユーザー確定。以前は移し替えだった）。
+判定は `shared/rules/effectHeading.ts` に集めてある：`firesAs`（書き換えを足した見出し。いつ発揮するか）と
+`printedSides`／`printedTrigger`（印刷された見出し。「『アタック時』効果は発揮されない」が見る。Q24751）。
+結果連動型（『ブロック時』BPを比べ破壊したとき 等）も書き換えに従う（Q20008 セイバーシャーク）。
 
-| 器 | 期間 | 意味 | カード |
-| :-- | :-- | :-- | :-- |
-| `CardInstance.attackTriggersAsBlockThisTurn` | このターン | 移し替え（アタック時には発揮しない） | ブレイブチャージ |
-| `GameState.blockTriggersAsAttackThisTurn` | このターン | 移し替え（逆方向・両陣営全体） | アタックシフト |
-| **`kind:"attackTriggersAsBlockGrant"`** | 発生源が場にある間 | **移し替え** | BS04ドラグノ近衛兵Lv1-2 |
-| `kind:"funsaiOnBlock"` | 発生源が場にある間 | **追加**（アタック時の発揮は残る） | 士気高き大本営 |
-| **`kind:"koboOnBlock"`** | 発生源が場にある間 | **追加** | BS03星降る巡礼地Lv2 |
+| 器 | 期間 | カード |
+| :-- | :-- | :-- |
+| `timedEffect` の `triggerSwap`（`from`） | このターン | ブレイブチャージ・アタックシフト・マクラーンスラッシュ・セイバーシャーク |
+| `kind:"attackTriggersAsBlockGrant"` | 発生源が場にある間 | BS04ドラグノ近衛兵Lv1-2 |
+| `kind:"blockTriggersAsAttackGrant"` | 発生源が場にある間 | BS07大械獣ギガ・テリウム・SD11-008 |
+| `kind:"funsaiOnBlock"` | 発生源が場にある間 | 士気高き大本営 |
+| `kind:"koboOnBlock"` | 発生源が場にある間 | BS03星降る巡礼地Lv2 |
 
 `attackTriggersAsBlockGrant` は `target:"anyAll"`（効果文が修飾なしの「スピリット」＝両陣営）に対応するため、
-述語 `hasAttackTriggersAsBlock` が**両プレイヤーの発生源**を走査する。`phaseTurn` は
+**両プレイヤーの発生源**を走査する。`phaseTurn` は
 **発生源の持ち主**基準で判定する（『相手のアタックステップ』＝発生源の持ち主が非ターンプレイヤー）。
 
 `koboOnBlock` は `resolveBattle` の末尾で、ブロッカーの持ち主基準で
 `resolveKoboOnBattleEnd` をもう一度呼ぶ（アタッカー側の解決はそのまま）。
 
-### バトル結果誘発（battleRole / kind: "battleWon"）
+### バトル結果誘発（heading / kind: "battleWon"）
 
-- triggered の `battleRole?: "attacker" | "blocker"` — onBattle を勝利時の役割で限定
-  （キングタウロス大公 Lv2-3「アタック時に相手だけ破壊→ライフクラッシュ」）
+- triggered の `heading?: "attack" | "block" | "attackOrBlock"` — 印刷された見出し。その側で発揮するときだけ発火する
+  （キングタウロス大公 Lv2-3「アタック時に相手だけ破壊→ライフクラッシュ」）。`npm run validate:gaps` が効果文と突き合わせる
 - `{ kind: "battleWon", role, levels, action }` — 持ち主のスピリットが指定役割で勝利したとき、
   フィールドのネクサス等から発火。**resolveAction の self には勝利したスピリットが渡る**
   （refreshSelf が「勝った自分のスピリットを回復」として機能する。無限蟲の蟻塚・古龍の縄張り Lv2）。
@@ -1114,7 +1117,7 @@ handleAction 事後フック `forceEndTurnIfFlagged` がバトル終了後に安
 
 `onBattle` は「BPを比べて勝った側（相手だけを破壊した側）」にのみ発火し相打ちでは発火しないため、
 効果文『BPを比べ相手のスピリットだけを破壊したとき』と厳密に等価
-（フェニキオス・ナージャ・ブランボアーを構造化。『アタック時』限定は `battleRole` で対応済み）。
+（フェニキオス・ナージャ・ブランボアーを構造化。『アタック時』限定は `heading` で対応済み）。
 
 未構造化の残り（31枚）— **※ この一覧は当時（BS01作業中）の履歴。現在は BS01〜BS03 の効果文を持つ
 全カードが構造化済みで、ここに挙がったカードもすべて対応済み**:

@@ -60,7 +60,7 @@ export function resolveLifeDamage(state: GameState, unblockedFired = false): voi
     }
 
     if (!unblockedFired) {
-        fireTrigger(state, attackerPid, attacker, "onUnblocked")
+        fireTrigger(state, attackerPid, attacker, "onUnblocked", "attacker")
         if (state.winner) return
         if (state.pendingChoice) {
             // step -1：onUnblocked の選択待ちのあと、ライフ減少の判定から続ける
@@ -245,7 +245,7 @@ function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: nu
     } else if (step === 3) {
         // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
         // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
-        if (f.dealt > 0) fireTrigger(state, attackerPid, attacker, "onLifeDealt")
+        if (f.dealt > 0) fireTrigger(state, attackerPid, attacker, "onLifeDealt", "attacker")
     } else if (step === 4) {
         // フィールドイベント誘発「自分のスピリットのアタックによって相手のライフを減らしたとき」
         // （BS06-X22魔界七将ベルゼビート）。selfにはライフを減らしたスピリット（アタッカー）を渡す
@@ -328,7 +328,7 @@ export function resolveDirectedBlock(state: GameState): void {
     // 「相手の合体スピリットとバトルしたとき」がブロッカーを見る）。通常のアタックでは doAttack の中で
     // 発揮するので、二重には発揮しない
     if (!state.winner && state.battle && attacker) {
-        fireTrigger(state, state.turnPlayer, attacker, "onBattleStart")
+        fireTrigger(state, state.turnPlayer, attacker, "onBattleStart", "attacker")
     }
 }
 

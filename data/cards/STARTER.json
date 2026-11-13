@@ -668,7 +668,6 @@
         "kind": "triggered",
         "trigger": "onBattleWin",
         "heading": "attack",
-        "battleRole": "attacker",
         "levels": [
           2,
           3
@@ -3876,7 +3875,6 @@
         "keyword": "rensa",
         "trigger": "onBattleWin",
         "heading": "block",
-        "battleRole": "blocker",
         "levels": [
           1,
           2,
@@ -4458,7 +4456,6 @@
         "kind": "triggered",
         "trigger": "onBattleWin",
         "heading": "block",
-        "battleRole": "blocker",
         "levels": [
           1,
           2,

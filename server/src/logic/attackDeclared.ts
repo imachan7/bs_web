@@ -41,7 +41,7 @@ export function resolveAttackDeclared(state: GameState, pid: PlayerId, inst: Car
     const items: CollectedTrigger[] = []
     const checks: EventBurstCheck[] = []
     fireTrigger(state, pid, inst, "onAttack", undefined, undefined, undefined, undefined, undefined, undefined, items)
-    if (!directed) fireTrigger(state, pid, inst, "onBattleStart", undefined, undefined, undefined, undefined, undefined, undefined, items)
+    if (!directed) fireTrigger(state, pid, inst, "onBattleStart", "attacker", undefined, undefined, undefined, undefined, undefined, items)
     const colors = instColors(inst)
     // instAllCosts：本来のコストに加え、道化師クランの付与コストも含める（costFilter で絞る効果のため）
     const attacked = { costs: instAllCosts(inst) }

@@ -384,7 +384,7 @@ console.log("=== X005R Lv3【合体時】『アタック時』：BPを比べ相�
     assert(!s.players.p2.field.spirits.some((sp) => sp.instanceId === victim.instanceId), "勝利時に相手のスピリット1体を破壊する")
 }
 
-console.log("=== X005R：ブロッカーとして勝ってもwhileCombinedなしでは発揮しない（battleRole限定） ===")
+console.log("=== X005R：ブロッカーとして勝ってもwhileCombinedなしでは発揮しない（heading 限定） ===")
 {
     const s = base("x005r-battlewin-blocker", false)
     const host = createInstance("X005R", s.turn, getCard("X005R").levels[2]!.cores)
@@ -394,5 +394,5 @@ console.log("=== X005R：ブロッカーとして勝ってもwhileCombinedなし
     const victim = createInstance("BS02-014", s.turn, 1)
     s.players.p2.field.spirits.push(victim)
     fireTrigger(s, "p1", host, "onBattleWin", "blocker")
-    assert(s.players.p2.field.spirits.some((sp) => sp.instanceId === victim.instanceId), "ブロッカーとして勝っても発揮しない（battleRole:attacker限定）")
+    assert(s.players.p2.field.spirits.some((sp) => sp.instanceId === victim.instanceId), "ブロッカーとして勝っても発揮しない（heading:attack限定）")
 }
