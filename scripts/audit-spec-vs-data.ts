@@ -20,7 +20,8 @@ const EVENTS_WITH_SWAPPING_ACTOR = new Set([
 const EVENT_ALIASES: Record<string, string[]> = {
     "疲労した": ["ownSpiritExhausted", "anySpiritExhausted"],
     "召喚された": ["ownSpiritSummoned", "anyBraveSummoned"],
-    "破壊された": ["ownSpiritDestroyed", "opponentSpiritDestroyed"],
+    "破壊された": ["ownSpiritDestroyed", "opponentSpiritDestroyed", "ownNexusDestroyed"],
+    "手札に加えられた": ["opponentHandAdded"],
     "アタックした": ["anySpiritAttacked"],
     "ブロックされた": ["ownSpiritBlocked"],
     "ブロックした": ["ownSpiritDeclaredBlock", "anySpiritDeclaredBlock"],
@@ -49,7 +50,7 @@ type FieldEvent = { id: string; kind: string; event: string; selfMode?: string; 
 // op → データ側のアクション名の前置き。一致するものを優先して対応付ける
 const OP_PREFIX: Record<string, string[]> = {
     "破壊": ["destroy"], "疲労させる": ["exhaust"], "回復させる": ["refresh"], "ドロー": ["draw"],
-    "コアを取り除く": ["removeCores"], "手札に戻す": ["bounce", "return"],
+    "コアを取り除く": ["removeCores"], "コアを置く": ["placeCores"], "手札に戻す": ["bounce", "return"],
     "ライフを減らす": ["lifeDamage", "damageLife"],
 }
 
@@ -88,8 +89,9 @@ for (const file of process.argv.slice(2)) {
             used.add(eff.id)
             checked++
             const where = `${spec.id} ${eff.id}（${eff.event}）「${c.text.slice(0, 32)}」`
-            // 〜Self 系は、発生源かイベント対象かも照合する（「相手のスピリット1体を破壊」等の対象選択は別のアクション）
-            if (eff.action?.type.endsWith("Self")) {
+            // target:"self" 系は、発生源かイベント対象かも照合する（「相手のスピリット1体を破壊」等の対象選択は別のアクション）
+            // Round 4 改修: アクション統一（#308/#310/#314/#400）で 〜Self アクションは消滅したため、ゲートを action.target === "self" に変更
+            if (eff.action?.target === "self") {
                 const expected = c.target?.ref === "source" ? "source" : c.target?.ref === "prevClause" ? "eventSubject" : null
                 if (expected && expected !== resolvedSelf(eff)) problems.push(`${where}: 効果文は${expected === "source" ? "発生源（このスピリット）" : "イベント対象（そのスピリット）"}を指すが、実装は${resolvedSelf(eff) === "source" ? "発生源" : "イベント対象"}に作用する`)
             }
