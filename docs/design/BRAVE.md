@@ -409,6 +409,7 @@ tryReviveOnDestroy(state, ownerPid, inst, context, undefined, options?.allowSusp
 - 合体中のブレイヴは `field.spirits` にいないので `destroySpirit` では届かない。
   専用の入口 `destroyCombinedBrave`（`removal.ts`）を通す
 - どのホストのブレイヴを壊すかは**効果の使用者**が選ぶ（候補2体以上のとき）
+- **対象は合体スピリット（ホスト）**（2026-11-13 ユーザー裁定。#491）。ホストの装甲・完全耐性・対象不可が効き、ブレイヴ自身の耐性も効く。ホストの「破壊されない」は効かない（ホストは破壊されない）。§12.5.1 の分離も同じ。判定は `logic/braveTargetGate.ts`
 
 ### 6.4 メインステップの任意合体・分離（2026-09-02 ユーザー確定）
 

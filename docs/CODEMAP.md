@@ -667,6 +667,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `tryBraveFreeSummon`（fn）：undefined＝この経路には乗らない（通常の召喚へ進む）。null／文字列＝この経路で処理した結果（文字列は拒否理由）
 
+## server/src/logic/braveTargetGate.ts
+
+- `affectableBraves`（fn）：候補を数える用（probing）：ホストが受けるなら、受けるブレイヴを返す。ホストが受けなければ空
+- `gateBraveTargets`（fn）：実際に適用する前の関所：ホスト→ブレイヴの順に耐性を通し、受けるブレイヴを返す。
+
 ## server/src/logic/burstActivationFee.ts
 
 - `burstActivationFee`（fn）
