@@ -76,6 +76,7 @@ import { flushBraveKeeps } from "../brave"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+import { affectableBraves, gateBraveTargets } from "../braveTargetGate"
 import { countedAmount } from "../counted"
 import { lastTargetsOf } from "../record"
 
@@ -1051,22 +1052,24 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
         return
     }
     const oppPlayer = state.players[opp]
-    const hosts = oppPlayer.field.spirits.filter((sp) => bravesOf(oppPlayer, sp).length > 0)
+    const scope = action.allHosts ? "area" : "targeted"
+    const hosts = oppPlayer.field.spirits.filter((sp) => affectableBraves(ctx, opp, sp, "destroy", scope).length > 0)
     if (hosts.length === 0) {
-        log(state, `${sourceName}：ブレイヴが合体している相手のスピリットがいなかった。`)
+        log(state, `${sourceName}：ブレイヴを破壊できる相手の合体スピリットがいなかった。`)
         return
     }
     // allHosts（BS11-016 邪眼皇ゼナス＝「合体スピリットすべてのブレイヴ1つずつ」）
     if (action.allHosts) {
         for (const host of [...hosts]) {
-            const brave = bravesOf(oppPlayer, host)[0]
-            if (brave) destroyCombinedBrave(state, opp, host, brave, destroyContext)
+            const brave = affectableBraves(ctx, opp, host, "destroy", scope)[0]
+            const passed = brave ? gateBraveTargets(ctx, opp, host, [brave], "destroy", scope, action) : []
+            if (passed?.[0]) destroyCombinedBrave(state, opp, host, passed[0], destroyContext)
             if (state.pendingChoice || state.winner) return
         }
         return
     }
-    // 対象指定（選択の再開）→ そのホストのブレイヴを壊す
-    const chosen = targetInstanceId !== undefined ? hosts.find((h) => h.instanceId === targetInstanceId) : undefined
+    // 対象指定（選択の再開）→ そのホストのブレイヴを壊す。手札を払って受けない確認から戻るときはブレイヴの id が来ることもある
+    const chosen = targetInstanceId !== undefined ? hosts.find((h) => h.instanceId === targetInstanceId || bravesOf(oppPlayer, h).some((b) => b.instanceId === targetInstanceId)) : undefined
     if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && hosts.length >= 2) {
         requestChoice(
             state,
@@ -1084,12 +1087,13 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    const brave = bravesOf(oppPlayer, host)[0]
+    const brave = affectableBraves(ctx, opp, host, "destroy", scope)[0]
     if (!brave) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    destroyCombinedBrave(state, opp, host, brave, destroyContext)
+    const passed = gateBraveTargets(ctx, opp, host, [brave], "destroy", scope, action)
+    if (passed?.[0]) destroyCombinedBrave(state, opp, host, passed[0], destroyContext)
 }
 
 // 効果による合体（BRAVE.md §12.5.2。BS11-078 ブレイヴフラッシュ）。
@@ -1454,10 +1458,11 @@ const detachOpponentBraveHandler: ActionHandler<"detachOpponentBrave"> = (ctx, a
             .map((host) => ({ pid, host }))
     })
     // 分離の前にブレイヴの対象を確定する（分離で合体スピリットのコストが変わるため）
+    const scope = action.allHosts ? "area" : "targeted"
     const detachPlan = matchedHosts.map(({ pid, host }) => ({
         pid,
         host,
-        braves: bravesOf(state.players[pid], host).filter((b) => braveFilter === undefined || matchesTarget(state, pid, b, braveFilter, self?.instanceId)),
+        braves: affectableBraves(ctx, pid, host, "other", scope, bravesOf(state.players[pid], host).filter((b) => braveFilter === undefined || matchesTarget(state, pid, b, braveFilter, self?.instanceId))),
     })).filter((p) => p.braves.length > 0)
     if (detachPlan.length === 0) {
         log(state, `${sourceName}：分離させられる合体スピリットがいなかった。`)
@@ -1465,13 +1470,14 @@ const detachOpponentBraveHandler: ActionHandler<"detachOpponentBrave"> = (ctx, a
     }
     if (action.allHosts) {
         for (const { pid, host, braves } of detachPlan) {
-            for (const brave of braves) detachBraveByOwnerChoice(state, pid, host, brave, true)
+            for (const brave of gateBraveTargets(ctx, pid, host, braves, "other", scope, action) ?? []) detachBraveByOwnerChoice(state, pid, host, brave, true)
         }
         flushBraveKeeps(state)
         return
     }
     const hosts = detachPlan.map((p) => p.host)
-    const chosen = targetInstanceId !== undefined ? hosts.find((h) => h.instanceId === targetInstanceId) : undefined
+    // 手札を払って受けない確認から戻るときはブレイヴの id が来ることもある
+    const chosen = targetInstanceId !== undefined ? detachPlan.find((p) => p.host.instanceId === targetInstanceId || p.braves.some((b) => b.instanceId === targetInstanceId))?.host : undefined
     if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && hosts.length >= 2) {
         requestChoice(
             state,
@@ -1489,7 +1495,9 @@ const detachOpponentBraveHandler: ActionHandler<"detachOpponentBrave"> = (ctx, a
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    for (const brave of plan.braves) detachBraveByOwnerChoice(state, plan.pid, plan.host, brave, true)
+    const passed = gateBraveTargets(ctx, plan.pid, plan.host, plan.braves, "other", scope, action)
+    if (passed === null) return
+    for (const brave of passed) detachBraveByOwnerChoice(state, plan.pid, plan.host, brave, true)
     flushBraveKeeps(state)
 }
 
