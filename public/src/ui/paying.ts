@@ -74,6 +74,7 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
 // 支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
 export interface PayingState {
     handIndex: number
+    fromTegamoto?: true // handIndex を手元（tegamoto）の添字として読む。summon／castMagic にも付けて送る（#512）
     // 選択待ち（pendingChoice）の解決として送る場合の手札インデックス。
     // 「コストを支払って召喚できる」起動効果（BS08帝竜騎サイクル＝summon{from:"hand"} の payCost）で、
     // リザーブだけでは払えないときに通常の召喚と同じ支払いUIを流用するためのもの。
@@ -195,6 +196,7 @@ export function payingCardId(view: GameView, paying: PayingState): string | unde
         return player.field.combinedBraves.find((b) => b.instanceId === paying.forDetachBraveInstanceId)?.cardId
     }
     if (paying.choiceZone === "trash") return player.trashCards[paying.handIndex]
+    if (paying.fromTegamoto === true) return player.tegamoto[paying.handIndex]
     return player.hand?.[paying.handIndex]
 }
 

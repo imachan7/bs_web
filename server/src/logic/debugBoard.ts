@@ -26,6 +26,7 @@ export interface DebugPlayerBoard {
     deck?: string[] // 先頭がデッキトップ。**省略時は現状維持**（引くカードを固定したいときだけ書く）
     trashCards?: string[]
     tegamoto?: string[]
+    tegamotoPlayable?: true // 手元のカードすべてを「手札にあるときと同様に使用できる」状態にする
     burst?: string | null // セットしておくバーストのカードID（null で外す）
     field?: {
         spirits?: DebugInstance[]
@@ -128,7 +129,7 @@ export function applyDebugBoard(state: GameState, board: DebugBoard): string | n
         if (spec.trashCards !== undefined) p.trashCards = [...spec.trashCards]
         if (spec.tegamoto !== undefined) {
             p.tegamoto = [...spec.tegamoto]
-            p.tegamotoPlayable = []
+            p.tegamotoPlayable = spec.tegamotoPlayable === true ? [...spec.tegamoto] : []
         }
         if (spec.burst !== undefined) {
             p.burst = spec.burst
