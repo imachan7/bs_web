@@ -4,7 +4,7 @@ import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { addLifeDealt, recordLifeLoss, settleLifeZero } from "./lifeGate"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { clearBattle, currentLevel, findSpirit, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
-import { destroyTargetsBatch } from "./removal"
+import { destroyTargetsBatch, fireQueuedDestroyBursts } from "./removal"
 import { reserveBlockerDestroyByEntries } from "./battleEndDestroy"
 import { destroyCombinedBrave } from "./brave"
 import { destroyDenial } from "./destroyGate"
@@ -561,7 +561,7 @@ type BattleOutcome = "attackerWins" | "blockerWins" | "mutual" | "none"
 type BattleResolveFrame = Extract<ResumeFrame, { kind: "battleResolve" }>
 
 // バトル解決の最終ステップ番号（runBattleStep の switch と対応）
-const BATTLE_LAST_STEP = 13
+const BATTLE_LAST_STEP = 14
 
 // ＞６（破壊処理）〜＞７（バトル終了宣言）を1ステップずつ進める。
 // **1ステップ＝中断しうる呼び出し1つ**にしてあるので、選択待ちが立ったら
@@ -631,17 +631,17 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (f.outcome === "attackerWins") {
                 destroyTargetsBatch(state, attackerPid, [
                     { pid: blockerPid, instanceId: f.blockerInstanceId, context: { ...attackerContext, battleLoser: true } },
-                ])
+                ], undefined, undefined, true)
             } else if (f.outcome === "blockerWins") {
                 destroyTargetsBatch(state, blockerPid, [
                     { pid: attackerPid, instanceId: f.attackerInstanceId, context: { ...blockerContext, battleLoser: true } },
-                ])
+                ], undefined, undefined, true)
             } else {
                 const batch = [
                     { pid: blockerPid, instanceId: f.blockerInstanceId, context: attackerContext },
                     { pid: attackerPid, instanceId: f.attackerInstanceId, context: blockerContext },
                 ].filter((t) => !guarded(t.pid, t.instanceId))
-                if (batch.length > 0) destroyTargetsBatch(state, attackerPid, batch)
+                if (batch.length > 0) destroyTargetsBatch(state, attackerPid, batch, undefined, undefined, true)
             }
             return
         }
@@ -680,11 +680,17 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             }
             return
         }
+        // 破壊後バースト：バトルの破壊（step 1）に伴う解決（敗北側・勝利側のバトルの誘発）をすべて終えてから発動を確認する
+        // （BURST.md §1.4「発動条件に伴う解決をすべて処理してから」。2026-11-14 ユーザー確認。#536）
+        case 5: {
+            fireQueuedDestroyBursts(state)
+            return
+        }
         // ＞７：【呪撃】。アタッカーが現レベルで持つなら、ブロッカーが（BP比較の結果に関わらず）
         // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
         // アタッカー自身がBP比較で破壊されていても発動する。
         // ＞６で「フィールドに残る」を使って生き残った個体もここでは対象になる（TIMING_CHART.md §2）
-        case 5: {
+        case 6: {
             // BS06カウンターカース：【呪撃】の発揮タイミングを『ブロック時』へ**差し替える**。
             // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
             const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
@@ -727,7 +733,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         }
         // BS06カウンターカース：差し替えが効いている側では、**ブロッカー**の【呪撃】が
         // バトルした相手（＝アタッカー）をバトル終了時に破壊する
-        case 6: {
+        case 7: {
             if (sameSide || !hasJugekiOnBlockReplace(state, defenderPid)) return
             if (!spiritHasKeywordOrLabel(state, blockerPid, blocker, "jugeki")) return
             const attackerStill = findSpirit(state.players[attackerPid], f.attackerInstanceId)
@@ -760,7 +766,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         // バッチ自身が再開フレームを持つので途中の予約が落ちない）。
         // 発生源が既に場を離れていても予約は消えない（発揮はコストを払った時点で成立している）ので、
         // 装甲・効果耐性の判定には予約時に控えた色と種別を使う
-        case 7: {
+        case 8: {
             const reservations = state.battle?.endBattleDestroy ?? []
             if (reservations.length === 0) return
             // 予約は一度きり。ここで消してから解決する（同じステップに戻ってきても二重に破壊しない）
@@ -799,7 +805,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         }
         // onBattleEnd 誘発：バトル参加者（アタッカー・ブロッカー）のうち、まだフィールドに
         // 生存している個体それぞれに発火する（コリスタル：ブロックされても生き残れば自壊する）
-        case 8: {
+        case 9: {
             // 【地鳴】の減算記録を『バトル終了時』誘発の発火直前に確定させる（この時点で
             // ブロッカーのカードが防御側のトラッシュにあればそのコスト。破壊後に手札へ
             // 戻されていたら減らない＝トラッシュに無ければ0）
@@ -827,7 +833,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             }
             return
         }
-        case 9: {
+        case 10: {
             if (state.winner) return
             const survivingBlocker = findSpirit(state.players[blockerPid], f.blockerInstanceId)
             if (survivingBlocker) {
@@ -850,28 +856,28 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             }
             return
         }
-        case 10: {
+        case 11: {
             destroyMarkedAtBattleEnd(state)
             resolveKoboOnBattleEnd(state, attackerPid, attacker)
             return
         }
         // 星降る巡礼地Lv2：自分のスピリットの【光芒】は『ブロック時』にも発揮される。
         // ブロッカー側の使用マジックを、ブロッカーの持ち主基準でもう一度解決する
-        case 11: {
+        case 12: {
             if (!sameSide && hasKoboOnBlock(state, defenderPid)) {
                 resolveKoboOnBattleEnd(state, defenderPid, blocker)
             }
             return
         }
         // 勝ったスピリットのフィールドイベント（battleWon 誘発と違い発生源の持ち主の全フィールド発生源が対象）
-        case 12: {
+        case 13: {
             if (state.winner || sameSide) return
             const winnerPid = f.outcome === "attackerWins" ? attackerPid : f.outcome === "blockerWins" ? blockerPid : null
             const winnerInst = f.outcome === "attackerWins" ? attacker : blocker
             if (winnerPid !== null) fireFieldEventTriggers(state, winnerPid, "ownSpiritBattleWon", { pid: winnerPid, inst: winnerInst }, instColors(winnerInst))
             return
         }
-        case 13: {
+        case 14: {
             clearBattle(state)
             return
         }
