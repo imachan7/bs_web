@@ -66,6 +66,11 @@ function scoreChoice(view: GameView, me: PlayerId, action: GameAction): number {
     const choice = view.pendingChoice
     if (!choice) return 0
 
+    // トグル選択では選択済みも候補に残り、選び直すと解除になる。解除は確定（スキップ）より下にする。
+    // 強い個体ほど点が高いので、そのままだと選択と解除を往復し続けて手数上限で降参していた（#496）
+    if (action.instanceId !== undefined && choice.selectedIds?.includes(action.instanceId)) return 0
+    if (action.cardIndex !== undefined && choice.selectedCardIndices?.includes(action.cardIndex)) return 0
+
     if (action.instanceId !== undefined) {
         const found = findOnBoard(view, action.instanceId)
         if (!found) return 30
