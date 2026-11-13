@@ -10,6 +10,12 @@ import { card } from "../cardDb"
 
 // ---- シンボル ----
 
+// 「◯色としても扱う」で与えられた色（期間つき・継続・合体中のブレイヴに与えられた色）。
+// 持つ個体はシンボルをその色としても数える（2026-08-20 ユーザー確認。合体スピリットは1体として扱う。#507）
+export function grantedColorsOf(inst: CardInstance): Color[] {
+    return [...inst.timedColors, ...(inst.colorsAsContinuous ?? []), ...(inst.braveComposite?.grantedColors ?? [])]
+}
+
 // シンボルを固定する効果（「シンボルを◯つにする」＝symbolFix・期間つきの symbolSet・召喚の軽減の間だけの置き換え）を
 // 受けた個体は固定値だけを持つ。追加・失う・ブレイヴのシンボルは効かない（公式のルール改定で「シンボル2つに固定する」へ
 // 表記変更。固定の後に1つ加えても2つのまま。2026-09-25 ユーザー確認。BRAVE.md §12 の3 もこの一般則の1例）。
@@ -48,7 +54,7 @@ export function instanceSymbolColors(inst: CardInstance): Color[] {
 // 元の色と付与色のどれとしても数える（flexibleSymbolUnits と同じ規則。2026-08-20 ユーザー確認）
 export function instanceSymbolUnits(inst: CardInstance): Color[][] {
     if (inst.colorlessThisBattle) return []
-    const granted = [...inst.timedColors, ...(inst.colorsAsContinuous ?? [])]
+    const granted = grantedColorsOf(inst)
     return instanceSymbolColors(inst).map((sym) => [...new Set([sym, ...granted])])
 }
 
@@ -95,7 +101,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
         // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
         // 「緑シンボル1つ」としても「白シンボル1つ」としても数える（置き換えではない）
-        const grantedColors = [...inst.timedColors, ...(inst.colorsAsContinuous ?? [])]
+        const grantedColors = grantedColorsOf(inst)
         if (skipGranted && grantedColors.length > 0) continue
         const grantedMatches = grantedColors.some((c) => colors.includes(c))
         let matched = false
@@ -116,7 +122,7 @@ export function flexibleSymbolUnits(player: BoardPlayer, forSummon = false): Col
     const units: Color[][] = []
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
         if (inst.colorlessThisBattle) continue
-        const granted = [...inst.timedColors, ...(inst.colorsAsContinuous ?? [])]
+        const granted = grantedColorsOf(inst)
         if (granted.length === 0) continue
         const { symbols, fixed } = symbolsOf(inst, forSummon)
         const extra = fixed ? 0 : inst.timedExtraSymbols ?? 0

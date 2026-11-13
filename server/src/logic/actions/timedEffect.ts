@@ -3,7 +3,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, CardType, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log, suspend } from "../GameState"
 import { applyMagicBuffBonus, gateTargetedApply, recordBp, findSpiritAny, pickAnySideByBp, pickAnySideCandidates, resistanceAgainst, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
-import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, bravesOf, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget, printedSides } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
@@ -638,24 +638,28 @@ function placeCountAs(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: 
     log(state, `${sourceName}：このターンの間、${getCard(found.inst.cardId).name}は${state.players[owner].name}の効果で${c.count}体分として数えられる。`)
 }
 
-// このバトルの間、プレイヤーに掛ける（フラッシュで手札を使えない／バーストを発動できない）
+// このバトル／このターンの間、プレイヤーに掛ける（フラッシュで手札を使えない／マジックを使用できない／バーストを発動できない）。
+// 「このターンの間」は lock:"magic" だけ（BS14-112 封渦斬。手札に限らない使用禁止なので手元・効果による使用も止める。#528）
 function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, opp, sourceName } = ctx
-    if (!state.battle) {
+    const locks = action.content.filter((c) => c.type === "battleLock")
+    const turnLong = action.duration === "turn" && locks.every((c) => c.lock === "magic")
+    if (!turnLong && !state.battle) {
         log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
         return
     }
-    if (action.duration !== "battle" || action.side === "both") {
+    if ((action.duration !== "battle" && !turnLong) || action.side === "both") {
         log(state, `${sourceName}：この期間・陣営の指定は未対応のため発揮しなかった。`)
         return
     }
     const pid = action.side === "own" ? owner : opp
-    const locks = action.content.filter((c) => c.type === "battleLock")
-    recordFrom(ctx, { content: locks, target: { kind: "player", pid }, until: "battle", ownerPid: owner })
+    const until = turnLong ? "turn" : "battle"
+    const period = turnLong ? "このターン" : "このバトル"
+    recordFrom(ctx, { content: locks, target: { kind: "player", pid }, until, ownerPid: owner })
     for (const c of locks) {
-        if (c.lock === "flash") log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はフラッシュで手札のカードを使用できない。`)
-        else if (c.lock === "magic") log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はマジックカードを使用できない。`)
-        else log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はバーストを発動できない。`)
+        if (c.lock === "flash") log(state, `${sourceName}：${period}の間、${state.players[pid].name}はフラッシュで手札のカードを使用できない。`)
+        else if (c.lock === "magic") log(state, `${sourceName}：${period}の間、${state.players[pid].name}はマジックカードを使用できない。`)
+        else log(state, `${sourceName}：${period}の間、${state.players[pid].name}はバーストを発動できない。`)
     }
 }
 
@@ -885,11 +889,15 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
         log(state, `${sourceName}：このターンの間、${who}スピリットの『ブロック時』効果は『アタック時』に発揮される。`)
         return
     }
-    // ブロック時→アタック時は『ブロック時』効果を持つスピリットだけが候補で、候補が2体以上なら選ばせる（旧と同じ）
+    // ブロック時→アタック時は『ブロック時』効果を持つスピリットだけが候補で、候補が2体以上なら選ばせる。
+    // 『ブロック時』は印刷された見出しで見る（結果連動型も含む。合体中のブレイヴの効果も合体スピリットが持つ。#527）
+    const player = state.players[owner]
     const mine =
         content.from === "onBlock"
-            ? state.players[owner].field.spirits.filter((s) => getCard(s.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onBlock"))
-            : state.players[owner].field.spirits
+            ? player.field.spirits.filter((s) =>
+                  [s, ...bravesOf(player, s)].some((src) => getCard(src.cardId).effects.some((e) => e.kind === "triggered" && printedSides(e).includes("block"))),
+              )
+            : player.field.spirits
     if (
         content.from === "onBlock" &&
         targetInstanceId === undefined &&

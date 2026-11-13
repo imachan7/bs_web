@@ -708,12 +708,10 @@ function hasSubjectFixedEvidence(entry: Record<string, unknown>): boolean {
     if (entry.selfMode === "source") return true
     if (entry.ownOnly === true) return true
     if (entry.subjectSide === "own") return true
-    // 等価表現1: chooserIsTarget を書いてある＝主体が相手側になることを承知で書いている
-    // （BS08-021 ブラックアメンボーグ「相手は、相手のスピリット1体を疲労させる」）
+    // chooserIsTarget は「誰が選ぶか」で、主体の固定の証拠にはならない（BS08-021 は主体が逆のまま通っていた。#530）
     const action = entry.action
     if (action && typeof action === "object") {
         const a = action as Record<string, unknown>
-        if (a.chooserIsTarget === true) return true
         // 等価表現2: イベント対象そのものに作用する action は、主体がどちらでも結果が変わらない。
         // coreToTrashSelf は「self 上のコアを持ち主のトラッシュへ」なので、
         // アタック/疲労したスピリット自身が対象で固定されている
