@@ -209,6 +209,19 @@ gcloud logging read 'resource.type="cloud_run_revision" AND jsonPayload.bugRepor
 クライアントは次の操作かタブ復帰で再接続する。時間は環境変数 `IDLE_DISCONNECT_MS` で変えられる。
 残る穴は「決着しないまま2人とも放置した対局」で、これは `--timeout=3600` の60分で切れる。
 
+### 5.1 AI戦はブラウザの中で動かす（2026-11-13）
+
+実測（2026-11-13 までの30日）：課金対象の稼働は 92.9 時間で、無料枠（月約50時間）を超えていた。
+対戦開始 1,626 件の内訳は AI戦 1,443（88%）・合言葉 135・ランダムマッチ 48。稼働時間の大半は AI戦の接続だった。
+
+AI戦は Web Worker（`public/src/aiWorker/worker.ts` → `public/dist/aiWorker.js`）がエンジンと AI を動かし、サーバーへ接続しない。
+サーバーが動くのは対人戦の間だけになる。副作用として、AI戦はデプロイ・再起動・60分のタイムアウト（§4.2）で切れなくなる。
+
+- 始めた件数は `POST /api/ai-start` が従来と同じ `#ACCESS join （AI戦）` の行で残す
+- Worker を起動できないブラウザは、従来どおりサーバーの `startAi` で対戦する（その分は接続を張る）
+- **エンジンに Node 専用の import や `process` の参照を足すと Worker に束ねられない。** `npm run build:client` が束ねた直後に Node 無しの環境で1戦を始めて確かめるので、そこで落ちる
+- 利用者が増えたときに次に効くつまみは `--concurrency=80`（同時接続の上限。対人戦40卓ぶん）。対人戦が同時に30卓を超え始めたら引き上げる（料金は変わらない）
+
 ## 6. Discord Activity との関係
 
 Cloud Run が返す `https://bs-web-xxxxx.asia-northeast1.run.app` は安定したドメインなので、

@@ -34,6 +34,15 @@
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：プロボケイションと `moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
+### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
+
+- 実測（直近30日）：Cloud Run の稼働 92.9 時間（無料枠は月約50時間）。対戦開始 1,626 件の 88% が AI戦。AI戦をサーバーから外せば、接続を張るのは対人戦だけになる
+- AI戦は Web Worker（`public/src/aiWorker/worker.ts` → `public/dist/aiWorker.js`）がエンジンと AI を動かす。Worker とのやりとりは socket と同じイベント名（`startAi`／`action` → `joined`／`state`／`errorMessage`）で、`main.ts` は同じハンドラで受ける
+- 束ねるときに差し替えるのは `data/loadCards`（`/api/cards` を同期で取る）と `coverageRecorder`（何もしない）の2つだけ。エンジンに Node 専用の import を足すと束ねられなくなるので、ビルド（`scripts/build-ai-worker.mjs`）が束ねた直後に `process` の無い環境で1戦を始めて確かめる
+- 対戦開始の処理（デッキ指定の解決・先攻決め・最初のターン開始）は `server/src/matchSetup.ts` に出し、サーバーと Worker の両方が使う
+- サーバーの `startAi` は残す（Worker を起動できないブラウザの退避先・E2E）。件数の記録は `POST /api/ai-start` で続ける
+- PR #431 の Phase 2（Firestore＋Web Push）は、ランダムマッチが月48件の今は先送りを提案（掲示板の離脱理由の計測がたまってから）
+
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
 - **対象**：BS13-038 魔女タランダ（手札のスピリット）・BS10-046 龍仙公主（手札のマジック）。「好きなだけ破棄、**破棄した1枚につき**破壊された体を1体戻す」。#423（perDestroyed）の置き換え（#423 は閉じる）

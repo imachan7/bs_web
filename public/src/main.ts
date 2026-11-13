@@ -87,9 +87,55 @@ let lastErrorText: string = ""
 // joined の種別を区別する（"room" = 合言葉ルーム、"random" / "ai" = 即対戦）
 let joinMode: "room" | "random" | "ai" = "room"
 
+// AI戦はブラウザの中の Worker（public/src/aiWorker/worker.ts）が相手をする。サーバーへは接続しない
+// （接続を張っている間ずっと Cloud Run の課金が続くため。docs/ops/DEPLOY_CLOUDRUN.md §5）
+let aiWorker: Worker | null = null
+// 対戦の進行を受けるハンドラ。サーバー（socket）と Worker が同じイベント名で送ってくる
+const gameHandlers: Record<string, (payload: any) => void> = {}
+function onGame(event: string, handler: (payload: any) => void): void {
+    socket.on(event, handler)
+    gameHandlers[event] = handler
+}
+
+// Worker を起動して AI戦を始める。起動できないブラウザでは、従来どおりサーバーの AI と対戦する
+function startLocalAi(button: HTMLElement, payload: unknown): void {
+    const btn = button as HTMLButtonElement
+    if (btn.disabled) return
+    const original = btn.textContent
+    btn.disabled = true
+    btn.textContent = "準備中…"
+    const restore = () => {
+        btn.disabled = false
+        btn.textContent = original
+    }
+    let worker: Worker
+    const fallback = () => {
+        if (view) return showToast("AI戦でエラーが起きました。ロビーに戻ってやり直してください")
+        worker?.terminate()
+        aiWorker = null
+        restore()
+        connectAndRun(btn, () => socket.emit("startAi", payload))
+    }
+    try {
+        worker = new Worker("/dist/aiWorker.js")
+    } catch {
+        return fallback()
+    }
+    worker.onerror = fallback
+    worker.onmessage = (e: MessageEvent<{ event: string; payload?: unknown }>) => {
+        if (e.data.event !== "state") restore() // joined か、デッキ不正などの errorMessage
+        gameHandlers[e.data.event]?.(e.data.payload)
+    }
+    aiWorker = worker
+    worker.postMessage({ event: "startAi", payload })
+    // 対戦開始の件数の記録（失敗しても対戦には関係ない）
+    fetch("/api/ai-start", { method: "POST" }).catch(() => {})
+}
+
 export function send(action: GameAction): void {
     if (!confirmExtraCost(action)) return
-    socket.emit("action", action)
+    if (aiWorker) aiWorker.postMessage({ event: "action", payload: action })
+    else socket.emit("action", action)
 }
 
 function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
@@ -175,7 +221,7 @@ export function rerender(): void {
 
 // ---- サーバーからのイベント ----
 
-socket.on("joined", () => {
+onGame("joined", () => {
     if (joinMode === "room") {
         showWaiting()
     }
@@ -217,7 +263,7 @@ socket.on("matchFound", () => {
     if (status) status.classList.add("hidden")
 })
 
-socket.on("state", (v: GameView) => {
+onGame("state", (v: GameView) => {
     view = v
     ui.targeting = null // 状態が変わったら対象選択はリセット
     ui.awakenTarget = null // 覚醒モードもリセット（続けて移す場合は再度バッジをクリック）
@@ -244,7 +290,7 @@ socket.on("state", (v: GameView) => {
     }
 })
 
-socket.on("errorMessage", (message: string) => {
+onGame("errorMessage", (message: string) => {
     lastErrorText = message
     showToast(message)
 })
@@ -407,7 +453,7 @@ async function init(): Promise<void> {
         payload.aiName = oppLabel
 
         joinMode = "ai"
-        connectAndRun(byId("start-ai-btn"), () => socket.emit("startAi", payload))
+        startLocalAi(byId("start-ai-btn"), payload)
     })
 
     byId("btn-return-lobby").addEventListener("click", () => {
