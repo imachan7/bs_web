@@ -3,7 +3,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, CardType, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log, suspend } from "../GameState"
 import { applyMagicBuffBonus, gateTargetedApply, recordBp, findSpiritAny, pickAnySideByBp, pickAnySideCandidates, resistanceAgainst, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
-import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, bravesOf, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget, printedSides } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
@@ -885,11 +885,15 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
         log(state, `${sourceName}：このターンの間、${who}スピリットの『ブロック時』効果は『アタック時』に発揮される。`)
         return
     }
-    // ブロック時→アタック時は『ブロック時』効果を持つスピリットだけが候補で、候補が2体以上なら選ばせる（旧と同じ）
+    // ブロック時→アタック時は『ブロック時』効果を持つスピリットだけが候補で、候補が2体以上なら選ばせる。
+    // 『ブロック時』は印刷された見出しで見る（結果連動型も含む。合体中のブレイヴの効果も合体スピリットが持つ。#527）
+    const player = state.players[owner]
     const mine =
         content.from === "onBlock"
-            ? state.players[owner].field.spirits.filter((s) => getCard(s.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onBlock"))
-            : state.players[owner].field.spirits
+            ? player.field.spirits.filter((s) =>
+                  [s, ...bravesOf(player, s)].some((src) => getCard(src.cardId).effects.some((e) => e.kind === "triggered" && printedSides(e).includes("block"))),
+              )
+            : player.field.spirits
     if (
         content.from === "onBlock" &&
         targetInstanceId === undefined &&
