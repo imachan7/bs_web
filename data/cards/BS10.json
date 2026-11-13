@@ -212,6 +212,7 @@
         "id": "BS10-063-e1",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "attack",
         "levels": null,
         "whileCombined": true,
         "action": {
@@ -340,6 +341,7 @@
         "id": "BS10-065-e1",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "attack",
         "levels": null,
         "whileCombined": true,
         "action": {
@@ -606,6 +608,7 @@
         "id": "BS10-069-e2",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "heading": "attack",
         "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
@@ -809,6 +812,7 @@
         "id": "BS10-072-e2",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "block",
         "levels": null,
         "whileCombined": true,
         "battleRole": "blocker",
@@ -1033,6 +1037,7 @@
         "id": "BS10-075-e2",
         "kind": "triggered",
         "trigger": "onLifeDealt",
+        "heading": "attack",
         "levels": null,
         "whileCombined": true,
         "action": {
@@ -3594,6 +3599,7 @@
         "id": "BS10-026-e3",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "heading": "attack",
         "eventTarget": "ignore",
         "levels": [
           1,
@@ -4038,6 +4044,7 @@
         "id": "BS10-X03-e2",
         "kind": "triggered",
         "trigger": "onLifeDealt",
+        "heading": "attack",
         "levels": [
           2
         ],
@@ -5087,6 +5094,7 @@
         "id": "BS10-X04-e2",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "block",
         "battleRole": "blocker",
         "levels": [
           2,
@@ -6102,6 +6110,7 @@
         "id": "BS10-047-e2",
         "kind": "triggered",
         "trigger": "onLifeDealt",
+        "heading": "attack",
         "levels": [
           1,
           2,
@@ -7102,6 +7111,7 @@
         "id": "BS10-027-e1",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "heading": "attack",
         "eventTarget": "ignore",
         "levels": [
           1,
@@ -7324,6 +7334,7 @@
         "id": "X005R-e2",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "attack",
         "battleRole": "attacker",
         "whileCombined": true,
         "levels": [

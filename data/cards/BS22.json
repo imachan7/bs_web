@@ -1856,6 +1856,7 @@
     "id": "BS22-026-e1",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2
@@ -2976,6 +2977,7 @@
     "id": "BS22-041-e2",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2,
@@ -3080,6 +3082,7 @@
     "id": "BS22-042-e2",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2,
@@ -4269,6 +4272,7 @@
     "id": "BS22-056-e1",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "levels": null,
     "eventTarget": "use",
     "whileCombined": true,
@@ -4561,6 +4565,7 @@
     "id": "BS22-060-e1",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": null,
     "optional": false,
     "action": {
@@ -6715,6 +6720,7 @@
     "kind": "triggered",
     "keyword": "rensa",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      3
     ],
@@ -7069,6 +7075,7 @@
     "id": "BS22-X08-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "use",
     "levels": null,
     "whileCombined": true,
@@ -7082,6 +7089,7 @@
     "id": "BS22-X08-e3",
     "kind": "triggered",
     "trigger": "onUnblocked",
+    "heading": "attack",
     "levels": null,
     "whileCombined": true,
     "optional": false,

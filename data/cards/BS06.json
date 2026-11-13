@@ -647,6 +647,7 @@
     "id": "BS06-011-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "use",
     "levels": [
      3
@@ -1615,6 +1616,7 @@
     "id": "BS06-028-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -1886,6 +1888,7 @@
     "id": "BS06-033-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -2130,6 +2133,7 @@
     "id": "BS06-036-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -2149,6 +2153,7 @@
     "id": "BS06-036-e3",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      3
     ],
@@ -6677,6 +6682,7 @@
     "id": "BS06-X21-e3",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "use",
     "levels": [
      3
@@ -6836,6 +6842,7 @@
     "id": "BS06-X23-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -6855,6 +6862,7 @@
     "id": "BS06-X23-e3",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      3
     ],

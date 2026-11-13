@@ -117,6 +117,7 @@
     "kind": "triggered",
     "keyword": "batto",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "levels": [
      1,
      2,
@@ -295,6 +296,7 @@
     "id": "BS23-004-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      1,
@@ -1940,6 +1942,7 @@
     "kind": "triggered",
     "keyword": "batto",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "levels": [
      1,
      2
@@ -3594,6 +3597,7 @@
     "id": "BS23-043-e4",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2,
@@ -4196,6 +4200,7 @@
     "kind": "triggered",
     "keyword": "batto",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "levels": [
      1,
      2,

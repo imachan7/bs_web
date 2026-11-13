@@ -221,6 +221,7 @@
     "id": "BS04-004-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      3
@@ -688,6 +689,7 @@
     "id": "BS04-011-e3",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      3
@@ -936,6 +938,7 @@
     "id": "BS04-016-e1",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      1,
@@ -1268,6 +1271,7 @@
     "id": "BS04-021-e1",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      3
@@ -1551,6 +1555,7 @@
     "id": "BS04-025-e1",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      1,
@@ -1568,6 +1573,7 @@
     "id": "BS04-025-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      2
@@ -4409,6 +4415,7 @@
     "id": "BS04-075-e2",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "heading": "attack",
     "eventTarget": "use",
     "levels": [
      2,
@@ -6705,6 +6712,7 @@
     "id": "BS04-X13-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      2,
@@ -6884,6 +6892,7 @@
     "id": "BS04-X15-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      2

@@ -1506,6 +1506,7 @@
         "id": "BS09-022-eB",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "heading": "attack",
         "eventTarget": "ignore",
         "levels": [
           1,
@@ -1780,6 +1781,7 @@
         "id": "BS09-026-eB",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "heading": "attack",
         "eventTarget": "ignore",
         "levels": [
           1,
@@ -2889,6 +2891,7 @@
         "id": "BS09-042-e2",
         "kind": "triggered",
         "trigger": "onLifeDealt",
+        "heading": "attack",
         "levels": [
           1,
           2,
@@ -5913,6 +5916,7 @@
         "id": "BS09-X40-e2",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "attack",
         "levels": [
           1,
           2

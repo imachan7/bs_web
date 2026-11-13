@@ -615,6 +615,7 @@
     "id": "BS18-009-e3",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "use",
     "levels": [
      2
@@ -1712,6 +1713,7 @@
     "id": "BS18-026-e2",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      2
     ],
@@ -3603,6 +3605,7 @@
     "id": "BS18-052-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": [
      2,
@@ -3759,6 +3762,7 @@
     "id": "BS18-054-e4",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      2
@@ -6020,6 +6024,7 @@
     "id": "BS18-X03-e3",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      3

@@ -386,6 +386,7 @@
     "id": "BS11-007-e1",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "heading": "attack",
     "eventTarget": "use",
     "levels": [
      1,
@@ -2273,6 +2274,7 @@
     "id": "BS11-037-e2",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": [
      1,
      2,
@@ -3135,6 +3137,7 @@
     "id": "BS11-050-e1",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "heading": "attack",
     "eventTarget": "ignore",
     "levels": null,
     "whileCombined": true,
@@ -3349,6 +3352,7 @@
     "id": "BS11-053-e2",
     "kind": "triggered",
     "trigger": "onLifeDealt",
+    "heading": "attack",
     "levels": null,
     "whileCombined": true,
     "action": {
@@ -3523,6 +3527,7 @@
     "id": "BS11-056-e1",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "block",
     "levels": null,
     "whileCombined": true,
     "battleRole": "blocker",
@@ -5277,6 +5282,7 @@
     "id": "BS11-X01-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "levels": [
      3
     ],

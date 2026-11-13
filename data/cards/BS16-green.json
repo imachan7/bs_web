@@ -604,6 +604,7 @@
     "id": "BS16-023-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
+    "heading": "attack",
     "battleRole": "attacker",
     "levels": [
      2,

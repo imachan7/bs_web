@@ -432,6 +432,7 @@
         "id": "BS16-052-e3",
         "kind": "triggered",
         "trigger": "onBattleWin",
+        "heading": "attack",
         "levels": [
           2
         ],
@@ -1007,6 +1008,7 @@
         "id": "BS16-X06-e3",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "heading": "attack",
         "eventTarget": "use",
         "battleRole": "attacker",
         "levels": [
