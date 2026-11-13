@@ -7,7 +7,7 @@ import { moveSoulCore, normalReserveOf, wouldDepleteOf } from "../soulCore"
 import { recordMagicUse } from "../record"
 import { emitEvent, payCost, resolveAction } from "../EffectModules"
 import { destroySpirit } from "../removal"
-import { markPayConfirmed } from "../actions/pay"
+import { canPayMagicCost, payMagicCostThenResolve } from "./payThenResolve"
 import { isRedirectOptional, askBothSidesRedirect, findMagicRedirectSourceForCard } from "./redirect"
 import { findMagicNegateSource, payMagicNegate } from "./negate"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
@@ -411,7 +411,8 @@ export function offerOpponentMainEndMagic(
     })
     if (cardId === undefined) return null
     const cost = effectiveCost(state, holderPid, getCard(cardId))
-    if (player.reserve < cost) return null
+    // 断りのない「コストを支払う」はフィールドのコアからも払える（COST_MODEL §12。#513）
+    if (!canPayMagicCost(state, holderPid, cost)) return null
     if (!state.interactiveTargets) {
         applyProvocationUse(state, { pid: holderPid, cardId })
         return "used"
@@ -438,15 +439,13 @@ export function applyProvocationUse(state: GameState, entry: NonNullable<Pending
     if (handIndex === -1) return
     const card = getCard(entry.cardId)
     const cost = effectiveCost(state, entry.pid, card)
-    if (normalReserveOf(player) < cost) return // 案B-inside: [ソウルコア]は通常コアの支払いに使わない
-    player.reserve -= cost
-    player.trashCores += cost
+    if (!canPayMagicCost(state, entry.pid, cost)) return
     player.hand.splice(handIndex, 1)
     player.trashCards.push(entry.cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
     const effect = card.effects.find(
         (e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd === true,
     )
-    // 発生源（色・種別）を渡す。渡さないと【装甲】や「マジックの効果を受けない」を素通りした（#437 R4-2 色F1）
-    if (effect) resolveAction(state, entry.pid, null, markPayConfirmed(effect.action), undefined, magicEffectiveColors(state, entry.pid, card), "magic", undefined, undefined, card.cardId)
+    // 支払い（対話ではどのコアから払うかを聞く）と、発生源（色・種別）を渡した解決。発生源を渡さないと【装甲】や「マジックの効果を受けない」を素通りした（#437 R4-2 色F1）
+    payMagicCostThenResolve(state, entry.pid, card.cardId, cost, effect?.action ?? { type: "noop" })
 }
