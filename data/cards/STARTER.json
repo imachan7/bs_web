@@ -5047,7 +5047,7 @@
                     }
                   }
                 ],
-                "duration": "turn",
+                "duration": "battle",
                 "target": "self"
               }
             }

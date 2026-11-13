@@ -94,7 +94,7 @@ export function gatePickedTargets<A extends EffectAction & PickProgress>(
     find: (id: string) => { pid: PlayerId; inst: CardInstance } | undefined,
     attempt: EffectAttempt,
     onResisted: (inst: CardInstance, r: Resistance) => void,
-    skipGate: (pid: PlayerId) => boolean = () => false,
+    skipGate: (pid: PlayerId, inst: CardInstance) => boolean = () => false,
 ): string[] | null {
     const { state, self, sourceName } = ctx
     const passed = [...(action.picked?.passed ?? [])]
@@ -107,7 +107,7 @@ export function gatePickedTargets<A extends EffectAction & PickProgress>(
             failed.push(id)
             continue
         }
-        if (skipGate(found.pid)) {
+        if (skipGate(found.pid, found.inst)) {
             passed.push(id)
             continue
         }
