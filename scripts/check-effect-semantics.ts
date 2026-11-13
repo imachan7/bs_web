@@ -698,7 +698,6 @@ const S6_VERIFIED: Record<string, string> = {
     // 効果文の主語が「**相手は**、相手のスピリットのコア1個を相手のリザーブに置く」なので、
     // 実行者が相手になるのが正しい。chooserIsTarget を書かない実装（coreRemove は実行者側の
     // 場を操作する）でも actionPid が相手で正解なので、主体の固定は不要
-    "BS11-063-e1": "効果文の主語が「相手は」＝相手が実行者で正しい（2026-09-13 確認）",
 }
 
 // 主体を発生源側に固定する印。どれか1つあればよい
@@ -793,7 +792,6 @@ const S7_VERIFIED: Record<string, string> = {
     // （mill.ts millThenDestroyByCardTypeHandler）。データ側からは見えない
     "BS14-111-e1": "ハンドラが chooserIsTarget:true を渡している（2026-09-13 確認）",
     // fieldEvent の actionPid が相手になる＝効果文の「相手は」と一致（S6 でも確認済み）
-    "BS11-063-e1": "効果文の主語が「相手は」で、actionPid も相手になる（2026-09-13 確認）",
 }
 
 // 選択者が相手に焼き込まれた action を**ノード単位**で集める。
