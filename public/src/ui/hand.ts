@@ -129,7 +129,9 @@ export function renderHand(view: GameView, ui: UiState): void {
         markSelected(el, toggle?.selected ?? 0)
 
         // 召喚・配置・マジック使用のために選択されたカードをハイライト
-        const selectedHandIndex =
+        // 手元から出しているときは、手札の同じ添字のカードを光らせない
+        const selectingTegamoto = (ui.paying ?? ui.soulCoreOnlySelect ?? ui.exReductionSelect ?? ui.summonLevelSelect)?.fromTegamoto === true
+        const selectedHandIndex = selectingTegamoto ? null :
             ui.paying?.handIndex ??
             ui.soulCoreOnlySelect?.handIndex ??
             ui.magicTimingSelect?.handIndex ??
@@ -152,7 +154,7 @@ export function renderHand(view: GameView, ui: UiState): void {
                 el.appendChild(badge)
             }
             // 破棄に選べる手札（＝召喚するカード自身以外）はクリックできると分かるようにする
-            if (payingAltPay(view, ui.paying).kind === "handDiscard" && !g.indices.includes(ui.paying.handIndex)) {
+            if (payingAltPay(view, ui.paying).kind === "handDiscard" && (ui.paying.fromTegamoto === true || !g.indices.includes(ui.paying.handIndex))) {
                 el.classList.add("clickable")
                 el.classList.remove("unusable")
             }
