@@ -401,6 +401,7 @@ export type ResumeFrame =
           // ⚠️ 再開スタックからフレームを**消さない**のが要点。resolveInOrder の「残りは必ず積む」保証は
           // 積み忘れで実バグ4件を出して作られたものなので穴を開けず、消化時に無効化する
           requiresPendingDestructionOf?: string
+          requiresRestedOf?: string // 「疲労したとき」の続き。解決する時点でこの個体が回復していれば空振りさせる（公式Q230。#537）
           // 名前スコープの「ターンに1回」（onceScope:"name"）の効果。消化時に枠を取り、取れなければ何もしない
           onceClaim?: { instanceId: string; effectId: string }
           // 同時発揮の列で後回しにした誘発：消化時の Lv でも levels を満たすか見直す（logic/levelRecheck.ts。Q2717）
