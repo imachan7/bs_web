@@ -1,4 +1,5 @@
 // ステップの開始・終了、バトルに勝ったとき、BP が達したときの誘発
+import { levelStillMet } from "./levelRecheck"
 import { noteCoverage } from "../../../shared/coverage"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { markPays } from "./actions/pay"
@@ -131,7 +132,7 @@ export function fireBattleWonTriggers(
     resolveInOrder(state, firing, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
-        skip: (e) => !isVirtualSource(e.inst) && !isStillOnField(state, winnerPid, e.inst.instanceId),
+        skip: (e) => (!isVirtualSource(e.inst) && !isStillOnField(state, winnerPid, e.inst.instanceId)) || !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id }),
         resolve: (e) => {
             // 「〜できる」（optional）は実対戦では発動可否を確認する（step / triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
@@ -145,6 +146,7 @@ export function fireBattleWonTriggers(
             selfInstanceId: selfOf(e).instanceId,
             action: e.effect.action,
             actorPid: winnerPid,
+            levelRecheck: { instanceId: e.inst.instanceId, effectId: e.effect.id },
             ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
         }),
         // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
@@ -342,7 +344,7 @@ export function fireStepTriggers(
     }
     resolveInOrder(state, firing, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）
-        skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId),
+        skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId) || !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id }),
         resolve: (e) => {
             // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
             const byName = e.effect.onceScope === "name"
@@ -379,6 +381,7 @@ export function fireStepTriggers(
             selfInstanceId: e.self.instanceId,
             action: e.effect.onceScope === "name" ? markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : e.effect.action,
             actorPid: e.pid,
+            levelRecheck: { instanceId: e.inst.instanceId, effectId: e.effect.id },
             ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
             logText: `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
             ...confirmPromptIfOptional(state, e.inst, e.effect.optional),

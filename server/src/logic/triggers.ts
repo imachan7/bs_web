@@ -1,4 +1,5 @@
 // 誘発の発火とマジックの解決（EffectModules.ts から分割。2026-08-10）
+import { levelStillMet } from "./levelRecheck"
 //
 // EffectModules.ts が4640行まで肥大化し、読み書き（とくにサブエージェントへの委譲）の
 // コストが上がっていたため、境界が明確だった「イベント発火」セクションを切り出したもの。
@@ -575,6 +576,7 @@ export function fireTrigger(
             selfInstanceId: selfInstance.instanceId,
             action: effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action,
             actorPid: owner,
+            levelRecheck: { instanceId: entry.src.instanceId, effectId: effect.id },
             ...(target !== undefined ? { targetInstanceId: target } : {}),
             ...(effect.optional && state.interactiveTargets ? { confirmPrompt: `${getCard(entry.src.cardId).name}の効果を発動しますか？` } : {}),
             ...(card.type === "spirit" || entry.src !== selfInstance ? { redirectTarget: true as const } : {}),
@@ -596,6 +598,7 @@ export function fireTrigger(
                 key,
                 label,
                 run: () => resolveEntry(entry),
+                skip: () => !levelStillMet(state, { instanceId: entry.src.instanceId, effectId: entry.effect.id }),
                 frame: entryFrame(entry),
             })
         }

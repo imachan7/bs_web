@@ -859,6 +859,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyTenshoSubstituteCrossSource`（fn）：tenshoCoreSubstituteのfamilyFilter/costFilter版（BS12-061剣の誕生地）：疲労するのは対象スピリット
 - `tenshoDumpAndDestroy`（fn）：【転召】の最終段：対象の上のコアをすべて dest へ置き、維持コア割れなら消滅させる。
 
+## server/src/logic/levelRecheck.ts
+
+- `LevelRecheck`（型）
+- `levelStillMet`（fn）：満たさなければログを残して false
+
 ## server/src/logic/lifeDamageReplace.ts
 
 - `startLifeDamageReplace`（fn）：置換が成立しうるなら引き取る。複数当たるときは減るコアが最も多い1つだけを提示する
