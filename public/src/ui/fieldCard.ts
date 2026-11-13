@@ -1,8 +1,9 @@
 // フィールドのスピリット・ネクサス1枚の表示（コア・レベル・ボタン）
-import type { CardInstance, GameView, PlayerId } from "../../../server/src/type"
+import type { CardInstance, Color, GameView, PlayerId } from "../../../server/src/type"
+import { COLOR_LABELS } from "../../../data/constants"
 import { braveCombineCandidates } from "../../../shared/summon"
 import { attachCardArt } from "../cardArt"
-import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolColors } from "../../../shared/rules"
+import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors } from "../../../shared/rules"
 import { payingCardId } from "./paying"
 import { master, COLOR_SYMBOLS, levelOf, canBlockAttacker, canAwaken, activatableAbility, UiState, matchesDirectedAttackFilter, $ } from "../renderer"
 
@@ -152,6 +153,9 @@ export function fieldCardEl(
     el.className = "card"
     el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
     el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
+    // 縁は**今の色**（合体したブレイヴ・付与された色を含む）。多色はカードの周りを等分に塗り分ける
+    //（下から時計回りなので、2色は左半分・右半分。6色でもどの辺にも複数の色が出る）
+    el.style.setProperty("--frame", frameGradient(displayOrder(instColors(inst))))
     if (inst.isRested) el.classList.add("rested")
     if (inst.heavyRested) el.classList.add("heavy-rested")
     el.dataset.instanceId = inst.instanceId
@@ -319,18 +323,13 @@ export function fieldCardEl(
 
     const symbolsDiv = document.createElement("div")
     symbolsDiv.className = "symbols"
-    const symbols = instanceSymbolColors(inst)
+    const symbols = instanceSymbolUnits(inst)
     if (symbols.length === 0) {
         symbolsDiv.textContent = "無"
         symbolsDiv.style.color = "var(--text-muted)"
         symbolsDiv.style.fontSize = "10px"
     } else {
-        symbols.forEach(symColor => {
-            const sym = document.createElement("span")
-            sym.className = `sym-icon bg-${symColor}`
-            sym.dataset.colorLabel = COLOR_SYMBOLS[symColor] || ""
-            symbolsDiv.appendChild(sym)
-        })
+        symbols.forEach((colors) => symbolsDiv.appendChild(symbolIcon(displayOrder(colors))))
     }
     el.appendChild(symbolsDiv)
 
@@ -651,4 +650,64 @@ export function fieldCardEl(
     }
 
     return el
+}
+
+// 縁とシンボルで色を並べる順。固定順にして、同じ色の組み合わせは同じ見た目にする。
+// 白と紫は見分けにくいので隣り合わせない（2026-11-13 ユーザー指示）。縁もシンボルも一周つながるので、端どうしも隣とみなす。
+// 2〜3色はどう並べても隣になるので固定順のまま
+const DISPLAY_ORDER: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+function displayOrder(colors: readonly Color[]): Color[] {
+    const ordered = DISPLAY_ORDER.filter((c) => colors.includes(c))
+    const p = ordered.indexOf("purple")
+    const w = ordered.indexOf("white")
+    const n = ordered.length
+    if (n < 4 || p < 0 || w < 0 || (Math.abs(p - w) !== 1 && Math.abs(p - w) !== n - 1)) return ordered
+    const others = ordered.filter((c) => c !== "purple" && c !== "white")
+    return ["purple", others[0]!, "white", ...others.slice(1)]
+}
+
+// 色の列を、カードの周りに等分した円錐グラデーションにする（色が無ければ灰色）。
+// 境目は線にせず、前後 BLUR% ずつ隣の色と混ぜてぼかす。下の継ぎ目（0%＝100%）も最後と最初の色の中間でつなぐ
+const FRAME_BLUR = 4
+function frameGradient(colors: readonly string[]): string {
+    if (colors.length === 0) return "linear-gradient(#555, #555)"
+    if (colors.length === 1) return `linear-gradient(var(--c-${colors[0]}), var(--c-${colors[0]}))`
+    const step = 100 / colors.length
+    const blur = Math.min(FRAME_BLUR, step / 4)
+    const seam = `color-mix(in srgb, var(--c-${colors[colors.length - 1]}), var(--c-${colors[0]}))`
+    const stops = colors.map((c, i) => `var(--c-${c}) ${i * step + blur}% ${(i + 1) * step - blur}%`)
+    return `conic-gradient(from 180deg, ${seam} 0%, ${stops.join(", ")}, ${seam} 100%)`
+}
+
+// シンボル1つ。どれか1色として数えられるシンボル（「◯色としても扱う」）は、1つの丸を中心から角度で等分して描く。
+// 右上（-45°）から時計回りに切るので、2色は右上→左下の斜めの線で半分になる
+function symbolIcon(colors: Color[]): HTMLElement {
+    const sym = document.createElement("span")
+    if (colors.length === 1) {
+        sym.className = `sym-icon bg-${colors[0]}`
+        sym.dataset.colorLabel = COLOR_SYMBOLS[colors[0]!] || ""
+        return sym
+    }
+    sym.className = `sym-icon sym-either${colors.length === 2 ? " two" : ""}`
+    sym.title = `${colors.map((c) => COLOR_LABELS[c]).join("または")}のシンボル1つとして数える`
+    const sweep = 360 / colors.length
+    colors.forEach((c, i) => {
+        const part = document.createElement("span")
+        part.className = `sym-icon bg-${c}`
+        part.style.clipPath = wedge(-45 + i * sweep, -45 + (i + 1) * sweep)
+        sym.appendChild(part)
+    })
+    return sym
+}
+
+// 中心から from°〜to°（0°＝右、時計回り）の扇形。半径は丸の外まで取り、弧は15°ごとの折れ線で近似する
+function wedge(from: number, to: number): string {
+    const point = (deg: number) => {
+        const r = (deg * Math.PI) / 180
+        return `${(50 + 75 * Math.cos(r)).toFixed(1)}% ${(50 + 75 * Math.sin(r)).toFixed(1)}%`
+    }
+    const pts = ["50% 50%"]
+    for (let d = from; d < to; d += 15) pts.push(point(d))
+    pts.push(point(to))
+    return `polygon(${pts.join(", ")})`
 }

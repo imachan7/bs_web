@@ -44,6 +44,14 @@ export function instanceSymbolColors(inst: CardInstance): Color[] {
     return extra > 0 && symbols[0] !== undefined ? [...symbols, ...new Array<Color>(extra).fill(symbols[0])] : symbols
 }
 
+// 画面用：シンボル1つずつを「数えられる色の集合」で返す。「◯色としても扱う」を持つ個体のシンボルは
+// 元の色と付与色のどれとしても数える（flexibleSymbolUnits と同じ規則。2026-08-20 ユーザー確認）
+export function instanceSymbolUnits(inst: CardInstance): Color[][] {
+    if (inst.colorlessThisBattle) return []
+    const granted = [...inst.timedColors, ...(inst.colorsAsContinuous ?? [])]
+    return instanceSymbolColors(inst).map((sym) => [...new Set([sym, ...granted])])
+}
+
 // 合体スピリット全体のシンボルの色（BS21_PLAN §3 の N7）。instanceSymbolColors は braveComposite の
 // 組み直しを待たない呼び出しでは合体中のブレイヴのぶんが漏れるので、braveRefs から辿って
 // ブレイヴのシンボルが載っていなければホストとブレイヴの両方の色を返す。合体していなければ
