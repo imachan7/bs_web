@@ -1209,6 +1209,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `trashUnderCards`（fn）：下のカードを持ち主のトラッシュへ破棄する。場を離れるとき（全枚）とコスト支払い（count 枚）の共用。
 
+## server/src/matchSetup.ts
+
+- `resolveDeckSpec`（fn）：join / randomMatch / startAi が受け取るデッキ指定を DeckSpec に解決する。
+- `createStartedGame`（fn）：対戦を作り、最初のターンを始めたところまで進めて返す
+
 ## server/src/roomManager.ts
 
 - `RoomPlayer`（型）
@@ -1344,6 +1349,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/types/timedContent.ts
 
 - `TimedContent`（型）：期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）。
+
+## public/src/aiWorker/coverageRecorder.ts
+
+- `startCoverageIfRequested`（fn）：Worker 用の coverageRecorder の差し替え。カバレッジはテストのときだけ取るので、ブラウザでは何もしない
+
+## public/src/aiWorker/loadCards.ts
+
+- `loadAllCards`（fn）
 
 ## public/src/cardArt.ts
 

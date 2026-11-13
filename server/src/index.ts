@@ -8,8 +8,8 @@ import { Server, type Socket } from "socket.io"
 import type { CardInstance, DeckSpec, GameAction, PlayerId } from "./type"
 import { MatchQueue, RoomManager, type Room } from "./roomManager"
 import { pumpAi } from "./ai/runner"
-import { ALL_CARDS, createGame, getCard, rawLevel, validateDeckCards, viewFor } from "./logic/GameState"
-import { runTurnStart } from "./logic/PhaseManager"
+import { ALL_CARDS, getCard, rawLevel, viewFor } from "./logic/GameState"
+import { createStartedGame, resolveDeckSpec } from "./matchSetup"
 import { handleAction } from "./logic/GameEngine"
 import { applyDebugBoard, type DebugBoard } from "./logic/debugBoard"
 import { DECK_RECIPES } from "../../data/constants"
@@ -58,6 +58,11 @@ app.get("/health", (_req, res) => {
 // ALL_CARDS は起動時に一度だけ読むので、ここでのI/Oは発生しない
 app.get("/api/cards", (_req, res) => {
     res.json(ALL_CARDS)
+})
+// ブラウザの中で動く AI戦（public/src/aiWorker/）は接続を張らないので、始めた件数だけここで数える
+app.post("/api/ai-start", (req, res) => {
+    logSocketJoin(req.headers as Record<string, unknown>, req.socket.remoteAddress, "（AI戦）")
+    res.status(204).end()
 })
 // 旧パスの互換維持。分割前は /data の静的配信で cards.json をそのまま返していたので、
 // 古いクライアント（キャッシュ済みのJS）や外部ツールが404にならないよう同じ内容を返す。
@@ -377,33 +382,8 @@ function startGame(room: Room): void {
     const p1 = room.players.p1
     const p2 = room.players.p2
     if (!p1 || !p2 || room.game) return
-    // 先攻はランダム（以前は先に入った側＝p1 が必ず先攻だった。2026-11-13 ユーザー要望）
-    const first: PlayerId = Math.random() < 0.5 ? "p1" : "p2"
-    room.game = createGame(
-        room.roomId,
-        { p1: p1.name, p2: p2.name },
-        { p1: p1.deck, p2: p2.deck },
-        first,
-    )
-    room.game.log.push(`先攻は${room.players[first]!.name}に決まった。`)
-    // 実対戦は誘発効果の対象をプレイヤーに選ばせる（smokeは既定falseのまま自動選択）。
-    // AI戦でも true にする：AI 側の選択待ちは AI が自分で resolveChoice に答える
-    room.game.interactiveTargets = true
-    runTurnStart(room.game)
+    room.game = createStartedGame(room.roomId, { p1: p1.name, p2: p2.name }, { p1: p1.deck, p2: p2.deck })
     broadcastState(room)
-}
-
-// join / randomMatch / startAi が受け取るデッキ指定を DeckSpec に解決する。
-// deckCards（カスタムデッキ）が指定されていれば deck キーより優先する
-function resolveDeckSpec(deck: unknown, deckCards: unknown): { deck: DeckSpec } | { error: string } {
-    if (deckCards !== undefined && deckCards !== null && typeof deckCards === "object" && !Array.isArray(deckCards)) {
-        const deckError = validateDeckCards(deckCards as Record<string, number>)
-        if (deckError) return { error: `デッキが不正です: ${deckError}` }
-        return { deck: deckCards as DeckSpec }
-    }
-    const name = String(deck || "sd01_blazing")
-    if (!DECK_RECIPES[name]) return { error: "不明なデッキです" }
-    return { deck: name }
 }
 
 // 待機中の全員へ現在の待ち人数を配信する
