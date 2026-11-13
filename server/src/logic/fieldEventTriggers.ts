@@ -1,4 +1,5 @@
 // 盤面の出来事（fieldEvent）で起きる誘発の収集と解決。手札を得た・ネクサスを配置したときの通知もここ
+import { levelStillMet } from "./levelRecheck"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
@@ -586,7 +587,8 @@ export function fireFieldEventTriggers(
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) =>
             (e.extra === undefined && !isVirtualSource(e.inst) && !extraSources?.some((x) => x.instanceId === e.inst.instanceId) && !isStillOnField(state, pid, e.inst.instanceId)) ||
-            (e.extra === undefined && destroyGuard !== undefined && findInstanceAnywhere(state, destroyGuard)?.pendingDestruction !== true),
+            (e.extra === undefined && destroyGuard !== undefined && findInstanceAnywhere(state, destroyGuard)?.pendingDestruction !== true) ||
+            (e.extra === undefined && !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id })),
         resolve: (e) => {
             if (e.extra !== undefined) {
                 resolveAction(state, e.extra.actorPid, e.extra.selfInstanceId ? findInstanceAnywhere(state, e.extra.selfInstanceId) ?? null : null, e.extra.action)
@@ -643,6 +645,7 @@ export function fireFieldEventTriggers(
                 selfInstanceId: c.actionSelf.instanceId,
                 action: e.effect.onceScope === "name" ? markPays(bindEventTargets(e.effect.action, eventInfo?.eventTargetIds), { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : bindEventTargets(e.effect.action, eventInfo?.eventTargetIds),
                 actorPid: c.actionPid,
+                levelRecheck: { instanceId: e.inst.instanceId, effectId: e.effect.id },
                 ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
                 ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),

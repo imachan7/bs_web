@@ -51,6 +51,7 @@ import { doSummonFromTegamoto } from "./tegamotoSummon"
 import { applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
 import { newRecordScope } from "./record"
+import { levelStillMet } from "./levelRecheck"
 
 // 選択を「やめた」ときに、「ターンに1回」を巻き戻す
 // （起動能力＝PendingChoice.revertActivated／誘発＝revertTriggered。2026-09-16）
@@ -911,6 +912,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
             if (target == null || target.pendingDestruction !== true) continue
         }
+        if (frame.levelRecheck !== undefined && !levelStillMet(state, frame.levelRecheck)) continue
         if (frame.onceClaim !== undefined) {
             const src = findInstanceAnywhere(state, frame.onceClaim.instanceId)
             const eff = src && getCard(src.cardId).effects.find((x) => x.id === frame.onceClaim!.effectId)

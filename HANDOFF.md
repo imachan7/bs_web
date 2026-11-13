@@ -34,11 +34,6 @@
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：プロボケイションと `moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
-### 進行中：同時発揮の列で後回しにした誘発の Lv を解決時に見直す（2026-11-13 確定。`fix/trigger-batch-level-recheck`）
-
-- **決定**：後回しにした誘発は、自分の番が来た時点の Lv でも `levels` を満たすか見直し、満たさなければ発揮しない（公式 Q2717。BS09-045 光輝の勇者皇リュートで相手を Lv1 にすれば、相手の『ブロック時』Lv2・3 は発揮しない）。**見るのは Lv だけ**（効果を失った・場を離れた発生源の扱いは今のまま。場にいない発生源は見直さない）
-- **形**：action フレームに `levelRecheck?: { instanceId; effectId }` を持たせ、`choice.ts` のフレーム消化（`requiresPendingDestructionOf` の隣）で見直す。判定は新ファイル `logic/levelRecheck.ts`（`effectActiveAtLevel(levels, currentLevel(src))`）。列をその場で解決する経路は `CollectedTrigger.skip`／fieldEvent の `handlers.skip` で同じ判定を通す。付ける側は `triggers.ts` の entryFrame・`fieldEventTriggers.ts` の frame・`stepTriggers.ts` の frame
-
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
 - **対象**：BS13-038 魔女タランダ（手札のスピリット）・BS10-046 龍仙公主（手札のマジック）。「好きなだけ破棄、**破棄した1枚につき**破壊された体を1体戻す」。#423（perDestroyed）の置き換え（#423 は閉じる）

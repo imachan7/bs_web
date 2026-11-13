@@ -403,6 +403,8 @@ export type ResumeFrame =
           requiresPendingDestructionOf?: string
           // 名前スコープの「ターンに1回」（onceScope:"name"）の効果。消化時に枠を取り、取れなければ何もしない
           onceClaim?: { instanceId: string; effectId: string }
+          // 同時発揮の列で後回しにした誘発：消化時の Lv でも levels を満たすか見直す（logic/levelRecheck.ts。Q2717）
+          levelRecheck?: { instanceId: string; effectId: string }
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
           sourceType?: CardType // 発生源の種別（同上）
