@@ -1,18 +1,19 @@
-// バーストの「その後コストを支払うことで、このカードのメイン/フラッシュ効果を発揮する」（thenPay）の支払い。
-// コストはリザーブだけでなくスピリットのコアからも払える（2026-11-11 の報告：リザーブだけを見ていて、相手のターンに払えなかった）
-import type { EffectAction, GameState, PlayerId } from "../type"
-import { getCard, log } from "./GameState"
-import { autoPayPlan, payCost, resolveAction } from "./EffectModules"
-import { askCostPay } from "./summonSurcharge"
-import { markPayConfirmed } from "./actions/pay"
-import { magicEffectiveColors } from "../../../shared/cost"
+// 「コストを支払って、このマジックの効果を発揮する」の支払いと解決。バーストの thenPay（2026-11-11 の報告）と、
+// プロボケイションの相手のメインステップ終了時の使用（#513）が使う。
+// 断りのない「コストを支払う」なので、リザーブだけでなくスピリットのコアからも払える（COST_MODEL §12）
+import type { EffectAction, GameState, PlayerId } from "../../type"
+import { getCard, log } from "../GameState"
+import { autoPayPlan, payCost, resolveAction } from "../EffectModules"
+import { askCostPay } from "../summonSurcharge"
+import { markPayConfirmed } from "../actions/pay"
+import { magicEffectiveColors } from "../../../../shared/cost"
 
-export function canPayBurstThenPay(state: GameState, pid: PlayerId, cost: number): boolean {
+export function canPayMagicCost(state: GameState, pid: PlayerId, cost: number): boolean {
     return autoPayPlan(state, pid, cost, true) !== null
 }
 
 // 払えるときだけ払って action を解決する。対話ではどのコアから払うかを聞く（effectCostPay）
-export function payBurstThenPay(state: GameState, pid: PlayerId, cardId: string, cost: number, action: EffectAction): void {
+export function payMagicCostThenResolve(state: GameState, pid: PlayerId, cardId: string, cost: number, action: EffectAction): void {
     const card = getCard(cardId)
     const plan = autoPayPlan(state, pid, cost, true)
     if (plan === null) {
