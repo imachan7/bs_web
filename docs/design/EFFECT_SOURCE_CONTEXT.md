@@ -29,6 +29,9 @@ currentEffectSource?: { pid: PlayerId; type?: "spirit" | "nexus" | "magic"; colo
 - ネストした `resolveAction` は自分の値で上書きし、抜けるときに前の値へ戻す
 - **効果によらない動き**（ドローステップ・コアステップ・コスト支払い・リフレッシュ）は
   `resolveAction` を通らないので `undefined` のまま。これだけで「効果によるものか」が分かる
+- **`self` が発生源でないとき**（fieldEvent がイベントの主語を `self` にする `selfOverride`）は、発生源のカードを `sourceCardId` で明示的に渡す。
+  名前・`cardId`・召喚時効果の印（`markSummonEffectResolved`）は `self` ではなくこちらで決まる（2026-11-13。渡さないと、断った召喚時効果が「発揮した」扱いになる）。
+  後回しのフレーム（`ResumeFrame.sourceCardId`）と発動確認（`requestActivationConfirm` の持ち回り。無ければ `self`）でも落とさない
 
 カード側は `fieldEvent.sourceColorFilter` を書く。判定は次の3つをすべて満たすこと:
 

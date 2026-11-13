@@ -557,6 +557,8 @@ export function fireFieldEventTriggers(
                 actionTargetId,
                 srcColors: instColors(inst),
                 srcType: getCard(inst.cardId).type,
+                // self（イベントの主語）と発生源が違うので、発生源のカードも明示的に渡す（名前・召喚時効果の印・「〜の効果で」の記録）
+                srcCardId: inst.cardId,
             }
         }
         return { actionPid: pid, actionSelf: src, actionTargetId, srcColors: undefined, srcType: undefined }
@@ -606,13 +608,13 @@ export function fireFieldEventTriggers(
                     // oncePerTurn／同時破壊グループの仮消費どちらも、断ったときにここで戻す
                     // （revertDestroyGroupUsageは対象キーが無ければ何もしないので常に渡してよい）
                     { instanceId: e.inst.instanceId, effectId: e.effect.id },
-                    { targetInstanceId: c.actionTargetId, sourceColors: c.srcColors, sourceType: c.srcType },
+                    { targetInstanceId: c.actionTargetId, sourceColors: c.srcColors, sourceType: c.srcType, sourceCardId: c.srcCardId },
                 )
             } else {
                 delete state.effectFizzled
                 // 中の pay が確認で止まったとき、断った／不発で消費を戻せるよう渡す（triggered と同じ）
                 const action = markPays(bindEventTargets(e.effect.action, eventInfo?.eventTargetIds), { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } })
-                resolveAction(state, c.actionPid, c.actionSelf, action, c.actionTargetId, c.srcColors, c.srcType)
+                resolveAction(state, c.actionPid, c.actionSelf, action, c.actionTargetId, c.srcColors, c.srcType, undefined, undefined, c.srcCardId)
                 // コストを払えないなどで何も起きなかったら、「ターンに1回」／同時破壊グループの消費を戻す（2026-09-16／fix/destroyed-trigger-once）
                 if (state.effectFizzled) {
                     if (e.effect.oncePerTurn) revertOncePerTurn(state, e.inst, e.effect.id)
@@ -648,6 +650,7 @@ export function fireFieldEventTriggers(
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
                 ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
+                ...(c.srcCardId !== undefined ? { sourceCardId: c.srcCardId } : {}),
                 ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
             }
         },

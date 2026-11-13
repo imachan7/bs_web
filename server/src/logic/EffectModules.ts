@@ -1465,9 +1465,11 @@ export function resolveAction(
 ): void {
     // 召喚時効果を発揮した印。pay は払えないと発動していないので、確認を済ませたか払った時点で付ける（pay.ts）
     // summonSequence は召喚の手順の続き（内部専用）で、召喚時効果の発揮ではない
-    if (self !== null && action.type !== "pay" && action.type !== "summonSequence") markSummonEffectResolved(state, self)
+    // self が発生源でない（fieldEvent がイベントの主語を self にする）ときは、self の召喚時効果を発揮したことにしない
+    const selfIsSource = self !== null && (sourceCardId === undefined || sourceCardId === self.cardId)
+    if (self !== null && selfIsSource && action.type !== "pay" && action.type !== "summonSequence") markSummonEffectResolved(state, self)
     const opp = opponentOf(owner)
-    const sourceName = self ? getCard(self.cardId).name : "効果"
+    const sourceName = self ? getCard(selfIsSource ? self.cardId : sourceCardId!).name : "効果"
     const srcColors = sourceColors ?? (self ? instColors(self) : undefined)
     // マジック効果耐性判定用のカード種別（マジックは self=null なので、呼び出し側=resolveMagic が明示的に"magic"を渡す）
     const srcType = sourceType ?? (self ? getCard(self.cardId).type : undefined)
