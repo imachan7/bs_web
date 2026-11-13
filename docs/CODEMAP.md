@@ -489,6 +489,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `summonHandDiscardPayAmount`（fn）：スピリットの召喚コストのうち、手札破棄で支払う枚数を決める。「どこまで手札破棄で払うか」は**プレイヤーが選ぶ**
 - `validateHandFlash`（fn）：バトル中に手札のカードを使うときの共通検証（フラッシュマジック・神速召喚・kind:"handActivated" の3者で共有。BS15_PLAN.md §7.2）。
 - `validateUseHandAbility`（fn）：手札から使うフラッシュ（kind:"handActivated"）の検証。バトル中の共通判定は validateHandFlash に任せ、
+- `magicUseRestriction`（fn）：マジックの「使用」の制限（タイミング以外）。手札・手元からの使用と、効果による使用（magic/effectUse.ts）が共有する。
 - `validateCastMagic`（fn）
 - `validateCombineBrave`（fn）：メインステップの任意合体（docs/design/BRAVE.md §6.4）。
 - `validateDetachBrave`（fn）：メインステップの任意分離（§6.4）。**効果による分離（コア不要）とは別の手順**で、
@@ -890,6 +891,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `offerOpponentMainEndMagic`（fn）：kind:"magic" usableAtOpponentMainEnd（BS15-079プロボケイション）：相手（＝これからアタックステップに
 - `applyProvocationUse`（fn）：プロボケイションの使用確定：コストを払い、手札から取り除いてフラッシュ効果を解決する
 
+## server/src/logic/magic/effectUse.ts
+
+- `effectMagicUseDenial`（fn）
+- `useMagicByEffect`（fn）：使用を確定して解決する。カードは呼び出し側がゾーンから抜き、コストも払い済み
+
 ## server/src/logic/magic/inUse.ts
 
 - `beginMagicUse`（fn）
@@ -992,7 +998,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lastDrawnCount`（fn）
 - `lastCoresCount`（fn）
 - `recordTargets`（fn）：直前に疲労させた個体（カードは動かないので lastMoved とは別に instanceId で持つ）
-- `recordMagicUsed`（fn）：このターンのマジック使用（回数は magicRestriction 用、カードIDは26系「このターンに【X】を持つマジックカードを使用していたなら」用）
+- `recordMagicUse`（fn）：このターンのマジック使用（回数は magicRestriction 用、カードIDは26系「このターンに【X】を持つマジックカードを使用していたなら」用）
+- `recordMagicUsed`（fn）
 - `lastTargetsOf`（fn）
 - `recordLifeLost`（fn）
 

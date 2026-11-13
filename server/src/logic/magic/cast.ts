@@ -4,7 +4,7 @@ import type { CardData, Color, GameState, PlayerId, EffectAction, PaySource, Pen
 import { getCard, opponentOf, suspend, findInstanceAnywhere, log } from "../GameState"
 import { findMagicFreeGrantSource, hasMagicRestriction, effectiveCost, exSymbolsOfTrashCard, magicEffectiveColors } from "../../../../shared/cost"
 import { moveSoulCore, normalReserveOf, wouldDepleteOf } from "../soulCore"
-import { recordMagicUsed } from "../record"
+import { recordMagicUse } from "../record"
 import { emitEvent, payCost, resolveAction } from "../EffectModules"
 import { destroySpirit } from "../removal"
 import { canPayMagicCost, payMagicCostThenResolve } from "./payThenResolve"
@@ -347,16 +347,9 @@ export function doCastMagic(
     // 解決し終えるまでは使用中（トラッシュへは最後に置く。magic/inUse.ts）
     beginMagicUse(state, pid, cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost - magicAssistDiscount}）`)
-    // 解決中の効果から returnLastUsedMagicToHand がこの使用自身を見えるように、使用の時点で記録する（BS19-102）
-    state.lastMagicUsed = { pid, cardId }
-    // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
-    recordMagicUsed(state, pid, cardId)
     // validate 済みなので null にはならない
     const usedTiming = magicUseTiming(card, !!state.battle, requestedTiming) ?? "flash"
-    if (card.effects.some((e) => e.kind === "magic" && e.timing === usedTiming && e.oncePerTurnByName)) {
-        const used = ((state.magicEffectsUsedByName ??= {})[pid] ??= [])
-        used.push(`${card.name}|${usedTiming}`)
-    }
+    recordMagicUse(state, pid, card, usedTiming)
 
     // 使用タイミングに応じた効果を実行する。
     // マジックミラー用：このフラッシュタイミングで直前に使用したマジックとして記録する
