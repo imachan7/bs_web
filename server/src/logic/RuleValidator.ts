@@ -1100,9 +1100,6 @@ export function validateActivateAbility(
     if (effect.cost === undefined && effect.action.type === "pay" && !activatedActionResolvable(state, pid, inst, effect.action)) {
         return "コストを払えないか、効果の対象がいません"
     }
-    if ("cancelable" in effect.action && effect.action.cancelable === true && !activatedActionResolvable(state, pid, inst, effect.action)) {
-        return "召喚できるカードが手札にありません"
-    }
     if (effect.cost !== undefined) {
         if (!activatedActionResolvable(state, pid, inst, effect.action)) return "効果の対象がいません"
         if ("exhaustSelf" in effect.cost) {

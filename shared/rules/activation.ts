@@ -293,7 +293,8 @@ export function activatedActionResolvable(board: Board, pid: PlayerId, source: C
     // sequence の中の pay は「払えなければそこだけ不発」で前の文は解決する（ウィンガルのランサー）ので、払えるかを見ない＝最上位の pay だけが起動可否を決める
     if (action.type === "sequence") return action.actions.every((a) => a.type === "pay" || activatedActionResolvable(board, pid, source, a))
     if (action.type === "pay") return activatedPayResolvable(board, pid, source, action)
-    // 対象を見てからやめられる手札からの召喚：候補が無ければ必ず不発で「ターンに1回」も戻るだけなので、起動できない扱いにする（#497）
+    // 対象を見てからやめられる手札からの召喚の候補があるか。起動ボタンは候補が無くても出す（押すと不発で「ターンに1回」は戻る。2026-11-13 ユーザー確認）。
+    // activatableAbility の判定には使わず、不発の起動を繰り返さないよう CPU だけが見る（#497）
     // ponytail: 候補の絞り込みは keywordFilter と payCost だけ見る（cancelable を使うのは帝竜騎の6枚だけ）。ほかの絞り込みと併せるカードが出たら server/src/logic/summon.ts の summonFromHandFreeCandidateMatches を共有層へ移す
     if (action.type === "summon" && action.from === "hand" && action.cancelable) {
         return (board.players[pid].hand ?? []).some((id) => {
@@ -403,7 +404,7 @@ function activatableAbilityOf(
         if (e.condition === "selfAttacking" && board.battle?.attackerInstanceId !== host.instanceId) continue
         if (e.condition === "selfBlocking" && board.battle?.blockerInstanceId !== host.instanceId) continue
         if (e.action.type === "combineOwnBrave" && e.action.hostSelf && braveCombineOntoSelfCandidates(board, pid, source).length === 0) continue
-        if ((e.cost !== undefined || e.action.type === "pay" || ("cancelable" in e.action && e.action.cancelable === true)) && !activatedActionResolvable(board, pid, source, e.action)) continue
+        if ((e.cost !== undefined || e.action.type === "pay") && !activatedActionResolvable(board, pid, source, e.action)) continue
         // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回（キーは server/src/logic/oncePerTurn.ts の onceNameKey と同じ）
         if (e.oncePerTurn) {
             const used =

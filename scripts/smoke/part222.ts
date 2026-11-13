@@ -84,7 +84,7 @@ console.log("=== 起動：召喚できる手札が無ければ消費しない ==
 {
     const { s, platinumId } = setup("activate-no-candidate")
     s.players.p1.hand = [NO_TENSHO] // 【転召】を持たない＝候補0枚
-    assert(activate(s, platinumId) !== null, "候補が無ければ起動できない（#497。不発で戻るだけの起動を CPU が繰り返していた）")
+    assert(activate(s, platinumId) === null, "起動そのものは通る")
     assert(s.pendingChoice === null, "選択待ちにはならない")
     const inst = s.players.p1.field.spirits.find((sp) => sp.instanceId === platinumId)!
     assert(

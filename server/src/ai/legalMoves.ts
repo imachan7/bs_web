@@ -21,7 +21,7 @@ import {
     validateSummon,
     validateTakeLife,
 } from "../logic/RuleValidator"
-import { activatableAbility, mustBeAttackTargetIds } from "../../../shared/rules"
+import { activatableAbility, activatedActionResolvable, bravesOf, mustBeAttackTargetIds } from "../../../shared/rules"
 
 // 1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
 export interface AiMove {
@@ -125,6 +125,9 @@ function abilityMoves(state: GameState, pid: PlayerId): AiMove[] {
         const ability = activatableAbility(state, pid, inst)
         if (!ability) continue
         if (validateActivateAbility(state, pid, inst.instanceId, ability.effectId) !== null) continue
+        // 候補の無い cancelable 召喚は押せても不発で盤面が変わらない。CPU が同じ起動を繰り返して手数上限で降参していた（#497）
+        const effect = [inst, ...bravesOf(state.players[pid], inst)].flatMap((src) => getCard(src.cardId).effects).find((e) => e.id === ability.effectId)
+        if (effect?.kind === "activated" && "cancelable" in effect.action && effect.action.cancelable === true && !activatedActionResolvable(state, pid, inst, effect.action)) continue
         moves.push({
             action: { type: "activateAbility", instanceId: inst.instanceId, effectId: ability.effectId },
             reason: `${getCard(inst.cardId).name}の効果を発動`,

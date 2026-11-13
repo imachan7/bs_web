@@ -1,7 +1,8 @@
-// smoke パート928（BS08 帝竜騎：手札に召喚できる【転召】スピリットが無いときは起動できず、CPU も起動を繰り返さない。#497）
+// smoke パート928（BS08 帝竜騎：召喚できる【転召】スピリットが手札に無ければ、押すと不発で権利は戻る。CPU はその起動を選ばない。#497）
 import { assert, createGame, createInstance, getCard, handleAction, hasKeyword, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import { activatableAbility } from "../../shared/rules"
 import { decideAiAction } from "../../server/src/ai"
+import { enumerateLegalMoves } from "../../server/src/ai/legalMoves"
 import type { GameState } from "./helpers"
 
 const RAIBLITZ = "BS08-006" // 雷帝竜騎レイブリッツ
@@ -31,12 +32,14 @@ function game(hand: string[], reserve: number): { s: GameState; id: string } {
     return { s, id: inst.instanceId }
 }
 
-console.log("=== 1. 手札に【転召】スピリットが無い：起動できない ===")
+console.log("=== 1. 手札に【転召】スピリットが無い：押せるが不発で、ターンに1回は消費しない ===")
 {
     const { s, id } = game([], 10)
     const inst = s.players.p1.field.spirits.find((x) => x.instanceId === id)!
-    assert(activatableAbility(s, "p1", inst) === null, "起動ボタンが出ない")
-    assert(handleAction(s, "p1", { type: "activateAbility", instanceId: id, effectId: "BS08-006-e1" }) !== null, "サーバーも起動を拒否する")
+    assert(activatableAbility(s, "p1", inst) !== null, "起動ボタンは出る")
+    assert(handleAction(s, "p1", { type: "activateAbility", instanceId: id, effectId: "BS08-006-e1" }) === null, "サーバーも受理する")
+    assert(s.pendingChoice === null && s.log.some((l) => l.includes("発動しなかった")), "不発になる")
+    assert(inst.activatedUsedTurn?.["BS08-006-e1"] === undefined, "ターンに1回は消費しない")
 }
 
 console.log("=== 1b. 同じ場面で CPU が起動を繰り返さない ===")
@@ -50,18 +53,16 @@ console.log("=== 1b. 同じ場面で CPU が起動を繰り返さない ===")
     }
 }
 
-console.log("=== 2. 【転召】スピリットはあるがコストを払えない：起動できない ===")
+console.log("=== 2. 【転召】スピリットはあるがコストを払えない：CPU は起動を選ばない ===")
 {
-    const { s, id } = game([TENSHO], 0)
-    const inst = s.players.p1.field.spirits.find((x) => x.instanceId === id)!
-    assert(activatableAbility(s, "p1", inst) === null, "起動ボタンが出ない")
+    const { s } = game([TENSHO], 0)
+    assert(decideAiAction(s, "p1")?.action.type !== "activateAbility", "CPU が起動を選ばない")
 }
 
-console.log("=== 3. 払える【転召】スピリットがある：起動できる ===")
+console.log("=== 3. 払える【転召】スピリットがある：CPU も起動を候補にする ===")
 {
-    const { s, id } = game([TENSHO], 20)
-    const inst = s.players.p1.field.spirits.find((x) => x.instanceId === id)!
-    assert(activatableAbility(s, "p1", inst)?.effectId === "BS08-006-e1", "起動ボタンが出る")
+    const { s } = game([TENSHO], 20)
+    assert(enumerateLegalMoves(s, "p1").some((m) => m.action.type === "activateAbility"), "起動が合法手に入る")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part928）")
