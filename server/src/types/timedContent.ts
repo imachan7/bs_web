@@ -18,6 +18,7 @@ export type TimedContent =
     | { type: "canBlockWhileRested" } // 疲労状態でもブロックできる（期間は turn のみ。1体は自分のスピリットから選ぶ）
     | { type: "mustBlock" } // 可能ならばブロックしなければならない（期間は battle。その個体でブロックできるなら、ライフで受ける・ほかの個体でブロックは検証で拒否する。26RSD03-007）
     | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; targetFilter?: TargetFilter; optional?: true } // 誘発効果を与える（期間は turn、または自分1体に限り battle。1体は自分のスピリットから選ぶ）。targetFilter＝イベントの相手役（onBlocked ならブロッカー）が合うときだけ発火。optional＝「〜できる」：発火したとき持ち主に発動するかを聞く（2026-11-06 ユーザー確認：任意効果の聞き方に揃える）
+    | { type: "grantEntry"; cardId: string; effectId: string } // 別カードの誘発エントリ1つを、この個体の効果として持つ（条件・eventTarget・optional ごと。イリテバンが借りた結果連動型。#505）
     | { type: "suppressTrigger"; trigger: TriggerEvent } // そのスピリット自身の指定トリガーの効果が発揮されない（期間は turn のみ。onAttack は『合体アタック時』も含む）
     | { type: "ownAttackStepEffectsDisabled" } // そのスピリットの『自分のアタックステップ』の効果すべてが発揮されない（期間は turn のみ。解決済みの継続効果も止まる＝Q4521。entryActive が読む）
     | { type: "cantBlock" }
