@@ -39,7 +39,7 @@
 - **タグ**：誘発エントリに `heading?: "attack" | "block" | "attackOrBlock"`（`effectDefTrigger.ts`）。印刷された見出し（『このスピリットのアタック時』『ブロック時』『アタック/ブロック時』）。onAttack／onBlock は trigger から導くので書かない。結果連動型（onBattleWin・onBlocked・onLifeDealt 等）だけに書く。**`battleRole` はタグに吸収して消す**（attack＝アタック側、block＝ブロック側）
 - **共有関数** `shared/rules/effectHeading.ts`：`printedSides`／`printedTrigger`＝印刷の見出し、`firesAs`／`firesAt`＝書き換え（9枚、**すべて追加**）を足した見出し。書き換えた写しは個体に持たず、読むたびに導く
 - **使い分け（2026-11-13 ユーザー決定）**：借りる・与える・繰り返す（イリテバン・パンドランサー・メサイア・フィンヴェール・スフィエル）は `firesAs`。月光姫マーニのような「『アタック時』効果を止める」は印刷の見出し（Q20010・Q24529・Q24751）。「〜時効果になる」書き換えは今のプールに無い。現れたら printedSides 側に足す
-- **PR**：①タグと検査 #509 ②発揮の判定を見出しで（`feat/effect-heading-fire`。battleRole を消した・抑止はエントリごと）③5か所と `grantTrigger`（このバトルの間）で借りる。`Closes #505`
+- **PR**：①タグと検査 #509 ②発揮の判定を見出しで（`feat/effect-heading-fire`。battleRole を消した・抑止はエントリごと）③（`feat/borrow-by-heading`）借りる・繰り返す・貸す・合体後に発揮させるの4か所の候補を `firesAs` に「アタック」を含むもので選ぶ。借りた結果連動型は新しい部品 timedContent `grantEntry`（このバトルの間、別カードの誘発エントリ1つをこの個体の効果として持つ。fireTrigger が entries に足す）で与える。`grantTrigger` は action しか運べず条件・eventTarget・optional が落ちるため。`Closes #505`
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
