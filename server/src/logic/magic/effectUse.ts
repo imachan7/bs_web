@@ -20,17 +20,18 @@ export function effectMagicUseDenial(state: GameState, pid: PlayerId, card: Card
 }
 
 // 使用を確定して解決する。カードは呼び出し側がゾーンから抜き、コストも払い済み
-export function useMagicByEffect(state: GameState, pid: PlayerId, cardId: string, timing: "main" | "flash", paidCost: boolean): void {
-    beginMagicUse(state, pid, cardId)
+export function useMagicByEffect(state: GameState, pid: PlayerId, cardId: string, timing: "main" | "flash", paidCost: boolean, usedVia?: "majutsu", inUse = false): void {
+    // inUse：余分の支払い待ちの間から使用中に置いてある（magic/freeUseSurcharge.ts）
+    if (!inUse) beginMagicUse(state, pid, cardId)
     recordMagicUse(state, pid, getCard(cardId), timing)
     // マジックミラー用の記録（解決中に書き換わっていれば＝使ったカード自身がマジックミラーなら上書きしない）
     const before = state.lastMagicCast
     state.keishoExcludedCardIds = []
-    resolveMagic(state, pid, cardId, timing, undefined, paidCost)
+    resolveMagic(state, pid, cardId, timing, undefined, paidCost, usedVia)
     if (state.lastMagicCast === before) state.lastMagicCast = { pid, cardId, timing }
     finishMagicUseOrDefer(state)
 }
 
 export const useMagicCardHandler: ActionHandler<"useMagicCard"> = (ctx, action) => {
-    useMagicByEffect(ctx.state, ctx.owner, action.cardId, action.timing, action.paidCost)
+    useMagicByEffect(ctx.state, ctx.owner, action.cardId, action.timing, action.paidCost, action.usedVia, action.inUse === true)
 }

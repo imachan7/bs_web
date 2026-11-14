@@ -1,6 +1,7 @@
 // オープン統合の器 reveal（docs/design/REVEAL_UNIFY.md §4）。
 // reveal.ts（旧17 type の置き場）は増やさず、こちらに新設する。
 import { effectMagicUseDenial, useMagicByEffect } from "../magic/effectUse"
+import { payMagicFreeUseSurcharge } from "../magic/freeUseSurcharge"
 import { handGainDenial } from "../handGate"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "../summonSurcharge"
@@ -179,8 +180,15 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 failDest(ctx, action.orHand, cardId)
                 return
             }
+            const resume = { type: "useMagicCard" as const, cardId, timing: "flash" as const, paidCost: false }
+            const paid = payMagicFreeUseSurcharge(state, owner, card, resume)
+            if (paid === "cannot") {
+                log(state, `${sourceName}：余分のコストを支払えず、${card.name}を使用できなかった。`)
+                failDest(ctx, action.orHand, cardId)
+                return
+            }
             log(state, `${sourceName}：${card.name}のフラッシュ効果をコストを支払わずに使用した。`)
-            useMagicByEffect(state, owner, cardId, "flash", false)
+            if (paid === "paid") useMagicByEffect(state, owner, cardId, "flash", false)
             return
         }
         case "summon": {

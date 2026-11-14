@@ -158,7 +158,7 @@ export type EffectAction =
  | { type: "mutualDestroyChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent"; keywordExclude?: Keyword; eachOwn?: true } // keywordExclude＝そのキーワードを持たないスピリットだけが候補（一時付与・継続付与も見る）。destroyAllExceptChosenColorsと同じ二段階choice：発生源の持ち主→相手の順にフィールド（両陣営どちらでも可）から1体を指定し、2体（重複可）をそれぞれ破壊する。進捗はchosenOwn/chosenOpp/awaiting。自動選択は各プレイヤーが相手フィールドの実効BP最大（決定的簡略化）
  | { type: "mutualKeepChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent" } // mutualDestroyChoiceの否定版：各自は**自分の**フィールドから1体を指定し、その2体を除く両陣営のスピリットすべてを破壊する。破壊待機中のself自身は候補に含めない。自動選択は各自の実効BP最大（決定的簡略化）
  | { type: "summonSequence"; byFushi?: true; triggerOnly?: true; tail?: SummonTail } // byFushi＝【不死】による召喚として「自分のスピリットが召喚されたとき」を発火する（fieldEvent.fushiSummonOnlyの判定に使う）。**内部専用**：【転召】の対象選択で中断したとき、GameEngineがpendingChoice.queueへ積んで選択の解決後に合流させる
- | { type: "useMagicCard"; cardId: string; timing: "main" | "flash"; paidCost: boolean } // **内部専用**。ゾーンから抜いて支払いを済ませたマジック1枚を「使用」する（支払いの選択の後の続き。magic/effectUse.ts）
+ | { type: "useMagicCard"; cardId: string; timing: "main" | "flash"; paidCost: boolean; usedVia?: "majutsu"; inUse?: true } // **内部専用**。ゾーンから抜いて支払いを済ませたマジック1枚を「使用」する（支払いの選択の後の続き。magic/effectUse.ts）
  | { type: "finishMagicUse" } // **内部専用**。選択待ちで止まったマジックを、解決し終えた時点でトラッシュ（または変えた行き先）へ置く
  | { type: "resumeMagicAfterEffects"; cardId: string; timing: "main" | "flash"; targetInstanceId?: string; paidCost: boolean; repeatSourceId?: string } // **内部専用**。選択待ちで止まったマジックの、効果を解決し終えたあとの再発揮の確認と「マジックを使用したとき」の誘発
  | { type: "resumeMagicEntry"; cardId: string; effectId: string } // **内部専用**。選択待ちで止まったマジックの残りのエントリ1つを、条件の判定から解決し直す
