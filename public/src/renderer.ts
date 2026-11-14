@@ -1,4 +1,5 @@
 // 受け取った状態をDOMへ反映する描画処理
+import { isWaiting } from "../../shared/rules/waiting"
 import { summonPayOffOptions } from "../../shared/summonPayOff"
 import type {
     CardData,
@@ -569,7 +570,7 @@ function flushPendingLeaves(view: GameView): void {
         if (inst === undefined) {
             showLeaveGhost(id, kind) // 描き直す前なので、まだ元のカードの位置が取れる
             pendingLeaves.delete(id)
-        } else if (!inst.pendingDestruction && !inst.pendingVanish && !inst.pendingBounce) {
+        } else if (!isWaiting(inst)) {
             pendingLeaves.delete(id) // 「フィールドに残る」などで残った
         }
     }

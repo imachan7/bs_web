@@ -1,6 +1,7 @@
 // smoke パート753（STARTER white 8枚：BS01-141／BSC05-007／BSC05-009／BSC05-015／BSC05-019／EX011／SD11-001／SD11-003）
 // 期待値役が効果文と属性だけから書いた実装前テスト（docs/design/STARTER_PLAN.md §2・SEMANTICS_AUDIT §3.9/3.20/3.25・BS19_PLAN §2）。
 // SD11-001 Lv2「色とシンボルは緑としても扱う」は、SD11-003 の【連鎖】の場面（rensa-green / rensa-no-green）で観察する。
+import { isTrashWaiting } from "../../shared/rules/waiting"
 import { assert, getCard } from "./helpers"
 import { scenario } from "./scenario"
 import type { ScenarioCtx } from "./scenario"
@@ -60,7 +61,7 @@ function resolveAll(t: ScenarioCtx, prefer: string[] = []): void {
             })
             const hit = ids.find((id) => pc.candidates.includes(id))
             // 破壊待機中の敗者も候補に並ぶ（#554）。挙げた体を選び終えたら、残りは選ばずに確定する
-            const live = pc.candidates.find((id) => t.state.players[t.opp].field.spirits.find((x) => x.instanceId === id)?.pendingDestruction !== true)
+            const live = pc.candidates.find((id) => !isTrashWaiting(t.state.players[t.opp].field.spirits.find((x) => x.instanceId === id)))
             const pick = hit ?? live ?? (pc.optional ? undefined : pc.candidates[0])
             t.act(side, pick === undefined ? { type: "resolveChoice" } : { type: "resolveChoice", instanceId: pick })
         } else if (pc.kind === "option") {

@@ -1,4 +1,5 @@
 // smoke パート612（BS17部品バッチ11：returnToBurst／peekOpponentBurst／payAssistByExhaust の via・minBaseCost・oncePerTurn）
+import { isReturnWaiting } from "../../shared/rules/waiting"
 import {
     assert,
     createGame,
@@ -123,7 +124,7 @@ console.log("=== 2. returnToBurst：ownBurstSet の誘発が起きる／離脱�
     resolveAction(s, "p1", null, { type: "returnToBurst", side: "own", count: 1, filter: { hasBurst: true } })
     assert(s.players.p1.burst === BURST_SPIRIT, "セットされた")
     assert(s.players.p1.hand.length === hand0 + 1, "ownBurstSet の誘発でドローした")
-    assert(!host.pendingBounce, "待機状態は解けている")
+    assert(!isReturnWaiting(host), "待機状態は解けている")
     restore()
 }
 

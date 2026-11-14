@@ -64,24 +64,9 @@ export interface CardInstance {
     timedCostDelta?: number // このターンの間のコストの増減（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）。shared/rules.ts の instCostDelta が読む
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
     timedColors: Color[] // 期間つき効果で与えられた色の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
-    // **破壊待機状態**（docs/design/TIMING_CHART.md §1.5）。破壊が決まってから、
-    // 破壊時の誘発を解決し終えてトラッシュに置かれるまでの間だけ立つ。
-    // この間もカードはフィールドに存在し、コアも乗ったままで、**カードの効果の対象に取れる**
-    // （数・シンボル・【転召】の生贄にも数える）。
-    // 一方で**疲労／回復はできず、ここからさらに破壊されることもない**
-    pendingDestruction?: true
-    // pendingDestruction のうち**消滅**（維持コア割れ）によるもの。シンボルを軽減に使えない点だけが
-    // 破壊待機と違う（RULES_BATSPI_WIKI.md §2）。pendingDestruction と一緒のときだけ意味を持つ
-    pendingVanishByOpponent?: true // pendingVanish のうち、相手の効果（currentEffectSource が相手側）で消滅したもの。byOpponentVanishOnly が読む
-    pendingVanish?: true
-    // **バウンス待機状態**（バトスピ Wiki「バウンスについて」。2020年5月のルール改定）。
-    // 手札／デッキへ戻す効果を解決してから、実際にその場所へ移るまでの間だけ立つ。
-    // この間もカードはフィールドに留まるが、**破壊待機状態とは扱いが違う**:
-    //   - シンボルを**軽減に使えない**（破壊待機は使える）
-    //   - 「手札／デッキに戻ることに関する効果」以外は**発揮できず、その対象にもならない**
-    //   - 発揮できるのは「フィールドを離れるとき」「手札／デッキに戻るとき」だけ
-    // これらの誘発は**バウンス効果の解決が終わってから**まとめて発揮する（割り込ませない）
-    pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true }
+    // **待機状態**（docs/design/PENDING_STATE.md）。場を離れることが決まってから、誘発を解決し終えて移動するまでの間だけ立つ。
+    // この間もカードはフィールドに存在し、コアも乗ったまま。読むときは shared/rules/waiting.ts の関数を通す（直接読まない）
+    waiting?: WaitingState
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
     // 破壊待機状態の間だけ持つ、その破壊のコンテキストと確認の出し方（destroySpiritが記録し、
     // commitPendingDestruction が「フィールドに残る」の判定に使う。cards.jsonには書かない内部専用）。
@@ -188,3 +173,10 @@ export interface CardInstance {
     // ここは instanceId で指すだけ。通常のブレイヴは slot:"single" の1本。異魔神ブレイヴ（1枚がスピリット2体に合体）は
     // **実体1つ・参照2本**になるので、入れ子（host.braves）にせず参照方式にしてある（§11.2）
 }
+
+// kind は「何を待っているか」。destroy・vanish（維持コア割れ）はトラッシュ、return は to の場所へ移る。
+// byOpponent：vanish は相手の効果で消滅した（byOpponentVanishOnly が読む）、return は相手の効果で戻される
+export type WaitingState =
+    | { kind: "destroy" }
+    | { kind: "vanish"; byOpponent?: true }
+    | { kind: "return"; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true }

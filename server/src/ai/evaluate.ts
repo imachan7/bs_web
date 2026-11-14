@@ -8,6 +8,7 @@
 //
 // 先読みはしない（1手評価）。打った結果の盤面を作るにはエンジンの状態を複製する必要があり、
 // 効果解決の副作用まで正しく巻き戻せる保証がないため、**現在の盤面と手の内容だけ**から点を付ける。
+import { isTrashWaiting } from "../../../shared/rules/waiting"
 import type { CardInstance, GameAction, GameView, PlayerId } from "../type"
 import { getCard } from "../logic/GameState"
 import { canBlock } from "../../../shared/block"
@@ -75,7 +76,7 @@ function scoreChoice(view: GameView, me: PlayerId, action: GameAction): number {
         const found = findOnBoard(view, action.instanceId)
         if (!found) return 30
         // 破壊待機中の相手の体は、選ぶと手札に戻して助けることになるので最後にする（勝敗の誘発は敗者の破壊待機の列で解決する。#554）
-        if (found.owner !== me && found.inst.pendingDestruction === true) return 5
+        if (found.owner !== me && isTrashWaiting(found.inst)) return 5
         const strength = bpScore(view, found.owner, found.inst) + currentLevel(found.inst).level
         return found.owner === me ? 50 - strength : 50 + strength
     }

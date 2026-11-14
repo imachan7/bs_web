@@ -1,4 +1,5 @@
 // スピリット・ネクサスの疲労処理
+import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { trashCardEffectsDisabled } from "../../../../shared/rules"
 import { noteCoverage } from "../../../../shared/coverage"
@@ -73,7 +74,7 @@ export function exhaustSpirit(
     skipPrevention?: boolean,
 ): boolean {
     // 破壊待機状態のカードは**疲労できない**（docs/design/TIMING_CHART.md §1.5）
-    if (inst.pendingDestruction) return false
+    if (isTrashWaiting(inst)) return false
     if (inst.isRested) return false
     const denied = exhaustDenial(state, { ownerPid, target: inst, actorPid: causePid, sourceType: causeType })
     if (denied) {
@@ -128,7 +129,7 @@ export function heavyExhaustSpirit(
     causePid?: PlayerId,
     causeType?: CardType,
 ): void {
-    if (inst.pendingDestruction || inst.heavyRested) return
+    if (isTrashWaiting(inst) || inst.heavyRested) return
     if (!inst.isRested) exhaustSpirit(state, ownerPid, inst, undefined, causePid, causeType)
     if (!inst.isRested) return
     inst.heavyRested = true
@@ -164,7 +165,7 @@ export function refreshSpirit(
     deferSideEvents?: boolean,
 ): boolean {
     // 破壊待機状態のカードは**回復できない**（docs/design/TIMING_CHART.md §1.5）
-    if (inst.pendingDestruction) return false
+    if (isTrashWaiting(inst)) return false
     // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：残り回数がある間はリフレッシュステップ・
     // 効果による回復のいずれも通さない（refreshSpiritの唯一の入口で判定するため両方に効く）
     if ((inst.noRefreshUntilOwnEndSteps ?? 0) > 0) return false

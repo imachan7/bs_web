@@ -7,6 +7,7 @@
 //   4. その後、乗っていたコアをリザーブへ移す
 //
 // 破壊待機状態の間は**疲労も回復もできず、そこからさらに破壊されることもない**。
+import { isTrashWaiting } from "../../shared/rules/waiting"
 import {
     assert,
     createGame,
@@ -76,7 +77,7 @@ console.log("=== 破壊時の誘発を解決している間、破壊されたス
     )
     assert(!ALIVE(s, "p1", inst.instanceId), "誘発を解決し終えたらフィールドから離れる")
     assert(s.players.p1.trashCards.includes(COUNTER_CARD.cardId), "カードはトラッシュに置かれる")
-    assert(inst.pendingDestruction === undefined, "破壊待機状態の印は残らない")
+    assert(!isTrashWaiting(inst), "破壊待機状態の印は残らない")
 }
 
 // 破壊待機状態を直接作って、その間の禁止事項を確かめる
@@ -85,7 +86,7 @@ function makePending(seed: string) {
     runTurnStart(s)
     const vanilla = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0)!
     const inst = put(s, "p1", vanilla.cardId, 2)
-    inst.pendingDestruction = true
+    inst.waiting = { kind: "destroy" }
     return { s, inst }
 }
 
@@ -123,7 +124,7 @@ console.log("=== 破壊待機状態の解除：カードはトラッシュへ、
         s.players.p1.reserve === reserveBefore + cores,
         `乗っていたコア${String(cores)}個はリザーブへ（実際: ${String(s.players.p1.reserve - reserveBefore)}）`,
     )
-    assert(inst.pendingDestruction === undefined, "印は消える")
+    assert(!isTrashWaiting(inst), "印は消える")
 }
 
 // ネクサスも破壊待機状態になり、その間も効果（誘発・継続効果）は普通に働く（2026-08-14 ユーザー確認）
@@ -162,7 +163,7 @@ console.log("=== 破壊待機中のネクサスも、継続効果はそのまま
     assert(effectiveBp(s, "p1", spirit) === baseBp + BUFF_AMOUNT, "ネクサスの継続効果でBPが上がる")
 
     // 破壊待機状態にしても、まだフィールドにいるので効果は生きている
-    nexus.pendingDestruction = true
+    nexus.waiting = { kind: "destroy" }
     refreshLevelAsOverrides(s)
     assert(
         effectiveBp(s, "p1", spirit) === baseBp + BUFF_AMOUNT,
@@ -183,7 +184,7 @@ console.log("=== 破壊待機中のネクサスは、そこからさらに破壊
     const nexus = createInstance(BUFF_NEXUS.cardId, s.turn, 2)
     s.players.p1.field.nexuses.push(nexus)
     refreshLevelAsOverrides(s)
-    nexus.pendingDestruction = true
+    nexus.waiting = { kind: "destroy" }
     const reserveBefore = s.players.p1.reserve
     assert(destroyNexus(s, "p1", nexus.instanceId) === false, "破壊は成立しない")
     assert(
@@ -202,9 +203,9 @@ console.log("=== 破壊待機中のスピリットは【転召】の生贄にで
     const { s, inst } = makePending("pending-tensho")
     // 破壊待機の印を外した状態と付けた状態で、候補が変わらないことを見る
     // （minCost はカードのコストに依存しないよう 0 にする）
-    delete inst.pendingDestruction
+    delete inst.waiting
     const before = tenshoCandidates(s, "p1", 0).map((c) => c.instanceId)
-    inst.pendingDestruction = true
+    inst.waiting = { kind: "destroy" }
     const after = tenshoCandidates(s, "p1", 0).map((c) => c.instanceId)
     assert(before.includes(inst.instanceId), "（前提）破壊されていなければ候補に入る")
     assert(

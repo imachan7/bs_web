@@ -1,4 +1,5 @@
 // smoke パート787（BS20-X04 黒天狐ネガ・ナインテイル：コスト6以上の白が相手によって破壊されたときの手札からのコスト不払い召喚・Lv2バトル時のBP合計までの手札戻し・連鎖[緑]バースト封じ/[黄]ブロックされない）
+import { isTrashWaiting } from "../../shared/rules/waiting"
 import { readFileSync } from "node:fs"
 import { act, assert, createGame, createInstance, declareBlock, destroySpirit, getCard, lockedFor, refreshLevelAsOverrides, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
@@ -112,7 +113,7 @@ console.log("=== A. 手札から召喚：コスト6以上の白がBPを比べ相
     assert(act(s, "p1", { type: "pass" }) === null, "ブロック後のフラッシュウィンドウ：防御側パス")
     assert(act(s, "p2", { type: "pass" }) === null, "ブロック後のフラッシュウィンドウ：攻撃側パス")
     const limePending = s.players.p1.field.spirits.find((x) => x.instanceId === lime.instanceId)
-    assert(limePending?.pendingDestruction === true, "召喚確認が出た時点でシルバー・ライムは破壊待機（まだフィールドにいる）")
+    assert(isTrashWaiting(limePending), "召喚確認が出た時点でシルバー・ライムは破壊待機（まだフィールドにいる）")
     const prompts = settle(s)
     assert(prompts.some((p) => p.includes("召喚")), `手札のX04の召喚確認が出る（${prompts.join("/")}）`)
     assert(!s.players.p1.field.spirits.some((x) => x.instanceId === lime.instanceId) && s.players.p1.trashCards.includes(LIME), "確認に答えて解決し終えるとシルバー・ライムはトラッシュへ行く")

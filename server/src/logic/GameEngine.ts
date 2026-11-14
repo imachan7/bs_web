@@ -1,4 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
+import { isTrashWaiting } from "../../../shared/rules/waiting"
 import { takeFromTrash } from "./zones/trash"
 import { settleAllLifeZero } from "./lifeGate"
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
@@ -1410,7 +1411,7 @@ function exhaustDeclaredBlocker(
         log(state, `${getCard(blocker.cardId).name}はブロックしても疲労しない（ターンに1回）。`)
     }
     // 「疲労したとき」はブロック宣言の同時発揮の列で解決するので、exhaustSpirit を通さず立てる（アタッカーと同じ。2026-11-03 ユーザー確認）
-    const exhausted = !skipRest && !blocker.isRested && !blocker.pendingDestruction
+    const exhausted = !skipRest && !blocker.isRested && !isTrashWaiting(blocker)
     if (exhausted) blocker.isRested = true
     // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与。疲労の直後に置く（回復状態のままだと【強襲】が空振りする）。バトルしない側のブロッカーには発揮しない
     if (withKyoshu && hasKyoshuOnBlock(state, defenderPid)) {

@@ -2,6 +2,7 @@
 // どれも敗者の破壊を条件にするので、敗者の破壊待機の列に並べる。解決する時点で敗者が破壊待機状態でなければ発揮しない
 // （「残る／戻る」が先に解決したとき。2026-11-14 ユーザー確認。#554。docs/design/TIMING_CHART.md §2）。
 // 「だけ」は BP 比較の結果で決まる：相打ちではここを通らず、片方が残っても発揮しない
+import { isTrashWaiting } from "../../../shared/rules/waiting"
 import type { CardInstance, GameState, PlayerId } from "../type"
 import type { CollectedTrigger } from "./blockDeclared"
 import { instColors } from "../../../shared/rules"
@@ -29,7 +30,7 @@ export function collectBattleOutcomeTriggers(
     for (const item of raw) {
         collect.push({
             ...item,
-            skip: () => loser.pendingDestruction !== true || item.skip?.() === true,
+            skip: () => !isTrashWaiting(loser) || item.skip?.() === true,
             frame: item.frame.kind === "action" ? { ...item.frame, requiresPendingDestructionOf: loser.instanceId } : item.frame,
         })
     }

@@ -1,4 +1,5 @@
 // バウンス（手札・デッキ上へ戻す）アクションのハンドラと候補数の判定
+import { isReturnWaiting, isTrashWaiting } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { handGainDenial } from "../handGate"
 import { bounceDenial } from "../bounceGate"
@@ -26,7 +27,7 @@ function ownSideBounceCandidates(
     filter: ResolvedTargetFilter,
     to: "hand" | "deckTop",
 ): CardInstance[] {
-    return state.players[owner].field.spirits.filter((s) => !s.pendingBounce && matchesTarget(state, owner, s, filter, selfInstanceId) && bounceDenial(state, owner, s, to, true) === null)
+    return state.players[owner].field.spirits.filter((s) => !isReturnWaiting(s) && matchesTarget(state, owner, s, filter, selfInstanceId) && bounceDenial(state, owner, s, to, true) === null)
 }
 
 // ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
@@ -174,7 +175,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // target:"self" の入口は2つ。破壊待機中・場にいない個体は破壊時の誘発（returnDestroyedSelfToHand）、
         // 場に健在な個体は pay のコスト（returnOwnAsCost）。データ側のどちらも onDestroy でしか使われないので状態で見分ける
-        if (action.target === "self" && (self?.pendingDestruction || !self || !state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId))) {
+        if (action.target === "self" && (isTrashWaiting(self) || !self || !state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId))) {
             returnDestroyedSelfToHand(ctx)
             return
         }
@@ -269,7 +270,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
         const own = action.side === "own"
         const matchesBp = (s: CardInstance) => effectiveBp(state, owner, s) <= limitBp && matchesTarget(state, opp, s, filter, self?.instanceId)
         const ownMatchesBp = (s: CardInstance) =>
-            effectiveBp(state, owner, s) <= limitBp && !s.pendingBounce && matchesTarget(state, owner, s, filter, self?.instanceId) && bounceDenial(state, owner, s, "hand") === null
+            effectiveBp(state, owner, s) <= limitBp && !isReturnWaiting(s) && matchesTarget(state, owner, s, filter, self?.instanceId) && bounceDenial(state, owner, s, "hand") === null
         // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
         const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
         const pool = own
@@ -759,7 +760,7 @@ const returnToBurstHandler: ActionHandler<"returnToBurst"> = (ctx, action) => {
     }
     const filter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
     const candidates = player.field.spirits.filter(
-        (s) => !s.pendingBounce && (filter === undefined || (filter !== SELF_REQUIRED && matchesTarget(state, owner, s, filter, self?.instanceId))),
+        (s) => !isReturnWaiting(s) && (filter === undefined || (filter !== SELF_REQUIRED && matchesTarget(state, owner, s, filter, self?.instanceId))),
     )
     const picked = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : candidates[0]
     if (!picked) {
@@ -788,7 +789,7 @@ function returnDestroyedSelfToHand(ctx: ActionCtx): void {
         // 破壊時に呼ばれる。このとき自分のカードは**破壊待機状態でまだフィールドにいる**ので、
         // そこから手札へ移す（TIMING_CHART.md §1.5。乗っていたコアはリザーブへ）。
         // 破壊待機状態を解いてから抜けるので、あとで commitPendingDestruction がトラッシュへ送ることはない
-        if (self.pendingDestruction) {
+        if (isTrashWaiting(self)) {
             if (blocked("field")) return
             const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
             if (fieldIdx >= 0) {
@@ -797,7 +798,7 @@ function returnDestroyedSelfToHand(ctx: ActionCtx): void {
                 player.reserve += self.cores
                 detachBravesOnLeave(state, owner, self, false, "hand") // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1。残さないなら手札へ §6.3.2）
             }
-            delete self.pendingDestruction
+            delete self.waiting
             player.hand.push(self.cardId)
             log(state, `${getCard(self.cardId).name}は手札に戻った。`)
             notifyHandGained(state, owner, 1)
@@ -820,7 +821,7 @@ function returnDestroyedSelfToDeckTop(ctx: ActionCtx): void {
         if (!self) return
         const player = state.players[owner]
         // returnDestroyedSelfToHand と同じ形：破壊待機状態ならそこからデッキトップへ、既にトラッシュならそこから
-        if (self.pendingDestruction) {
+        if (isTrashWaiting(self)) {
             const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
             if (fieldIdx >= 0) {
                 player.field.spirits.splice(fieldIdx, 1)
@@ -828,7 +829,7 @@ function returnDestroyedSelfToDeckTop(ctx: ActionCtx): void {
                 player.reserve += self.cores
                 detachBravesOnLeave(state, owner, self, false, "deckTop")
             }
-            delete self.pendingDestruction
+            delete self.waiting
             player.deck.unshift(self.cardId)
             log(state, `${getCard(self.cardId).name}はデッキの一番上に戻った。`)
             return

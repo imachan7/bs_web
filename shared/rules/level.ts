@@ -1,4 +1,5 @@
 // キーワードの定義・レベルと BP・ブレイヴの合成・盤面の位置（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { isTrashWaiting } from "./waiting"
 import { noteCoverage, noteGrantedFrom } from "../coverage"
 
 import type {
@@ -470,24 +471,24 @@ export function ownTeamAtLeast(board: Board, pid: PlayerId, spec: { team: string
 // 自分のフィールドのスピリット/ネクサスが1体以上あり、そのすべてが指定チーム（CardData.team）に所属するか。
 // 26系「自分のスピリット/ネクサスすべてが【X】を持つなら」。0体では不成立とする簡略化
 // （正式ルールでは空欄場で「すべてが〜」は空虚な真で成立するが、1体以上要求のほうが文言の趣旨に沿う）。
-// 破壊待機（pendingDestruction）の個体は「破壊された」側なので判定から除く
+// 破壊・消滅の待機の個体は「破壊された」側なので判定から除く
 // （破壊時効果の解決時点ではカードがフィールドに残っているが、残り場で判定する。part506が捕捉）
 export function ownAllHaveTeam(board: Board, pid: PlayerId, team: string): boolean {
     const own = board.players[pid]
-    const insts = [...own.field.spirits, ...own.field.nexuses].filter((inst) => inst.pendingDestruction !== true)
+    const insts = [...own.field.spirits, ...own.field.nexuses].filter((inst) => !isTrashWaiting(inst))
     if (insts.length === 0) return false
     return insts.every((inst) => (card(inst.cardId).team ?? []).includes(team))
 }
 
 export function ownAllHaveFamily(board: Board, pid: PlayerId, family: string): boolean {
     const own = board.players[pid]
-    const insts = [...own.field.spirits, ...own.field.nexuses].filter((inst) => inst.pendingDestruction !== true)
+    const insts = [...own.field.spirits, ...own.field.nexuses].filter((inst) => !isTrashWaiting(inst))
     if (insts.length === 0) return false
     return insts.every((inst) => instFamilies(inst).includes(family))
 }
 
 export function ownAllSpiritsHaveFamily(board: Board, pid: PlayerId, family: string | string[], costIn?: number[]): boolean {
-    const insts = board.players[pid].field.spirits.filter((inst) => inst.pendingDestruction !== true)
+    const insts = board.players[pid].field.spirits.filter((inst) => !isTrashWaiting(inst))
     if (insts.length === 0) return false
     const families = Array.isArray(family) ? family : [family]
     return insts.every((inst) => instFamilies(inst).some((f) => families.includes(f)) && (costIn === undefined || instMatchesCostFilter(inst, { in: costIn })))
