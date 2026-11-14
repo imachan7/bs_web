@@ -962,6 +962,11 @@ const arthurRun = (t: T, combine: boolean): void => {
     if (combine) t.act("me", { type: "combineBrave", braveInstanceId: t.inst("ブレイヴ").instanceId, hostInstanceId: t.inst(victimLabel(ARTHUR)).instanceId })
     t.act("me", { type: "nextPhase" })
     t.act("me", { type: "attack", instanceId: t.inst(victimLabel(ARTHUR)).instanceId })
+    // 合体中はアーサーとアロンダイザーの誘発が同時に発揮するので、解決順を聞かれる（別のカード。#545）。アーサーから解決する
+    const order = t.s.pendingChoice
+    if (combine && order?.triggerOrder !== undefined) {
+        t.act("me", { type: "resolveChoice", option: (order.options ?? []).find((o) => o.includes("ソーディアス・アーサー")) ?? "" })
+    }
 }
 play("X02 【合体時】Lv3 合体アタック時：相手のスピリットのコア1個をボイドへ", arthurCombined(6, true), (t) => {
     const reserve = t.p("opp").reserve
