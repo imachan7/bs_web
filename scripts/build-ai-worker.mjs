@@ -43,7 +43,7 @@ class XMLHttpRequest {
         this.responseText = body
     }
 }
-const context = vm.createContext({ self, XMLHttpRequest, console, crypto: globalThis.crypto, setTimeout: (fn) => setTimeout(fn, 0), clearTimeout })
+const context = vm.createContext({ self, XMLHttpRequest, URLSearchParams, console, crypto: globalThis.crypto, setTimeout: (fn) => setTimeout(fn, 0), clearTimeout })
 vm.runInContext(readFileSync(outfile, "utf-8"), context)
 self.onmessage({ data: { event: "startAi", payload: { name: "確認", deck: "sd01_blazing", aiDeck: "sd01_blazing" } } })
 // AI が先攻なら、打ち切って人間の番（または人間への選択待ち）に来るまで待つ

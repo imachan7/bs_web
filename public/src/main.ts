@@ -8,6 +8,7 @@ import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../
 import { braveCombineCandidates } from "../../shared/summon"
 import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, rebuildDeckSelects, rememberDeckSelection, rememberLobbyInputs, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
+import { assetUrl } from "./assetUrl"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
@@ -170,7 +171,10 @@ function startLocalAi(button: HTMLElement, payload: unknown): void {
         connectAndRun(btn, () => socket.emit("startAi", payload))
     }
     try {
-        worker = new Worker("/dist/aiWorker.js")
+        // Worker もカードデータを取るので、版つきの URL を渡す（本体と同じ URL ならブラウザのキャッシュから読める）
+        const workerUrl = new URL(assetUrl("/dist/aiWorker.js"), location.href)
+        workerUrl.searchParams.set("cards", assetUrl("/api/cards"))
+        worker = new Worker(workerUrl)
     } catch {
         return fallback()
     }
@@ -418,7 +422,7 @@ function closestData(
 
 async function init(): Promise<void> {
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
-    const cards = (await (await fetch("/api/cards")).json()) as CardData[]
+    const cards = (await (await fetch(assetUrl("/api/cards"))).json()) as CardData[]
     setCardDb(cards)
     setDeckRecipes(await (await fetch("/api/deck-recipes")).json())
     // ページを読み直した・タブを開き直したときは、こちらから繋いで席に戻る（盤面を描くのにカードデータが要るので、読み終えてから）
