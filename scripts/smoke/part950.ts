@@ -8,6 +8,7 @@ const ANGEL = "BS10-048" // 天使パワー（黄・天霊・BP3000・バニラ�
 const DUALDO = "BS10-007" // デュアルド（赤・BP5000・バニラ）
 const EIRIK = "BS17-034" // レッド・エイリーク（【合体時】Lv2･Lv3：BPを比べ相手のスピリットだけを破壊したとき、破壊したスピリットをデッキの上に戻せる）
 const WALL = "BS14-101" // 仁王壁（バースト：相手による自分のスピリット破壊後）
+const SWORD = "BSC05-009" // 竜機合神ソードランダー
 
 console.log("=== 前提: カードの機械確認 ===")
 {
@@ -91,6 +92,36 @@ console.log("=== 2. レッド・エイリーク：破壊したスピリットは
     assert(s.players.p2.deck[0] === ANGEL && !s.players.p2.trashCards.includes(ANGEL), "破壊した天使パワーは相手のデッキの上に戻る（トラッシュに置かれない）")
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === blocker.instanceId), "場からは離れる")
     assert(s.players.p2.burst === WALL && !seen.some((o) => o.some((x) => x.includes("バースト"))), "トラッシュに置かれていないので、破壊後バーストは確認されない")
+}
+
+console.log("=== 3. 列の解決中、敗者はまだ場にいる：手札に戻す効果の対象に取れ、戻したらトラッシュに置かれない ===")
+{
+    const s = game("bounce-pending-loser")
+    assert(getCard(SWORD).name === "竜機合神ソードランダー" && getCard(SWORD).effect.includes("手札に戻す"), "SWORDは竜機合神ソードランダー")
+    const sword = put(s, "p2", SWORD, 5) // Lv3：相手だけを破壊したとき、コスト合計4まで相手のスピリットを手札に戻す
+    const angel = put(s, "p1", ANGEL, 1) // コスト5なので予算に収まらないよう、コスト1のバニラを別に用意する
+    void angel
+    const weak = put(s, "p1", "BS01-002", 1) // ロクケラトプス（コスト1・BP1000）
+    assert(getCard("BS01-002").name === "ロクケラトプス" && getCard("BS01-002").cost === 1, "ロクケラトプスはコスト1")
+    let offered = false
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: weak.instanceId }) === null, "p1 がアタック")
+    for (let i = 0; i < 30; i++) {
+        const pc = s.pendingChoice
+        if (pc) {
+            if (pc.kind === "target" && pc.candidates.includes(weak.instanceId)) {
+                offered = true
+                act(s, pc.pid, { type: "resolveChoice", instanceId: weak.instanceId })
+            } else if (pc.kind === "option") act(s, pc.pid, { type: "resolveChoice", option: pc.options![0]! })
+            else act(s, pc.pid, { type: "resolveChoice" })
+        } else if (s.isFlashTiming && s.battle && !s.winner) {
+            if (act(s, s.priorityPlayer, { type: "pass" })) break
+        } else if (s.battle && !s.battle.blockerInstanceId) {
+            if (declareBlock(s, "p2", sword.instanceId) !== null) break
+        } else break
+    }
+    assert(offered, "破壊待機中の敗者が、手札に戻す対象の候補に並ぶ")
+    assert(s.players.p1.hand.includes("BS01-002") && !s.players.p1.trashCards.includes("BS01-002"), "戻した敗者は手札へ行き、トラッシュに置かれない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part950）")
