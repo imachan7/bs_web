@@ -453,6 +453,16 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
         moveRevealed(ctx, action)
         return
     }
+    // 「破壊したスピリットをデッキの上に戻す」は敗者の破壊待機の列で解決するので、敗者はまだ場にいる（#554）。
+    // 行き先だけ控え、破壊の確定でデッキの上へ置く。下の from:"trash" は、確定した後に解決する経路への保険
+    if (action.onlyLastBattleDestroyed && action.dest === "deckTop") {
+        const loser = state.players[opp].field.spirits.find((s) => s.instanceId === state.lastBattleDestroyedInstanceId && s.pendingDestruction === true)
+        if (loser) {
+            loser.pendingDestroyContext = { ...loser.pendingDestroyContext, leaveTo: "deckTop" }
+            log(state, `${sourceName}：破壊した${getCard(loser.cardId).name}をデッキの上に戻す。`)
+            return
+        }
+    }
     // 相手の手札を動かす効果は、手札が「相手の効果を受けない」なら発揮しない（drawDiscard の手札破棄と同じ判定。2026-11-11 監査で発見）
     if (action.from === "hand" && action.side === "opponent" && handImmuneFor(state, opp, srcType)) {
         recordMoved(state, [])

@@ -202,6 +202,7 @@ export interface DestroyContext {
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
     sourceType?: CardType
     trashedCount?: number // この破壊で実際にトラッシュへ置かれた体数（removal.ts の commitPendingDestruction が数える。手札へ戻った個体・トークンは数えない。BS22-073 Q25205）
+    leaveTo?: "deckTop" // 破壊待機中に「破壊したスピリットをデッキの上に戻す」が解決した。確定時にトラッシュでなくデッキの上へ置く（トラッシュに置かれないので破壊後バーストも無い。BS17-034）
     suppressOnDestroy?: true
     suppressOwnEffects?: true // suppressOnDestroy に加え、破壊された個体自身の「フィールドに残る／戻る」も出さない（BS22-054。【不死】やほかのカードの効果は止めない。2026-11-07 ユーザー確認）
     braveCantRemain?: true // 合体スピリットが破壊されるとき、ブレイヴを残す確認を出さずトラッシュへ（BS22-016）
@@ -209,6 +210,7 @@ export interface DestroyContext {
     sourceCardId?: string // 破壊を引き起こした効果の発生源のカードID（マジックは self が無いので cardId で系統を引く。26RBS01-105）
     sourceInstanceId?: string // 破壊を引き起こした効果の発生源インスタンスID。
     // fieldEvent.byOpponentSpiritEffectOnly が「その効果を発揮したスピリット」を対象にするために使う（BS10-012アントイーター/BS10-014闇騎士マリス）
+    battleWinner?: { pid: PlayerId; instanceId: string; role: "attacker" | "blocker" } // battleLoser の相手（勝者）。勝者側の「BPを比べ相手のスピリットだけを破壊したとき」を同じ列に積む。同じ陣営どうしのバトルでは立てない
     battleLoser?: true // BPを比べて片方だけが破壊された敗者（『BPを比べ相手のスピリットに破壊されたとき』を破壊待機の列に積む。相打ちでは立てない）
     battle?: { attackerColors: Color[]; attackerLevel?: number; attackerBp?: number } // バトルによる破壊のときの「破壊した側（勝者）」の色・レベル・実効BP（装甲・reviveOnDestroy判定用。呼び出し側の命名は歴史的にattacker*だが、実際は勝者側の値を渡す）
 }
