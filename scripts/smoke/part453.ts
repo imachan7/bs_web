@@ -1,6 +1,7 @@
 // smoke パート453（fieldEvent の destroySelf／exhaustSelf が、相手のスピリットに効くとき「自分の効果」として扱われる）
 // BS13-006 炎獣ファイオリック（BP4000以下の相手がアタックしたとき、そのスピリットを破壊する）／BS11-064 闇の聖剣（相手のスピリットが合体したとき、その合体スピリットは疲労する）。
 // 解釈の確認：2026-09-30 ユーザー（相手スピリットに対するフィールド効果も自分の効果として扱い、【装甲】で防がれる）
+import { isTrashWaiting } from "../../shared/rules/waiting"
 import { assert, createGame, createInstance, fireFieldEventTriggers, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import { instColors } from "../../server/src/logic/EffectModules"
@@ -29,7 +30,7 @@ function game(seed: string): GameState {
     return s
 }
 const gone = (s: GameState, inst: { instanceId: string }): boolean =>
-    !s.players.p2.field.spirits.some((x) => x.instanceId === inst.instanceId) || s.players.p2.field.spirits.find((x) => x.instanceId === inst.instanceId)?.pendingDestruction === true
+    !s.players.p2.field.spirits.some((x) => x.instanceId === inst.instanceId) || isTrashWaiting(s.players.p2.field.spirits.find((x) => x.instanceId === inst.instanceId))
 
 console.log("=== 1. BS13-006：装甲のない相手のアタッカーは破壊される ===")
 {
@@ -63,7 +64,7 @@ console.log("=== 3. BS13-006：自分のアタッカーには誘発しない ===
     s.players.p1.field.spirits.push(me, mine)
     refreshLevelAsOverrides(s)
     fireFieldEventTriggers(s, "p1", "anySpiritAttacked", { pid: "p1", inst: mine }, instColors(mine))
-    assert(s.players.p1.field.spirits.some((x) => x.instanceId === mine.instanceId && !x.pendingDestruction), "自分のスピリットは破壊されない")
+    assert(s.players.p1.field.spirits.some((x) => x.instanceId === mine.instanceId && !isTrashWaiting(x)), "自分のスピリットは破壊されない")
 }
 
 console.log("=== 4. BS11-064：合体した相手のスピリットは疲労する ===")

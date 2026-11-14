@@ -6,6 +6,7 @@
 //   - 009 クジャルタが手札に戻るとき、上のコアは**リザーブ**へ（指定場所には行かない）
 //   - 007 バーナルドの「疲労状態で」の主語は**このスピリット**（自分が疲労中でもブロックできる）
 //   - 014 魔法監視塔 Lv2 は、無効にしたら**必ず**デッキの下へ戻る
+import { isTrashWaiting } from "../../shared/rules/waiting"
 import { act, assert, createGame, createInstance, currentLevel, declareBlock, destroyNexus, effectiveBp, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { effectiveCost, hasMagicRestriction } from "../../shared/cost"
@@ -370,7 +371,7 @@ console.log("--- SD02-014 魔法監視塔：ネクサスを戻す／マジック
     const reserveBefore = s.players.p1.reserve
     destroyNexus(s, "p1", victim.instanceId, { sourcePid: "p2", sourceType: "spirit" })
     assert(
-        s.players.p1.field.nexuses.some((n) => n.instanceId === victim.instanceId && !n.pendingDestruction),
+        s.players.p1.field.nexuses.some((n) => n.instanceId === victim.instanceId && !isTrashWaiting(n)),
         "破壊されたネクサスが同じ状態でフィールドに残る",
     )
     assert(victim.cores === 2, "コアもそのまま（同じ状態）")
@@ -390,7 +391,7 @@ console.log("--- SD02-014 魔法監視塔：ネクサスを戻す／マジック
     const trashBefore = s.players.p1.trashCores
     destroyNexus(s, "p1", victim.instanceId, { sourcePid: "p2", sourceType: "spirit" })
     assert(
-        s.players.p1.field.nexuses.some((n) => n.instanceId === victim.instanceId && !n.pendingDestruction),
+        s.players.p1.field.nexuses.some((n) => n.instanceId === victim.instanceId && !isTrashWaiting(n)),
         "リザーブが空でも、場のコアで払ってネクサスは残る",
     )
     assert(s.players.p1.trashCores >= trashBefore + 1, "払ったコアはトラッシュへ")

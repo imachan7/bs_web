@@ -335,6 +335,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `matchesCostFilter`（fn）：コスト範囲の判定（TargetFilter.cost）。
 - `instMatchesCostFilter`（fn）：フィールド上のインスタンスに対するコスト範囲の判定。実コストに加えて
 
+## shared/rules/waiting.ts
+
+- `isWaiting`（fn）
+- `isTrashWaiting`（fn）：破壊か消滅で、トラッシュに置かれるのを待っている
+- `isVanishWaiting`（fn）
+- `isReturnWaiting`（fn）：手札・デッキ・バーストへ戻るのを待っている
+
 ## shared/summon.ts
 
 - `isSummonableCardType`（fn）：召喚（type:"summon"）で場に出せるカードか。
@@ -1311,6 +1318,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/types/cardInstance.ts
 
 - `CardInstance`（型）：盤面インスタンス（可変）。data.md 6.2 に対応
+- `WaitingState`（型）：kind は「何を待っているか」。destroy・vanish（維持コア割れ）はトラッシュ、return は to の場所へ移る。
 
 ## server/src/types/choice.ts
 

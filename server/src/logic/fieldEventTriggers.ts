@@ -1,4 +1,5 @@
 // 盤面の出来事（fieldEvent）で起きる誘発の収集と解決。手札を得た・ネクサスを配置したときの通知もここ
+import { isTrashWaiting } from "../../../shared/rules/waiting"
 import { levelStillMet } from "./levelRecheck"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
@@ -176,7 +177,7 @@ export function fireFieldEventTriggers(
         if (excludeInstanceIds?.includes(inst.instanceId)) continue
         // 待機状態のカードは、破壊に関係する効果以外を発揮できない（PENDING_STATE.md §1 の改訂文。part699 R6）。
         // 勝敗の誘発を破壊待機の列で解決するようになり、待機中に無関係なイベント（ドローなど）が起きるようになった（#554）
-        if (inst.pendingDestruction === true && !/Destroyed|BattleWon|BattleLost/.test(event)) continue
+        if (isTrashWaiting(inst) && !/Destroyed|BattleWon|BattleLost/.test(event)) continue
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level
         for (const effect of card.effects) {
@@ -587,7 +588,7 @@ export function fireFieldEventTriggers(
     // 「〜が破壊されたとき」は、同じ列の「フィールドに残る」が先に解決して破壊が無かったことになれば発揮しない
     // （RESUME_STACK.md §7 ①。破壊されたカード自身の『破壊時』と同じガード）
     const destroyGuard =
-        (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") && selfOverride?.inst.pendingDestruction === true
+        (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") && selfOverride !== undefined && isTrashWaiting(selfOverride.inst)
             ? selfOverride.inst.instanceId
             : eventInfo?.pendingDestructionOf
     // 「疲労したとき」は、解決する時点で主語のスピリットが疲労状態でなくなっていれば発揮しない（同じ列で先に回復を解決したとき。
@@ -601,7 +602,7 @@ export function fireFieldEventTriggers(
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) =>
             (e.extra === undefined && !isVirtualSource(e.inst) && !extraSources?.some((x) => x.instanceId === e.inst.instanceId) && !isStillOnField(state, pid, e.inst.instanceId)) ||
-            (e.extra === undefined && destroyGuard !== undefined && findInstanceAnywhere(state, destroyGuard)?.pendingDestruction !== true) ||
+            (e.extra === undefined && destroyGuard !== undefined && !isTrashWaiting(findInstanceAnywhere(state, destroyGuard))) ||
             (e.extra === undefined && restedGuard !== undefined && findInstanceAnywhere(state, restedGuard)?.isRested !== true) ||
             (e.extra === undefined && !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id })),
         resolve: (e) => {

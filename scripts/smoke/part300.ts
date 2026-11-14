@@ -2,6 +2,7 @@
 // S=無色化（色とシンボルを無いものとして扱う。バトル寿命）／V=破壊時効果の借用（借り元自身が発揮・現在Lv限定）／
 // X=コア数での絞り込み（両陣営に効く）／Y=ドロー枚数の追加／Z=ライフ減少先の置換／T=不死の系統指定／
 // U=不死経由限定の召喚時／trashReturnAtEndStep／costDestroyOwnSpirit（destroy）／countAttackerSymbols（discardOpponent）
+import { isTrashWaiting } from "../../shared/rules/waiting"
 import { assert, createGame, createInstance, endTurn, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart, legacy } from "./helpers"
 import type { GameState } from "./helpers"
 import { instColors, instHasColor, countSymbols, activeConstraints } from "../../shared/rules"
@@ -64,7 +65,7 @@ console.log("=== V: 破壊時効果の借用（借り元自身が発揮。現在
     const handBefore = p1.hand.length
     resolveAction(s, "p1", borrower, { type: "fireEffect", trigger: "onDestroy", oneEffect: true })
     assert(p1.hand.length !== handBefore + 3, "Lv1では『破壊時』のdraw3エントリは候補にならない（現在Lvで無効なため）")
-    assert(lender.pendingDestruction === undefined, "借り元は破壊されない")
+    assert(!isTrashWaiting(lender), "借り元は破壊されない")
     assert(p1.field.spirits.some((sp) => sp.instanceId === lender.instanceId), "借り元はフィールドに残ったまま")
 }
 {
@@ -78,7 +79,7 @@ console.log("=== V: 破壊時効果の借用（借り元自身が発揮。現在
     const handBefore = p1.hand.length
     resolveAction(s, "p1", borrower, { type: "fireEffect", trigger: "onDestroy", oneEffect: true })
     assert(p1.hand.length === handBefore + 3, "Lv2ではdraw3エントリ（先頭のエントリ）が候補に入り発揮する")
-    assert(lender.pendingDestruction === undefined, "借り元自身は破壊されない（発揮するのは借り元自身）")
+    assert(!isTrashWaiting(lender), "借り元自身は破壊されない（発揮するのは借り元自身）")
     assert(p1.field.spirits.some((sp) => sp.instanceId === lender.instanceId), "借り元はフィールドに残ったまま")
     assert(lender.cores === 3, "破壊させずに発揮したのでコアもそのまま")
 }

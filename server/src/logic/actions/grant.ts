@@ -1,5 +1,6 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { isReturnWaiting } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { requestActivationConfirm } from "../targeting"
 import { redirectMagicInUse } from "../magic/inUse"
@@ -398,7 +399,7 @@ const targetChoiceLendThisTurnHandler: ActionHandler<"targetChoiceLendThisTurn">
         const pred = (s: CardInstance): boolean => filter !== SELF_REQUIRED && matchesTarget(state, owner, s, filter, undefined)
         const candidates =
             action.side === "own"
-                ? state.players[owner].field.spirits.filter((s) => !s.pendingBounce && pred(s))
+                ? state.players[owner].field.spirits.filter((s) => !isReturnWaiting(s) && pred(s))
                 : pickAnySideCandidates(state, owner, pred)
         if (candidates.length === 0) {
             log(state, "効果：対象がいなかった。")

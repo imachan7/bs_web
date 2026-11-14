@@ -1,4 +1,5 @@
 // 効果の対象の選び方（候補の列挙・自動選択）と、プレイヤーへの選択待ち（pendingChoice）の発行
+import { isReturnWaiting, isTrashWaiting } from "../../../shared/rules/waiting"
 import { isResisted, resolveAction } from "./EffectModules"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId } from "../type"
 import { getCard, log, opponentOf, pushResumeFrames, suspend } from "./GameState"
@@ -39,7 +40,7 @@ export function pickEnemyCandidates(
         (s) =>
             // **バウンス待機中は「戻ることに無関係な効果」の対象にならない**
             // （バトスピ Wiki「バウンスについて」。破壊待機中は対象に取れるので扱いが違う）
-            !s.pendingBounce &&
+            !isReturnWaiting(s) &&
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isResisted(state, targetPid, s, attempt) &&
             extraPredicate(s),
@@ -63,7 +64,7 @@ export function pickAnySideCandidates(
     return applyBothSidesRedirectToCandidates(state, sourceType, [
         ...pickEnemyCandidates(state, opp, Infinity, matches, sourceColors, sourceType, op),
         // 自分側もバウンス待機中は対象外（相手側は pickEnemyCandidates が弾く）
-        ...state.players[owner].field.spirits.filter((s) => !s.pendingBounce && matches(s)),
+        ...state.players[owner].field.spirits.filter((s) => !isReturnWaiting(s) && matches(s)),
     ])
 }
 
@@ -92,7 +93,7 @@ export function pickAnySideByBp(
         keepPid !== null && keepPid !== owner
             ? []
             : state.players[owner].field.spirits.filter(
-                  (s) => !s.pendingBounce && effectiveBp(state, owner, s) <= maxBp && matches(s),
+                  (s) => !isReturnWaiting(s) && effectiveBp(state, owner, s) <= maxBp && matches(s),
               )
     const ownCandidate =
         ownCandidates.length > 0
@@ -125,7 +126,7 @@ export function pickEnemyByBp(
     const all = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType, op)
     // 破壊待機状態の体も対象に取れるが、自動選択（AI・非対話）では、ほかに候補がいれば選ばない
     // （破壊した相手を手札に戻して助ける手になる。勝敗の誘発を破壊待機の列で解決するので、敗者がまだ場にいる。#554）
-    const live = all.filter((s) => s.pendingDestruction !== true)
+    const live = all.filter((s) => !isTrashWaiting(s))
     const candidates = live.length > 0 ? live : all
     if (candidates.length === 0) return null
     return candidates.reduce((best, s) =>

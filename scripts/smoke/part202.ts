@@ -6,6 +6,7 @@
 //      （ベリトの「0個にはできない」は召喚時だけ。docs/design/CONJUNCTION.md「効果ブロック（『』）の範囲」）
 //   ② 「『破壊時』効果は発揮されない」が封じるのは『』でカテゴライズされた効果だけで、
 //      ネクサスの常在効果による「フィールドに残る」は封じられない（朝焼け岬Lv2）
+import { isTrashWaiting } from "../../shared/rules/waiting"
 import { act, assert, createGame, createInstance, declareBlock, destroySpirit, fireStepTriggers, refreshLevelAsOverrides, resolveAction, runTurnStart, timedHas } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { effectiveBp } from "../../shared/rules"
@@ -378,7 +379,7 @@ console.log("--- SD01-032 機械神の加護：白のネクサスは相手の赤
     // 青の効果なら通る（発生源の色で絞れていることの確認）
     resolveAction(s, "p2", attacker, { type: "destroy", nexus: "only", count: 2 }, undefined, ["blue"], "spirit")
     assert(
-        !s.players.p1.field.nexuses.some((n) => n.instanceId === guarded.instanceId && !n.pendingDestruction),
+        !s.players.p1.field.nexuses.some((n) => n.instanceId === guarded.instanceId && !isTrashWaiting(n)),
         "赤以外の効果では守られない",
     )
 }
@@ -449,7 +450,7 @@ console.log("--- SD01-033 ヴィクトリーファイア：2体破壊か、1体�
         "スピリット1体が破壊される",
     )
     assert(
-        !s.players.p2.field.nexuses.some((x) => x.instanceId === n.instanceId && !x.pendingDestruction),
+        !s.players.p2.field.nexuses.some((x) => x.instanceId === n.instanceId && !isTrashWaiting(x)),
         "ネクサス1つも破壊される",
     )
 }
@@ -483,7 +484,7 @@ console.log("--- SD01-033 ヴィクトリーファイア：2体破壊か、1体�
     }
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === a.instanceId), "スピリット1体が破壊される")
     assert(
-        !s.players.p2.field.nexuses.some((x) => x.instanceId === n.instanceId && !x.pendingDestruction),
+        !s.players.p2.field.nexuses.some((x) => x.instanceId === n.instanceId && !isTrashWaiting(x)),
         "ネクサス1つも破壊される",
     )
 }

@@ -1,5 +1,6 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
+import { isTrashWaiting } from "../../../shared/rules/waiting"
 import { takeFromTrash } from "./zones/trash"
 import { coreRemovalAllowed } from "./coreGate"
 import { entryActive } from "../../../shared/rules/effectStop"
@@ -185,7 +186,7 @@ export function nexusReviveSource(
             if (effect.cost?.exhaustSelf !== true) continue
             if (!entryActive(state, ownerPid, source, effect, currentLevel(source).level)) continue
             if (!matchesTarget(state, ownerPid, inst, effect.filter, source.instanceId)) continue
-            if (source.pendingDestruction || source.isRested || !canExhaustNexus(state, ownerPid)) continue
+            if (isTrashWaiting(source) || source.isRested || !canExhaustNexus(state, ownerPid)) continue
             return { source, effect }
         }
     }
@@ -229,12 +230,12 @@ export function applyNexusReviveConfirm(
     const player = state.players[entry.pid]
     const inst = player.field.nexuses.find((n) => n.instanceId === entry.instanceId)
     const source = player.field.nexuses.find((n) => n.instanceId === entry.sourceInstanceId)
-    if (!inst || !source || !inst.pendingDestruction) return
+    if (!inst || !source || !isTrashWaiting(inst)) return
     const effect = getCard(source.cardId).effects.find(
         (e): e is Extract<EffectDef, { kind: "reviveOnDestroy" }> =>
             e.kind === "reviveOnDestroy" && e.id === entry.effectId && e.scope === "ownNexus",
     )
-    if (!effect || effect.cost?.exhaustSelf !== true || source.isRested || source.pendingDestruction || !canExhaustNexus(state, entry.pid)) {
+    if (!effect || effect.cost?.exhaustSelf !== true || source.isRested || isTrashWaiting(source) || !canExhaustNexus(state, entry.pid)) {
         log(state, `${getCard(source.cardId).name}：コストを払えないため発動しなかった。`)
         return
     }
@@ -249,7 +250,7 @@ function applyNexusRevive(
     effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
 ): void {
     if (!exhaustNexus(state, ownerPid, source, ownerPid, getCard(source.cardId).type)) return
-    delete inst.pendingDestruction
+    delete inst.waiting
     inst.isRested = true
     noteCoverage(effect, "reviveOnDestroy")
     log(
@@ -287,7 +288,7 @@ export function collectReviveEntries(
 
 // 集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
 // optional（「〜できる」）またはコストありなら持ち主に確認を出す（払えなくても出す。COST_MODEL.md §10）。断れば破壊はそのまま進み、
-// 列に残っている項目も解決される（pendingDestruction が消えないため）
+// 列に残っている項目も解決される（破壊待機が解除されないため）
 export function applyReviveEntry(
     state: GameState,
     ownerPid: PlayerId,
@@ -698,7 +699,7 @@ export function declineReviveConfirm(
 export function stayOnFieldRevived(state: GameState, ownerPid: PlayerId, inst: CardInstance, rested: boolean): void {
     // 復活が成立した＝**破壊待機状態が解除された**（TIMING_CHART.md §1.5）。
     // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
-    delete inst.pendingDestruction
+    delete inst.waiting
     inst.isRested = rested
     // 支払いでコアが維持コアを下回った場合は、待機解除の直後に消滅する
     // （cause:"deplete" は復活判定に入らないので再帰しない。BS09-063花の宮殿＝コア1個の個体）
@@ -1098,7 +1099,7 @@ function tryReviveOnDestroy(
         // 破壊する1つは持ち主が選ぶ（対話モードかつ候補2つ以上。2026-11-05 ユーザー確認）。非対話は先頭。
         // 破壊は destroyNexus の通常処理で行う（破壊待機を経てコミットされる。相手の破壊耐性があれば支払い不可＝不発）
         if (effect.cost?.destroyOwnNexusOne) {
-            const candidates = player.field.nexuses.filter((n) => !n.pendingDestruction)
+            const candidates = player.field.nexuses.filter((n) => !isTrashWaiting(n))
             if (candidates.length === 0) return false
             const picked = pickCostTarget(
                 effect, source, candidates,
@@ -1181,7 +1182,7 @@ function tryReviveOnDestroy(
     const applyRevived = (revived: Revived): void => {
         // 復活が成立した＝**破壊待機状態が解除された**（TIMING_CHART.md §1.5）。
         // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
-        delete inst.pendingDestruction
+        delete inst.waiting
         if ("toBurst" in revived) {
             // BS15-004ハンゾウ・シノビ・ドラゴン：トラッシュへ置かれる代わりに持ち主のバーストエリアへ
             // （placeBurstと同じ規則：既にセットしていたバーストはトラッシュへ押し出される。

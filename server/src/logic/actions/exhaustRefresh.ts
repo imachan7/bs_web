@@ -1,5 +1,6 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
@@ -606,7 +607,7 @@ export function refreshOneOwnCandidates(
 
 const refreshOwnNexusHandler: ActionHandler<"refreshOwnNexus"> = (ctx, action) => {
     const { state, owner, self, sourceName, srcType, targetInstanceId } = ctx
-    const candidates = state.players[owner].field.nexuses.filter((n) => n.isRested && !n.pendingDestruction)
+    const candidates = state.players[owner].field.nexuses.filter((n) => n.isRested && !isTrashWaiting(n))
     if (candidates.length === 0) {
         log(state, `${sourceName}の回復：回復できる自分のネクサスがなかった。`)
         return

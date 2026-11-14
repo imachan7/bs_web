@@ -1,5 +1,6 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { finishSummonSequence } from "../summon"
 import { takeFromTrash, trashTakeableByEffect } from "../zones/trash"
 import { flushSummonBatch } from "../summon"
@@ -1344,7 +1345,7 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
         // 【装甲】・「相手の効果を受けない」などで届かないものは候補にしない（2026-11-11 監査で発見。候補列挙では支払いを伴う耐性を聞かない）
         candidates = candidates.filter((c) => resistanceAgainst(state, opp, c, { ...attemptOf(ctx, op, "targeted"), probing: true }) === null)
         // 破壊待機状態のカードは、そこからさらに破壊されない（TIMING_CHART §1.5）
-        if (op === "destroy") candidates = candidates.filter((c) => c.pendingDestruction !== true)
+        if (op === "destroy") candidates = candidates.filter((c) => !isTrashWaiting(c))
         return { candidates, spirits, braves }
     }
     const removeOne = (chosen: CardInstance, spirits: CardInstance[], braves: CardInstance[]): void => {
