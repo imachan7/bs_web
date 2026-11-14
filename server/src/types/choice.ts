@@ -513,8 +513,7 @@ export type ResumeFrame =
           kind: "destroyNexusCommit"
           pid: PlayerId
           instanceId: string
-          step: number
-          byOpponentEffect: boolean // 「相手の効果で破壊されたとき」限定エントリの判定材料
+          byOpponentEffect: boolean // 破壊後のバースト判定に渡す材料
           after?: { actorPid: PlayerId; action: EffectAction } // 破壊がコミットで確定したときだけ解決する（destroyNexus の after）
       }
     | {

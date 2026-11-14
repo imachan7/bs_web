@@ -788,6 +788,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["resumeMagicEntry", "選択待ちで止まったマジックの残りのエントリを、条件の判定から解決し直すために runMagicActions が積む（2026-11-05）"],
     ["resolveOwnBattleLoseTriggers", "BPを比べて破壊された敗者の『バトル時』破壊されたときを、破壊待機の列の1件として destroySpirit が積む（TIMING_CHART ＞６-1。2026-11-05）"],
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
+    ["applyNexusReviveOnDestroy", "ネクサスの破壊の列の「疲労させて残す」1件分。カードデータ側では kind:\"reviveOnDestroy\" として書く"],
     ["applyReviveOnDestroy", "同じ列の「フィールドに残る／戻る」1グループ分。reviveOnDestroy はカードデータ側では kind として書くので、この action 名はカードデータに現れない"],
     ["resolveFushiSummon", "同じ列の【不死】1枚分。【不死】はカードデータ側では keyword として書くので、この action 名はカードデータに現れない"],
     ["revealApplyOne", "revealで選ばれた1枚をdestへ送る内部専用（resolveInOrderの再開フレームがこの名前で積む）"],
