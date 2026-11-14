@@ -866,6 +866,11 @@ function opponentMagicCostIncrease(board: Board, usingPid: PlayerId, cardData: C
 // globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
 // スピリットカードを召喚するときに増える追加コストの合計（SD02-013 転召の祭壇Lv1-2）。
 // 条件は**カード静的な**コストとキーワードで見る（場に出る前の判定のため）
+// 「コストを支払わずに」マジックを使っても払う余分（Q20060：ペリュトーンでも螺旋の塔の余分が掛かる。COST_MODEL §11 の召喚と同じ）
+export function magicFreeUseSurcharge(board: Board, usingPid: PlayerId, cardData: CardData): number {
+    return costModSurcharge(board, usingPid, cardData) + opponentMagicCostIncrease(board, usingPid, cardData)
+}
+
 export function summonSurcharge(board: Board, usingPid: PlayerId, cardData: CardData): number {
     return opponentSummonCostIncrease(board, usingPid, cardData) + costModSurcharge(board, usingPid, cardData)
 }

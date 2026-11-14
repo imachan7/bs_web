@@ -47,7 +47,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `selfSetCost`（fn）：「手札のこのカードを召喚する時、〜なら、コストNにする」が効いているときの N（召喚側が「ターンに1回」の記録に使う）
 - `cardMatchesSummonPick`（fn）：軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
 - `effectiveCost`（fn）
-- `summonSurcharge`（fn）：globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
+- `magicFreeUseSurcharge`（fn）：globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
+- `summonSurcharge`（fn）
 
 ## shared/coverage.ts
 
@@ -905,6 +906,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `effectMagicUseDenial`（fn）
 - `useMagicByEffect`（fn）：使用を確定して解決する。カードは呼び出し側がゾーンから抜き、コストも払い済み
 - `useMagicCardHandler`（const）
+
+## server/src/logic/magic/freeUseSurcharge.ts
+
+- `canPayMagicFreeUseSurcharge`（fn）
+- `payMagicFreeUseSurcharge`（fn）："asked"：支払い元を選ぶ待ちを立てた。払ったあと resume（使用の続き）を解決する
 
 ## server/src/logic/magic/inUse.ts
 

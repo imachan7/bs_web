@@ -4736,7 +4736,8 @@
      2
     ],
     "colorFilter": "white",
-    "amount": 1
+    "amount": 1,
+    "asSurcharge": true
    },
    {
     "kind": "exhaustOnManualCoreAdd",

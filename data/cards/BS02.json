@@ -5080,6 +5080,7 @@
     "cardType": "magic",
     "side": "opponent",
     "amount": 1,
+    "asSurcharge": true,
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"

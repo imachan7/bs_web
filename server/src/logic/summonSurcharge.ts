@@ -68,7 +68,7 @@ function payFreeSummonSurchargeBase(state: GameState, pid: PlayerId, cardData: C
     const placed = payCost(state, pid, n, plan.paySources, maintain, plan.soulFromReserve)
     if (n === 0) return placed
     if (batch) state.summonSurchargePaid = pid
-    log(state, `${state.players[pid].name}：転召の祭壇により${n}コスト余分に支払った。`)
+    log(state, `${state.players[pid].name}：${cardData.name}の召喚に${n}コスト余分に支払った。`)
     return placed
 }
 
@@ -102,5 +102,5 @@ export function askCostPay(state: GameState, pid: PlayerId, need: number, keep: 
 // 無償召喚の余分の支払い待ち。resume には余分を払い済みとして扱う続きを渡す
 export function askSurchargePay(state: GameState, pid: PlayerId, cardData: CardData, batch: boolean, keep: number, resume: EffectAction): boolean {
     const n = surchargeOwed(state, pid, cardData, batch)
-    return n > 0 && askCostPay(state, pid, n, keep, `転召の祭壇：${cardData.name}の召喚に${n}コスト余分に支払ってください`, cardData.cardId, resume, true)
+    return n > 0 && askCostPay(state, pid, n, keep, `${cardData.name}の召喚に${n}コスト余分に支払ってください`, cardData.cardId, resume, true)
 }
