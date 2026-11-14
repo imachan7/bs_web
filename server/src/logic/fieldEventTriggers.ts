@@ -174,6 +174,9 @@ export function fireFieldEventTriggers(
     const noStackSeen = new Set<string>()
     for (const inst of instances) {
         if (excludeInstanceIds?.includes(inst.instanceId)) continue
+        // 待機状態のカードは、破壊に関係する効果以外を発揮できない（PENDING_STATE.md §1 の改訂文。part699 R6）。
+        // 勝敗の誘発を破壊待機の列で解決するようになり、待機中に無関係なイベント（ドローなど）が起きるようになった（#554）
+        if (inst.pendingDestruction === true && !/Destroyed|BattleWon|BattleLost/.test(event)) continue
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level
         for (const effect of card.effects) {

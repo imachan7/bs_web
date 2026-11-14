@@ -209,6 +209,7 @@ export interface DestroyContext {
     sourceCardId?: string // 破壊を引き起こした効果の発生源のカードID（マジックは self が無いので cardId で系統を引く。26RBS01-105）
     sourceInstanceId?: string // 破壊を引き起こした効果の発生源インスタンスID。
     // fieldEvent.byOpponentSpiritEffectOnly が「その効果を発揮したスピリット」を対象にするために使う（BS10-012アントイーター/BS10-014闇騎士マリス）
+    battleWinner?: { pid: PlayerId; instanceId: string; role: "attacker" | "blocker" } // battleLoser の相手（勝者）。勝者側の「BPを比べ相手のスピリットだけを破壊したとき」を同じ列に積む。同じ陣営どうしのバトルでは立てない
     battleLoser?: true // BPを比べて片方だけが破壊された敗者（『BPを比べ相手のスピリットに破壊されたとき』を破壊待機の列に積む。相打ちでは立てない）
     battle?: { attackerColors: Color[]; attackerLevel?: number; attackerBp?: number } // バトルによる破壊のときの「破壊した側（勝者）」の色・レベル・実効BP（装甲・reviveOnDestroy判定用。呼び出し側の命名は歴史的にattacker*だが、実際は勝者側の値を渡す）
 }

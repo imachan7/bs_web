@@ -30,7 +30,7 @@ import {
     millDeck,
     pickEnemyByBp,
     pickEnemyLowestCost,
-    pickEnemyCandidates,
+    pickEnemyCandidates as pickEnemyCandidatesIncludingPending,
     requestChoice,
     requestUpToChoice,
     returnNexusToHand,
@@ -51,6 +51,10 @@ import { gatePickedTargets, pickTargets } from "../pickTargets"
 import { destroyDenial } from "../destroyGate"
 import { soulCoreLeavesField, wouldDeplete } from "../soulCore"
 import { currentRecordScope, lastMovedOf, recordDestroyedCount, recordLeftCost, recordMoved, recordNexusCost } from "../record"
+
+// このファイルの候補集めはすべて「破壊する対象」。破壊待機状態のスピリットはそこからさらに破壊されない（TIMING_CHART §1.5）ので外す
+const pickEnemyCandidates: typeof pickEnemyCandidatesIncludingPending = (state, targetPid, maxBp, extraPredicate = () => true, ...rest) =>
+    pickEnemyCandidatesIncludingPending(state, targetPid, maxBp, (s) => s.pendingDestruction !== true && extraPredicate(s), ...rest)
 
 type DestroyAction = Extract<EffectAction, { type: "destroy" }>
 type DestroyNexusAction = DestroyAction
@@ -241,8 +245,10 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         // excludeTarget（BS06計画された場外乱闘Lv2）：誘発から渡ってくる targetInstanceId（＝ブロッカー）は
         // 破壊する対象ではなく**除外する**対象。exhaustHandlerのexcludeTargetと同じ考え方
         const excludedId = action.excludeTarget ? targetInstanceId : undefined
+        // 破壊待機状態のスピリットは、そこからさらに破壊されない（TIMING_CHART §1.5）ので候補にしない。
+        // 勝敗の誘発を敗者の破壊待機の列で解決するので、敗者がまだ場にいる（#554）
         const matchesFilter = (s: CardInstance) =>
-            s.instanceId !== excludedId && matchesTarget(state, opp, s, filter, self?.instanceId)
+            s.instanceId !== excludedId && s.pendingDestruction !== true && matchesTarget(state, opp, s, filter, self?.instanceId)
         if (targetInstanceId !== undefined && !action.excludeTarget && !action.choosing && !action.picked) {
             // pendingChoice解決：選ばれた1体のみ破壊する。
             // 候補列挙（pickEnemyCandidates）では除外済みでも、この経路はここで改めて免疫を判定する

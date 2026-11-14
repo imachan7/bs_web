@@ -29,6 +29,8 @@ import { isOnceNameUsed } from "./oncePerTurn"
 import { leavesNothingBehind } from "./keywords/bunshin"
 import { isTokenCard } from "../../../shared/cardDb"
 import { trashUnderCards } from "./zones/underCards"
+import { collectBattleOutcomeTriggers } from "./battleOutcomeTriggers"
+import type { BattleWinner } from "./battleOutcomeTriggers"
 import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, nexusReviveSource, wouldAskReviveConfirm } from "./revive"
 import {
     activeConstraints,
@@ -285,7 +287,6 @@ export function destroySpirit(
             first: true,
         })
     }
-    // 「フィールドに残る」で生き残っても勝敗は変わらないので発揮する（requiresPendingDestructionOf を付けない。TIMING_CHART の勝敗の行）
     if (cause === "destroy" && context?.battleLoser && hasOwnTrigger(state, ownerPid, inst, "onBattleLose")) {
         extraItems.push({
             key: `selfBattleLose:${inst.instanceId}`,
@@ -293,6 +294,7 @@ export function destroySpirit(
             action: { type: "resolveOwnBattleLoseTriggers", instanceId: inst.instanceId },
             selfInstanceId: inst.instanceId,
             actorPid: ownerPid,
+            requiresPendingDestructionOf: inst.instanceId,
         })
     }
     if (cause === "destroy" && !inst.skipReviveOnCommit) {
@@ -349,7 +351,7 @@ export function destroySpirit(
             })
         }
     }
-    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems)
+    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems, cause === "destroy" ? context?.battleWinner : undefined)
     if (state.pendingChoice || state.winner) {
         suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
         return true
@@ -433,6 +435,7 @@ function fireOwnSpiritDestroyed(
     byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
     extraItems?: FieldEventExtraItem[],
+    battleWinner?: BattleWinner,
 ): void {
     const master = getCard(inst.cardId)
     // 色・系統は付与込み（破壊待機中でまだ場にいるので、場を離れる直前の状態を読める）
@@ -473,6 +476,7 @@ function fireOwnSpiritDestroyed(
         families,
         costs: instAllCosts(inst),
     }, undefined, undefined, undefined, undefined, items)
+    if (battleWinner) collectBattleOutcomeTriggers(state, ownerPid, inst, battleWinner, items)
     // 持ち主側と相手側を1つの列で、ターンプレイヤーが順番を決めて解決する（TIMING_CHART「破壊で誘発した効果は1つの列」。
     // #437 R11B-1：以前は相手側を別に即解決し、持ち主側が選択待ちのあいだに盤面が動いた・質問が上書きされた）
     resolveInOrder(state, items, {

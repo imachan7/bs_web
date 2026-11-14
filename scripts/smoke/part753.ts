@@ -50,8 +50,19 @@ function resolveAll(t: ScenarioCtx, prefer: string[] = []): void {
         const pc = t.state.pendingChoice
         const side = pc.pid === t.me ? "me" : "opp"
         if (pc.kind === "target") {
-            const hit = prefer.map((l) => t.id(l)).find((id) => pc.candidates.includes(id))
-            t.act(side, { type: "resolveChoice", instanceId: hit ?? pc.candidates[0]! })
+            // 選び終えた体はもう場にいないので、引けないラベルは飛ばす
+            const ids = prefer.flatMap((l) => {
+                try {
+                    return [t.id(l)]
+                } catch {
+                    return []
+                }
+            })
+            const hit = ids.find((id) => pc.candidates.includes(id))
+            // 破壊待機中の敗者も候補に並ぶ（#554）。挙げた体を選び終えたら、残りは選ばずに確定する
+            const live = pc.candidates.find((id) => t.state.players[t.opp].field.spirits.find((x) => x.instanceId === id)?.pendingDestruction !== true)
+            const pick = hit ?? live ?? (pc.optional ? undefined : pc.candidates[0])
+            t.act(side, pick === undefined ? { type: "resolveChoice" } : { type: "resolveChoice", instanceId: pick })
         } else if (pc.kind === "option") {
             const opts = pc.options!
             const hit = opts.find((o) => prefer.some((p) => o.includes(p)))

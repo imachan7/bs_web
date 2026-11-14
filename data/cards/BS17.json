@@ -2280,12 +2280,12 @@
     "whileCombined": true,
     "optional": true,
     "action": {
-     "type": "moveCards",
-     "side": "opponent",
-     "from": "trash",
+     "type": "return",
+     "to": "deckTop",
      "count": 1,
-     "dest": "deckTop",
-     "onlyLastBattleDestroyed": true
+     "filter": {
+      "onlyBattleLoser": true
+     }
     }
    }
   ]

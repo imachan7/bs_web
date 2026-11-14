@@ -20,7 +20,6 @@ import {
     tryHandFreeSummonOnLifeDamaged,
     battleBp,
     bofuCountFor,
-    fireBattleWonTriggers,
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
@@ -488,10 +487,8 @@ export function resolveBattle(state: GameState): void {
               ? attackerBp
               : blockerBp
 
-    // ＞５：BP比較で勝敗（＝どちらが破壊されるか）が確定する。
-    // 以後の＞６（破壊処理）で「フィールドに残る」が使われても、この判定は覆らない
-    // （docs/design/TIMING_CHART.md §2。『BPを比べ相手のスピリットだけを破壊したとき』は
-    // 敗者が生き残っても発揮する）
+    // ＞５：BP比較で勝敗（＝どちらが破壊されるか）が確定する。『BPを比べ相手のスピリットだけを破壊したとき』は
+    // ＞６の敗者の破壊待機の列で解決し、先に「フィールドに残る」が解決したら発揮しない（docs/design/TIMING_CHART.md §2）
     // 器AV：BS13-082ペガサスフラップ「BPを比べずにバトルを終了させる」。BP比較自体を飛ばし、
     // どちらも破壊されない（勝敗が付かない＝onBattleWin/onBattleLose/fireBattleWonTriggersも発火しない）
     const rawOutcome: BattleOutcome = state.battle.skipBpCompare
@@ -630,11 +627,11 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (f.outcome === "blockerWins" && guarded(attackerPid, f.attackerInstanceId)) return
             if (f.outcome === "attackerWins") {
                 destroyTargetsBatch(state, attackerPid, [
-                    { pid: blockerPid, instanceId: f.blockerInstanceId, context: { ...attackerContext, battleLoser: true } },
+                    { pid: blockerPid, instanceId: f.blockerInstanceId, context: { ...attackerContext, battleLoser: true, ...(sameSide ? {} : { battleWinner: { pid: attackerPid, instanceId: f.attackerInstanceId, role: "attacker" as const } }) } },
                 ], undefined, undefined, true)
             } else if (f.outcome === "blockerWins") {
                 destroyTargetsBatch(state, blockerPid, [
-                    { pid: attackerPid, instanceId: f.attackerInstanceId, context: { ...blockerContext, battleLoser: true } },
+                    { pid: attackerPid, instanceId: f.attackerInstanceId, context: { ...blockerContext, battleLoser: true, ...(sameSide ? {} : { battleWinner: { pid: blockerPid, instanceId: f.blockerInstanceId, role: "blocker" as const } }) } },
                 ], undefined, undefined, true)
             } else {
                 const batch = [
@@ -645,38 +642,14 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             }
             return
         }
-        // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（onBattleLose）は＞６-1 の破壊待機の列で発揮する
-        // （DestroyContext.battleLoser。2026-11-05 ユーザー確認）
-        case 2: {
-            if (state.winner || sameSide) return
-            // 敗北側のフィールド発生源（ownSpiritBattleWon の鏡像。相打ちは含まない）
-            if (f.outcome === "attackerWins") fireFieldEventTriggers(state, blockerPid, "ownSpiritBattleLost", { pid: blockerPid, inst: blocker }, instColors(blocker))
-            else if (f.outcome === "blockerWins") fireFieldEventTriggers(state, attackerPid, "ownSpiritBattleLost", { pid: attackerPid, inst: attacker }, instColors(attacker))
-            return
-        }
-        // 勝利側の『このスピリットのバトル時』（相打ちでは発火しない）
+        // 勝敗を条件にする誘発（勝者側の「BPを比べ相手のスピリットだけを破壊したとき」、敗者側の「〜に破壊されたとき」）は、
+        // step 1 の敗者の破壊待機の列で解決する（battleOutcomeTriggers.ts。2026-11-14 ユーザー確認。#554）
         case 3: {
             if (state.winner || sameSide) return
-            if (f.outcome === "attackerWins") {
-                fireTrigger(state, attackerPid, attacker, "onBattleWin", "attacker")
-                fireTrigger(state, attackerPid, attacker, "onBattleDestroy", "attacker")
-            } else if (f.outcome === "blockerWins") {
-                fireTrigger(state, blockerPid, blocker, "onBattleWin", "blocker")
-                fireTrigger(state, blockerPid, blocker, "onBattleDestroy", "blocker")
-            } else if (f.outcome === "mutual") {
+            if (f.outcome === "mutual") {
                 // 相打ちは同時破壊なので、どちらの onBattleDestroy も（破壊後の写しから）発揮する
                 fireTrigger(state, attackerPid, attacker, "onBattleDestroy", "attacker")
                 fireTrigger(state, blockerPid, blocker, "onBattleDestroy", "blocker")
-            }
-            return
-        }
-        // 勝利側フィールドのネクサス等による『BPを比べ相手のスピリットだけを破壊したとき』
-        case 4: {
-            if (state.winner || sameSide) return
-            if (f.outcome === "attackerWins") {
-                fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
-            } else if (f.outcome === "blockerWins") {
-                fireBattleWonTriggers(state, blockerPid, blocker, "blocker")
             }
             return
         }
@@ -867,14 +840,6 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (!sameSide && hasKoboOnBlock(state, defenderPid)) {
                 resolveKoboOnBattleEnd(state, defenderPid, blocker)
             }
-            return
-        }
-        // 勝ったスピリットのフィールドイベント（battleWon 誘発と違い発生源の持ち主の全フィールド発生源が対象）
-        case 13: {
-            if (state.winner || sameSide) return
-            const winnerPid = f.outcome === "attackerWins" ? attackerPid : f.outcome === "blockerWins" ? blockerPid : null
-            const winnerInst = f.outcome === "attackerWins" ? attacker : blocker
-            if (winnerPid !== null) fireFieldEventTriggers(state, winnerPid, "ownSpiritBattleWon", { pid: winnerPid, inst: winnerInst }, instColors(winnerInst))
             return
         }
         case 14: {
