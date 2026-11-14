@@ -13,6 +13,8 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://bs-web-battle.app/deck.html" />
     <link rel="canonical" href="https://bs-web-battle.app/deck.html" />
+    <!-- 本番ではサーバーが ?v=<中身のハッシュ> を付ける（server/src/assetVersions.ts）。JS は assetUrl() でここから版つきの URL を引く -->
+    <meta name="asset" content="/api/cards" />
     <link rel="stylesheet" href="/css/deck.css" />
 </head>
 <body>

@@ -89,12 +89,20 @@
 対局開始時にだけ `import()` で読み込むよう分割すると効果が大きいが、`main.ts` の初期化順序に依存する
 グローバル状態があるかもしれないので、分割は小さく切り出して都度 smoke で確認しながら進める。
 
-## 4. 静的アセットへの Cache-Control（優先度: 低、工数: 中）
+## 4. JS・CSS・カードデータの長期キャッシュ（完了・2026-11-14）
 
-`express.static` は既定で `Cache-Control` を設定していない（ETag/Last-Modified のみで条件付きGET）。
-`/dist` `/css` に `maxAge` を付ければ再訪問時の待ち時間を減らせるが、**Cloud Run は再デプロイのたびに
-同じURLでファイル内容が変わる**ため、長い `maxAge` は「再訪問者が古いJS/CSSを掴む」事故になる。
-esbuild の出力にコンテンツハッシュを付けるところとセットで設計しないと安全に導入できない。
+JS（`/dist/*.js`）・CSS（`/css/*.css`）・カードデータ（`/api/cards`）は、中身のハッシュを版として URL に付け（`?v=<版>`）、
+版つきで来た要求にだけ `Cache-Control: public, max-age=31536000, immutable` を返す（`server/src/assetVersions.ts`）。
+再訪問では HTML 以外をサーバーへ取りに行かない。中身が変われば版が変わって別の URL になるので、デプロイのあとに古い JS を掴まない。
+
+- 版はサーバーが起動時に数え、HTML（index・deck・bugreport）の中の URL に付けて返す。HTML 自体は `no-cache`（新しい版の URL を配る入口なので覚えさせない）
+- **本番（`NODE_ENV=production`）だけ**。開発中は esbuild --watch が起動後に dist を書き換えるので、起動時の版で覚えさせると古い JS を掴む
+- ハッシュ入りのファイル名にはしなかった（esbuild の出力名・開発時の参照・E2E をそのまま使うため）
+- JS から取るもの（カードデータ・AI戦の Worker）は、HTML の `<meta name="asset" content="…">` に書いた URL を `assetUrl()`（`public/src/assetUrl.ts`）で引く。
+  **JS から取る配信物を長期キャッシュに足すときは、HTML に meta を1行足して `assetUrl()` で引く**（サーバーの版の表に無い URL は、`scanAssetVersions` か `index.ts` の `ASSET_VERSIONS` に足す）
+- AI戦の Worker には、版つきのカードデータの URL を Worker の URL の `cards` に付けて渡す（本体と同じ URL なので、2回目はブラウザのキャッシュから読む）
+- 古い版を付けた要求には長期キャッシュを返さない（返すと、古い URL に新しい中身が残り続ける）
+- 対象外：`/socket.io/socket.io.js`（socket.io が自分で配る）・`/api/deck-recipes`・`/data/card-notes.json`・画像（カード画像は7日）
 
 ## 5. socket.io 接続の遅延（完了・2026-09-28）
 
