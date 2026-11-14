@@ -153,6 +153,7 @@ export type EffectAction =
  | { type: "resolveOwnBattleLoseTriggers"; instanceId: string } // **内部専用**。破壊待機の列で、敗者自身（合体中のブレイヴを含む）の『BPを比べ相手のスピリットに破壊されたとき』を発揮する
  | { type: "resolveOwnDestroyTriggers"; instanceId: string; byOpponent?: true } // **内部専用**。破壊された自身の『破壊時』効果を発揮する。破壊で誘発した効果の列に「自身の破壊時ぜんぶ」を1グループとして入れるために使う（TIMING_CHART.md）
  | { type: "applyReviveOnDestroy"; instanceId: string; effectId: string } 
+ | { type: "applyNexusReviveOnDestroy"; instanceId: string } 
  | { type: "resolveFushiSummon"; pid: PlayerId; cardId: string } // **内部専用**。破壊で誘発した効果の列に並ぶ【不死】1枚分。解決時にトラッシュからカードIDで引き直すので、位置がずれても動く // **内部専用**。指定した reviveOnDestr
  | { type: "resolveHandFreeSummonOnDestroy"; pid: PlayerId; cardId: string } // **内部専用**。破壊で誘発した効果の列に並ぶ、手札の「〜が破壊されたときコストを支払わずに召喚できる」1枚分。解決時に手札からカードIDで引き直すoy エントリを適用する。上と同じ列に1グループとして入る
  | { type: "mutualDestroyChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent"; keywordExclude?: Keyword; eachOwn?: true } // keywordExclude＝そのキーワードを持たないスピリットだけが候補（一時付与・継続付与も見る）。destroyAllExceptChosenColorsと同じ二段階choice：発生源の持ち主→相手の順にフィールド（両陣営どちらでも可）から1体を指定し、2体（重複可）をそれぞれ破壊する。進捗はchosenOwn/chosenOpp/awaiting。自動選択は各プレイヤーが相手フィールドの実効BP最大（決定的簡略化）

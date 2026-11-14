@@ -171,51 +171,53 @@ export function wouldAskReviveConfirm(
     return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, "confirm")
 }
 
-// ネクサス版の reviveOnDestroy（scope:"ownNexus"）。破壊待機中のネクサスを、発生源（別の
-// 自分のネクサス）のコストで場に残す。removal.ts の driveNexusDestruction がコミット直前に呼ぶ。
-// true＝復活した、または確認を出した（どちらでもコミットは実質何もしない／断られたときだけ破壊される）
-export function tryNexusReviveOnDestroy(
+// ネクサス版の reviveOnDestroy（scope:"ownNexus"）で、破壊待機中のネクサスを場に残せる発生源（別の自分のネクサス）。
+// コストは発生源の疲労のみ（cost.exhaustSelf）。破壊待機状態のネクサスは疲労できないので、発生源自身が破壊されているとき（同時破壊）は外れる
+export function nexusReviveSource(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-): boolean {
-    const player = state.players[ownerPid]
-    for (const source of player.field.nexuses) {
+): { source: CardInstance; effect: Extract<EffectDef, { kind: "reviveOnDestroy" }> } | undefined {
+    for (const source of state.players[ownerPid].field.nexuses) {
         if (source.instanceId === inst.instanceId) continue
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "reviveOnDestroy" || effect.scope !== "ownNexus") continue
-            // ネクサス版のコストは発生源の疲労のみ（cost.exhaustSelf）。ほかのコスト種は対応しない
             if (effect.cost?.exhaustSelf !== true) continue
             if (!entryActive(state, ownerPid, source, effect, currentLevel(source).level)) continue
             if (!matchesTarget(state, ownerPid, inst, effect.filter, source.instanceId)) continue
-            // コストはこのネクサスの疲労のみ。破壊待機状態のネクサスは疲労できないので、
-            // 発生源自身が破壊されているとき（同時破壊）もここで落ちる
             if (source.pendingDestruction || source.isRested || !canExhaustNexus(state, ownerPid)) continue
-            if (state.interactiveTargets) {
-                suspend(state, {
-                    pid: ownerPid,
-                    kind: "option",
-                    prompt: `${getCard(inst.cardId).name}：${getCard(source.cardId).name}を疲労させて、破壊される代わりに疲労状態でフィールドに残しますか？`,
-                    candidates: [],
-                    options: ["疲労させて残す"],
-                    optional: true,
-                    confirm: true,
-                    reviveNexusConfirm: {
-                        pid: ownerPid,
-                        instanceId: inst.instanceId,
-                        sourceInstanceId: source.instanceId,
-                        effectId: effect.id,
-                    },
-                    action: { type: "noop" },
-                    selfInstanceId: inst.instanceId,
-                })
-                return true
-            }
-            applyNexusRevive(state, ownerPid, inst, source, effect)
-            return true
+            return { source, effect }
         }
     }
-    return false
+    return undefined
+}
+
+// 破壊の列の1項目（removal.ts の driveNexusDestruction が積む）。実対戦では確認を出し、断れば破壊はそのまま確定する
+export function tryNexusReviveOnDestroy(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+    const found = nexusReviveSource(state, ownerPid, inst)
+    if (!found) return
+    const { source, effect } = found
+    if (!state.interactiveTargets) {
+        applyNexusRevive(state, ownerPid, inst, source, effect)
+        return
+    }
+    suspend(state, {
+        pid: ownerPid,
+        kind: "option",
+        prompt: `${getCard(inst.cardId).name}：${getCard(source.cardId).name}を疲労させて、破壊される代わりに疲労状態でフィールドに残しますか？`,
+        candidates: [],
+        options: ["疲労させて残す"],
+        optional: true,
+        confirm: true,
+        reviveNexusConfirm: {
+            pid: ownerPid,
+            instanceId: inst.instanceId,
+            sourceInstanceId: source.instanceId,
+            effectId: effect.id,
+        },
+        action: { type: "noop" },
+        selfInstanceId: inst.instanceId,
+    })
 }
 
 // 確認で「残す」が選ばれたときの後処理（choice.ts から呼ぶ）。コストを払って復活を確定させる。
@@ -249,7 +251,6 @@ function applyNexusRevive(
     if (!exhaustNexus(state, ownerPid, source, ownerPid, getCard(source.cardId).type)) return
     delete inst.pendingDestruction
     inst.isRested = true
-    inst.nexusReviveStayed = true
     noteCoverage(effect, "reviveOnDestroy")
     log(
         state,
