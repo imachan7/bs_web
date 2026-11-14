@@ -122,7 +122,11 @@ export function pickEnemyByBp(
     sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
 ): CardInstance | null {
-    const candidates = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType, op)
+    const all = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType, op)
+    // 破壊待機状態の体も対象に取れるが、自動選択（AI・非対話）では、ほかに候補がいれば選ばない
+    // （破壊した相手を手札に戻して助ける手になる。勝敗の誘発を破壊待機の列で解決するので、敗者がまだ場にいる。#554）
+    const live = all.filter((s) => s.pendingDestruction !== true)
+    const candidates = live.length > 0 ? live : all
     if (candidates.length === 0) return null
     return candidates.reduce((best, s) =>
         effectiveBp(state, targetPid, s) > effectiveBp(state, targetPid, best) ? s : best,

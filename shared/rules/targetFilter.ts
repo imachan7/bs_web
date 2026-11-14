@@ -112,6 +112,8 @@ export function matchesTarget(
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.symbolCount !== undefined && instanceSymbolCount(inst) !== filter.symbolCount) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
+    if (filter.excludeInstanceId !== undefined && inst.instanceId === filter.excludeInstanceId) return false
+    if (filter.onlyInstanceId !== undefined && inst.instanceId !== filter.onlyInstanceId) return false
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
     if (filter.maxCores !== undefined && inst.cores > filter.maxCores) return false
     // [ソウルコア]が載っている/載っていない（26系）。ソウルコアの居場所は公開情報で、

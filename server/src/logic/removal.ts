@@ -29,7 +29,9 @@ import { isOnceNameUsed } from "./oncePerTurn"
 import { leavesNothingBehind } from "./keywords/bunshin"
 import { isTokenCard } from "../../../shared/cardDb"
 import { trashUnderCards } from "./zones/underCards"
-import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, tryNexusReviveOnDestroy, wouldAskReviveConfirm } from "./revive"
+import { collectBattleOutcomeTriggers } from "./battleOutcomeTriggers"
+import type { BattleWinner } from "./battleOutcomeTriggers"
+import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, nexusReviveSource, wouldAskReviveConfirm } from "./revive"
 import {
     activeConstraints,
     auraAmount,
@@ -285,7 +287,6 @@ export function destroySpirit(
             first: true,
         })
     }
-    // 「フィールドに残る」で生き残っても勝敗は変わらないので発揮する（requiresPendingDestructionOf を付けない。TIMING_CHART の勝敗の行）
     if (cause === "destroy" && context?.battleLoser && hasOwnTrigger(state, ownerPid, inst, "onBattleLose")) {
         extraItems.push({
             key: `selfBattleLose:${inst.instanceId}`,
@@ -293,6 +294,7 @@ export function destroySpirit(
             action: { type: "resolveOwnBattleLoseTriggers", instanceId: inst.instanceId },
             selfInstanceId: inst.instanceId,
             actorPid: ownerPid,
+            requiresPendingDestructionOf: inst.instanceId,
         })
     }
     if (cause === "destroy" && !inst.skipReviveOnCommit) {
@@ -349,7 +351,7 @@ export function destroySpirit(
             })
         }
     }
-    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems)
+    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems, cause === "destroy" ? context?.battleWinner : undefined)
     if (state.pendingChoice || state.winner) {
         suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
         return true
@@ -433,6 +435,7 @@ function fireOwnSpiritDestroyed(
     byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
     extraItems?: FieldEventExtraItem[],
+    battleWinner?: BattleWinner,
 ): void {
     const master = getCard(inst.cardId)
     // 色・系統は付与込み（破壊待機中でまだ場にいるので、場を離れる直前の状態を読める）
@@ -473,6 +476,7 @@ function fireOwnSpiritDestroyed(
         families,
         costs: instAllCosts(inst),
     }, undefined, undefined, undefined, undefined, items)
+    if (battleWinner) collectBattleOutcomeTriggers(state, ownerPid, inst, battleWinner, items)
     // 持ち主側と相手側を1つの列で、ターンプレイヤーが順番を決めて解決する（TIMING_CHART「破壊で誘発した効果は1つの列」。
     // #437 R11B-1：以前は相手側を別に即解決し、持ち主側が選択待ちのあいだに盤面が動いた・質問が上書きされた）
     resolveInOrder(state, items, {
@@ -635,7 +639,9 @@ export function commitPendingDestruction(
     delete inst.pendingDestroyBurstInfo
     // トークンはトラッシュに置かれずトークン置き場へ戻る＝破壊後バーストも起きない（「破壊時」は発揮済み）
     const token = leavesNothingBehind(inst)
-    if (!token) (state.pendingBurstDestroyQueue ??= []).push({
+    // トラッシュに置かれない破壊（デッキの下へ行く）では破壊後バーストを発動できない（2026-11-14 ユーザー確認。#552）
+    const toDeckBottom = !token && inst.bunshinOf === undefined && burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)
+    if (!token && !toDeckBottom) (state.pendingBurstDestroyQueue ??= []).push({
         pid: ownerPid,
         groupKey: state.destroyGroup?.id ?? inst.instanceId,
         cardId: inst.cardId,
@@ -652,7 +658,7 @@ export function commitPendingDestruction(
         player.trashCards.push(inst.bunshinOf) // Q787：元のカードが表向きでトラッシュへ（BP0でもデッキ下へは行かない）
         if (commitContext) commitContext.trashedCount = (commitContext.trashedCount ?? 0) + 1
     } else if (!token) {
-        if (burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)) player.deck.push(inst.cardId)
+        if (toDeckBottom) player.deck.push(inst.cardId)
         else {
             player.trashCards.push(inst.cardId)
             if (commitContext) commitContext.trashedCount = (commitContext.trashedCount ?? 0) + 1
@@ -1031,10 +1037,11 @@ export function destroyTargetsBatch(
     }
     const destroyed = finishDestroyGroup(state, context)
     restoreDestroyGroup(state, prevGroup)
+    // 順番は「破壊 → 破壊誘発（破壊した数につき〜の後処理を含む）→ トラッシュ → バースト」（2026-11-14 ユーザー確認。#552）。
+    // 後処理が選択待ちで止まったら、バーストは handleAction 末尾の fireQueuedDestroyBursts が解決後に拾う
+    if (after && !state.winner) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
     // グループの外（入れ子の破壊でなければ）に戻ったところで、破壊後バーストをまとめて発火する
     if (!state.destroyGroup && !deferBurst) fireQueuedDestroyBursts(state)
-    if (state.winner) return destroyed
-    if (after) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
     return destroyed
 }
 
@@ -1064,9 +1071,8 @@ export function resumeDestroyBatch(
     }
     const total = finishDestroyGroup(state, frame.context)
     restoreDestroyGroup(state, frame.prevGroup)
+    if (!state.winner) applyDestroyBatchAfter(state, frame.ownerPid, total, frame.after)
     if (!state.destroyGroup && !frame.deferBurst) fireQueuedDestroyBursts(state)
-    if (state.winner) return
-    applyDestroyBatchAfter(state, frame.ownerPid, total, frame.after)
 }
 
 // 確定した体数を数え、「この効果で破壊した数」として記録する。context が無い破壊は確定数で代用
@@ -1156,7 +1162,7 @@ export function destroyNexus(
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊された。`)
     // 直近に破壊されたネクサスを記録する（「その破壊されたネクサス」を参照する効果用）
     state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.cardId }
-    driveNexusDestruction(state, ownerPid, inst, 1, byOpponentEffectOf(context, ownerPid), after)
+    driveNexusDestruction(state, ownerPid, inst, byOpponentEffectOf(context, ownerPid), after)
     return true
 }
 
@@ -1169,73 +1175,75 @@ function byOpponentEffectOf(context: DestroyContext | undefined, ownerPid: Playe
     )
 }
 
-// ネクサスの破壊処理（＞６）を1ステップずつ進める。**1ステップ＝中断しうる呼び出し1つ**。
-// 途中で選択待ちが立ったら destroyNexusCommit フレームに次のステップを載せて抜ける
-// （破壊待機状態のまま残る）。docs/design/TIMING_CHART.md §1.5
+// ネクサスの破壊処理（＞６）。この破壊で誘発するものは**すべて1つの列**に並べ、ターンプレイヤーが1つずつ選んで解決する
+// （スピリットと同じ。2026-11-14 ユーザー確認。#553。docs/design/TIMING_CHART.md §1.5）。
+// 「疲労させて残す」「フィールドに戻す」が先に解決して破壊待機が解除されたら、列の残りは発揮しない
 function driveNexusDestruction(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-    startStep: number,
     byOpponentEffect: boolean,
     after?: { actorPid: PlayerId; action: EffectAction },
 ): void {
-    // 破壊が確定したときだけ after を解決する。ネクサス版 reviveOnDestroy で「破壊される代わりに」
-    // 場に残った（nexusReviveStayed）ときは破壊されていないので解決しない。
-    // reviveLastDestroyedNexus（破壊された後でフィールドに戻す）は待機を解除しても破壊は成立しているので解決する
-    const runAfterIfDestroyed = (): void => {
-        const stayed = inst.nexusReviveStayed === true
-        delete inst.nexusReviveStayed
-        if (after && !stayed) resolveAction(state, after.actorPid, null, after.action)
+    const guard = { pendingDestructionOf: inst.instanceId }
+    const items: CollectedTrigger[] = []
+    // 破壊した/された側を問わず両陣営のフィールドから。バウンスはここを通らない
+    fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed", undefined, undefined, undefined, undefined, guard, undefined, undefined, undefined, undefined, items)
+    fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed", undefined, undefined, undefined, undefined, guard, undefined, undefined, undefined, undefined, items)
+    const revive = nexusReviveSource(state, ownerPid, inst)
+    const extraItems: FieldEventExtraItem[] = revive
+        ? [
+              {
+                  key: `nexusRevive:${revive.source.instanceId}`,
+                  label: `${getCard(revive.source.cardId).name}（フィールドに残す）`,
+                  action: { type: "applyNexusReviveOnDestroy", instanceId: inst.instanceId },
+                  selfInstanceId: inst.instanceId,
+                  actorPid: ownerPid,
+                  requiresPendingDestructionOf: inst.instanceId,
+              },
+          ]
+        : []
+    // 破壊されたネクサス自身は破壊待機状態でまだ場にいるので、そのネクサス自身が持つ形も走査に含まれる。
+    // eventColors を渡さないと fieldEvent.colorFilter が常に外れる
+    fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, instColors(inst), undefined, undefined, { byOpponentEffect, ...guard }, undefined, extraItems, undefined, undefined, items)
+    resolveInOrder(state, items, {
+        skip: (i) => i.skip?.() === true,
+        resolve: (i) => i.run(),
+        frame: (i) => i.frame,
+        askOrder: { pid: state.turnPlayer, label: (i) => i.label, key: (i) => i.key },
+    })
+    finishNexusDestruction(state, ownerPid, inst, byOpponentEffect, after)
+}
+
+// 列を解決し終えたら確定する。after（破壊した側の「破壊したとき〜」）とバーストは、実際にトラッシュへ置いたときだけ
+// （「残す」も「フィールドに戻す」も破壊待機の解除で、破壊は無かったことになる。2026-11-14 ユーザー確認）
+function finishNexusDestruction(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    byOpponentEffect: boolean,
+    after?: { actorPid: PlayerId; action: EffectAction },
+): void {
+    if (state.pendingChoice && !state.winner) {
+        const commitFrame: ResumeFrame = { kind: "destroyNexusCommit", pid: ownerPid, instanceId: inst.instanceId, byOpponentEffect, ...(after ? { after } : {}) }
+        // 列（triggerBatch）が積まれていれば、確定はその後（suspendDestroyCommit と同じ理由）
+        const batchAt = state.resumeStack.map((f) => f.kind).lastIndexOf("triggerBatch")
+        const batch = batchAt >= 0 ? state.resumeStack[batchAt] : undefined
+        if (batch !== undefined && batch.kind === "triggerBatch") batch.after = commitFrame
+        else pushResumeFrames(state, [commitFrame])
+        return
     }
-    const commit = (): void => {
-        commitPendingNexusDestruction(state, ownerPid, inst)
-        runAfterIfDestroyed()
-    }
-    for (let step = startStep; step <= 5; step++) {
-        switch (step) {
-            // フィールドイベント誘発「ネクサスが破壊されたとき」：破壊した/された側を問わず両陣営のフィールドから発火。バウンスはここを通らないため対象外
-            case 1:
-                fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed")
-                break
-            case 2:
-                fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed")
-                break
-            // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ発火。
-            // 破壊されたネクサス自身は破壊待機状態でまだ場にいるので、そのネクサス自身が持つ形も走査に含まれる
-            case 3:
-                // eventColors には破壊されたネクサスの色を渡す。渡さないと fieldEvent.colorFilter が常に外れ、条件付きの誘発が不発になる
-                fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, instColors(inst), undefined, undefined, {
-                    byOpponentEffect,
-                })
-                break
-            // ネクサス版 reviveOnDestroy（scope:"ownNexus"）：コミットの前に、他の自分のネクサスが
-            // コストで破壊を打ち消せるかを見る。復活したら inst.pendingDestruction が消えるのでコミットは空振りする
-            case 4:
-                tryNexusReviveOnDestroy(state, ownerPid, inst)
-                break
-            default:
-                commit()
-                return
-        }
-        if (state.winner) {
-            commit()
-            return
-        }
-        if (state.pendingChoice) {
-            pushResumeFrames(state, [
-                {
-                    kind: "destroyNexusCommit",
-                    pid: ownerPid,
-                    instanceId: inst.instanceId,
-                    step: step + 1,
-                    byOpponentEffect,
-                    ...(after ? { after } : {}),
-                },
-            ])
-            return
-        }
-    }
+    const colors = instColors(inst)
+    if (!commitPendingNexusDestruction(state, ownerPid, inst)) return
+    if (after) resolveAction(state, after.actorPid, null, after.action)
+    if (state.winner) return
+    const checks: EventBurstCheck[] = [
+        { pid: ownerPid, event: "anyNexusDestroyed" },
+        { pid: opponentOf(ownerPid), event: "anyNexusDestroyed" },
+        { pid: ownerPid, event: "ownNexusDestroyed", colors, info: { byOpponentEffect } },
+    ]
+    if (state.pendingChoice) pushResumeFrames(state, [{ kind: "eventBursts", checks }])
+    else fireEventBursts(state, checks)
 }
 
 export function resumeDestroyNexusCommit(
@@ -1243,17 +1251,8 @@ export function resumeDestroyNexusCommit(
     frame: Extract<ResumeFrame, { kind: "destroyNexusCommit" }>,
 ): void {
     const inst = state.players[frame.pid].field.nexuses.find((n) => n.instanceId === frame.instanceId)
-    if (!inst) return
-    // 確認のあいだに破壊待機が解除されていたら、もうステップを進めない。
-    // reviveLastDestroyedNexus（破壊された後で戻す）なら破壊は成立しているので after だけ解決する。
-    // ネクサス版 reviveOnDestroy（nexusReviveStayed）なら「破壊されていない」ので after も解決しない
-    if (!inst.pendingDestruction) {
-        const stayed = inst.nexusReviveStayed === true
-        delete inst.nexusReviveStayed
-        if (frame.after && !stayed) resolveAction(state, frame.after.actorPid, null, frame.after.action)
-        return
-    }
-    driveNexusDestruction(state, frame.pid, inst, frame.step, frame.byOpponentEffect, frame.after)
+    if (!inst || !inst.pendingDestruction) return
+    finishNexusDestruction(state, frame.pid, inst, frame.byOpponentEffect, frame.after)
 }
 
 export function commitPendingNexusDestruction(

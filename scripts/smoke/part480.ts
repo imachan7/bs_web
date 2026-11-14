@@ -36,7 +36,9 @@ function drive(t: ScenarioCtx, decline = false): number {
         } else if (pc.kind === "card") {
             t.act(side, { type: "resolveChoice", cardIndex: pc.cardIndices![0]! })
         } else {
-            const pick = pc.selectedIds ? pc.candidates.find((id) => !pc.selectedIds!.includes(id)) : pc.candidates[0]
+            // 破壊待機中の敗者も候補に並ぶ（勝敗の誘発は破壊待機の列で解決する。#554）。この部では生きている体を選ぶ
+            const live = pc.candidates.filter((id) => t.state.players[t.opp].field.spirits.find((x) => x.instanceId === id)?.pendingDestruction !== true)
+            const pick = pc.selectedIds ? live.find((id) => !pc.selectedIds!.includes(id)) : live[0] ?? pc.candidates[0]
             t.act(side, pick === undefined ? { type: "resolveChoice" } : { type: "resolveChoice", instanceId: pick })
         }
     }

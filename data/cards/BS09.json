@@ -3545,7 +3545,7 @@
            "color": "green"
           }
         },
-        "action": {"type": "sequence", "actions": [{"type": "destroy", "count": 1, "filter": {"cost": {"min": 3, "max": 3}}}, {"type": "destroy", "count": 1, "filter": {"cost": {"min": 4, "max": 4}}}]}
+        "action": {"type": "destroy", "count": 1, "eachFilter": [{"cost": {"min": 3, "max": 3}}, {"cost": {"min": 4, "max": 4}}]}
       },
       {
         "id": "BS09-052-e2",

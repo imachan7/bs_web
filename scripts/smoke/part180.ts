@@ -238,20 +238,33 @@ const PLAIN_ATTACKER = findCard(
     "効果を持たない勝てるアタッカー",
 )
 
-console.log("=== ＞５のBP比較は＞６より先：敗者が場に残っても勝者側の効果は発揮する ===")
-{
-    const { s, attacker, blocker } = setupWardedBlocker("battle-won-despite-revive", PLAIN_ATTACKER, 1)
+console.log("=== 勝者側の「破壊したとき」は敗者の破壊待機の列で解決する：順番で結果が変わる（#554。TIMING_CHART §2） ===")
+for (const winFirst of [true, false]) {
+    const { s, attacker, blocker } = setupWardedBlocker(`battle-won-order-${String(winFirst)}`, PLAIN_ATTACKER, 1)
     putNexus(s, "p1", BATTLE_WON.cardId, coresOf(BATTLE_WON, 2))
+    s.interactiveTargets = true
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     const handBefore = s.players.p1.hand.length
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "p1がアタック宣言")
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "p2がブロック宣言")
-    closeFlash(s)
-
+    let asked = false
+    for (let i = 0; i < 20 && (s.pendingChoice || s.battle); i++) {
+        closeFlash(s)
+        const pc = s.pendingChoice
+        if (!pc) continue
+        const opts = pc.options ?? []
+        const win = opts.find((o) => o.includes(BATTLE_WON.name))
+        const stay = opts.find((o) => o.includes("フィールドに残る"))
+        if (win !== undefined && stay !== undefined) asked = true
+        // 順番の質問は winFirst で選び分け、確認（残る・発動）は受ける
+        act(s, pc.pid, { type: "resolveChoice", option: (winFirst ? win : stay) ?? opts[0]! })
+    }
+    assert(asked, "ターンプレイヤーに、勝者側の効果と「フィールドに残る」の順番を聞く")
     assert(s.battle === null, "バトルが解決している")
     assert(ALIVE(s, "p2", blocker.instanceId), "敗者は「フィールドに残る」で場に残っている")
+    const drew = s.players.p1.hand.length - handBefore
     assert(
-        s.players.p1.hand.length === handBefore + 1,
-        `残られても勝者側の効果は発揮する（手札 ${String(handBefore)} → ${String(s.players.p1.hand.length)}）`,
+        drew === (winFirst ? 1 : 0),
+        winFirst ? `勝者側の効果を先に解決すれば発揮する（ドロー ${String(drew)}）` : `「残る」を先に解決したら、破壊待機でなくなるので発揮しない（ドロー ${String(drew)}）`,
     )
 }

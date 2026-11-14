@@ -1,4 +1,5 @@
 // ステップの開始・終了、バトルに勝ったとき、BP が達したときの誘発
+import type { CollectedTrigger } from "./blockDeclared"
 import { levelStillMet } from "./levelRecheck"
 import { noteCoverage } from "../../../shared/coverage"
 import { entryActive } from "../../../shared/rules/effectStop"
@@ -29,6 +30,7 @@ export function fireBattleWonTriggers(
     winnerPid: PlayerId,
     winnerInst: CardInstance,
     role: "attacker" | "blocker",
+    collect?: CollectedTrigger[], // 渡されたら解決せず、同時発揮の1件ずつとして積んで返る（敗者の破壊待機の列。battleOutcomeTriggers.ts）
 ): void {
     // effectSources：このターンだけの仮想発生源（マジックが貸した継続効果。BS04ニーベルングリング）も含める
     const instances = effectSources(state, winnerPid)
@@ -129,7 +131,7 @@ export function fireBattleWonTriggers(
     }
     const selfOf = (e: (typeof firing)[number]): CardInstance =>
         e.effect.selfMode === "source" ? e.inst : winnerInst
-    resolveInOrder(state, firing, {
+    const handlers: Parameters<typeof resolveInOrder<(typeof firing)[number]>>[2] = {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) => (!isVirtualSource(e.inst) && !isStillOnField(state, winnerPid, e.inst.instanceId)) || !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id }),
@@ -158,7 +160,21 @@ export function fireBattleWonTriggers(
             // 同名カードを2枚並べた場合は順序を入れ替えても結果が同じ（対称）
             key: (e) => e.inst.cardId,
         },
-    })
+    }
+    if (collect !== undefined) {
+        for (const e of firing) {
+            collect.push({
+                // 列には両陣営の効果が並ぶので、持ち主込みにする
+                key: `${winnerPid}:${e.inst.cardId}`,
+                label: `${state.players[winnerPid].name}の${getCard(e.inst.cardId).name}`,
+                frame: handlers.frame(e),
+                skip: () => handlers.skip?.(e) === true,
+                run: () => handlers.resolve(e),
+            })
+        }
+        return
+    }
+    resolveInOrder(state, firing, handlers)
 }
 
 // ステップ誘発の condition を、発火元インスタンスの持ち主 pid 基準で判定する

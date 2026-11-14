@@ -74,6 +74,8 @@ function scoreChoice(view: GameView, me: PlayerId, action: GameAction): number {
     if (action.instanceId !== undefined) {
         const found = findOnBoard(view, action.instanceId)
         if (!found) return 30
+        // 破壊待機中の相手の体は、選ぶと手札に戻して助けることになるので最後にする（勝敗の誘発は敗者の破壊待機の列で解決する。#554）
+        if (found.owner !== me && found.inst.pendingDestruction === true) return 5
         const strength = bpScore(view, found.owner, found.inst) + currentLevel(found.inst).level
         return found.owner === me ? 50 - strength : 50 + strength
     }
