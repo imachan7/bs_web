@@ -1,4 +1,4 @@
-// smoke パート945（コストを支払わずに使うマジックにも、螺旋の塔の余分が掛かる。Q20060・#543。COST_MODEL §11 の召喚と同じ払い方）
+// smoke パート947（コストを支払わずに使うマジックにも、螺旋の塔の余分が掛かる。Q20060・#543。COST_MODEL §11 の召喚と同じ払い方）
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 
@@ -112,4 +112,4 @@ console.log("=== ジェミナイズ（手札/手元からコストを支払わ�
     assert(s.players.p1.hand.includes(DRAW) && !s.players.p1.trashCards.includes(DRAW), "余分を払えないマジックは候補に出ず、手札に残る")
 }
 
-console.log("すべてのチェックに合格しました 🎉（part945）")
+console.log("すべてのチェックに合格しました 🎉（part947）")
