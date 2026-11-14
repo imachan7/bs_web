@@ -68,8 +68,6 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
     const zone = action.from === "hand" ? player.hand : player.trashCards
     // fromEvent：その回に破棄されたカード（state.lastDeckMill）だけ。同じ cardId が複数あるときは新しい方から枚数ぶん当てる
     const fromEventIdx = action.fromEvent ? millEventIndices(zone, state.lastDeckMill?.pid === zonePid ? state.lastDeckMill.cardIds : []) : undefined
-    // 同名が複数あるときは最後に置かれた1枚（直前にバトルで破壊されたカード）だけ
-    const battleLoserIdx = action.onlyLastBattleDestroyed && state.lastBattleDestroyedCardId !== undefined ? zone.lastIndexOf(state.lastBattleDestroyedCardId) : undefined
     const lastMoved = action.lastMovedOnly ? lastMovedOf(state) : undefined
     // トラッシュのカード名は trashNameAs の別名でも一致する
     const { nameIncludes, ...pickRest } = action.pick ?? {}
@@ -84,7 +82,6 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
                 (!action.onlyEventCard || id === targetInstanceId) &&
                 (action.from === "hand" || !isTrashCardProtected(id, state)) &&
                 (fromEventIdx === undefined || fromEventIdx.has(j)) &&
-                (!action.onlyLastBattleDestroyed || (battleLoserIdx !== undefined && battleLoserIdx === j)) &&
                 (lastMoved === undefined || lastMoved.includes(id)),
         )
         .map(({ j }) => j)
@@ -452,16 +449,6 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
     if (action.from === "revealed") {
         moveRevealed(ctx, action)
         return
-    }
-    // 「破壊したスピリットをデッキの上に戻す」は敗者の破壊待機の列で解決するので、敗者はまだ場にいる（#554）。
-    // 行き先だけ控え、破壊の確定でデッキの上へ置く。下の from:"trash" は、確定した後に解決する経路への保険
-    if (action.onlyLastBattleDestroyed && action.dest === "deckTop") {
-        const loser = state.players[opp].field.spirits.find((s) => s.instanceId === state.lastBattleDestroyedInstanceId && s.pendingDestruction === true)
-        if (loser) {
-            loser.pendingDestroyContext = { ...loser.pendingDestroyContext, leaveTo: "deckTop" }
-            log(state, `${sourceName}：破壊した${getCard(loser.cardId).name}をデッキの上に戻す。`)
-            return
-        }
     }
     // 相手の手札を動かす効果は、手札が「相手の効果を受けない」なら発揮しない（drawDiscard の手札破棄と同じ判定。2026-11-11 監査で発見）
     if (action.from === "hand" && action.side === "opponent" && handImmuneFor(state, opp, srcType)) {

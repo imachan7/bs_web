@@ -202,7 +202,6 @@ export interface DestroyContext {
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
     sourceType?: CardType
     trashedCount?: number // この破壊で実際にトラッシュへ置かれた体数（removal.ts の commitPendingDestruction が数える。手札へ戻った個体・トークンは数えない。BS22-073 Q25205）
-    leaveTo?: "deckTop" // 破壊待機中に「破壊したスピリットをデッキの上に戻す」が解決した。確定時にトラッシュでなくデッキの上へ置く（トラッシュに置かれないので破壊後バーストも無い。BS17-034）
     suppressOnDestroy?: true
     suppressOwnEffects?: true // suppressOnDestroy に加え、破壊された個体自身の「フィールドに残る／戻る」も出さない（BS22-054。【不死】やほかのカードの効果は止めない。2026-11-07 ユーザー確認）
     braveCantRemain?: true // 合体スピリットが破壊されるとき、ブレイヴを残す確認を出さずトラッシュへ（BS22-016）

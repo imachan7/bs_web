@@ -9,6 +9,7 @@ const DUALDO = "BS10-007" // デュアルド（赤・BP5000・バニラ）
 const EIRIK = "BS17-034" // レッド・エイリーク（【合体時】Lv2･Lv3：BPを比べ相手のスピリットだけを破壊したとき、破壊したスピリットをデッキの上に戻せる）
 const WALL = "BS14-101" // 仁王壁（バースト：相手による自分のスピリット破壊後）
 const SWORD = "BSC05-009" // 竜機合神ソードランダー
+const BONES = "BS19-082" // 魂彷徨う骨の森（ネクサス）
 
 console.log("=== 前提: カードの機械確認 ===")
 {
@@ -77,20 +78,26 @@ for (const wheelFirst of [true, false]) {
     assert(s.players.p1.life === life + (wheelFirst ? 1 : 0), wheelFirst ? "大観覧車を先に解決すればライフが増える" : `「手札に戻る」を先に解決したら大観覧車は発揮しない（ライフ ${life} → ${s.players.p1.life}）`)
 }
 
-console.log("=== 2. レッド・エイリーク：破壊したスピリットはトラッシュに置かれずデッキの上に戻り、破壊後バーストは発動できない ===")
-{
-    const s = game("eirik-decktop")
+console.log("=== 2. レッド・エイリーク：破壊したスピリットはデッキの上に戻り、戻した後は同じ列の残りの破壊誘発も破壊後バーストも無い ===")
+for (const eirikFirst of [true, false]) {
+    const s = game(`eirik-decktop-${String(eirikFirst)}`)
     const brave = getCard("BS13-053") // モクバオー（ブレイヴ）
     assert(brave.type === "brave", "合体させるブレイヴ")
+    assert(getCard(BONES).name === "魂彷徨う骨の森" && getCard(BONES).type === "nexus", "BONESは魂彷徨う骨の森")
     const eirik = put(s, "p1", EIRIK, 2)
     const b = put(s, "p1", brave.cardId, 0)
     assert(act(s, "p1", { type: "combineBrave", braveInstanceId: b.instanceId, hostInstanceId: eirik.instanceId }) === null, "合体する")
     const blocker = put(s, "p2", ANGEL, 1)
+    put(s, "p2", BONES, 0, "nexuses") // 『アタックステップ』自分のスピリットが破壊されたとき1枚ドロー
     s.players.p2.burst = WALL
     s.players.p2.burstSet = true
-    const seen = battle(s, eirik.instanceId, blocker.instanceId, ["発動する", "はい"])
+    const handBefore = s.players.p2.hand.length
+    const seen = battle(s, eirik.instanceId, blocker.instanceId, eirikFirst ? ["レッド・エイリーク", "発動する", "はい"] : ["魂彷徨う骨の森", "レッド・エイリーク", "発動する", "はい"])
+    assert(seen.some((o) => o.some((x) => x.includes("レッド・エイリーク")) && o.some((x) => x.includes("魂彷徨う骨の森"))), "ターンプレイヤーに、エイリークと骨の森の順番を聞く")
     assert(s.players.p2.deck[0] === ANGEL && !s.players.p2.trashCards.includes(ANGEL), "破壊した天使パワーは相手のデッキの上に戻る（トラッシュに置かれない）")
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === blocker.instanceId), "場からは離れる")
+    const drew = s.players.p2.hand.length - handBefore
+    assert(drew === (eirikFirst ? 0 : 1), eirikFirst ? `先に戻したら、破壊待機でなくなるので骨の森は発揮しない（ドロー ${drew}）` : `骨の森を先に解決すれば発揮する（ドロー ${drew}）`)
     assert(s.players.p2.burst === WALL && !seen.some((o) => o.some((x) => x.includes("バースト"))), "トラッシュに置かれていないので、破壊後バーストは確認されない")
 }
 

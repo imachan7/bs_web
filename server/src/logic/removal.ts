@@ -639,8 +639,7 @@ export function commitPendingDestruction(
     delete inst.pendingDestroyBurstInfo
     // トークンはトラッシュに置かれずトークン置き場へ戻る＝破壊後バーストも起きない（「破壊時」は発揮済み）
     const token = leavesNothingBehind(inst)
-    const toDeckTop = commitContext?.leaveTo === "deckTop"
-    if (!token && !toDeckTop) (state.pendingBurstDestroyQueue ??= []).push({
+    if (!token) (state.pendingBurstDestroyQueue ??= []).push({
         pid: ownerPid,
         groupKey: state.destroyGroup?.id ?? inst.instanceId,
         cardId: inst.cardId,
@@ -656,8 +655,6 @@ export function commitPendingDestruction(
     if (inst.bunshinOf !== undefined) {
         player.trashCards.push(inst.bunshinOf) // Q787：元のカードが表向きでトラッシュへ（BP0でもデッキ下へは行かない）
         if (commitContext) commitContext.trashedCount = (commitContext.trashedCount ?? 0) + 1
-    } else if (toDeckTop) {
-        player.deck.unshift(inst.cardId)
     } else if (!token) {
         if (burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)) player.deck.push(inst.cardId)
         else {

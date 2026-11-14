@@ -102,32 +102,6 @@ patch(SELF_EX, [{ id: "t026", kind: "globalConstraint", levels: null, constraint
 }
 restore()
 
-console.log("=== 034: バトルで破壊されたカードだけをトラッシュから相手のデッキの上へ ===")
-{
-    const s = game("m034a")
-    const attacker = put(s, "p1", SELF_EX, 4) // Lv2・BP6000
-    const blocker = put(s, "p2", STRONG, 1) // BP1000
-    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
-    assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")
-    assert(declareBlock(s, "p2", blocker.instanceId) === null, "ブロック")
-    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
-    assert(s.lastBattleDestroyedCardId === STRONG, "破壊されたカードの cardId が記録される")
-    s.players.p2.trashCards = [STRONG, PLAIN, STRONG] // 手前の同名1枚は動かない
-    const move = { type: "moveCards", side: "opponent", from: "trash", count: 1, dest: "deckTop", upTo: true, onlyLastBattleDestroyed: true } as const
-    const deckLen = s.players.p2.deck.length
-    resolveAction(s, "p1", null, move)
-    assert(s.players.p2.deck[0] === STRONG && s.players.p2.deck.length === deckLen + 1, "相手のデッキの上へ1枚戻る")
-    assert(s.players.p2.trashCards.length === 2 && s.players.p2.trashCards.filter((c) => c === STRONG).length === 1, "動くのは1枚だけ")
-    s.players.p2.trashCards = [PLAIN]
-    resolveAction(s, "p1", null, move)
-    assert(s.players.p2.deck.length === deckLen + 1 && s.players.p2.trashCards.length === 1, "トラッシュに無ければ不発")
-}
-{
-    const s = game("m034b")
-    s.players.p2.trashCards = [STRONG]
-    resolveAction(s, "p1", null, { type: "moveCards", side: "opponent", from: "trash", count: 1, dest: "deckTop", upTo: true, onlyLastBattleDestroyed: true })
-    assert(s.players.p2.trashCards.length === 1, "バトルの記録が無ければ不発")
-}
+// BS17-034 の「破壊したスピリットをデッキの上に戻す」は、破壊待機の敗者を戻す形に変えた（#554）。場面は part950
 
 console.log("すべてのチェックに合格しました 🎉（part609）")
