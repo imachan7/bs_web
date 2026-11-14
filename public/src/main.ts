@@ -8,6 +8,7 @@ import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../
 import { braveCombineCandidates } from "../../shared/summon"
 import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, rebuildDeckSelects, rememberDeckSelection, rememberLobbyInputs, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
+import { waitForOpponent, type DeckChoice } from "./matchWait"
 import { assetUrl } from "./assetUrl"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
@@ -288,39 +289,98 @@ onGame("joined", () => {
 
 socket.on("joinCancelled", () => {
     hideWaiting()
+    // 相手が現れなかったルームから席を外した直後なら、同じ条件で待ち直す
+    if (arrival?.expired) {
+        const { retry } = arrival
+        arrival = null
+        showToast("相手が来なかったので、待ち直します")
+        retry()
+    }
 })
 
-// ---- ランダムマッチのイベント ----
+// ---- 相手待ち（ランダムマッチ・合言葉ルーム） ----
+// 待っている間は接続を張らず、数秒おきに問い合わせる（public/src/matchWait.ts）。相手が決まってから socket をつないでルームへ入る
 
-socket.on("matchQueued", (payload: { waiting: number }) => {
-    // ボタンを隠して待機状態を表示する
-    const btn = document.getElementById("random-match-btn")
-    const status = document.getElementById("random-match-status")
-    const count = document.getElementById("random-match-count")
-    if (btn) btn.classList.add("hidden")
-    if (status) status.classList.remove("hidden")
-    if (count) count.textContent = String(payload.waiting)
-})
+// 待ちをやめる関数。待っていなければ null
+let stopWaiting: (() => void) | null = null
+// 相手が決まって入ったルームで、相手の到着を待っている間の控え。
+// 相手が roomId を受け取る前にタブを閉じていると自分だけがルームに残るので、来なければ席を外して待ち直す
+let arrival: { timer: ReturnType<typeof setTimeout>; join: () => void; retry: () => void; expired: boolean } | null = null
+const ARRIVAL_TIMEOUT_MS = 15_000
 
-socket.on("matchWaiting", (payload: { waiting: number }) => {
-    const count = document.getElementById("random-match-count")
-    if (count) count.textContent = String(payload.waiting)
-})
+// waiting が null なら待っていない表示に戻す
+function showRandomWait(waiting: number | null): void {
+    byId("random-match-btn").classList.toggle("hidden", waiting !== null)
+    byId("random-match-status").classList.toggle("hidden", waiting === null)
+    if (waiting !== null) byId("random-match-count").textContent = String(waiting)
+}
+function showRoomWait(waiting: number | null): void {
+    if (waiting === null) hideWaiting()
+    else showWaiting()
+}
 
-socket.on("matchCancelled", () => {
-    const btn = document.getElementById("random-match-btn")
-    const status = document.getElementById("random-match-status")
-    if (btn) btn.classList.remove("hidden")
-    if (status) status.classList.add("hidden")
-})
+// 待ちをやめる。相手が決まってルームで到着を待っている最中なら、席も外す
+function cancelWaiting(): void {
+    if (arrival) {
+        clearTimeout(arrival.timer)
+        const { join } = arrival
+        arrival = null
+        join()
+    }
+    stopWaiting?.()
+    stopWaiting = null
+    showRandomWait(null)
+    hideWaiting()
+}
 
-socket.on("matchFound", () => {
-    showToast("対戦相手が見つかりました")
-    const btn = document.getElementById("random-match-btn")
-    const status = document.getElementById("random-match-status")
-    if (btn) btn.classList.remove("hidden")
-    if (status) status.classList.add("hidden")
-})
+function selectedDeck(): DeckChoice | null {
+    const deck = (byId("deck-select") as HTMLSelectElement).value
+    if (!deck.startsWith(CUSTOM_DECK_PREFIX)) return { deck }
+    // カスタムデッキ: カードリスト（cardId -> 枚数）を付けて送信する
+    const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
+    const deckCards = customDecks.get(deckName)
+    if (!deckCards) {
+        showToast(`カスタムデッキが見つかりません: ${deckName}`)
+        return null
+    }
+    return { deckCards }
+}
+
+function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement, showWait: (waiting: number | null) => void): void {
+    const name = (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
+    const deck = selectedDeck()
+    if (!deck) return
+    cancelWaiting()
+    joinMode = mode
+    showWait(1)
+    stopWaiting = waitForOpponent(pool, deck, {
+        onWaiting: showWait,
+        onFailed: (message) => {
+            stopWaiting = null
+            showWait(null)
+            showToast(message)
+        },
+        onMatched: (roomId) => {
+            stopWaiting = null
+            showWait(null)
+            showToast("対戦相手が見つかりました")
+            // 同じ内容の join をもう一度送ると、サーバーは参加の取り消しとして扱う
+            const join = () => socket.emit("join", { roomId, name, ...deck })
+            const retry = () => startWaiting(mode, pool, button, showWait)
+            const timer = setTimeout(() => {
+                if (!arrival) return
+                if (!socket.connected) {
+                    arrival = null
+                    return retry()
+                }
+                arrival.expired = true
+                join()
+            }, ARRIVAL_TIMEOUT_MS)
+            arrival = { timer, join, retry, expired: false }
+            connectAndRun(button, join)
+        },
+    })
+}
 
 onGame("state", (v: GameView) => {
     view = v
@@ -373,6 +433,8 @@ socket.on("opponentBack", () => {
 // ---- 席に戻る ----
 // サーバー上の対局（socket 経由の state）が決着前のあいだだけ目印を立て、繋がるたびに席へ戻してもらう
 socket.on("state", (v: GameView) => {
+    if (arrival) clearTimeout(arrival.timer)
+    arrival = null
     inMatch = !v.winner
     setInMatch(inMatch)
 })
@@ -437,52 +499,18 @@ async function init(): Promise<void> {
     installSecretCardArt(showToast)
 
     byId("join-btn").addEventListener("click", () => {
-        const name =
-            (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
-        const roomId =
-            (byId("room-input") as HTMLInputElement).value.trim() || "room1"
-        const deck = (byId("deck-select") as HTMLSelectElement).value
-        joinMode = "room"
-        let emitJoin: () => void
-        if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
-            // カスタムデッキ: カードリスト（cardId -> 枚数）を付けて送信する
-            const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
-            const deckCards = customDecks.get(deckName)
-            if (!deckCards) {
-                showToast(`カスタムデッキが見つかりません: ${deckName}`)
-                return
-            }
-            emitJoin = () => socket.emit("join", { roomId, name, deckCards })
-        } else {
-            emitJoin = () => socket.emit("join", { roomId, name, deck })
-        }
-        connectAndRun(byId("join-btn"), emitJoin)
+        // 2回目の「対戦ルームに入る」は参加の取り消し
+        if (joinMode === "room" && (arrival || stopWaiting)) return cancelWaiting()
+        const roomId = (byId("room-input") as HTMLInputElement).value.trim() || "room1"
+        startWaiting("room", `room:${roomId}`, byId("join-btn"), showRoomWait)
     })
 
     // ---- ランダムマッチ ----
     byId("random-match-btn").addEventListener("click", () => {
-        const name =
-            (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
-        const deck = (byId("deck-select") as HTMLSelectElement).value
-        joinMode = "random"
-        let emitRandomMatch: () => void
-        if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
-            const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
-            const deckCards = customDecks.get(deckName)
-            if (!deckCards) {
-                showToast(`カスタムデッキが見つかりません: ${deckName}`)
-                return
-            }
-            emitRandomMatch = () => socket.emit("randomMatch", { name, deckCards })
-        } else {
-            emitRandomMatch = () => socket.emit("randomMatch", { name, deck })
-        }
-        connectAndRun(byId("random-match-btn"), emitRandomMatch)
+        startWaiting("random", "random", byId("random-match-btn"), showRandomWait)
     })
 
-    byId("random-match-cancel").addEventListener("click", () => {
-        socket.emit("cancelRandomMatch")
-    })
+    byId("random-match-cancel").addEventListener("click", cancelWaiting)
 
     // ---- AI対戦 ----
     byId("start-ai-btn").addEventListener("click", () => {
@@ -533,6 +561,7 @@ async function init(): Promise<void> {
         }
         payload.aiName = oppLabel
 
+        cancelWaiting() // 相手を待っている最中に AI戦を選んだら、待ちは取り消す
         joinMode = "ai"
         startLocalAi(byId("start-ai-btn"), payload)
     })

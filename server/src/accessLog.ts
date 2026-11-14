@@ -21,7 +21,8 @@ const STATIC_EXT = /\.(js|css|map|png|jpe?g|gif|svg|ico|woff2?|ttf)$/i
 
 // Always On の死活監視。5分おきに来るので、混ぜるとアクセス数がこれで埋まる
 function isKeepAlive(userAgent: string, urlPath: string): boolean {
-    return userAgent.includes("AlwaysOn") || urlPath === "/health"
+    // 相手待ちの問い合わせは待っている間3秒おきに来る（待ち始めは index.ts が join として1回だけ記録する）
+    return userAgent.includes("AlwaysOn") || urlPath === "/health" || urlPath === "/api/match/wait"
 }
 
 function hashIp(ip: string): string {
