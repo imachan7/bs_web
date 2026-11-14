@@ -130,7 +130,7 @@ function onGame(event: string, handler: (payload: any) => void): void {
 }
 
 type AiCrash = { message: string; stack: string; turn?: number; phase?: string; logTail: string[] }
-// Worker の中で起きた例外を、利用者の操作なしでバグ報告として送る（サーバーは AI戦の中身を見ていないので、送らないと誰にも届かない）。
+// Worker の中で起きた例外と AI の手詰まりを、利用者の操作なしでバグ報告として送る（サーバーは AI戦の中身を見ていないので、送らないと誰にも届かない）。
 // 同じ対戦で例外が続いても送るのは1回（サーバーの受け口は1分5件までで、手動の報告の枠を潰さないため）
 let aiCrashReported = false
 function reportAiCrash(crash: AiCrash): void {
@@ -142,7 +142,7 @@ function reportAiCrash(crash: AiCrash): void {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             category: "対戦（ルール・効果）",
-            summary: `AI戦のエンジン例外（自動送信）: ${crash.message}`.slice(0, 100),
+            summary: `AI戦の異常（自動送信）: ${crash.message}`.slice(0, 100),
             // 受け口の上限は4000文字。例外の内容を先頭に置き、あふれるのはログの古い側ではなく末尾になるが、原因の行は残る
             detail: detail.slice(0, 4000),
             clientContext: { phase: crash.phase, turn: crash.turn, uiMode: "ai-local", lastError: crash.message },
