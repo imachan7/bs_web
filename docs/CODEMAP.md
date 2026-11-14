@@ -1060,7 +1060,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/revive.ts
 
 - `wouldAskReviveConfirm`（fn）：この個体を今このコンテキストで破壊しようとしたとき、
-- `tryNexusReviveOnDestroy`（fn）：ネクサス版の reviveOnDestroy（scope:"ownNexus"）。破壊待機中のネクサスを、発生源（別の
+- `nexusReviveSource`（fn）：ネクサス版の reviveOnDestroy（scope:"ownNexus"）で、破壊待機中のネクサスを場に残せる発生源（別の自分のネクサス）。
+- `tryNexusReviveOnDestroy`（fn）：破壊の列の1項目（removal.ts の driveNexusDestruction が積む）。実対戦では確認を出し、断れば破壊はそのまま確定する
 - `applyNexusReviveConfirm`（fn）：確認で「残す」が選ばれたときの後処理（choice.ts から呼ぶ）。コストを払って復活を確定させる。
 - `collectReviveEntries`（fn）：この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用ありに変わった**：
 - `applyReviveEntry`（fn）：集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。

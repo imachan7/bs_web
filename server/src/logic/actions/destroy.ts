@@ -45,6 +45,7 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
+import { tryNexusReviveOnDestroy } from "../revive"
 import { recordDestroysOf, resolveHandFreeSummonOnDestroy } from "../removal"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
 import { destroyDenial } from "../destroyGate"
@@ -1249,6 +1250,15 @@ const applyReviveOnDestroyHandler: ActionHandler<"applyReviveOnDestroy"> = (ctx,
     applyReviveEntry(state, found.pid, found.inst, action.effectId, found.inst.pendingDestroyContext)
 }
 
+// ネクサスの破壊の列の「疲労させて残す」。残ったら列の残りは requiresPendingDestructionOf のガードで空振りする
+const applyNexusReviveOnDestroyHandler: ActionHandler<"applyNexusReviveOnDestroy"> = (ctx, action) => {
+    const { state } = ctx
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const inst = state.players[pid].field.nexuses.find((n) => n.instanceId === action.instanceId)
+        if (inst?.pendingDestruction) tryNexusReviveOnDestroy(state, pid, inst)
+    }
+}
+
 // 同じ列の【不死】1枚分。トラッシュの位置ではなくカードIDで引き直す
 // （先に別の【不死】が召喚されているとトラッシュがずれるため）
 const resolveFushiSummonHandler: ActionHandler<"resolveFushiSummon"> = (ctx, action) => {
@@ -1359,6 +1369,7 @@ const handlers = {
     resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
     resolveOwnBattleLoseTriggers: resolveOwnBattleLoseTriggersHandler,
     applyReviveOnDestroy: applyReviveOnDestroyHandler,
+    applyNexusReviveOnDestroy: applyNexusReviveOnDestroyHandler,
     destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
     destroy: destroyEntryHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
