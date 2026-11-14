@@ -635,7 +635,9 @@ export function commitPendingDestruction(
     delete inst.pendingDestroyBurstInfo
     // トークンはトラッシュに置かれずトークン置き場へ戻る＝破壊後バーストも起きない（「破壊時」は発揮済み）
     const token = leavesNothingBehind(inst)
-    if (!token) (state.pendingBurstDestroyQueue ??= []).push({
+    // トラッシュに置かれない破壊（デッキの下へ行く）では破壊後バーストを発動できない（2026-11-14 ユーザー確認。#552）
+    const toDeckBottom = !token && inst.bunshinOf === undefined && burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)
+    if (!token && !toDeckBottom) (state.pendingBurstDestroyQueue ??= []).push({
         pid: ownerPid,
         groupKey: state.destroyGroup?.id ?? inst.instanceId,
         cardId: inst.cardId,
@@ -652,7 +654,7 @@ export function commitPendingDestruction(
         player.trashCards.push(inst.bunshinOf) // Q787：元のカードが表向きでトラッシュへ（BP0でもデッキ下へは行かない）
         if (commitContext) commitContext.trashedCount = (commitContext.trashedCount ?? 0) + 1
     } else if (!token) {
-        if (burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)) player.deck.push(inst.cardId)
+        if (toDeckBottom) player.deck.push(inst.cardId)
         else {
             player.trashCards.push(inst.cardId)
             if (commitContext) commitContext.trashedCount = (commitContext.trashedCount ?? 0) + 1
@@ -1031,10 +1033,11 @@ export function destroyTargetsBatch(
     }
     const destroyed = finishDestroyGroup(state, context)
     restoreDestroyGroup(state, prevGroup)
+    // 順番は「破壊 → 破壊誘発（破壊した数につき〜の後処理を含む）→ トラッシュ → バースト」（2026-11-14 ユーザー確認。#552）。
+    // 後処理が選択待ちで止まったら、バーストは handleAction 末尾の fireQueuedDestroyBursts が解決後に拾う
+    if (after && !state.winner) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
     // グループの外（入れ子の破壊でなければ）に戻ったところで、破壊後バーストをまとめて発火する
     if (!state.destroyGroup && !deferBurst) fireQueuedDestroyBursts(state)
-    if (state.winner) return destroyed
-    if (after) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
     return destroyed
 }
 
@@ -1064,9 +1067,8 @@ export function resumeDestroyBatch(
     }
     const total = finishDestroyGroup(state, frame.context)
     restoreDestroyGroup(state, frame.prevGroup)
+    if (!state.winner) applyDestroyBatchAfter(state, frame.ownerPid, total, frame.after)
     if (!state.destroyGroup && !frame.deferBurst) fireQueuedDestroyBursts(state)
-    if (state.winner) return
-    applyDestroyBatchAfter(state, frame.ownerPid, total, frame.after)
 }
 
 // 確定した体数を数え、「この効果で破壊した数」として記録する。context が無い破壊は確定数で代用
