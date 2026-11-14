@@ -34,6 +34,14 @@
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
+### 進行中：破壊で誘発する効果の列（#553・#554・#552。2026-11-14 ユーザー確定）
+
+一般則：**破壊を条件とする効果はすべてその破壊の破壊待機の列に並べ、ターンプレイヤーが順番を選ぶ。解決する時点で対象が破壊待機状態でなければ発揮しない。** 別々の PR で #553 → #554 → #552 の順。
+
+- **#553 ネクサス**（`fix/nexus-destroy-queue`）：`driveNexusDestruction` の固定順（anyNexusDestroyed 両陣営 → ownNexusDestroyed → 残す → 確定）をやめ、3つの fieldEvent と「疲労させて残す」（`tryNexusReviveOnDestroy` を列の項目に）を1つの `resolveInOrder` の列にする。全項目に `requiresPendingDestructionOf`。「フィールドに戻す」（`reviveLastDestroyedNexus`）も「残す」と同じく破壊は無かった扱いにし、破壊した側の `after` を解決しない
+- **#554 BP 比べ**：勝者側（`onBattleWin` 86・`battleWon` 69・`ownSpiritBattleWon`・`onBattleDestroy`）と敗者側（`onBattleLose` 3・`ownSpiritBattleLost`）を、敗者の破壊待機の列（`fireOwnSpiritDestroyed` の extraItems）に入れる。全部 `requiresPendingDestructionOf: 敗者`。勝者は `DestroyContext` に明示して渡す。battleResolve の step 2・3（勝敗の誘発）・4・13 は列へ移す。「だけ」は BP 比較の結果で決める（相打ちで片方が残っても発揮しない）。破壊後バースト（step 5）は列の後のまま。TIMING_CHART §2「敗者が残っても発揮する」・§3「阻止できない」と removal.ts の onBattleLose のコメントは書き換える
+- **#552 バースト**：順番は「破壊 → 破壊誘発の列 → トラッシュに置く → バースト」。トラッシュに置かれなければ（場に残る・手札やデッキに戻る）発動できない。直すのは ①SD02-010 レーヴェンなど1文の「1体ずつを破壊する」を、全部選んでから1つの同時破壊にする（今は `sequence` で順に5回） ②`applyDestroyBatchAfter`（破壊した数につき〜）をバーストより先に ③デッキの下へ行く破壊ではバーストの控えを積まない。ジェネレートファイアの「この効果発揮後」の召喚がバーストの後なのは正しい
+
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
 - 実測（直近30日）：Cloud Run の稼働 92.9 時間（無料枠は月約50時間）。対戦開始 1,626 件の 88% が AI戦。AI戦をサーバーから外せば、接続を張るのは対人戦だけになる
