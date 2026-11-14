@@ -47,6 +47,19 @@ function startAi(payload: StartAiPayload): void {
     publish()
 }
 
+// エンジンや AI が例外を投げたら、内容と直前のログを main.ts へ渡す（main.ts がバグ報告として送る）。
+// サーバーで動いていた頃はサーバーのログに残っていたが、Worker の中の例外は利用者のブラウザにしか出ない。
+// AI の手は setTimeout の中で進むので、呼び出しごとの try/catch ではなく Worker 全体の onerror で受ける
+self.onerror = (message, _source, _lineno, _colno, error) => {
+    post("crash", {
+        message: String(error?.message ?? message),
+        stack: String(error?.stack ?? ""),
+        turn: game?.turn,
+        phase: game?.phase,
+        logTail: game?.log.slice(-40) ?? [],
+    })
+}
+
 self.onmessage = (e: MessageEvent<{ event: string; payload?: unknown }>) => {
     const { event, payload } = e.data
     if (event === "startAi") return startAi(payload as StartAiPayload)
