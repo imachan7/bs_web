@@ -177,6 +177,7 @@ export function handleAction(
         delete state.lastDrawn
         delete state.lastTargets
         delete state.recordScope
+        delete state.leaveRelated
         // 枠の無い効果（枠 ""）どうしで、前の効果のコストを読まないように一緒に消す
         delete state.lastLeftCosts
         // 解決順の確認を挟んで再開スタックから解決した効果は、読み終えた不発の目印を消す所を通らない
