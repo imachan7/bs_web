@@ -45,6 +45,7 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
+import { tryNexusReviveOnDestroy } from "../revive"
 import { recordDestroysOf, resolveHandFreeSummonOnDestroy } from "../removal"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
 import { destroyDenial } from "../destroyGate"
@@ -163,6 +164,55 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
     if (marked && !(Object.keys(marks) as (keyof DestroyContext)[]).every((k) => ctx.destroyContext?.[k] === true)) return destroyHandler({ ...ctx, destroyContext }, action)
         if (action.all) {
             destroyAllTargets(ctx, action)
+            return
+        }
+        // eachFilter：「コスト0/1/2/3/4の相手のスピリット1体ずつを破壊する」。条件ごとに1体を選び終えてから、1つの同時破壊にまとめる
+        // （1文の破壊は同時。sequence で分けると1体ごとに破壊誘発とバーストが挟まる。2026-11-14 ユーザー確認。#552）。
+        // eachChosen は選択の再入で持ち回る途中経過（候補のいない条件は ""）
+        if (action.eachFilter) {
+            let ids = action.picked?.ids
+            if (!ids) {
+                const chosen = [...(action.eachChosen ?? [])]
+                let fromChoice = action.choosing ? targetInstanceId : undefined
+                while (chosen.length < action.eachFilter.length) {
+                    const f = action.eachFilter[chosen.length]!
+                    const ok = (s: CardInstance): boolean => !chosen.includes(s.instanceId) && matchesTarget(state, opp, s, f, self?.instanceId)
+                    const pool = pickEnemyCandidates(state, opp, Infinity, ok, srcColors, srcType)
+                    let id: string
+                    if (pool.length <= 1) id = pool[0]?.instanceId ?? ""
+                    else if (!state.interactiveTargets) id = pickEnemyByBp(state, opp, Infinity, ok, srcColors, srcType)?.instanceId ?? ""
+                    else if (fromChoice !== undefined && pool.some((s) => s.instanceId === fromChoice)) id = fromChoice
+                    else {
+                        suspend(state, {
+                            pid: owner,
+                            kind: "target",
+                            prompt: `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
+                            candidates: pool.map((s) => s.instanceId),
+                            optional: false,
+                            action: { ...action, eachChosen: chosen, choosing: true },
+                            selfInstanceId: self ? self.instanceId : null,
+                        })
+                        return
+                    }
+                    fromChoice = undefined
+                    chosen.push(id)
+                }
+                ids = chosen.filter((x) => x !== "")
+            }
+            const passed = gatePickedTargets(
+                ctx,
+                action,
+                ids,
+                (id) => findSpiritAny(state, id) ?? undefined,
+                attemptOf(ctx, "destroy", "targeted"),
+                (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),
+            )
+            if (passed === null) return
+            if (passed.length === 0) {
+                log(state, `${sourceName}の破壊効果：対象がいなかった。`)
+                return
+            }
+            destroyTargetsBatch(state, owner, passed.map((instanceId) => ({ pid: findSpiritAny(state, instanceId)!.pid, instanceId })), destroyContext, self ? { selfInstanceId: self.instanceId } : undefined)
             return
         }
         // 絞り込みは共通の TargetFilter に一本化（maxBp/keyword/cost と、self相対BP＝
@@ -1206,6 +1256,15 @@ const applyReviveOnDestroyHandler: ActionHandler<"applyReviveOnDestroy"> = (ctx,
     applyReviveEntry(state, found.pid, found.inst, action.effectId, found.inst.pendingDestroyContext)
 }
 
+// ネクサスの破壊の列の「疲労させて残す」。残ったら列の残りは requiresPendingDestructionOf のガードで空振りする
+const applyNexusReviveOnDestroyHandler: ActionHandler<"applyNexusReviveOnDestroy"> = (ctx, action) => {
+    const { state } = ctx
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const inst = state.players[pid].field.nexuses.find((n) => n.instanceId === action.instanceId)
+        if (inst?.pendingDestruction) tryNexusReviveOnDestroy(state, pid, inst)
+    }
+}
+
 // 同じ列の【不死】1枚分。トラッシュの位置ではなくカードIDで引き直す
 // （先に別の【不死】が召喚されているとトラッシュがずれるため）
 const resolveFushiSummonHandler: ActionHandler<"resolveFushiSummon"> = (ctx, action) => {
@@ -1316,6 +1375,7 @@ const handlers = {
     resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
     resolveOwnBattleLoseTriggers: resolveOwnBattleLoseTriggersHandler,
     applyReviveOnDestroy: applyReviveOnDestroyHandler,
+    applyNexusReviveOnDestroy: applyNexusReviveOnDestroyHandler,
     destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
     destroy: destroyEntryHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,

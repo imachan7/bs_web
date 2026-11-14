@@ -127,6 +127,9 @@ export function fireFieldEventTriggers(
         // event: "ownLifeLost" 限定：noOwnBurst 付きの placeCores（BS21_PLAN §3 N14）で減ったライフか。
         // その減少をきっかけにしたバーストの発動確認は、ライフが減った本人に対しては出さない
         lifeLossByNoOwnBurst?: boolean
+        // ネクサスの破壊の列：この instanceId が解決時に破壊待機状態でなければ発揮しない（「残す／戻す」が先に解決したとき。#553）。
+        // スピリットの破壊は selfOverride から求める
+        pendingDestructionOf?: string
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
@@ -586,7 +589,7 @@ export function fireFieldEventTriggers(
     const destroyGuard =
         (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") && selfOverride?.inst.pendingDestruction === true
             ? selfOverride.inst.instanceId
-            : undefined
+            : eventInfo?.pendingDestructionOf
     // 「疲労したとき」は、解決する時点で主語のスピリットが疲労状態でなくなっていれば発揮しない（同じ列で先に回復を解決したとき。
     // 公式Q230「参照先がその状態でなくなったら『〜したとき』効果は発揮されない」。2026-11-14 ユーザー確認。#537）
     const restedGuard =
