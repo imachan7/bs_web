@@ -94,7 +94,8 @@ function settle(s: GameState, picks: string[] = [], optionPick?: OptionPick, car
     }
 }
 
-const decline: OptionPick = () => ""
+// 断るのは発動の確認だけ。ホストとブレイヴの解決順の質問（#545）には先頭で答える
+const decline: OptionPick = (prompt, options) => (prompt.includes("どれから解決") ? options[0] ?? "" : "")
 
 console.log("=== 009 Lv2 合体アタック時：ブレイヴの『合体アタック時』効果が発揮したとき、もう1度だけ発揮できる（ホットジュピター：ドローが2枚に） ===")
 {
