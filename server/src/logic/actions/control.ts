@@ -1,5 +1,6 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
+import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { payMagicCostThenResolve } from "../magic/payThenResolve"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
@@ -583,7 +584,7 @@ const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> =
 
 const remainOnFieldSelfHandler: ActionHandler<"remainOnFieldSelf"> = (ctx, action) => {
     const { state, owner, self, sourceName } = ctx
-    if (!self || !self.pendingDestruction) return
+    if (!self || !isTrashWaiting(self)) return
     stayOnFieldRevived(state, owner, self, action.rested)
     log(state, `${sourceName}は${action.rested ? "疲労" : "回復"}状態でフィールドに残った。`)
 }

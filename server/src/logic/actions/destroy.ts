@@ -1,5 +1,6 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { coreRemovalAllowed } from "../coreGate"
 import { kyokaBonus } from "../keywords/kyoka"
@@ -54,7 +55,7 @@ import { currentRecordScope, lastMovedOf, recordDestroyedCount, recordLeftCost, 
 
 // このファイルの候補集めはすべて「破壊する対象」。破壊待機状態のスピリットはそこからさらに破壊されない（TIMING_CHART §1.5）ので外す
 const pickEnemyCandidates: typeof pickEnemyCandidatesIncludingPending = (state, targetPid, maxBp, extraPredicate = () => true, ...rest) =>
-    pickEnemyCandidatesIncludingPending(state, targetPid, maxBp, (s) => s.pendingDestruction !== true && extraPredicate(s), ...rest)
+    pickEnemyCandidatesIncludingPending(state, targetPid, maxBp, (s) => !isTrashWaiting(s) && extraPredicate(s), ...rest)
 
 type DestroyAction = Extract<EffectAction, { type: "destroy" }>
 type DestroyNexusAction = DestroyAction
@@ -248,7 +249,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         // 破壊待機状態のスピリットは、そこからさらに破壊されない（TIMING_CHART §1.5）ので候補にしない。
         // 勝敗の誘発を敗者の破壊待機の列で解決するので、敗者がまだ場にいる（#554）
         const matchesFilter = (s: CardInstance) =>
-            s.instanceId !== excludedId && s.pendingDestruction !== true && matchesTarget(state, opp, s, filter, self?.instanceId)
+            s.instanceId !== excludedId && !isTrashWaiting(s) && matchesTarget(state, opp, s, filter, self?.instanceId)
         if (targetInstanceId !== undefined && !action.excludeTarget && !action.choosing && !action.picked) {
             // pendingChoice解決：選ばれた1体のみ破壊する。
             // 候補列挙（pickEnemyCandidates）では除外済みでも、この経路はここで改めて免疫を判定する
@@ -962,7 +963,7 @@ export function reviveLastDestroyedNexusBlockReason(
     if (!fromFieldOrReserve && self && coreRemovalAllowed(state, { ownerPid: owner, target: self, amount: requiredCost ?? self.cores, cause: "cost", actorPid: owner }) < (requiredCost ?? self.cores)) return "支払えるコアがない"
     if (!last || last.pid !== owner) return "戻せるネクサスがない"
     const player = state.players[owner]
-    if (!player.field.nexuses.some((n) => n.pendingDestruction) && player.trashCards.lastIndexOf(last.cardId) === -1) return "戻せるネクサスがない"
+    if (!player.field.nexuses.some((n) => isTrashWaiting(n)) && player.trashCards.lastIndexOf(last.cardId) === -1) return "戻せるネクサスがない"
     if (fromFieldOrReserve && player.reserve + player.field.spirits.reduce((n, sp) => n + coreRemovalAllowed(state, { ownerPid: owner, target: sp, amount: sp.cores, cause: "cost", actorPid: owner }), 0) < (requiredCost ?? 1)) return "支払えるコアがない"
     return null
 }
@@ -984,7 +985,7 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
         // 「フィールドに戻す」は**破壊待機状態から戻す**という意味で、トラッシュからの回収ではない
         // （docs/design/TIMING_CHART.md §1.5）。したがって破壊待機状態のネクサスを探し、
         // 待機を解除する。コアも乗ったまま・レベルもそのままでフィールドにとどまる
-        const pending = player.field.nexuses.find((n) => n.pendingDestruction)
+        const pending = player.field.nexuses.find((n) => isTrashWaiting(n))
         const trashIndex = pending ? -1 : player.trashCards.lastIndexOf(last.cardId)
         // コストの支払い：coreCost指定時はその数、省略時はself上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
         let paid: number
@@ -1001,7 +1002,7 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
         }
         const revivedName = getCard(pending ? pending.cardId : last.cardId).name
         if (pending) {
-            delete pending.pendingDestruction
+            delete pending.waiting
         } else {
             // 破壊が確定した後（既にトラッシュへ行っている）経路への保険
             if (takeFromTrash(state, owner, trashIndex, "effect") === null) return
@@ -1235,7 +1236,7 @@ const resolveOwnDestroyTriggersHandler: ActionHandler<"resolveOwnDestroyTriggers
     const { state } = ctx
     const found = findSpiritAny(state, action.instanceId)
     // 列に並べたあとで場から消えた／破壊が無かったことになった個体は発揮しない
-    if (!found || found.inst.pendingDestruction !== true) return
+    if (!found || !isTrashWaiting(found.inst)) return
     fireTrigger(state, found.pid, found.inst, "onDestroy", undefined, undefined, undefined, action.byOpponent === true)
 }
 
@@ -1252,7 +1253,7 @@ const resolveOwnBattleLoseTriggersHandler: ActionHandler<"resolveOwnBattleLoseTr
 const applyReviveOnDestroyHandler: ActionHandler<"applyReviveOnDestroy"> = (ctx, action) => {
     const { state } = ctx
     const found = findSpiritAny(state, action.instanceId)
-    if (!found || found.inst.pendingDestruction !== true) return
+    if (!found || !isTrashWaiting(found.inst)) return
     applyReviveEntry(state, found.pid, found.inst, action.effectId, found.inst.pendingDestroyContext)
 }
 
@@ -1261,7 +1262,7 @@ const applyNexusReviveOnDestroyHandler: ActionHandler<"applyNexusReviveOnDestroy
     const { state } = ctx
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const inst = state.players[pid].field.nexuses.find((n) => n.instanceId === action.instanceId)
-        if (inst?.pendingDestruction) tryNexusReviveOnDestroy(state, pid, inst)
+        if (inst && isTrashWaiting(inst)) tryNexusReviveOnDestroy(state, pid, inst)
     }
 }
 
@@ -1338,7 +1339,7 @@ function destroyOwnSpiritsAny(ctx: ActionCtx, action: DestroyAction): void {
     const filter = normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) return
     const candidates = state.players[owner].field.spirits
-        .filter((sp) => !sp.pendingDestruction && matchesTarget(state, owner, sp, filter, self?.instanceId))
+        .filter((sp) => !isTrashWaiting(sp) && matchesTarget(state, owner, sp, filter, self?.instanceId))
         .map((sp) => sp.instanceId)
     const chosen = chooseOwnAny(ctx, action, candidates, "スピリット")
     if (chosen === null) return

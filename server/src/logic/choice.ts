@@ -1,4 +1,5 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
+import { isTrashWaiting } from "../../../shared/rules/waiting"
 import { summonPayPlan } from "./summonCores"
 import { payMagicCostThenResolve } from "./magic/payThenResolve"
 import { handGainDenial } from "./handGate"
@@ -910,7 +911,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         state.recordScope = frame.recordScope ?? newRecordScope()
         if (frame.requiresPendingDestructionOf !== undefined) {
             const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
-            if (target == null || target.pendingDestruction !== true) continue
+            if (target == null || !isTrashWaiting(target)) continue
         }
         if (frame.requiresRestedOf !== undefined && findInstanceAnywhere(state, frame.requiresRestedOf)?.isRested !== true) continue
         if (frame.levelRecheck !== undefined && !levelStillMet(state, frame.levelRecheck)) continue

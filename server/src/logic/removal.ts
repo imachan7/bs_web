@@ -1,5 +1,6 @@
 // スピリット／ネクサスの除去。EffectModules.ts / triggers.ts と相互 import の関係にある（破壊は誘発を発火し、誘発は破壊を呼ぶ）。
 // CommonJS の循環 require で安全に動く（関数宣言はホイストされ、呼び出しは対戦処理中）。EffectModules.ts がここの export を再エクスポートしている
+import { isReturnWaiting, isTrashWaiting, isVanishWaiting } from "../../../shared/rules/waiting"
 import { bounceDenial, reviveOnReturnStay } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
@@ -187,7 +188,9 @@ export function destroySpirit(
     if (!inst) return false
     // 破壊待機状態のカードは、**そこからさらに破壊されることはない**（TIMING_CHART.md §1.5）。
     // ただし skipRevive（復活を断ったあとの同じ破壊の続き）は通す
-    if (inst.pendingDestruction && !options?.skipRevive) return false
+    if (isTrashWaiting(inst) && !options?.skipRevive) return false
+    // 戻す待機のカードは、途中で破壊・消滅しても行き先を保つ（PENDING_STATE §3 P6）
+    if (isReturnWaiting(inst)) return false
     const master = getCard(inst.cardId)
 
     // 相手のスピリット/ブレイヴ/マジックの効果でコアが0個になったときは、維持コア割れ（deplete＝消滅・onDestroy不発火）ではなく
@@ -203,14 +206,10 @@ export function destroySpirit(
 
     // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
     // 「フィールドに残る」は、この待機状態を解除する効果として働く（applyRevived が印を消す）
-    inst.pendingDestruction = true
-    // 消滅（維持コア割れ）のときだけ別の印を立てる。消滅したカードのシンボルは軽減に使えない
-    // （破壊待機は使える。バトスピ Wiki「わかりづらいルール」。2026-09-16）。
-    // 前回の待機から残った印を拾わないよう、破壊のたびに付け直す
-    if (cause === "deplete") inst.pendingVanish = true
-    else delete inst.pendingVanish
-    if (cause === "deplete" && state.currentEffectSource !== undefined && state.currentEffectSource.pid !== ownerPid) inst.pendingVanishByOpponent = true
-    else delete inst.pendingVanishByOpponent
+    inst.waiting =
+        cause === "deplete"
+            ? { kind: "vanish", ...(state.currentEffectSource !== undefined && state.currentEffectSource.pid !== ownerPid ? { byOpponent: true as const } : {}) }
+            : { kind: "destroy" }
     inst.coresAtDestruction = inst.cores
     // ⚠️ 復活チェックは**ここではやらない**。「フィールドに残る」は破壊を無効にするのではなく
     // 「トラッシュに置かれる代わりに場へ戻る」効果なので、**破壊で誘発した効果の列の1項目**として
@@ -444,7 +443,7 @@ function fireOwnSpiritDestroyed(
     const items: CollectedTrigger[] = []
     fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, colors, undefined, undefined, {
         vanilla: instIsVanilla(inst),
-        vanishedByOpponent: inst.pendingVanishByOpponent === true,
+        vanishedByOpponent: inst.waiting?.kind === "vanish" && inst.waiting.byOpponent === true,
         byBattle,
         wasAttacker,
         // 破壊直前の実効BPの近似値（既にフィールドを離れていると effectiveBp がオーラ等を欠くことがある）
@@ -490,7 +489,7 @@ function fireOwnSpiritDestroyed(
         if (state.pendingChoice) pushResumeFrames(state, [{ kind: "eventBursts", checks: [oppBurst] }])
         else fireEventBursts(state, [oppBurst])
     }
-    if (inst.pendingVanish !== true) returnTrashOnOwnSpiritDestroyed(state, ownerPid, master.family)
+    if (!isVanishWaiting(inst)) returnTrashOnOwnSpiritDestroyed(state, ownerPid, master.family)
 }
 
 // 同時破壊グループの体は、全員の誘発を解決し終えるまで破壊待機のまま場に居る（TIMING_CHART §1.5）。
@@ -509,7 +508,7 @@ function flushDeferredCommits(state: GameState): number {
     let n = 0
     for (const d of deferred) {
         const inst = state.players[d.pid].field.spirits.find((s) => s.instanceId === d.instanceId)
-        if (!inst?.pendingDestruction) continue
+        if (!inst || !isTrashWaiting(inst)) continue
         commitPendingDestruction(state, d.pid, inst)
         n++
     }
@@ -521,7 +520,7 @@ export function resumeDestroyCommit(
     frame: Extract<ResumeFrame, { kind: "destroyCommit" }>,
 ): void {
     const inst = state.players[frame.pid].field.spirits.find((s) => s.instanceId === frame.instanceId)
-    if (!inst || !inst.pendingDestruction) return
+    if (!inst || !isTrashWaiting(inst)) return
     if (frame.step <= 1) {
         fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
         if (state.pendingChoice || state.winner) {
@@ -547,7 +546,7 @@ function hasOwnTrigger(state: GameState, pid: PlayerId, inst: CardInstance, trig
 function destroyedCoresToSelfCandidates(state: GameState, ownerPid: PlayerId): CardInstance[] {
     const out: CardInstance[] = []
     for (const source of effectSources(state, ownerPid)) {
-        if (!state.players[ownerPid].field.spirits.includes(source) || source.pendingDestruction) continue
+        if (!state.players[ownerPid].field.spirits.includes(source) || isTrashWaiting(source)) continue
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "destroyedCoresToSelf") continue
@@ -616,10 +615,10 @@ export function commitPendingDestruction(
     ownerPid: PlayerId,
     inst: CardInstance,
 ): void {
-    if (!inst.pendingDestruction) return
+    if (!isTrashWaiting(inst)) return
     // ⚠️ ここでは「フィールドに残る／戻る」を試さない。**破壊で誘発した効果の列の1項目**として
     // 既に解決済みだから（docs/design/TIMING_CHART.md）。列で復活が成立していれば
-    // applyRevived が pendingDestruction を消しているので、この関数は上の行で抜けている
+    // applyRevived が待機の印を消しているので、この関数は上の行で抜けている
     const braveCantRemain = inst.pendingDestroyContext?.braveCantRemain === true
     const commitContext = inst.pendingDestroyContext
     delete inst.pendingDestroyContext
@@ -628,7 +627,7 @@ export function commitPendingDestruction(
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
     if (index === -1) {
-        delete inst.pendingDestruction
+        delete inst.waiting
         delete inst.pendingDestroyBurstInfo
         return
     }
@@ -673,7 +672,7 @@ export function commitPendingDestruction(
         const b = state.battle
         if (!b) return false
         const mine = state.players[opponentOf(ownerPid)].field.spirits.find((s) => s.instanceId === b.attackerInstanceId || s.instanceId === b.blockerInstanceId)
-        return mine !== undefined && !mine.pendingDestruction && !state.destroyGroup?.memberIds.includes(mine.instanceId)
+        return mine !== undefined && !isTrashWaiting(mine) && !state.destroyGroup?.memberIds.includes(mine.instanceId)
     }
     const redirect = redirectEntry && "soleOnly" in redirectEntry && redirectEntry.soleOnly && !winnerSurvives() ? undefined : redirectEntry?.to
     // ソウルコア退避（案A-outside: 数値に含まれないため自力では動かない。§1.2でボイドには行けない。
@@ -710,7 +709,7 @@ export function commitPendingDestruction(
     } else if (baseDest === "reserve") {
         player.reserve += inst.cores
     }
-    delete inst.pendingDestruction
+    delete inst.waiting
     // 合体していたブレイヴを外す（§6.1.1）。**コアを移した後**に呼ぶ：
     // ホストのコアがリザーブに入ってからブレイヴに置くのが正しい順（§6.3.1）
     detachBravesOnLeave(state, ownerPid, inst, false, "trash", braveCantRemain)
@@ -1156,9 +1155,9 @@ export function destroyNexus(
         return false
     }
     // 破壊待機状態のネクサスは、そこからさらに破壊されない（TIMING_CHART.md §1.5）
-    if (inst.pendingDestruction) return false
+    if (isTrashWaiting(inst)) return false
     // この間もネクサスの効果（誘発・継続効果）は普通に働く（2026-08-14 ユーザー確認）
-    inst.pendingDestruction = true
+    inst.waiting = { kind: "destroy" }
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊された。`)
     // 直近に破壊されたネクサスを記録する（「その破壊されたネクサス」を参照する効果用）
     state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.cardId }
@@ -1251,7 +1250,7 @@ export function resumeDestroyNexusCommit(
     frame: Extract<ResumeFrame, { kind: "destroyNexusCommit" }>,
 ): void {
     const inst = state.players[frame.pid].field.nexuses.find((n) => n.instanceId === frame.instanceId)
-    if (!inst || !inst.pendingDestruction) return
+    if (!inst || !isTrashWaiting(inst)) return
     finishNexusDestruction(state, frame.pid, inst, frame.byOpponentEffect, frame.after)
 }
 
@@ -1261,11 +1260,11 @@ export function commitPendingNexusDestruction(
     inst: CardInstance,
 ): boolean {
     // 戻り値＝実際にトラッシュへ置いたか（reviveOnDestroy で待機が解除済みのときは false）
-    if (!inst.pendingDestruction) return false
+    if (!isTrashWaiting(inst)) return false
     const player = state.players[ownerPid]
     const index = player.field.nexuses.findIndex((n) => n.instanceId === inst.instanceId)
     if (index === -1) {
-        delete inst.pendingDestruction
+        delete inst.waiting
         return false
     }
     player.field.nexuses.splice(index, 1)
@@ -1273,7 +1272,7 @@ export function commitPendingNexusDestruction(
     // 案B-inside: 先に[ソウルコア]を退避させる（soulCoreLeavesFieldがinst.coresの数値も動かす）
     soulCoreLeavesField(player, inst)
     player.reserve += inst.cores
-    delete inst.pendingDestruction
+    delete inst.waiting
     return true
 }
 
@@ -1392,7 +1391,7 @@ export function markBounce(
 ): boolean {
     const player = state.players[ownerPid]
     if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return false
-    if (inst.pendingBounce) return false
+    if (isReturnWaiting(inst)) return false
     const denied = bounceDenial(state, ownerPid, inst, to)
     if (denied) {
         log(state, `${getCard(inst.cardId).name}は手札に戻らなかった（${denied}）。`)
@@ -1405,7 +1404,7 @@ export function markBounce(
     // 解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは持ち主のデッキの上に戻る」を張っていれば、
     // 手札への戻しをデッキの上へ振り替える。手札への戻しはすべてここを通るので、「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
     const srcPid = state.currentEffectSource?.pid
-    inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to, ...(srcPid !== undefined && srcPid !== ownerPid ? { byOpponent: true as const } : {}), ...(bounceBraveCantRemain ? { braveCantRemain: true as const } : {}) }
+    inst.waiting = { kind: "return", to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to, ...(srcPid !== undefined && srcPid !== ownerPid ? { byOpponent: true as const } : {}), ...(bounceBraveCantRemain ? { braveCantRemain: true as const } : {}) }
     recordLeftCost(state, inst.cardId, instBaseCost(inst))
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
     return true
@@ -1432,7 +1431,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
         for (const inst of [...player.field.spirits].sort((a, b) => rank(a) - rank(b))) {
-            const pb = inst.pendingBounce
+            const pb = inst.waiting?.kind === "return" ? inst.waiting : undefined
             if (!pb) continue
             const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (index === -1) continue
@@ -1443,7 +1442,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
             // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）。残すかの確認は全員を移し終えてから出す
             // （途中で確認の中断を立てると、その後の移動で盤面が変わる。smoke part778 の場面25）
             detachBravesOnLeave(state, pid, inst, true, pb.to === "burst" ? "trash" : pb.to, pb.braveCantRemain === true)
-            delete inst.pendingBounce
+            delete inst.waiting
             const sourceName = bounceSourceNames.get(inst.instanceId)
             bounceSourceNames.delete(inst.instanceId)
             const name = getCard(inst.cardId).name

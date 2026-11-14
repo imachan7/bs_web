@@ -1,4 +1,5 @@
 // 覚醒・起動能力・指定アタック・維持コア・フラッシュのロック・代替召喚（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { isReturnWaiting } from "./waiting"
 import { noteCoverage } from "../coverage"
 
 import type {
@@ -317,7 +318,7 @@ export function activatedActionResolvable(board: Board, pid: PlayerId, source: C
         const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
         const srcCard = card(source.cardId)
         const bounce: EffectAttempt = { op: "bounce", scope: "targeted", actorPid: pid, sourceType: srcCard.type, sourceColors: srcCard.colors, probing: true }
-        return board.players[oppPid].field.spirits.filter((s) => !s.pendingBounce && matchesTarget(board, oppPid, s, returnFilter, source.instanceId) && boardResistanceAgainst(board, oppPid, s, bounce) === null).length >= action.count
+        return board.players[oppPid].field.spirits.filter((s) => !isReturnWaiting(s) && matchesTarget(board, oppPid, s, returnFilter, source.instanceId) && boardResistanceAgainst(board, oppPid, s, bounce) === null).length >= action.count
     }
     if (action.type !== "destroy" || action.nexus !== undefined || action.side === "own" || action.anySide || action.all || action.countCounter || action.countPerOpponentTrashMagicColors) return true
     const filter = { ...(action.filter ?? {}) } as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
@@ -345,7 +346,7 @@ function timedTargetsExist(board: Board, pid: PlayerId, source: CardInstance, ac
     const filter = action.filter as unknown as Parameters<typeof matchesTarget>[3]
     const pids: PlayerId[] = action.side === "own" ? [pid] : action.side === "both" ? [pid, opp] : [opp]
     const n = pids.flatMap((p) =>
-        board.players[p].field.spirits.filter((s) => matchesTarget(board, p, s, filter, source.instanceId) && (p === pid || (!s.pendingBounce && boardResistanceAgainst(board, p, s, attempt) === null))),
+        board.players[p].field.spirits.filter((s) => matchesTarget(board, p, s, filter, source.instanceId) && (p === pid || (!isReturnWaiting(s) && boardResistanceAgainst(board, p, s, attempt) === null))),
     ).length
     return n >= (action.all || typeof action.count !== "number" ? 1 : action.count)
 }

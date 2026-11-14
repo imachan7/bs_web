@@ -1,4 +1,5 @@
 // カードを選んで動かす統合の器（旧 toHand／toDeck ほか「選ぶ＋送る」の type をここへ寄せる）
+import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { effectMagicUseDenial, useMagicByEffect } from "../magic/effectUse"
 import { coreRemovalAllowed } from "../coreGate"
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
@@ -131,7 +132,7 @@ export function fieldCoresSpendable(state: GameState, pid: PlayerId): { inst: Ca
     const player = state.players[pid]
     return [
         ...player.field.nexuses.map((n) => ({ inst: n, max: normalCoresOn(player, n) })),
-        ...player.field.spirits.map((sp) => ({ inst: sp, max: sp.pendingDestruction ? sp.cores : Math.max(0, sp.cores - instMinLevelCores(sp)) })),
+        ...player.field.spirits.map((sp) => ({ inst: sp, max: isTrashWaiting(sp) ? sp.cores : Math.max(0, sp.cores - instMinLevelCores(sp)) })),
     ].map((x) => ({ inst: x.inst, max: Math.min(x.max, coreRemovalAllowed(state, { ownerPid: pid, target: x.inst, amount: x.max, cause: "cost", actorPid: pid })) })).filter((x) => x.max > 0)
 }
 

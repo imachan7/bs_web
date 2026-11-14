@@ -1,4 +1,5 @@
 // コアを置くアクション（ボイド・トラッシュから自分のスピリット・ネクサス・リザーブ・トラッシュへ、コアチャージ）
+import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import type { ActionHandler, ActionRegistry } from "./types"
 import { normalCoresOn, normalReserveOf } from "../soulCore"
 import type { CardInstance } from "../../type"
@@ -23,7 +24,7 @@ const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSp
         const player = state.players[owner]
         // 破壊待機状態の個体はこのあとトラッシュへ行くので、移し先の候補から外す
         const target = player.field.spirits
-            .filter((s) => !s.pendingDestruction)
+            .filter((s) => !isTrashWaiting(s))
             .reduce<CardInstance | null>(
                 (best, s) =>
                     !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
@@ -36,7 +37,7 @@ const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSp
         let moveCount: number
         let from: string
         // 案B-inside: [ソウルコア]は明示的な指定でだけ動く。移すのは通常コアだけ
-        if (self && self.pendingDestruction && normalCoresOn(player, self) > 0) {
+        if (self && isTrashWaiting(self) && normalCoresOn(player, self) > 0) {
             moveCount = Math.min(coreCount, normalCoresOn(player, self))
             self.cores -= moveCount
             from = "破壊されたスピリットのコア"

@@ -1,4 +1,5 @@
 // smoke パート480（BS13/BS14 未発火だった効果節の場面テスト。効果文だけから期待値を書いた）
+import { isTrashWaiting } from "../../shared/rules/waiting"
 import { assert, getCard } from "./helpers"
 import { scenario } from "./scenario"
 import type { ScenarioCtx, Side } from "./scenario"
@@ -37,7 +38,7 @@ function drive(t: ScenarioCtx, decline = false): number {
             t.act(side, { type: "resolveChoice", cardIndex: pc.cardIndices![0]! })
         } else {
             // 破壊待機中の敗者も候補に並ぶ（勝敗の誘発は破壊待機の列で解決する。#554）。この部では生きている体を選ぶ
-            const live = pc.candidates.filter((id) => t.state.players[t.opp].field.spirits.find((x) => x.instanceId === id)?.pendingDestruction !== true)
+            const live = pc.candidates.filter((id) => !isTrashWaiting(t.state.players[t.opp].field.spirits.find((x) => x.instanceId === id)))
             const pick = pc.selectedIds ? live.find((id) => !pc.selectedIds!.includes(id)) : live[0] ?? pc.candidates[0]
             t.act(side, pick === undefined ? { type: "resolveChoice" } : { type: "resolveChoice", instanceId: pick })
         }

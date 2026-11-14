@@ -251,12 +251,12 @@ console.log("=== 12. BS16-069 Lv2：四道が破壊されたとき、その1体�
     fireFieldEventTriggers(s, "p1", "ownSpiritDestroyed", { pid: "p1", inst: destroyed }, undefined, undefined, 1)
     assert(s.players.p1.deck[0] === "BS16-038" && s.players.p1.deck.length === deckBefore.length + 1, "破壊された四道（トラッシュの四道）がデッキの上に戻る")
 }
-console.log("=== 12b. BS16-069 Lv2：破壊待機状態（pendingDestruction）の個体自身を、同名の別インスタンスと混同せずデッキの上に戻す ===")
+console.log("=== 12b. BS16-069 Lv2：破壊待機状態の個体自身を、同名の別インスタンスと混同せずデッキの上に戻す ===")
 {
     const s = game("case12b")
     put(s, "p1", "BS16-069", 3) // Lv2到達
     const destroyed = put(s, "p1", "BS16-038", 2) // 破壊される個体（コア2）
-    destroyed.pendingDestruction = true
+    destroyed.waiting = { kind: "destroy" }
     const decoy = createInstance("BS16-038", s.turn, 9) // 同名の別インスタンス（コアで区別）。場には出さない
     s.players.p1.trashCards = [decoy.cardId]
     const reserveBefore = s.players.p1.reserve
