@@ -132,6 +132,8 @@ console.log("=== パート197：fieldEvent が、条件を満たした盤面で�
             // 主体は相手のスピリット（自分の駒を主体にすると永久に条件を満たさない）
             const subjectPid: PlayerId = event.startsWith("any") && entry["turn"] === "opponent" ? "p2" : "p1"
             const subject = put(s, subjectPid, subjectCard, coresFor(subjectCard, topLevel(subjectCard)))
+            // 「疲労したとき」は解決時に主語が疲労状態であることを確かめる（#537）。実際の疲労と同じく、主語を疲労させておく
+            if (/Exhausted/.test(event)) subject.isRested = true
             // ライフを減らしておく（「ライフが5になるように置く」系は満タンだと何も起きない）
             s.players.p1.life = 2
             s.players.p2.life = 2

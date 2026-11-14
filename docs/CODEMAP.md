@@ -896,6 +896,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `effectMagicUseDenial`（fn）
 - `useMagicByEffect`（fn）：使用を確定して解決する。カードは呼び出し側がゾーンから抜き、コストも払い済み
+- `useMagicCardHandler`（const）
 
 ## server/src/logic/magic/inUse.ts
 

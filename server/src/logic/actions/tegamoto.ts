@@ -2,8 +2,9 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log } from "../GameState"
 import { requestCardChoice, requestChoice, resolveMagic } from "../EffectModules"
-import { magicColorBanned } from "../../../../shared/rules"
-import { recordMagicUsed, recordMoved } from "../record"
+import { handCardBanned } from "../../../../shared/rules"
+import { effectMagicUseDenial } from "../magic/effectUse"
+import { recordMagicUse, recordMoved } from "../record"
 import { matchesPick } from "./revealAction"
 
 // BS11-X05 魔導双神ジェミナイズLv2-3：自分の手札/手元(tegamoto)にあるマジックカード1枚を選び、
@@ -14,9 +15,12 @@ const magicFreeUseFromHandOrTegamotoHandler: ActionHandler<"magicFreeUseFromHand
     const { state, owner, self, sourceName, chosenOption } = ctx
     if (!self) return
     const player = state.players[owner]
+    // 使うタイミングは効果が決める（バトル中はフラッシュ、それ以外はメインがあればメイン）
+    const timingOf = (id: string): "main" | "flash" => (state.battle ? "flash" : getCard(id).effects.some((e) => e.kind === "magic" && e.timing === "main") ? "main" : "flash")
+    // 「使用」なので使用の制限を受ける（magic/effectUse.ts。#526）
     const matchesFilter = (id: string): boolean =>
         getCard(id).type === "magic" &&
-        !magicColorBanned(state, owner, getCard(id).colors, getCard(id).cost) &&
+        effectMagicUseDenial(state, owner, getCard(id), timingOf(id)) === null &&
         (action.colorFilter === undefined || getCard(id).colors.includes(action.colorFilter)) &&
         (action.familyFilter === undefined ||
             (Array.isArray(action.familyFilter)
@@ -24,7 +28,7 @@ const magicFreeUseFromHandOrTegamotoHandler: ActionHandler<"magicFreeUseFromHand
                 : getCard(id).family.includes(action.familyFilter)))
     const handCandidates = player.hand
         .map((id, i) => ({ id, i, zone: "hand" as const }))
-        .filter(({ id }) => matchesFilter(id))
+        .filter(({ id }) => matchesFilter(id) && handCardBanned(state, owner, id) === null)
     // 手元(tegamoto)は tegamotoPlayable にある（＝手札同様に使用できる権利がある）カードだけが対象。
     // anyTegamoto は権利を問わず手元のカードすべて（BS14-055 ミスティック・ヒミコ Lv3。Q3417「手札かオープンしているマジック」）
     const tegamotoCandidates = player.tegamoto
@@ -53,9 +57,8 @@ const magicFreeUseFromHandOrTegamotoHandler: ActionHandler<"magicFreeUseFromHand
             state,
             `${player.name}は${sourceName}の効果で、${zone === "hand" ? "手札" : "手元"}の${cardData.name}をコストを支払わずに使用した。`,
         )
-        recordMagicUsed(state, owner, cardId)
-        const hasMain = cardData.effects.some((e) => e.kind === "magic" && e.timing === "main")
-        const timing: "main" | "flash" = state.battle ? "flash" : hasMain ? "main" : "flash"
+        const timing = timingOf(cardId)
+        recordMagicUse(state, owner, cardData, timing)
         const beforeLastMagicCast = state.lastMagicCast
         // paidCost=false：BS11-X05自身のpaidCostOnlyから連鎖しない。
         // usedVia="majutsu"：発生源が【魔述】の起動効果を持つ場合だけ（26系「【魔述】でこのカードを使用していたなら」）。
