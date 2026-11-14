@@ -43,7 +43,7 @@ class XMLHttpRequest {
         this.responseText = body
     }
 }
-const context = vm.createContext({ self, XMLHttpRequest, console, crypto: globalThis.crypto, setTimeout: (fn) => setTimeout(fn, 0), clearTimeout })
+const context = vm.createContext({ self, XMLHttpRequest, URLSearchParams, console, crypto: globalThis.crypto, setTimeout: (fn) => setTimeout(fn, 0), clearTimeout })
 vm.runInContext(readFileSync(outfile, "utf-8"), context)
 self.onmessage({ data: { event: "startAi", payload: { name: "確認", deck: "sd01_blazing", aiDeck: "sd01_blazing" } } })
 // AI が先攻なら、打ち切って人間の番（または人間への選択待ち）に来るまで待つ
@@ -60,4 +60,9 @@ if (!last || last.you !== "p1") fail("state が届かない")
 if (!humanToAct(last)) fail(`AI の番のまま止まっている（turnPlayer=${last.turnPlayer} phase=${last.phase}）`)
 self.onmessage({ data: { event: "action", payload: { type: "attack", instanceId: "存在しない" } } })
 if (received.at(-1)?.event !== "errorMessage") fail(`不正な操作に errorMessage が返らない（${JSON.stringify(received.at(-1))?.slice(0, 300)}）`)
+// 例外の受け口：内容と直前のログを crash として渡すこと（main.ts がバグ報告として送る）
+self.onerror("x", "", 0, 0, new Error("確認用の例外"))
+const crash = received.at(-1)
+if (crash?.event !== "crash" || crash.payload.message !== "確認用の例外" || !Array.isArray(crash.payload.logTail) || crash.payload.logTail.length === 0)
+    fail(`例外が crash として届かない（${JSON.stringify(crash)?.slice(0, 300)}）`)
 console.log(`aiWorker: ${(readFileSync(outfile).length / 1024).toFixed(0)}KB、Node 無しの環境で対戦開始まで確認`)

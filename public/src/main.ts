@@ -8,6 +8,7 @@ import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../
 import { braveCombineCandidates } from "../../shared/summon"
 import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, rebuildDeckSelects, rememberDeckSelection, rememberLobbyInputs, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
+import { assetUrl } from "./assetUrl"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
@@ -129,6 +130,27 @@ function onGame(event: string, handler: (payload: any) => void): void {
     gameHandlers[event] = handler
 }
 
+type AiCrash = { message: string; stack: string; turn?: number; phase?: string; logTail: string[] }
+// Worker の中で起きた例外と AI の手詰まりを、利用者の操作なしでバグ報告として送る（サーバーは AI戦の中身を見ていないので、送らないと誰にも届かない）。
+// 同じ対戦で例外が続いても送るのは1回（サーバーの受け口は1分5件までで、手動の報告の枠を潰さないため）
+let aiCrashReported = false
+function reportAiCrash(crash: AiCrash): void {
+    if (aiCrashReported) return
+    aiCrashReported = true
+    const detail = [crash.stack || crash.message, "", "--- 直前のログ ---", ...crash.logTail].join("\n")
+    fetch("/api/bug-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            category: "対戦（ルール・効果）",
+            summary: `AI戦の異常（自動送信）: ${crash.message}`.slice(0, 100),
+            // 受け口の上限は4000文字。例外の内容を先頭に置き、あふれるのはログの古い側ではなく末尾になるが、原因の行は残る
+            detail: detail.slice(0, 4000),
+            clientContext: { phase: crash.phase, turn: crash.turn, uiMode: "ai-local", lastError: crash.message },
+        }),
+    }).catch(() => {})
+}
+
 // Worker を起動して AI戦を始める。起動できないブラウザでは、従来どおりサーバーの AI と対戦する
 function startLocalAi(button: HTMLElement, payload: unknown): void {
     const btn = button as HTMLButtonElement
@@ -149,16 +171,21 @@ function startLocalAi(button: HTMLElement, payload: unknown): void {
         connectAndRun(btn, () => socket.emit("startAi", payload))
     }
     try {
-        worker = new Worker("/dist/aiWorker.js")
+        // Worker もカードデータを取るので、版つきの URL を渡す（本体と同じ URL ならブラウザのキャッシュから読める）
+        const workerUrl = new URL(assetUrl("/dist/aiWorker.js"), location.href)
+        workerUrl.searchParams.set("cards", assetUrl("/api/cards"))
+        worker = new Worker(workerUrl)
     } catch {
         return fallback()
     }
     worker.onerror = fallback
     worker.onmessage = (e: MessageEvent<{ event: string; payload?: unknown }>) => {
+        if (e.data.event === "crash") return reportAiCrash(e.data.payload as AiCrash)
         if (e.data.event !== "state") restore() // joined か、デッキ不正などの errorMessage
         gameHandlers[e.data.event]?.(e.data.payload)
     }
     aiWorker = worker
+    aiCrashReported = false
     worker.postMessage({ event: "startAi", payload })
     // 対戦開始の件数の記録（失敗しても対戦には関係ない）
     fetch("/api/ai-start", { method: "POST" }).catch(() => {})
@@ -395,7 +422,7 @@ function closestData(
 
 async function init(): Promise<void> {
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
-    const cards = (await (await fetch("/api/cards")).json()) as CardData[]
+    const cards = (await (await fetch(assetUrl("/api/cards"))).json()) as CardData[]
     setCardDb(cards)
     setDeckRecipes(await (await fetch("/api/deck-recipes")).json())
     // ページを読み直した・タブを開き直したときは、こちらから繋いで席に戻る（盤面を描くのにカードデータが要るので、読み終えてから）

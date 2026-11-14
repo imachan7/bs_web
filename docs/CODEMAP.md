@@ -386,6 +386,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `pumpAi`（fn）：AI が打てる手が無くなるまで1手ずつ進める。すでに走っていれば何もしない
 - `pumpAiSync`（fn）：テスト用：間隔を空けずに、AI が打てなくなるまでその場で進める。
 
+## server/src/assetVersions.ts
+
+- `IMMUTABLE_CACHE`（const）
+- `contentVersion`（fn）
+- `scanAssetVersions`（fn）：public/dist の JS と public/css の CSS を、URL → 版 の表にする
+- `versionHtml`（fn）：属性値がちょうどその URL のもの（src="/dist/main.js"・content="/api/cards" など）に版を付ける
+- `isCurrentVersion`（fn）：古い版を付けた要求（デプロイ前の HTML から来たもの）には長期キャッシュを許さない。許すと、古い URL に新しい中身が残り続ける
+
 ## server/src/logic/EffectModules.ts
 
 - `getAllFamilies`（fn）
@@ -1381,6 +1389,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/aiWorker/loadCards.ts
 
 - `loadAllCards`（fn）
+
+## public/src/assetUrl.ts
+
+- `assetUrl`（fn）：サーバーが HTML に埋めた版つきの URL を引く（<meta name="asset" content="/api/cards?v=…">。server/src/assetV…
 
 ## public/src/cardArt.ts
 
