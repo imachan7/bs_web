@@ -15,6 +15,7 @@ import { applyDebugBoard, type DebugBoard } from "./logic/debugBoard"
 import { DECK_RECIPES } from "../../data/constants"
 import { accessLogMiddleware, logSocketJoin } from "./accessLog"
 import { registerAdmin } from "./admin"
+import { MatchTickets } from "./matchTickets"
 import { IMMUTABLE_CACHE, contentVersion, isCurrentVersion, scanAssetVersions, versionHtml } from "./assetVersions"
 
 const PORT = Number(process.env.PORT ?? 3000)
@@ -83,6 +84,34 @@ app.get("/api/cards", (req, res) => {
     if (hasCurrentVersion(req)) res.set("Cache-Control", IMMUTABLE_CACHE)
     res.type("json").send(CARDS_JSON)
 })
+// ---- 接続を張らずに相手を待つ（ランダムマッチ・合言葉ルーム） ----
+// クライアントが数秒おきに問い合わせ、相手が決まったら roomId を返す。受け取った2人が socket をつないでそのルームへ join する。
+// pool は待ち場所の名前で、ランダムマッチは "random"、合言葉ルームは "room:<合言葉>"
+const matchTickets = new MatchTickets(() => roomManager.newRoomId("match"))
+app.post("/api/match/wait", express.json({ limit: "16kb" }), (req, res) => {
+    const body = req.body ?? {}
+    const pool = String(body.pool ?? "").slice(0, 100)
+    if (pool !== "random" && !pool.startsWith("room:")) {
+        res.status(400).json({ error: "待ち場所の指定が不正です" })
+        return
+    }
+    // 並び始めるときにデッキを確かめる（相手が決まってから不正と分かると、相手だけがルームに残される）
+    if (!matchTickets.has(body.ticket)) {
+        const resolved = resolveDeckSpec(body.deck, body.deckCards)
+        if ("error" in resolved) {
+            res.status(400).json({ error: resolved.error })
+            return
+        }
+        logSocketJoin(req.headers as Record<string, unknown>, req.socket.remoteAddress, pool === "random" ? "（ランダムマッチ）" : pool.slice("room:".length))
+    }
+    res.json(matchTickets.poll(body.ticket, pool))
+})
+// sendBeacon（ページを閉じるとき）からも来る
+app.post("/api/match/cancel", express.json({ limit: "1kb" }), (req, res) => {
+    matchTickets.cancel(req.body?.ticket)
+    res.status(204).end()
+})
+
 // ブラウザの中で動く AI戦（public/src/aiWorker/）は接続を張らないので、始めた件数だけここで数える
 app.post("/api/ai-start", (req, res) => {
     logSocketJoin(req.headers as Record<string, unknown>, req.socket.remoteAddress, "（AI戦）")
@@ -524,11 +553,14 @@ io.on("connection", (socket: Socket) => {
         }) => {
             const roomId = String(payload.roomId || "room1")
             const name = String(payload.name || "プレイヤー")
-            logSocketJoin(
-                socket.handshake.headers as Record<string, unknown>,
-                socket.handshake.address,
-                roomId,
-            )
+            // /api/match/wait で相手が決まって入ってくる分は、待ち始めたときに記録済み
+            if (!roomId.startsWith("match-")) {
+                logSocketJoin(
+                    socket.handshake.headers as Record<string, unknown>,
+                    socket.handshake.address,
+                    roomId,
+                )
+            }
 
             const resolved = resolveDeckSpec(payload.deck, payload.deckCards)
             if ("error" in resolved) {

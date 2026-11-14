@@ -570,9 +570,11 @@ export function fireTrigger(
         const key = `${owner}:${selfInstance.cardId}`
         for (const entry of entries) {
             if (!matches(entry.effect, entry.src)) continue
+            // 合体中のブレイヴのエントリは別のカードの効果なので、ホストと別に発揮順を聞く（#545）
+            const brave = entry.src !== selfInstance
             collect.push({
-                key,
-                label,
+                key: brave ? `${owner}:${entry.src.cardId}` : key,
+                label: brave ? `${state.players[owner].name}の${getCard(entry.src.cardId).name}` : label,
                 run: () => resolveEntry(entry),
                 skip: () => !levelStillMet(state, { instanceId: entry.src.instanceId, effectId: entry.effect.id }),
                 frame: entryFrame(entry),
