@@ -47,7 +47,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `selfSetCost`（fn）：「手札のこのカードを召喚する時、〜なら、コストNにする」が効いているときの N（召喚側が「ターンに1回」の記録に使う）
 - `cardMatchesSummonPick`（fn）：軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
 - `effectiveCost`（fn）
-- `summonSurcharge`（fn）：globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
+- `magicFreeUseSurcharge`（fn）：globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
+- `summonSurcharge`（fn）
 
 ## shared/coverage.ts
 
@@ -384,6 +385,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `AiPumpOptions`（型）
 - `pumpAi`（fn）：AI が打てる手が無くなるまで1手ずつ進める。すでに走っていれば何もしない
 - `pumpAiSync`（fn）：テスト用：間隔を空けずに、AI が打てなくなるまでその場で進める。
+
+## server/src/assetVersions.ts
+
+- `IMMUTABLE_CACHE`（const）
+- `contentVersion`（fn）
+- `scanAssetVersions`（fn）：public/dist の JS と public/css の CSS を、URL → 版 の表にする
+- `versionHtml`（fn）：属性値がちょうどその URL のもの（src="/dist/main.js"・content="/api/cards" など）に版を付ける
+- `isCurrentVersion`（fn）：古い版を付けた要求（デプロイ前の HTML から来たもの）には長期キャッシュを許さない。許すと、古い URL に新しい中身が残り続ける
 
 ## server/src/logic/EffectModules.ts
 
@@ -898,6 +907,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `useMagicByEffect`（fn）：使用を確定して解決する。カードは呼び出し側がゾーンから抜き、コストも払い済み
 - `useMagicCardHandler`（const）
 
+## server/src/logic/magic/freeUseSurcharge.ts
+
+- `canPayMagicFreeUseSurcharge`（fn）
+- `payMagicFreeUseSurcharge`（fn）："asked"：支払い元を選ぶ待ちを立てた。払ったあと resume（使用の続き）を解決する
+
 ## server/src/logic/magic/inUse.ts
 
 - `beginMagicUse`（fn）
@@ -1232,6 +1246,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `resolveDeckSpec`（fn）：join / randomMatch / startAi が受け取るデッキ指定を DeckSpec に解決する。
 - `createStartedGame`（fn）：対戦を作り、最初のターンを始めたところまで進めて返す
 
+## server/src/matchTickets.ts
+
+- `TICKET_ALIVE_MS`（const）：この時間問い合わせが無い待ちは、閉じられたものとして捨てる（クライアントの間隔は3秒）
+- `PollResult`（型）
+- `MatchTickets`（class）
+
 ## server/src/roomManager.ts
 
 - `RoomPlayer`（型）
@@ -1376,6 +1396,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `loadAllCards`（fn）
 
+## public/src/assetUrl.ts
+
+- `assetUrl`（fn）：サーバーが HTML に埋めた版つきの URL を引く（<meta name="asset" content="/api/cards?v=…">。server/src/assetV…
+
 ## public/src/cardArt.ts
 
 - `cardImageUrl`（fn）：カード画像の URL と、カード要素へ画像を重ねる処理（対戦画面とデッキビルダーで共用）
@@ -1405,6 +1429,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `rerender`（fn）
 - `opponentOf`（fn）
 - `byId`（fn）
+
+## public/src/matchWait.ts
+
+- `DeckChoice`（型）
+- `WaitHandlers`（型）
+- `waitForOpponent`（fn）：待ちを始める。返り値を呼ぶと待ちをやめる（サーバーの列からも外す）
 
 ## public/src/renderer.ts
 

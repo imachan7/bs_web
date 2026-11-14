@@ -8,6 +8,8 @@ import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../
 import { braveCombineCandidates } from "../../shared/summon"
 import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, rebuildDeckSelects, rememberDeckSelection, rememberLobbyInputs, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
+import { waitForOpponent, type DeckChoice } from "./matchWait"
+import { assetUrl } from "./assetUrl"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
@@ -129,6 +131,27 @@ function onGame(event: string, handler: (payload: any) => void): void {
     gameHandlers[event] = handler
 }
 
+type AiCrash = { message: string; stack: string; turn?: number; phase?: string; logTail: string[] }
+// Worker の中で起きた例外と AI の手詰まりを、利用者の操作なしでバグ報告として送る（サーバーは AI戦の中身を見ていないので、送らないと誰にも届かない）。
+// 同じ対戦で例外が続いても送るのは1回（サーバーの受け口は1分5件までで、手動の報告の枠を潰さないため）
+let aiCrashReported = false
+function reportAiCrash(crash: AiCrash): void {
+    if (aiCrashReported) return
+    aiCrashReported = true
+    const detail = [crash.stack || crash.message, "", "--- 直前のログ ---", ...crash.logTail].join("\n")
+    fetch("/api/bug-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            category: "対戦（ルール・効果）",
+            summary: `AI戦の異常（自動送信）: ${crash.message}`.slice(0, 100),
+            // 受け口の上限は4000文字。例外の内容を先頭に置き、あふれるのはログの古い側ではなく末尾になるが、原因の行は残る
+            detail: detail.slice(0, 4000),
+            clientContext: { phase: crash.phase, turn: crash.turn, uiMode: "ai-local", lastError: crash.message },
+        }),
+    }).catch(() => {})
+}
+
 // Worker を起動して AI戦を始める。起動できないブラウザでは、従来どおりサーバーの AI と対戦する
 function startLocalAi(button: HTMLElement, payload: unknown): void {
     const btn = button as HTMLButtonElement
@@ -149,16 +172,21 @@ function startLocalAi(button: HTMLElement, payload: unknown): void {
         connectAndRun(btn, () => socket.emit("startAi", payload))
     }
     try {
-        worker = new Worker("/dist/aiWorker.js")
+        // Worker もカードデータを取るので、版つきの URL を渡す（本体と同じ URL ならブラウザのキャッシュから読める）
+        const workerUrl = new URL(assetUrl("/dist/aiWorker.js"), location.href)
+        workerUrl.searchParams.set("cards", assetUrl("/api/cards"))
+        worker = new Worker(workerUrl)
     } catch {
         return fallback()
     }
     worker.onerror = fallback
     worker.onmessage = (e: MessageEvent<{ event: string; payload?: unknown }>) => {
+        if (e.data.event === "crash") return reportAiCrash(e.data.payload as AiCrash)
         if (e.data.event !== "state") restore() // joined か、デッキ不正などの errorMessage
         gameHandlers[e.data.event]?.(e.data.payload)
     }
     aiWorker = worker
+    aiCrashReported = false
     worker.postMessage({ event: "startAi", payload })
     // 対戦開始の件数の記録（失敗しても対戦には関係ない）
     fetch("/api/ai-start", { method: "POST" }).catch(() => {})
@@ -261,39 +289,98 @@ onGame("joined", () => {
 
 socket.on("joinCancelled", () => {
     hideWaiting()
+    // 相手が現れなかったルームから席を外した直後なら、同じ条件で待ち直す
+    if (arrival?.expired) {
+        const { retry } = arrival
+        arrival = null
+        showToast("相手が来なかったので、待ち直します")
+        retry()
+    }
 })
 
-// ---- ランダムマッチのイベント ----
+// ---- 相手待ち（ランダムマッチ・合言葉ルーム） ----
+// 待っている間は接続を張らず、数秒おきに問い合わせる（public/src/matchWait.ts）。相手が決まってから socket をつないでルームへ入る
 
-socket.on("matchQueued", (payload: { waiting: number }) => {
-    // ボタンを隠して待機状態を表示する
-    const btn = document.getElementById("random-match-btn")
-    const status = document.getElementById("random-match-status")
-    const count = document.getElementById("random-match-count")
-    if (btn) btn.classList.add("hidden")
-    if (status) status.classList.remove("hidden")
-    if (count) count.textContent = String(payload.waiting)
-})
+// 待ちをやめる関数。待っていなければ null
+let stopWaiting: (() => void) | null = null
+// 相手が決まって入ったルームで、相手の到着を待っている間の控え。
+// 相手が roomId を受け取る前にタブを閉じていると自分だけがルームに残るので、来なければ席を外して待ち直す
+let arrival: { timer: ReturnType<typeof setTimeout>; join: () => void; retry: () => void; expired: boolean } | null = null
+const ARRIVAL_TIMEOUT_MS = 15_000
 
-socket.on("matchWaiting", (payload: { waiting: number }) => {
-    const count = document.getElementById("random-match-count")
-    if (count) count.textContent = String(payload.waiting)
-})
+// waiting が null なら待っていない表示に戻す
+function showRandomWait(waiting: number | null): void {
+    byId("random-match-btn").classList.toggle("hidden", waiting !== null)
+    byId("random-match-status").classList.toggle("hidden", waiting === null)
+    if (waiting !== null) byId("random-match-count").textContent = String(waiting)
+}
+function showRoomWait(waiting: number | null): void {
+    if (waiting === null) hideWaiting()
+    else showWaiting()
+}
 
-socket.on("matchCancelled", () => {
-    const btn = document.getElementById("random-match-btn")
-    const status = document.getElementById("random-match-status")
-    if (btn) btn.classList.remove("hidden")
-    if (status) status.classList.add("hidden")
-})
+// 待ちをやめる。相手が決まってルームで到着を待っている最中なら、席も外す
+function cancelWaiting(): void {
+    if (arrival) {
+        clearTimeout(arrival.timer)
+        const { join } = arrival
+        arrival = null
+        join()
+    }
+    stopWaiting?.()
+    stopWaiting = null
+    showRandomWait(null)
+    hideWaiting()
+}
 
-socket.on("matchFound", () => {
-    showToast("対戦相手が見つかりました")
-    const btn = document.getElementById("random-match-btn")
-    const status = document.getElementById("random-match-status")
-    if (btn) btn.classList.remove("hidden")
-    if (status) status.classList.add("hidden")
-})
+function selectedDeck(): DeckChoice | null {
+    const deck = (byId("deck-select") as HTMLSelectElement).value
+    if (!deck.startsWith(CUSTOM_DECK_PREFIX)) return { deck }
+    // カスタムデッキ: カードリスト（cardId -> 枚数）を付けて送信する
+    const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
+    const deckCards = customDecks.get(deckName)
+    if (!deckCards) {
+        showToast(`カスタムデッキが見つかりません: ${deckName}`)
+        return null
+    }
+    return { deckCards }
+}
+
+function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement, showWait: (waiting: number | null) => void): void {
+    const name = (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
+    const deck = selectedDeck()
+    if (!deck) return
+    cancelWaiting()
+    joinMode = mode
+    showWait(1)
+    stopWaiting = waitForOpponent(pool, deck, {
+        onWaiting: showWait,
+        onFailed: (message) => {
+            stopWaiting = null
+            showWait(null)
+            showToast(message)
+        },
+        onMatched: (roomId) => {
+            stopWaiting = null
+            showWait(null)
+            showToast("対戦相手が見つかりました")
+            // 同じ内容の join をもう一度送ると、サーバーは参加の取り消しとして扱う
+            const join = () => socket.emit("join", { roomId, name, ...deck })
+            const retry = () => startWaiting(mode, pool, button, showWait)
+            const timer = setTimeout(() => {
+                if (!arrival) return
+                if (!socket.connected) {
+                    arrival = null
+                    return retry()
+                }
+                arrival.expired = true
+                join()
+            }, ARRIVAL_TIMEOUT_MS)
+            arrival = { timer, join, retry, expired: false }
+            connectAndRun(button, join)
+        },
+    })
+}
 
 onGame("state", (v: GameView) => {
     view = v
@@ -346,6 +433,8 @@ socket.on("opponentBack", () => {
 // ---- 席に戻る ----
 // サーバー上の対局（socket 経由の state）が決着前のあいだだけ目印を立て、繋がるたびに席へ戻してもらう
 socket.on("state", (v: GameView) => {
+    if (arrival) clearTimeout(arrival.timer)
+    arrival = null
     inMatch = !v.winner
     setInMatch(inMatch)
 })
@@ -395,7 +484,7 @@ function closestData(
 
 async function init(): Promise<void> {
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
-    const cards = (await (await fetch("/api/cards")).json()) as CardData[]
+    const cards = (await (await fetch(assetUrl("/api/cards"))).json()) as CardData[]
     setCardDb(cards)
     setDeckRecipes(await (await fetch("/api/deck-recipes")).json())
     // ページを読み直した・タブを開き直したときは、こちらから繋いで席に戻る（盤面を描くのにカードデータが要るので、読み終えてから）
@@ -410,52 +499,18 @@ async function init(): Promise<void> {
     installSecretCardArt(showToast)
 
     byId("join-btn").addEventListener("click", () => {
-        const name =
-            (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
-        const roomId =
-            (byId("room-input") as HTMLInputElement).value.trim() || "room1"
-        const deck = (byId("deck-select") as HTMLSelectElement).value
-        joinMode = "room"
-        let emitJoin: () => void
-        if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
-            // カスタムデッキ: カードリスト（cardId -> 枚数）を付けて送信する
-            const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
-            const deckCards = customDecks.get(deckName)
-            if (!deckCards) {
-                showToast(`カスタムデッキが見つかりません: ${deckName}`)
-                return
-            }
-            emitJoin = () => socket.emit("join", { roomId, name, deckCards })
-        } else {
-            emitJoin = () => socket.emit("join", { roomId, name, deck })
-        }
-        connectAndRun(byId("join-btn"), emitJoin)
+        // 2回目の「対戦ルームに入る」は参加の取り消し
+        if (joinMode === "room" && (arrival || stopWaiting)) return cancelWaiting()
+        const roomId = (byId("room-input") as HTMLInputElement).value.trim() || "room1"
+        startWaiting("room", `room:${roomId}`, byId("join-btn"), showRoomWait)
     })
 
     // ---- ランダムマッチ ----
     byId("random-match-btn").addEventListener("click", () => {
-        const name =
-            (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
-        const deck = (byId("deck-select") as HTMLSelectElement).value
-        joinMode = "random"
-        let emitRandomMatch: () => void
-        if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
-            const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
-            const deckCards = customDecks.get(deckName)
-            if (!deckCards) {
-                showToast(`カスタムデッキが見つかりません: ${deckName}`)
-                return
-            }
-            emitRandomMatch = () => socket.emit("randomMatch", { name, deckCards })
-        } else {
-            emitRandomMatch = () => socket.emit("randomMatch", { name, deck })
-        }
-        connectAndRun(byId("random-match-btn"), emitRandomMatch)
+        startWaiting("random", "random", byId("random-match-btn"), showRandomWait)
     })
 
-    byId("random-match-cancel").addEventListener("click", () => {
-        socket.emit("cancelRandomMatch")
-    })
+    byId("random-match-cancel").addEventListener("click", cancelWaiting)
 
     // ---- AI対戦 ----
     byId("start-ai-btn").addEventListener("click", () => {
@@ -506,6 +561,7 @@ async function init(): Promise<void> {
         }
         payload.aiName = oppLabel
 
+        cancelWaiting() // 相手を待っている最中に AI戦を選んだら、待ちは取り消す
         joinMode = "ai"
         startLocalAi(byId("start-ai-btn"), payload)
     })

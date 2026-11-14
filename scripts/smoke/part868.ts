@@ -114,6 +114,10 @@ function shubuGame(combined: boolean) {
     const { s, host } = shubuGame(true)
     const before = host.cores
     assert(act(s, "p1", { type: "attack", instanceId: host.instanceId }) === null, "合体したシュブ・ニグラがアタックできる")
+    // シュブ・ニグラのコア+1とトライウェーブの合体アタック時は別のカードの効果なので、解決順を聞かれる（#545）
+    const order = s.pendingChoice
+    assert(order?.triggerOrder !== undefined, `シュブ・ニグラとトライウェーブの解決順を聞く（${order?.prompt ?? "なし"}）`)
+    act(s, "p1", { type: "resolveChoice", option: (order?.options ?? []).find((o) => o.includes("シュブ・ニグラ")) ?? "" })
     assert(host.cores === before + 1, `自身のアタックでもコア+1（${before} → ${host.cores}）`)
 }
 {

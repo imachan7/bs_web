@@ -30,7 +30,7 @@
    - データ：BS15-054・BS15-045 の手札コスト7の costMod が無い／BS21-015 e3・e4、BS21-042 e3 の【連鎖】の levels が null
    - トラッシュの保護（trashImmunity）の素通り：deployNexus → BS14-084、collectMilledMagicToTegamoto → シール4枚（確度高）。【光芒】・reviveLastDestroyedNexus は確度中〜低
    - 検出の穴：validate:gaps は見出しの無い効果行を数えない（costMod 欠落が出ない）。spec 照合の復活（R4-5）は反映するか判断待ち
-3. **#431（統合ロビー Phase 2）はアルティメットの前にやる**（2026-11-12 ユーザー決定）。ただし前提の Phase 0（計測）・Phase 1（募集掲示板）が main に入っていない（`feat/seek-board-phase1`。PR 無し）。先に 0・1 を本番に出し、`match:stats` で数分差のすれ違いがあるかを見てから 2a＋2b をまとめて進める（2a 単体ではほぼ価値が無い）。#431 から監査レポート（#437 と重複）を外す
+3. **#431（統合ロビー Phase 2＝Web Push＋外部ストア）は先送り**（2026-11-14 ユーザー判断「一旦それで」）。待っている間の接続は、3秒おきの問い合わせに置き換えて解消した（DEPLOY_CLOUDRUN §5.2）。タブを閉じても待てる仕組みは、待ちの件数が増えてから。Phase 0（計測）・Phase 1（掲示板）は `feat/seek-board-phase1` のまま（PR 無し。掲示板は接続中だけ有効な作りなので、出すなら問い合わせ方式に合わせ直す）
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
@@ -41,7 +41,6 @@
 - 束ねるときに差し替えるのは `data/loadCards`（`/api/cards` を同期で取る）と `coverageRecorder`（何もしない）の2つだけ。エンジンに Node 専用の import を足すと束ねられなくなるので、ビルド（`scripts/build-ai-worker.mjs`）が束ねた直後に `process` の無い環境で1戦を始めて確かめる
 - 対戦開始の処理（デッキ指定の解決・先攻決め・最初のターン開始）は `server/src/matchSetup.ts` に出し、サーバーと Worker の両方が使う
 - サーバーの `startAi` は残す（Worker を起動できないブラウザの退避先・E2E）。件数の記録は `POST /api/ai-start` で続ける
-- PR #431 の Phase 2（Firestore＋Web Push）は、ランダムマッチが月48件の今は先送りを提案（掲示板の離脱理由の計測がたまってから）
 
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 

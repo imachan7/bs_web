@@ -15,6 +15,8 @@ import { applyDebugBoard, type DebugBoard } from "./logic/debugBoard"
 import { DECK_RECIPES } from "../../data/constants"
 import { accessLogMiddleware, logSocketJoin } from "./accessLog"
 import { registerAdmin } from "./admin"
+import { MatchTickets } from "./matchTickets"
+import { IMMUTABLE_CACHE, contentVersion, isCurrentVersion, scanAssetVersions, versionHtml } from "./assetVersions"
 
 const PORT = Number(process.env.PORT ?? 3000)
 
@@ -39,7 +41,29 @@ app.use((req, res, next) => {
 })
 // カード画像は本番ではバケットをつないだ場所から読む（docs/ops/DEPLOY_CLOUDRUN.md「旧カードの画像」）。読むたびにバケットへ行かないよう、ブラウザに7日覚えさせる
 app.use("/imgs/cards", express.static(path.resolve(__dirname, "../../public/imgs/cards"), { maxAge: "7d" }))
-app.use(express.static(path.resolve(__dirname, "../../public")))
+// JS・CSS・カードデータは、中身のハッシュを版として URL に付け、ブラウザに長期キャッシュさせる（docs/ops/PERF_PLAN.md §4）。
+// 本番だけ：開発中は esbuild --watch が起動後に dist を書き換えるので、起動時に数えた版で覚えさせると古い JS を掴む
+const PUBLIC_DIR = path.resolve(__dirname, "../../public")
+const CARDS_JSON = JSON.stringify(ALL_CARDS)
+const ASSET_VERSIONS: Map<string, string> =
+    process.env.NODE_ENV === "production" ? scanAssetVersions(PUBLIC_DIR).set("/api/cards", contentVersion(CARDS_JSON)) : new Map()
+const hasCurrentVersion = (req: express.Request): boolean => isCurrentVersion(ASSET_VERSIONS, req.originalUrl.split("?")[0]!, req.query.v)
+if (ASSET_VERSIONS.size > 0) {
+    for (const name of ["index.html", "deck.html", "bugreport.html"]) {
+        const html = versionHtml(fs.readFileSync(path.join(PUBLIC_DIR, name), "utf-8"), ASSET_VERSIONS)
+        // HTML 自体は毎回確かめさせる（ここが新しい版の URL を配る入口なので、覚えさせると更新が届かない）
+        app.get(name === "index.html" ? ["/", "/index.html"] : `/${name}`, (_req, res) => {
+            res.set("Cache-Control", "no-cache").type("html").send(html)
+        })
+    }
+}
+app.use(
+    express.static(PUBLIC_DIR, {
+        setHeaders: (res) => {
+            if (hasCurrentVersion(res.req as express.Request)) res.setHeader("Cache-Control", IMMUTABLE_CACHE)
+        },
+    }),
+)
 app.use("/data", express.static(path.resolve(__dirname, "../../data")))
 
 const server = http.createServer(app)
@@ -56,9 +80,38 @@ app.get("/health", (_req, res) => {
 // カードマスターデータ。実体は弾ごとに分割されている（data/cards/BS0N.json）が、
 // クライアントには結合済みの1配列を1リクエストで返す。
 // ALL_CARDS は起動時に一度だけ読むので、ここでのI/Oは発生しない
-app.get("/api/cards", (_req, res) => {
-    res.json(ALL_CARDS)
+app.get("/api/cards", (req, res) => {
+    if (hasCurrentVersion(req)) res.set("Cache-Control", IMMUTABLE_CACHE)
+    res.type("json").send(CARDS_JSON)
 })
+// ---- 接続を張らずに相手を待つ（ランダムマッチ・合言葉ルーム） ----
+// クライアントが数秒おきに問い合わせ、相手が決まったら roomId を返す。受け取った2人が socket をつないでそのルームへ join する。
+// pool は待ち場所の名前で、ランダムマッチは "random"、合言葉ルームは "room:<合言葉>"
+const matchTickets = new MatchTickets(() => roomManager.newRoomId("match"))
+app.post("/api/match/wait", express.json({ limit: "16kb" }), (req, res) => {
+    const body = req.body ?? {}
+    const pool = String(body.pool ?? "").slice(0, 100)
+    if (pool !== "random" && !pool.startsWith("room:")) {
+        res.status(400).json({ error: "待ち場所の指定が不正です" })
+        return
+    }
+    // 並び始めるときにデッキを確かめる（相手が決まってから不正と分かると、相手だけがルームに残される）
+    if (!matchTickets.has(body.ticket)) {
+        const resolved = resolveDeckSpec(body.deck, body.deckCards)
+        if ("error" in resolved) {
+            res.status(400).json({ error: resolved.error })
+            return
+        }
+        logSocketJoin(req.headers as Record<string, unknown>, req.socket.remoteAddress, pool === "random" ? "（ランダムマッチ）" : pool.slice("room:".length))
+    }
+    res.json(matchTickets.poll(body.ticket, pool))
+})
+// sendBeacon（ページを閉じるとき）からも来る
+app.post("/api/match/cancel", express.json({ limit: "1kb" }), (req, res) => {
+    matchTickets.cancel(req.body?.ticket)
+    res.status(204).end()
+})
+
 // ブラウザの中で動く AI戦（public/src/aiWorker/）は接続を張らないので、始めた件数だけここで数える
 app.post("/api/ai-start", (req, res) => {
     logSocketJoin(req.headers as Record<string, unknown>, req.socket.remoteAddress, "（AI戦）")
@@ -68,7 +121,7 @@ app.post("/api/ai-start", (req, res) => {
 // 古いクライアント（キャッシュ済みのJS）や外部ツールが404にならないよう同じ内容を返す。
 // data/cards.json は既に存在せず、上の express.static は next() で素通りするのでここへ届く
 app.get("/data/cards.json", (_req, res) => {
-    res.json(ALL_CARDS)
+    res.type("json").send(CARDS_JSON)
 })
 // おまかせデッキの一覧。ロビーのデッキ選択が使う
 app.get("/api/deck-recipes", (_req, res) => {
@@ -500,11 +553,14 @@ io.on("connection", (socket: Socket) => {
         }) => {
             const roomId = String(payload.roomId || "room1")
             const name = String(payload.name || "プレイヤー")
-            logSocketJoin(
-                socket.handshake.headers as Record<string, unknown>,
-                socket.handshake.address,
-                roomId,
-            )
+            // /api/match/wait で相手が決まって入ってくる分は、待ち始めたときに記録済み
+            if (!roomId.startsWith("match-")) {
+                logSocketJoin(
+                    socket.handshake.headers as Record<string, unknown>,
+                    socket.handshake.address,
+                    roomId,
+                )
+            }
 
             const resolved = resolveDeckSpec(payload.deck, payload.deckCards)
             if ("error" in resolved) {

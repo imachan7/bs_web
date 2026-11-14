@@ -5,6 +5,7 @@ import { CARD_TYPE_LABELS, COLOR_LABELS, DECK_SIZE, DECK_MIN_SIZE } from "../../
 import { KEYWORDS } from "../../shared/rules"
 import { isTokenCard } from "../../shared/cardDb"
 import { effectLineSegments } from "./effectText"
+import { assetUrl } from "./assetUrl"
 import { attachCardArt, installSecretCardArt } from "./cardArt"
 
 // ---- 定数 ----
@@ -1383,7 +1384,7 @@ async function init(): Promise<void> {
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
     // ?staging=1 のときは取り込み途中のカード（data/staging）を出す確認用
     const useStaging = new URLSearchParams(location.search).has("staging")
-    const cardsPromise = fetch(useStaging ? "/api/staging-cards" : "/api/cards")
+    const cardsPromise = fetch(useStaging ? "/api/staging-cards" : assetUrl("/api/cards"))
 
     const [, res] = await Promise.all([notesPromise, cardsPromise])
     if (!res.ok) {
