@@ -4,7 +4,9 @@ import type { CardData } from "../../../server/src/type"
 
 export function loadAllCards(): CardData[] {
     const xhr = new XMLHttpRequest()
-    xhr.open("GET", "/api/cards", false)
+    // main.ts が Worker の URL に付けて渡した、版つきのカードデータの URL（無ければ版なし）。ビルド時の確認には location が無い
+    const url = new URLSearchParams(self.location?.search ?? "").get("cards") ?? "/api/cards"
+    xhr.open("GET", url, false)
     xhr.send()
     if (xhr.status !== 200) throw new Error(`カードデータを取得できませんでした（${xhr.status}）`)
     return JSON.parse(xhr.responseText) as CardData[]
