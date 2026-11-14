@@ -58,7 +58,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameLevelAsSource, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, maxCostAsEventTarget, sameCostAsLastTarget, sameCostAsLast, maxCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, lowerCostThanSelf, maxCostLastMagic, maxLv1BpOfSelf, maxLv1BpOfLastTarget, sameIceWallColorAs, maxBpPerOwn, maxBpPer, maxCostPer, maxCostPerOwn, ...rest } = spec
+    const { maxBp, minBp, exactBp, excludeBattleLoser, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameLevelAsSource, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, maxCostAsEventTarget, sameCostAsLastTarget, sameCostAsLast, maxCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, lowerCostThanSelf, maxCostLastMagic, maxLv1BpOfSelf, maxLv1BpOfLastTarget, sameIceWallColorAs, maxBpPerOwn, maxBpPer, maxCostPer, maxCostPerOwn, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -69,6 +69,7 @@ export function normalizeFilter(
         // 多色の敗者は現データに存在しないため先頭色で判定する（色軸は単一色のみ受ける）
         resolved.color = colors[0]!
     }
+    if (excludeBattleLoser && ctx.state.lastBattleDestroyedInstanceId !== undefined) resolved.excludeInstanceId = ctx.state.lastBattleDestroyedInstanceId
     if (sameFamilyAsBattleLoser) {
         const families = ctx.state.lastBattleDestroyedFamilies
         if (families.length === 0) return SELF_REQUIRED

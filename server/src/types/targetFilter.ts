@@ -56,6 +56,8 @@ export interface TargetFilter {
     keywordCount?: number // keyword（単数のときだけ）と併用。カードに静的に書かれた指定数が一致するもの（【暴風：1】限定。付与された暴風は対象外）
     sameLevelAsSource?: true // 効果の発生源（ctx.self）のスピリットと同じLv（normalizeFilter が level 軸へ解決する。発生源が場にいなければ対象なし）
     sameLevelAsBattleLoser?: true // 直前のバトルで破壊された側と同じLv（normalizeFilter が state.lastBattleDestroyedLevel を level 軸へ解決する。記録が無ければ対象なし）
+    excludeBattleLoser?: true // 直前のバトルで破壊したスピリット自身を外す（効果文の「破壊したスピリット以外の」。勝敗の誘発は敗者の破壊待機の列で解決するので、敗者はまだ場にいる。normalizeFilter が excludeInstanceId へ解決する。BS18-X04）
+    excludeInstanceId?: string // 解決後の軸（カードデータには書かない）
     sameFamilyAsBattleLoser?: true // 直前のバトルで破壊された側と同じ系統（normalizeFilter が state.lastBattleDestroyedFamilies を family 軸へ解決する。記録が無ければ対象なし。BS04ニーベルングリング）
     sameFamilyAsDestroyed?: true // 直近に破壊された相手のスピリットと同じ系統（state.lastOpponentSpiritDestroyedFamilies。記録が無ければ対象なし）
     sameBpAsBattleLoser?: true // 直前のバトルで破壊された側と同じ実効BP（normalizeFilter が state.lastBattleDestroyedBp を exactBp 軸へ解決する。記録が無ければ対象なし。BS03熾烈極める最前線Lv2）

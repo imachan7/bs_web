@@ -643,6 +643,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `reserveBlockerDestroyByEntries`（fn）：発生源が場にいる（effectSources）ことの判定はここで済ませる。予約の後は発生源の有無を見ない
 
+## server/src/logic/battleOutcomeTriggers.ts
+
+- `BattleWinner`（型）
+- `collectBattleOutcomeTriggers`（fn）
+
 ## server/src/logic/battleResolve.ts
 
 - `resolveLifeDamage`（fn）：ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。

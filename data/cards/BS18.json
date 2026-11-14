@@ -6127,7 +6127,7 @@
      "count": 1,
      "all": true,
      "filter": {
-      "sameFamilyAsBattleLoser": true
+      "excludeBattleLoser": true, "sameFamilyAsBattleLoser": true
      }
     }
    }

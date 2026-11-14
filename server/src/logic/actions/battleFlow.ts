@@ -1343,6 +1343,8 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
         }
         // 【装甲】・「相手の効果を受けない」などで届かないものは候補にしない（2026-11-11 監査で発見。候補列挙では支払いを伴う耐性を聞かない）
         candidates = candidates.filter((c) => resistanceAgainst(state, opp, c, { ...attemptOf(ctx, op, "targeted"), probing: true }) === null)
+        // 破壊待機状態のカードは、そこからさらに破壊されない（TIMING_CHART §1.5）
+        if (op === "destroy") candidates = candidates.filter((c) => c.pendingDestruction !== true)
         return { candidates, spirits, braves }
     }
     const removeOne = (chosen: CardInstance, spirits: CardInstance[], braves: CardInstance[]): void => {
