@@ -28,7 +28,7 @@ function publish(): void {
     pumpAi(game, "p2", {
         isActive: () => true,
         onStateChanged: publish,
-        onGiveUp: (message) => console.warn(`[AI] ${message}`),
+        onGiveUp: (message) => reportCrash(message, ""),
     })
 }
 
@@ -46,6 +46,15 @@ function startAi(payload: StartAiPayload): void {
     post("joined", { playerId: "p1", roomId: "ai-local" })
     publish()
 }
+
+// エンジンや AI の例外と、AI の手詰まり（pumpAi の onGiveUp）を、直前のログと一緒に main.ts へ渡す（main.ts がバグ報告として送る）。
+// サーバーで動いていた頃はどちらもサーバーのログに残っていたが、Worker の中で起きたことは利用者のブラウザにしか出ない
+function reportCrash(message: string, stack: string): void {
+    post("crash", { message, stack, turn: game?.turn, phase: game?.phase, logTail: game?.log.slice(-40) ?? [] })
+}
+
+// AI の手は setTimeout の中で進むので、呼び出しごとの try/catch ではなく Worker 全体の onerror で受ける
+self.onerror = (message, _source, _lineno, _colno, error) => reportCrash(String(error?.message ?? message), String(error?.stack ?? ""))
 
 self.onmessage = (e: MessageEvent<{ event: string; payload?: unknown }>) => {
     const { event, payload } = e.data

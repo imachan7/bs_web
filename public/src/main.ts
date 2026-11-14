@@ -129,6 +129,27 @@ function onGame(event: string, handler: (payload: any) => void): void {
     gameHandlers[event] = handler
 }
 
+type AiCrash = { message: string; stack: string; turn?: number; phase?: string; logTail: string[] }
+// Worker の中で起きた例外と AI の手詰まりを、利用者の操作なしでバグ報告として送る（サーバーは AI戦の中身を見ていないので、送らないと誰にも届かない）。
+// 同じ対戦で例外が続いても送るのは1回（サーバーの受け口は1分5件までで、手動の報告の枠を潰さないため）
+let aiCrashReported = false
+function reportAiCrash(crash: AiCrash): void {
+    if (aiCrashReported) return
+    aiCrashReported = true
+    const detail = [crash.stack || crash.message, "", "--- 直前のログ ---", ...crash.logTail].join("\n")
+    fetch("/api/bug-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            category: "対戦（ルール・効果）",
+            summary: `AI戦の異常（自動送信）: ${crash.message}`.slice(0, 100),
+            // 受け口の上限は4000文字。例外の内容を先頭に置き、あふれるのはログの古い側ではなく末尾になるが、原因の行は残る
+            detail: detail.slice(0, 4000),
+            clientContext: { phase: crash.phase, turn: crash.turn, uiMode: "ai-local", lastError: crash.message },
+        }),
+    }).catch(() => {})
+}
+
 // Worker を起動して AI戦を始める。起動できないブラウザでは、従来どおりサーバーの AI と対戦する
 function startLocalAi(button: HTMLElement, payload: unknown): void {
     const btn = button as HTMLButtonElement
@@ -155,10 +176,12 @@ function startLocalAi(button: HTMLElement, payload: unknown): void {
     }
     worker.onerror = fallback
     worker.onmessage = (e: MessageEvent<{ event: string; payload?: unknown }>) => {
+        if (e.data.event === "crash") return reportAiCrash(e.data.payload as AiCrash)
         if (e.data.event !== "state") restore() // joined か、デッキ不正などの errorMessage
         gameHandlers[e.data.event]?.(e.data.payload)
     }
     aiWorker = worker
+    aiCrashReported = false
     worker.postMessage({ event: "startAi", payload })
     // 対戦開始の件数の記録（失敗しても対戦には関係ない）
     fetch("/api/ai-start", { method: "POST" }).catch(() => {})
