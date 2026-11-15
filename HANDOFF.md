@@ -42,6 +42,17 @@
 - 対戦開始の処理（デッキ指定の解決・先攻決め・最初のターン開始）は `server/src/matchSetup.ts` に出し、サーバーと Worker の両方が使う
 - サーバーの `startAi` は残す（Worker を起動できないブラウザの退避先・E2E）。件数の記録は `POST /api/ai-start` で続ける
 
+### 進行中：待機状態の段取り2＝対象と発揮の判定を1か所に（2026-11-15 確定。`refactor/waiting-related-effects`）
+
+仕様は [PENDING_STATE.md](./docs/design/PENDING_STATE.md) §3 の P4・P5。判定は `shared/rules/waiting.ts`（`canBeTargeted`・`canFireWhileWaiting`・`isLeaveRelatedTrigger`）の1か所。
+- **欄の運び方**：`GameState.leaveRelated`（いま解決している効果が、場を離れることに関係する誘発で発揮したものか）。誘発1件を解決する関数（`fireTrigger` の resolveEntry と付与分、fieldEvent／battleWon／step の `handlers.resolve`）を `withLeaveRelated` で包む。入口ごと包まない（`collect` の経路は解決せずに返る）
+- **フレーム**：誘発の入口が作るフレームは `leaveRelated: true|false` を必ず明示する（fieldEvent の extra＝破壊の列の項目は true、battleWon は常に true、step は常に false）。効果の途中の続き（sequence・pay・対象選びの残り）は `pushResumeFrames` が、欄が未指定の action フレームへ state から写す。`suspend` は選択待ちへ写す（済み）。`drainResumeStack` はフレームごとに必ず設定し直す（action 以外は false）
+- **P5（対象）**：`isReturnWaiting` で外していた7か所（`targeting.ts` 3・`actions/bounce.ts` 3・`actions/grant.ts` 1）を `canBeTargeted(state, s)` に。`shared/rules/activation.ts` の2か所は `!isWaiting(s)`（起動効果は関係する誘発にならない）。**破壊待機の体が、関係ない効果の対象にならなくなる**
+- **P4（発揮）**：`fireFieldEventTriggers` の正規表現 → `canFireWhileWaiting(inst, event)`。`fireTrigger` の先頭にも同じ判定、`fireStepTriggers` は待機中の発生源を飛ばす（挙動が変わる）
+- **消さないもの**（§3「消えるもの」の訂正）：`actions/destroy.ts` の破壊待機を候補から外す絞り込み・`pickEnemyByBp` の live 優先・AI の評価。関係する効果からは待機中の体を選べるままなので、「待機からさらに破壊されない」は別の規則として残る
+- **今回入れない範囲**：欄は真偽値（「どのカードの待機か」までは見ない）／`matchesTarget` を直接 filter して選ばせる自分側の候補集め（`timedEffect.ts`・`buff.ts`・`exhaustRefresh.ts` など約12か所）は未対応／補助欄（破壊の文脈・バーストの控え）を `waiting` へ移すのは別コミット
+- テスト：part952（手で組んだ待機＋欄の持ち回り）。見張りは part699・part950・part951 と【転召】で破壊待機の自身を選ぶ既存 part
+
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
 - **対象**：BS13-038 魔女タランダ（手札のスピリット）・BS10-046 龍仙公主（手札のマジック）。「好きなだけ破棄、**破棄した1枚につき**破壊された体を1体戻す」。#423（perDestroyed）の置き換え（#423 は閉じる）
