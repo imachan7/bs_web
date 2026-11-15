@@ -46,6 +46,14 @@
 
 PR は1つずつ別ブランチ。①同時破壊を1本の列に（C1）は実装済み（TIMING_CHART §1.5）。残りの順は ②対象に取れるのは同じ出来事の待機だけ（C2。持つのはカードの id ではなく「待機の出来事の id」で、同時に待機に入ったカードで共通。PENDING_STATE「残り」の「欄を instanceId に」は書き直す）→ ③戻す待機の順番と待機の変化（C3・C4。part194 の期待値を改める）→ ④補助の欄を `waiting` へ移す（挙動は変えない）。
 
+**② の設計（C2。`refactor/waiting-event-id`）**
+
+- 待機に「出来事の id」を持たせる：`CardInstance.waiting.event: string`。同時破壊は `destroyGroup.id`（全員共通）、単体の破壊・消滅・ネクサスの破壊・戻すはそのカードの `instanceId`（戻すは③で共通の id にする）
+- `GameState.leaveRelated?: true` を `waitingEvent?: string`（いま解決している効果を誘発した待機の出来事）に替える。`PendingChoice.waitingEvent?: string`、action フレームは `waitingEvent?: string | null`（null＝入口が「無し」と明示／未指定＝積む時点の state から写す）
+- `canBeTargeted(board, inst)`＝待機でない、または `inst.waiting.event === board.waitingEvent`
+- 誘発の入口が立てる値は `waitingEventFor(related, subject, outer)`＝関係する誘発でなければ無し／主語（その誘発が見ているカード）が待機中ならその出来事／待機中でなければ外側の値のまま。主語：`fireTrigger` は selfInstance、fieldEvent は破壊の見張り（`destroyGuard`）のカードか selfOverride、破壊の列の項目は `requiresPendingDestructionOf` のカード、勝敗の誘発は敗者（`collectBattleOutcomeTriggers` が包んで渡す）
+- 外側の値を引き継ぐのは勝敗の誘発（主語の勝者は待機していない）のため。③までは「手札に戻ったとき」（移動の後に誘発）も引き継ぐ
+
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
 - **対象**：BS13-038 魔女タランダ（手札のスピリット）・BS10-046 龍仙公主（手札のマジック）。「好きなだけ破棄、**破棄した1枚につき**破壊された体を1体戻す」。#423（perDestroyed）の置き換え（#423 は閉じる）
