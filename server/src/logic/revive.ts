@@ -259,29 +259,24 @@ function applyNexusRevive(
     )
 }
 
-// この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用ありに変わった**：
-// 同時破壊グループが有効な間は、他の発生源（sourceInstanceId 付き＝scope:"ownAll"）の枠を
-// `${sourceInstanceId}:${effectId}` 単位で仮消費する。自身の reviveOnDestroy（scope:"self"）は対象外
-// （公式Q&A Q22359。fix/destroyed-trigger-once）。断った場合は declineReviveConfirm が戻す
+// この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める。
+// 同時破壊グループが有効な間、他の発生源（sourceInstanceId 付き＝scope:"ownAll"）の枠は同時破壊につき1回なので、
+// 鍵（groupOnce）を付けて返す。消費は列で解決する時点。自身の reviveOnDestroy（scope:"self"）は対象外
+// （公式Q&A Q22359）。断った場合は declineReviveConfirm が戻す
 // 破壊で誘発した効果を1列に並べるとき、列の項目として出すために使う（docs/design/TIMING_CHART.md）
 export function collectReviveEntries(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
     context?: DestroyContext,
-): { effectId: string; sourceName: string }[] {
+): { effectId: string; sourceName: string; groupOnce?: string; pickMany?: true }[] {
     const found: { effectId: string; sourceName: string; sourceInstanceId?: string; perDestroyed?: true; pickMany?: true }[] = []
     tryReviveOnDestroy(state, ownerPid, inst, context, undefined, undefined, undefined, found)
-    const group = state.destroyGroup
-    const result: { effectId: string; sourceName: string }[] = []
+    const result: { effectId: string; sourceName: string; groupOnce?: string; pickMany?: true }[] = []
     for (const entry of found) {
         if (context?.suppressOwnEffects && entry.sourceInstanceId === undefined) continue
-        if (group && entry.sourceInstanceId !== undefined && entry.perDestroyed !== true) {
-            const key = `${entry.sourceInstanceId}:${entry.effectId}`
-            if (group.used.includes(key)) continue
-            group.used.push(key)
-        }
-        result.push({ effectId: entry.effectId, sourceName: entry.sourceName })
+        const once = state.destroyGroup && entry.sourceInstanceId !== undefined && entry.perDestroyed !== true
+        result.push({ effectId: entry.effectId, sourceName: entry.sourceName, ...(once ? { groupOnce: `${entry.sourceInstanceId}:${entry.effectId}` } : {}), ...(entry.pickMany ? { pickMany: true as const } : {}) })
     }
     return result
 }
@@ -683,6 +678,11 @@ export function declineReviveConfirm(
     // 同時破壊グループの仮消費を戻す（このsourceInstanceIdはscope:"self"のときは元々マークしていないので
     // 何もしない。次に破壊される1体でまたこの発生源の枠を提示できるようにする。fix/destroyed-trigger-once）
     revertDestroyGroupUsage(state, entry.sourceInstanceId, entry.effectId)
+    // 同時破壊の列の中で断った：破壊待機のまま、列の続き（他の「残る」・破壊時など）を解決する。破壊をやり直さない
+    if (isTrashWaiting(inst) && state.destroyGroup?.memberIds.includes(inst.instanceId)) {
+        state.lastReviveDestroyed = true
+        return
+    }
     // 破壊バッチが中断から再開したときに「破壊できた数」へ算入できるよう結果を残す
     state.lastReviveDestroyed = destroySpirit(
         state,

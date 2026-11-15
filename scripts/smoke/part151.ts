@@ -184,8 +184,8 @@ console.log("=== 複数体が候補でも、単数型（紫水晶の森）は同
     )
 
     // 復活の確認が2体ぶん出る＝同時発揮なので、まずターンプレイヤーが
-    // 「どちらから破壊処理をするか」を決める（docs/design/TIMING_CHART.md §0-3）
-    assert(s.pendingChoice?.destroyOrder !== undefined, "同時破壊の解決順の選択が先に立つ")
+    // 「どちらのスピリットの『戻す』から解決するか」を決める（同時破壊の誘発は1本の列。PENDING_STATE §3 C1）
+    assert(s.pendingChoice?.triggerOrder !== undefined, "同時破壊の解決順の選択が先に立つ")
     assert(s.pendingChoice?.pid === s.turnPlayer, "順番を決めるのはターンプレイヤー")
     assert((s.pendingChoice?.options ?? []).length === 2, "候補は2体")
     const firstPick = (s.pendingChoice?.options ?? [])[0]!
@@ -194,7 +194,7 @@ console.log("=== 複数体が候補でも、単数型（紫水晶の森）は同
     assert(ALIVE(s, "p1", a.instanceId) && ALIVE(s, "p1", b.instanceId), "2体とも場に残ったまま")
     assert(act(s, "p1", { type: "resolveChoice", option: "復活させる" }) === null, "1体目は復活させる")
     // 残る候補は1体だけなので、順番の選択はもう出ない
-    assert(s.pendingChoice?.destroyOrder === undefined, "候補が1体になれば順番は聞かない")
+    assert(s.pendingChoice?.triggerOrder === undefined, "候補が1体になれば順番は聞かない")
     // 紫水晶の森は「〜が破壊されたとき、そのスピリットを戻す」型なので、同時破壊では1回だけ（Q22359。2026-11-10 に全体破壊も同時破壊のグループを通すようにした）
     assert(s.pendingChoice === null, "1体を戻したので、2体目の確認は出ない")
 

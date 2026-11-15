@@ -3,7 +3,7 @@
 // ③「フィールドに残る／戻る」。③が解決した時点でその破壊は無かったことになり、列の残りは空振りする。
 // docs/design/TIMING_CHART.md ／ docs/design/RULES_BATSPI_WIKI.md §1
 import { act, assert, createGame, createInstance, destroySpirit, refreshLevelAsOverrides, runTurnStart } from "./helpers"
-import { destroySpiritsFrom } from "../../server/src/logic/removal"
+import { destroyTargetsBatch } from "../../server/src/logic/removal"
 import type { GameState } from "./helpers"
 
 function game(seed: string): GameState {
@@ -94,13 +94,13 @@ console.log("=== 【不死】も同じ列に並ぶ（かつては破壊の外側
     const bait = createInstance("BS13-008", s.turn, 1)
     s.players.p1.field.spirits.push(bait)
     refreshLevelAsOverrides(s)
-    destroySpiritsFrom(s, [{ pid: "p1", instanceId: bait.instanceId }], 0, 0)
+    destroyTargetsBatch(s, "p2", [{ pid: "p1", instanceId: bait.instanceId }])
     // メガロ・ザウルは『破壊時』を持たず、この破壊で誘発するのは【不死】だけ＝列は1件。
     // 1件なら順番を聞かずにそのまま解決するので、出るのは【不死】の召喚確認になる
     assert(s.pendingChoice !== null, "【不死】の確認が出る")
     assert(s.pendingChoice!.fushiSummon !== undefined, "【不死】がこの破壊の列から解決された")
     assert(
-        s.pendingChoice!.destroyOrder === undefined,
+        s.pendingChoice!.triggerOrder === undefined,
         "かつての「破壊と【不死】のどちらを先に」の2択はもう出ない（列に統合した）",
     )
 }

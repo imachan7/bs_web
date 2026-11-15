@@ -8,7 +8,7 @@ import { activateBurstCard, applyDeclaredBursts, declareBurst } from "./keywords
 import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameAction, GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setLeaveRelated } from "./GameState"
-import { notifyHandGained } from "./fieldEventTriggers"
+import { claimGroupOnce, groupOnceUsed, notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit, applyCoreDestination, flushCoreDestinations } from "./removal"
@@ -466,19 +466,6 @@ function resolveChoiceInner(
         return finishChoiceResolution(state, pending.pid)
     }
 
-    // 同時に破壊される複数体のうち「どの体から破壊処理をするか」（ターンプレイヤーが決める）。
-    // action は解決せず、選ばれた個体を記録して破壊バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
-    if (pending.destroyOrder) {
-        const options = pending.options ?? []
-        if (option === undefined) return "どのスピリットから破壊処理をするか選んでください"
-        const index = options.indexOf(option)
-        const picked = pending.destroyOrder.instanceIds[index]
-        if (index < 0 || picked === undefined) return "選択できない候補です"
-        state.pendingChoice = null
-        state.destroyOrderPick = picked
-        return finishChoiceResolution(state, pending.pid)
-    }
-
     // 【烈神速】：トラッシュのコアの置き先を1個ぶん選ぶ（BS16-X03）。action は解決せず、
     // 選んだ置き先へ1個（一括なら残り全部）置いてから、残っていればまた同じ選択を出す
     if (pending.distributeCores) {
@@ -890,6 +877,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
             if (target == null || !isTrashWaiting(target)) continue
         }
+        if (groupOnceUsed(state, frame.groupOnce)) continue
         if (frame.requiresRestedOf !== undefined && findInstanceAnywhere(state, frame.requiresRestedOf)?.isRested !== true) continue
         if (frame.levelRecheck !== undefined && !levelStillMet(state, frame.levelRecheck)) continue
         if (frame.onceClaim !== undefined) {
@@ -901,12 +889,14 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         }
         // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
         if (frame.logText !== undefined) log(state, frame.logText)
+        claimGroupOnce(state, frame.groupOnce)
         const frameSelf = frame.selfInstanceId
             ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
             : null
         // optional な誘発の残りは、解決ではなく**発動確認から**再開する
         if (frame.confirmPrompt !== undefined) {
-            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf, frame.onceClaim)
+            // 断ったら「同時破壊につき1回」の消費を戻す（次の破壊誘発元の項目で、もう一度確認できる）
+            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf, frame.onceClaim ?? (frame.groupOnce !== undefined ? frame.levelRecheck : undefined))
             continue
         }
         // targetInstanceId / sourceColors / sourceType は fieldEvent 誘発の残りを再開するときだけ入る

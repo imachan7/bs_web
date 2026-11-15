@@ -22,7 +22,7 @@ import {
     answerPayConfirm,
 } from "./helpers"
 import type { GameState } from "./helpers"
-import { destroySpiritsFrom } from "../../server/src/logic/removal"
+import { destroyTargetsBatch } from "../../server/src/logic/removal"
 import { millDeck } from "../../server/src/logic/EffectModules"
 import { reductionGrantSymbols } from "../../shared/cost"
 import { hasMagicRestriction } from "../../shared/cost"
@@ -62,7 +62,7 @@ console.log("=== 器AR：BS13-036（自分の黄が破壊されたとき、ラ�
     s.phase = "attack"
     const lifeBefore = s.players.p1.life
     const reserveBefore = s.players.p1.reserve
-    destroySpiritsFrom(s, [{ pid: "p1", instanceId: target.instanceId }], 0, 0)
+    destroyTargetsBatch(s, "p2", [{ pid: "p1", instanceId: target.instanceId }])
     assert(s.pendingChoice?.reviveConfirm !== undefined, "「破壊される代わりに残る」の確認が出る")
     assert(act(s, "p1", { type: "resolveChoice", option: "復活させる" }) === null, "残すことを選ぶ")
     assert(
@@ -86,7 +86,7 @@ console.log("=== 器AT：BS13-057（合体スピリットの破壊時、ブレ�
     s.players.p1.field.spirits.push(host)
     s.players.p1.field.combinedBraves.push(brave)
     refreshLevelAsOverrides(s)
-    destroySpiritsFrom(s, [{ pid: "p1", instanceId: host.instanceId }], 0, 0)
+    destroyTargetsBatch(s, "p2", [{ pid: "p1", instanceId: host.instanceId }])
     assert(s.pendingChoice === null, "「〜できる」ではない（確認を出さず確定する）")
     assert(!s.players.p1.field.spirits.some((sp) => sp.instanceId === host.instanceId), "ホストは場から離れる")
     assert(s.players.p1.hand.includes("BS03-009"), "ホスト（スピリット）は手札に戻る")
@@ -335,7 +335,7 @@ console.log("=== 器AR：BS13-X05 Lv2-3（同じ系統のスピリット1体を�
     refreshLevelAsOverrides(s)
     // BS13-036 側の復活は『お互いのアタックステップ』限定（2026-09-16）。2件同時に誘発させるため合わせる
     s.phase = "attack"
-    destroySpiritsFrom(s, [{ pid: "p1", instanceId: x05.instanceId }], 0, 0)
+    destroyTargetsBatch(s, "p2", [{ pid: "p1", instanceId: x05.instanceId }])
     // BS13-036自身も「自分の黄が破壊されたとき」の復活効果を持つため、X05（黄）の破壊では2件同時に
     // 誘発する。ターンプレイヤーがまずX05自身の効果から解決する（同時発揮の一般則。TIMING_CHART.md §0-3）
     assert(s.pendingChoice?.triggerOrder !== undefined, "2件同時に誘発するので解決順を聞かれる")
