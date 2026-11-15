@@ -44,7 +44,7 @@
 
 ### 進行中：待機状態の作り替え（2026-11-15。確認の答えは [PENDING_STATE.md](./docs/design/PENDING_STATE.md) §3 の C1〜C4）
 
-PR は1つずつ別ブランチ。①同時破壊を1本の列に（C1）と ②対象に取れるのは同じ出来事の待機だけ（C2）は実装済み（PENDING_STATE §3 末尾）。残りの順は ③戻す待機の順番と待機の変化（C3・C4。part194 の期待値を改める。1つの効果で同時に戻すカードには共通の `waiting.event` を入れる）→ ④補助の欄を `waiting` へ移す（挙動は変えない）。
+C1〜C4（同時破壊を1本の列に・対象に取れるのは同じ出来事の待機だけ・戻す待機の順番・待機の変化）は実装済み（PENDING_STATE §3、TIMING_CHART §1.5・§1.6）。残りは、補助の欄（`pendingDestroyContext`・`pendingDestroyBurstInfo`・`coresAtDestruction`）を `waiting` へ移す（挙動は変えない）と、段取り5（合体中のブレイヴだけの待機）・6（『消滅時』）。
 
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 

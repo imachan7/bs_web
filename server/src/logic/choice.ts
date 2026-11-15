@@ -1,5 +1,5 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
-import { isTrashWaiting } from "../../../shared/rules/waiting"
+import { isReturnWaiting, isTrashWaiting } from "../../../shared/rules/waiting"
 import { summonPayPlan } from "./summonCores"
 import { payMagicCostThenResolve } from "./magic/payThenResolve"
 import { handGainDenial } from "./handGate"
@@ -33,6 +33,7 @@ import {
     revertOncePerTurn,
     resolveAction,
     fireBounceTriggers,
+    moveReturned,
     flushBraveKeeps,
     applyBraveKeep,
     declineBraveKeep,
@@ -849,6 +850,11 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             fireBounceTriggers(state, frame.moved, frame.index)
             continue
         }
+        if (frame.kind === "returnMove") {
+            // 戻す待機の誘発の列を解決し終えた。この出来事でまだ戻す待機のカードを移す
+            moveReturned(state, frame.event, frame.order)
+            continue
+        }
         if (frame.kind === "battleResolve") {
             // 中断していたバトル解決（＞６破壊処理〜＞７バトル終了）を続きのステップから再開する
             resumeBattleResolution(state, frame)
@@ -884,6 +890,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         }
         if (groupOnceUsed(state, frame.groupOnce)) continue
         if (frame.requiresRestedOf !== undefined && findInstanceAnywhere(state, frame.requiresRestedOf)?.isRested !== true) continue
+        if (frame.requiresReturnWaitingOf !== undefined && !isReturnWaiting(findInstanceAnywhere(state, frame.requiresReturnWaitingOf))) continue
         if (frame.levelRecheck !== undefined && !levelStillMet(state, frame.levelRecheck)) continue
         if (frame.onceClaim !== undefined) {
             const src = findInstanceAnywhere(state, frame.onceClaim.instanceId)

@@ -1070,8 +1070,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `returnSpiritToHand`（fn）：**その場では移さず、バウンス待機状態にするだけ**（バトスピ Wiki「バウンスについて」）。
 - `withBounceBraveCantRemain`（fn）
 - `markBounce`（fn）
-- `flushBounces`（fn）：バウンス待機状態のカードを実際に手札／デッキへ移し、そのあとで誘発をまとめて発揮する。バウンス効果の解決が終わった時点で呼ぶ。
-- `fireBounceTriggers`（fn）：移動後の誘発をまとめて発揮する。**選択待ちで中断したら残りを再開スタックへ送る**
+- `flushBounces`（fn）：戻す待機のカードについて、誘発を1本の列で解決してから、まとめて移す（PENDING_STATE §3 C3。破壊の待機と違うのは行き先だけ）。
+- `moveReturned`（fn）：誘発の列を解決し終えた後：この出来事でまだ戻す待機のカードを移す。途中で破壊されて待機が変わったカードは、ここでは移さない（C4）
+- `fireBounceTriggers`（fn）：移した後の通知：バーストとしてセットした。**選択待ちで中断したら残りを再開スタックへ送る**（docs/design/RESUME_STACK.md）
 - `returnSpiritToDeckTop`（fn）：スピリットを持ち主のデッキの一番上へ戻す。破壊ではないため onDestroy は誘発しない。
 - `returnSpiritToDeckBottom`（fn）：スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版）。
 - `canTakeCoresFrom`（fn）：相手のスピリットからコアを奪う効果が、そのスピリットに届くか（＝耐性で弾かれないか）。

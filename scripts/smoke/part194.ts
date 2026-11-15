@@ -1,13 +1,13 @@
-// smoke パート194（バウンス待機状態：まとめて戻す効果は、全部戻ってから誘発する）
+// smoke パート194（戻す待機：まとめて戻す効果は、全員を待機にしてから誘発を解決し、その後で移す）
 //
-// バトスピ Wiki「バウンスについて」（2020年5月のルール改定）:
-//   手札／デッキに戻す効果を解決すると、対象は一旦「バウンスの待機状態」になってフィールドに留まり、
-//   「フィールドを離れるとき」「手札／デッキに戻るとき」の効果は**解決が終わってから**発揮される。
+// 待機状態のルール改訂（docs/design/PENDING_STATE.md §3。2026-11-15 ユーザー確認の C3・C4）:
+//   手札／デッキに戻す効果を受けたスピリットは、戻す待機になって場に残る。「手札に戻るとき／戻ったとき」の効果を
+//   1本の列で解決し、その後で移す（破壊の待機と違うのは行き先だけ）。
+//   戻す待機のスピリットが、その待機で誘発した効果で破壊されたら、破壊の待機に変わり、トラッシュへ行く。
 //
-// つまり「コスト1以下のスピリットすべてを手札に戻す」のような**まとめ戻し**では、
-// 1体目が戻った時点の誘発が2体目以降の対象を変えてはいけない。
-// ここでは「地竜が手札に戻ったとき、BP3000以下の相手1体を破壊する」（紅玉の火山弾）と
-// 組み合わせて、**破壊の対象になるはずだった相手も先に手札へ戻っている**ことを確かめる。
+// ここでは「コスト◯以下のスピリットすべてを手札に戻す」と「地竜が手札に戻ったとき、BP3000以下の相手1体を破壊する」
+// （紅玉の火山弾）を組み合わせて、**同時に戻す待機に入った相手のスピリットが、火山弾で破壊されてトラッシュへ行く**ことを確かめる。
+// 2026-11-15 までは改訂前の裁定（先に全員を移してから誘発。相手は破壊されず手札に戻る）を期待値にしていた
 import { act, assert, createGame, createInstance, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
@@ -54,7 +54,7 @@ const VOLCANO_MAX_BP = Number(
     ((VOLCANO_ENTRY["action"] as Record<string, unknown>)["filter"] as Record<string, unknown>)["maxBp"],
 )
 
-console.log(`=== パート194：まとめ戻しは全部戻ってから誘発する（${SWEEP.name} × ${VOLCANO.name}）===`)
+console.log(`=== パート194：まとめ戻しは、全員を待機にして誘発を解決してから移す（${SWEEP.name} × ${VOLCANO.name}）===`)
 
 // 誘発の条件になる系統を持ち、まとめ戻しの対象になる（コストが上限以下の）スピリット
 const OWN = CARDS.find(
@@ -103,22 +103,20 @@ function put(s: GameState, pid: PlayerId, card: CardRow): ReturnType<typeof crea
     const oppHandBefore = s.players.p2.hand.length
 
     s.players.p1.hand[0] = SWEEP.cardId
+    const ownInHandBefore = s.players.p1.hand.filter((c) => c === OWN.cardId).length
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, `${SWEEP.name}を使用`)
 
-    assert(s.players.p1.field.spirits.length === 0, "自分のスピリットは全部手札に戻る")
-    assert(s.players.p2.field.spirits.length === 0, "相手のスピリットも全部手札に戻る")
-    // ここが本題：1体ずつ戻していた頃は、1体目が戻った時点の誘発で相手が**破壊されて**いた
-    // （破壊された相手は手札に戻らずトラッシュへ行っていた）
+    assert(s.players.p1.field.spirits.length === 0 && s.players.p1.hand.filter((c) => c === OWN.cardId).length === ownInHandBefore + 2, "自分のスピリット2体は手札に戻る")
+    assert(s.players.p2.field.spirits.length === 0, "相手のスピリットも場に残らない")
+    // 火山弾は、戻るスピリット1体につき1回誘発する（2回）。同時に戻す待機に入った相手のスピリットを対象に取れ、
+    // 破壊されたスピリットは破壊の待機に変わってトラッシュへ行く（手札には戻らない）
     assert(
-        s.players.p2.trashCards.length === oppTrashBefore,
-        `相手のスピリットは1体も破壊されない（トラッシュ ${oppTrashBefore}→${s.players.p2.trashCards.length}）`,
+        s.players.p2.trashCards.length === oppTrashBefore + 2 && [opp1, opp2].every((x) => s.players.p2.trashCards.includes(x.cardId)),
+        `相手の2体は火山弾で破壊されてトラッシュへ行く（トラッシュ ${oppTrashBefore}→${s.players.p2.trashCards.length}）`,
     )
     assert(
-        s.players.p2.hand.length === oppHandBefore + 2,
-        `相手の2体は手札に戻る（手札 ${oppHandBefore}→${s.players.p2.hand.length}）`,
+        s.players.p2.hand.length === oppHandBefore,
+        `破壊された相手のスピリットは手札に戻らない（手札 ${oppHandBefore}→${s.players.p2.hand.length}）`,
     )
-    assert(
-        ![opp1, opp2].some((x) => s.players.p2.trashCards.includes(x.cardId)),
-        "破壊されてトラッシュに送られた個体がいない",
-    )
+    assert([opp1, opp2].every((x) => x.waiting === undefined), "待機の印は残らない")
 }
