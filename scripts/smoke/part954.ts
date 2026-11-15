@@ -167,4 +167,27 @@ withEffects({
     assert(waiting.length === 0 && s.destroyGroup === undefined && s.resumeStack.length === 0, "待機のまま残るカードも、同時破壊の控えも、積み残しも無い")
 })
 
+console.log("=== 6. 「ターンに1回」の付いた「破壊されたとき」：先に残ったスピリットがいても発揮し、同じターンの次の破壊では発揮しない ===")
+withEffects({ [BELL]: [{ ...OWN_DESTROYED_DRAW, oncePerTurn: true } as EffectDef] }, () => {
+    const s = game("once-per-turn", true)
+    put(s, "p1", CORONA)
+    put(s, "p1", BELL)
+    const stays = put(s, "p1", GORADON)
+    const dies = put(s, "p1", ROKU)
+    destroyAll(s, [["p1", stays], ["p1", dies]])
+    pickOrder(s, "ゴラドンがフィールドに残る")
+    act(s, "p1", { type: "resolveChoice", option: "復活させる" })
+    pickOrder(s, "デュアルキャノン・ベル")
+    assert(s.players.p1.hand.length === 1, `ロクケラトプスの破壊で発揮する（手札 ${s.players.p1.hand.length} 枚）`)
+    act(s, "p1", { type: "resolveChoice" }) // ロクケラトプスの「残る」は断る
+    assert(s.pendingChoice === null && onField(s, "p1", stays) && !onField(s, "p1", dies), "ゴラドンだけが残る")
+    destroyAll(s, [["p1", stays]])
+    for (let i = 0; i < 4 && s.pendingChoice; i++) {
+        const pc = s.pendingChoice
+        if (pc.triggerOrder) act(s, pc.pid, { type: "resolveChoice", option: pc.options![0]! })
+        else act(s, pc.pid, { type: "resolveChoice" })
+    }
+    assert(!onField(s, "p1", stays) && s.players.p1.hand.length === 1, `同じターンの次の破壊では発揮しない（手札 ${s.players.p1.hand.length} 枚）`)
+})
+
 console.log("すべてのチェックに合格しました 🎉（part954）")
