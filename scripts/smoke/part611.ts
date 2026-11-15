@@ -1,5 +1,5 @@
 // smoke パート611（BS17部品バッチ10：noBurstEffectForPid／cantUseMagicForPid／opponentLifeCoreFromVoid）
-import { assert, createGame, createInstance, getCard, handleAction, refreshLevelAsOverrides, resolveAction, runTurnStart, answerCoreLevel } from "./helpers"
+import { applyDeclaredBursts, assert, createGame, createInstance, getCard, handleAction, refreshLevelAsOverrides, resolveAction, runTurnStart, answerCoreLevel } from "./helpers"
 import type { EffectDef } from "../../server/src/type"
 import type { GameState, PlayerId } from "./helpers"
 import { activateBurstCard, finishSummonEffect } from "../../server/src/logic/keywords/burst"
@@ -110,6 +110,7 @@ function scenario083(seed: string, colors: ("red" | "blue")[]): GameState {
     s.turnPlayer = "p1"
     s.summonEffectSources = [{ pid: "p1", instanceId: "x", cost: 3, colors, resolved: true }]
     finishSummonEffect(s)
+    applyDeclaredBursts(s) // 本番では handleAction の末尾が適用する
     return s
 }
 {

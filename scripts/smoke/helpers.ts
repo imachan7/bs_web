@@ -35,13 +35,14 @@ function runTurnStart(s: GameState): void {
 }
 import { handleAction } from "../../server/src/logic/GameEngine"
 import {
-    destroyNexus,
-    destroySpirit,
+    applyDeclaredBursts,
+    destroyNexus as engineDestroyNexus,
+    destroySpirit as engineDestroySpirit,
     effectiveBp,
-    fireFieldEventTriggers,
+    fireFieldEventTriggers as engineFireFieldEventTriggers,
     fireStepTriggers,
-    fireSummonTrigger,
-    fireTrigger,
+    fireSummonTrigger as engineFireSummonTrigger,
+    fireTrigger as engineFireTrigger,
     hasKeyword,
     placeBurst,
     recordBp,
@@ -49,12 +50,36 @@ import {
     refreshLevelAsOverrides,
     refreshSpirit,
     resolveAction as engineResolveAction,
-    resolveFunsai,
+    resolveFunsai as engineResolveFunsai,
     spiritHasFamily,
     spiritHasKeyword,
 } from "../../server/src/logic/EffectModules"
 import { migrateMoves, type LegacyMoveAction } from "../../server/src/logic/actions/legacyMoves"
+import { destroyTargetsBatch as engineDestroyTargetsBatch } from "../../server/src/logic/removal"
+import { fireBurstOnEvent as engineFireBurstOnEvent } from "../../server/src/logic/keywords/burst"
+import { resolveMagic as engineResolveMagic } from "../../server/src/logic/triggers"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
+
+// エンジンの関数を直接呼ぶテスト用。宣言されたバーストは、本番では handleAction の末尾（以降に解決する効果が無くなった時点）で
+// 適用する（BURST.md §1.4）。直接呼ぶテストにはその末尾が無いので、呼び出しの後に適用する。
+// 適用の時点そのものを確かめるテストは、これを通さず handleAction（act）経由で書くこと
+function settling<F extends (state: GameState, ...rest: never[]) => unknown>(fn: F): F {
+    return ((state: GameState, ...rest: never[]) => {
+        const result = fn(state, ...rest)
+        applyDeclaredBursts(state)
+        return result
+    }) as F
+}
+const destroyNexus = settling(engineDestroyNexus)
+const destroySpirit = settling(engineDestroySpirit)
+const fireFieldEventTriggers = settling(engineFireFieldEventTriggers)
+const fireSummonTrigger = settling(engineFireSummonTrigger)
+const fireTrigger = settling(engineFireTrigger)
+const resolveFunsai = settling(engineResolveFunsai)
+export { applyDeclaredBursts }
+export const destroyTargetsBatch = settling(engineDestroyTargetsBatch)
+export const fireBurstOnEvent = settling(engineFireBurstOnEvent)
+export const resolveMagic = settling(engineResolveMagic)
 
 // 旧「選ぶ＋送る」の形で書いた action を新しい形にする（入れ子の中に書くとき用）
 export function legacy(a: EffectAction | LegacyMoveAction): EffectAction {
@@ -70,6 +95,7 @@ export function resolveAction(
     ...rest: Parameters<typeof engineResolveAction> extends [unknown, unknown, unknown, unknown, ...infer R] ? R : never
 ): void {
     engineResolveAction(state, owner, self, migrateMoves(action) as EffectAction, ...rest)
+    applyDeclaredBursts(state)
 }
 import type { CardInstance, EffectAction, GameAction, GameState, PlayerId, TimedContent } from "../../server/src/type"
 import { countCards } from "./countCards"

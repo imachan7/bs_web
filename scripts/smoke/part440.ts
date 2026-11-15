@@ -1,4 +1,5 @@
 // smoke パート440（BS16バッチ3・黄15＋緑白の残り6：新しい部品を使ったカードの動作確認）
+import { fireBurstOnEvent } from "./helpers"
 import {
     assert,
     createGame,
@@ -15,7 +16,6 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { fireBurstOnEvent } from "../../server/src/logic/keywords/burst"
 
 const VANILLA = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）
 

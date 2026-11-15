@@ -4,9 +4,9 @@
 // 目的は無効化・耐性をすり抜けること（軽減やコストの色条件には及ばない。2026-09-17 ユーザー確認）。
 // バーストで発揮する紫のマジックにも及ぶ（BURST.md §7.2 の装甲・効果耐性はバースト効果にも効く前提の上で）。
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械確認してから使う。
+import { fireFieldEventTriggers } from "./helpers"
 import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { magicEffectiveColors } from "../../shared/cost"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {

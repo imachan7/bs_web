@@ -34,6 +34,7 @@ import {
     instColors,
     resolveAction,
     resolveKoboOnBattleEnd,
+    applyDeclaredBursts,
 } from "./EffectModules"
 import { finishBlockDeclaration } from "./GameEngine"
 import { startLifeDamageReplace } from "./lifeDamageReplace"
@@ -186,6 +187,14 @@ type LifeDamageResolveFrame = Extract<ResumeFrame, { kind: "lifeDamageResolve" }
 const LIFE_DAMAGE_LAST_STEP = 7
 function driveLifeDamageResolution(state: GameState, frame: LifeDamageResolveFrame): void {
     for (let step = frame.step; step <= LIFE_DAMAGE_LAST_STEP; step++) {
+        // ライフが減ったことで誘発する効果（0〜4）を解決しきったら、宣言されたバーストを適用する。『バトル終了時』より前のまま
+        if (step === 5) {
+            applyDeclaredBursts(state, true)
+            if (state.pendingChoice) {
+                pushResumeFrames(state, [{ ...frame, step }])
+                return
+            }
+        }
         runLifeDamageStep(state, frame, step)
         if (state.pendingChoice) {
             pushResumeFrames(state, [{ ...frame, step: step + 1 }])
@@ -657,6 +666,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         // （BURST.md §1.4「発動条件に伴う解決をすべて処理してから」。2026-11-14 ユーザー確認。#536）
         case 5: {
             fireQueuedDestroyBursts(state)
+            applyDeclaredBursts(state, true)
             return
         }
         // ＞７：【呪撃】。アタッカーが現レベルで持つなら、ブロッカーが（BP比較の結果に関わらず）

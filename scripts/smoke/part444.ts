@@ -1,6 +1,7 @@
 // smoke パート444（BS17部品バッチ3。カードデータ非依存のテスト用合成カードで確認する）
 // reviveOnDestroy.cost.exhaustSelf（BS17-069）／reviveOnDestroy.blockingOnly（BS17-079）／
 // triggered.burstSummonOnly（BS17-044）／reveal.countCounter + EffectCounter.ownKeyword配列（BS17-041）
+import { fireBurstOnEvent } from "./helpers"
 import {
     act,
     assert,
@@ -14,7 +15,6 @@ import {
 import type { GameState, PlayerId } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
 import type { CardData } from "../../server/src/type"
-import { fireBurstOnEvent } from "../../server/src/logic/keywords/burst"
 
 function makeCard(cardId: string, over: Partial<CardData> = {}): CardData {
     const c: CardData = {

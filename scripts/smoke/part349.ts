@@ -1,7 +1,7 @@
 // smoke パート349（BS16バッチ0：破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）を
 // トラッシュ行き確定の後に1回だけ判定する器。docs/design/TIMING_CHART.md ＞６・HANDOFF.md §1「BS16バッチ0」）
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・色・コストを機械検証してから使う。
-import { destroyTargetsBatch } from "../../server/src/logic/removal"
+import { destroyTargetsBatch } from "./helpers"
 import {
     assert,
     createGame,

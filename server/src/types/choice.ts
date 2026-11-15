@@ -12,6 +12,24 @@ export type EventBurstCheck = {
     colors?: Color[]
     targetInstanceId?: string
     info?: { byOpponentEffect?: boolean; destroyedBp?: number; costs?: number[]; members?: { colors: Color[]; cost: number; families: string[] }[]; lifeLossByNoOwnBurst?: boolean }
+    // 確認を後回しにしたとき、条件を満たした時点でセットされていたカード（null＝セットなし）。確認の時点で違えば発動しない
+    // （条件の後にセットしたバーストは、その条件では発動できない。BURST.md §1.4）
+    setCardId?: string | null
+}
+
+// 発動を宣言したバースト（BURST.md §1.4「宣言と適用は別の時点」）。適用は applyDeclaredBursts が、以降に解決する効果が無くなってから行う。
+// 効果の条件・発揮できない・税は適用の時点で判定するので、ここには出来事の情報だけを持つ
+export type DeclaredBurst = {
+    pid: PlayerId
+    cardId: string
+    event: FieldEvent // 一致したバースト効果の event
+    targetInstanceId?: string
+    destroyedCardId?: string // destroyedAsTarget：破壊されたスピリットの cardId（トラッシュには cardId でしか残らない）
+    alsoDraw?: true // alsoDrawIfDestroyedColor を宣言の時点の色で判定した結果
+    eventCost?: number // GameState.burstEventCost へ、適用の直前に立てる
+    eventColors?: Color[]
+    lifeDamagerId?: string
+    members?: { colors: Color[]; cost: number; families: string[] }[]
 }
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
@@ -319,24 +337,9 @@ export interface PendingChoice {
         placeSoulCoreFromReserve?: true
         braveFree?: true // kind:"braveFreeSummonByCoreTrash" の確認（0=コアをトラッシュに置いて無償で召喚／1=通常どおり）。他のフィールドは sokuFreeChoice と同じ意味
     }
-    burstActivate?: {
-        // バーストの発動確認待ち（docs/design/BURST.md）。**action は self=null で解決する**（マジックと同じ扱い。
-        // バーストはフィールドに実体を持たないため、確認後の再開経路（selfInstanceId復元）に乗せられない）。
-        // 承認されたら doResolveChoice / triggers.ts の非対話パスの両方から finishBurstActivation を呼び、
-        // アクションの種別に応じてバーストエリアを空にしてから召喚 or トラッシュへ送る
-        pid: PlayerId
-        cardId: string
-        thenPay?: "main" | "flash"
-        destroyedCardId?: string // destroyedAsTarget用：このバースト発動時に破壊されたスピリットのcardId。承認後にresolveActionのtargetInstanceIdの枠で渡す
-        alsoDraw?: true // alsoDrawIfDestroyedColor（docs/design/BURST.md）：宣言時点でeventColorsを判定済みのbool。承認後にactionと同時に自分は1枚ドローする（BS14-X02）
-        toHand?: true // returnSelfToHandAfter（docs/design/BURST.md）：finishBurstActivationの行き先をトラッシュでなく手札にする（BS14-X02）
-        burstEventCost?: number // BS15共通器：GameState.burstEventCostへ引き継ぐ値（EffectCounter "burstEventCost"。BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
-        // BS16バッチ0：破壊後バーストが「破壊されたスピリット複数体のうちコストが割れている」場合、
-        // 発動者が1体ぶんのコストを選ぶ（pending.optionsと同じ並びの候補値）。選んだ値がburstEventCostへ入る
-        burstEventCostOptions?: number[]
-        burstEventColors?: Color[] // BS16バッチ0：GameState.burstEventColorsへ引き継ぐ値（条件{burstDestroyedColor}用）
-        burstEventLifeDamagerId?: string // BS16バッチ0：GameState.burstEventLifeDamagerIdへ引き継ぐ値
-    }
+    // バーストの発動（宣言）の確認待ち。承認されたら declareBurst が記録を積む（BURST.md §1.4）。
+    // eventCostOptions：同時破壊でコストが割れているとき、発動者が選ぶ候補（pending.options と同じ並び）
+    burstActivate?: DeclaredBurst & { eventCostOptions?: number[] }
     burstNegate?: {
         // BS21-052：相手のバーストの発動を異合の破壊で無効にするかの待ち。action は解決しない。
         // 断ったときは resume で本来の発動を（確認済みとして）続ける。confirm＝承認された発動確認を burstNegateChecked 付きで再入、

@@ -3,6 +3,7 @@
 // step.condition.opponentBurstSet／reviveOnDestroy.condition.ownFieldOnlyColor／
 // reviveOnDestroy.alsoVoidCoreToReserve／action:"returnFieldExceptOpponentChosenColor"／
 // magic.usableAtOpponentMainEnd／action:"disableOpponentBurstThisBattle"）を確認する
+import { fireFieldEventTriggers } from "./helpers"
 import {
     assert,
     createGame,
@@ -17,7 +18,6 @@ import {
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { fireStepTriggers } from "../../server/src/logic/stepTriggers"
-import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { effectiveCost } from "../../shared/cost"
 import { spiritHasKeyword } from "../../shared/rules"
 

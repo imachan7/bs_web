@@ -11,7 +11,7 @@ import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, oppo
 import { attachBrave } from "./brave"
 import { summonDenial } from "./summonGate"
 import { fireSummonTrigger } from "./triggers"
-import { fireEventBursts } from "./EffectModules"
+import { eventBurstsFrame, fireEventBursts } from "./EffectModules"
 import type { CollectedTrigger } from "./blockDeclared"
 import type { EventBurstCheck, ResumeFrame, SummonTail } from "../type"
 import { entryActive } from "../../../shared/rules/effectStop"
@@ -197,7 +197,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     if (state.winner) return
     const tailFrame = (t: SummonTail): ResumeFrame => ({ kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", tail: t } })
     if (state.pendingChoice) {
-        pushResumeFrames(state, [{ kind: "eventBursts", checks }, tailFrame(tail)])
+        pushResumeFrames(state, [eventBurstsFrame(state, checks), tailFrame(tail)])
         return
     }
     fireEventBursts(state, checks)

@@ -1,4 +1,5 @@
 // smoke パート316（BS14 白バッチ20枚：BS14-034〜044/070/082〜084/103〜106/X04）
+import { fireTrigger, resolveMagic, fireFieldEventTriggers, destroySpirit } from "./helpers"
 import type { EffectAction } from "../../server/src/type"
 // 新設した器: AuraCounter { ownColor: Color }／kind:"blockTriggersAsAttackGrant".whileOwnBurstSet／
 // timedEffect の suppressTrigger（state.timedEffects）／
@@ -23,9 +24,6 @@ import {
 import type { GameState, PlayerId } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
 import { headingRewritesOn } from "../../shared/rules"
-import { fireTrigger, resolveMagic } from "../../server/src/logic/triggers"
-import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
-import { destroySpirit } from "../../server/src/logic/removal"
 import { activeConstraints, hasHeavyArmorAgainst, cantActByTimed } from "../../shared/rules"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {

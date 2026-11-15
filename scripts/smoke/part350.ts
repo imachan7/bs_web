@@ -8,7 +8,7 @@
 // - globalConstraint "cantBounce"（BS16-012）
 // - summonBurstCardFree のブレイヴ対応（自動合体。P069）
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・色・コストを機械検証してから使う。
-import { destroyTargetsBatch } from "../../server/src/logic/removal"
+import { destroyTargetsBatch } from "./helpers"
 import { attachBrave } from "../../server/src/logic/EffectModules"
 import { instColors } from "../../shared/rules"
 import {

@@ -35,7 +35,7 @@ import type { SummonPayOffOption } from "../../../shared/summonPayOff"
 import { wouldDepleteOf, moveSoulCore, placeSoulCoreOnSummoned, soulCoreInReserve, soulCoreInTrash } from "./soulCore"
 import { resolveAttackDeclared } from "./attackDeclared"
 import { resolveBlockDeclared } from "./blockDeclared"
-import { finishSummonEffect } from "./keywords/burst"
+import { applyDeclaredBursts, finishSummonEffect } from "./keywords/burst"
 import { markPayConfirmed } from "./actions/pay"
 import { doUseHandBurstEffect } from "./handBurstEffect"
 import { blockDestroyCandidates, blockDestroyOwnSpiritRecord, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
@@ -132,8 +132,8 @@ function settleDirectedAttack(state: GameState): void {
     const b = state.battle
     if (!b || b.directedTargetInstanceId === undefined || b.blockerInstanceId !== null) return
     if (state.winner || state.pendingChoice || state.resumeStack.length > 0) return
-    // 発動の確認を待っているバーストがあれば、その後（ブレイヴを残す確認などを挟むと、確認が handleAction の末尾まで持ち越される）
-    if ((state.pendingBurstDestroyQueue?.length ?? 0) > 0 || (state.pendingEventBursts?.length ?? 0) > 0) return
+    // 確認・適用を待っているバーストがあれば、その後（適用は handleAction の末尾）
+    if ((state.pendingBurstDestroyQueue?.length ?? 0) > 0 || (state.declaredBursts?.length ?? 0) > 0) return
     resolveDirectedBlock(state)
 }
 
@@ -193,7 +193,9 @@ export function handleAction(
     endBattleIfAttackerLeftField(state)
     // 破壊後バースト：破壊の確定・ブレイヴの残す/残さない・【光芒】等まですべて決着した地点で発火（TIMING_CHART.md ＞６）
     if (!state.pendingChoice) fireQueuedDestroyBursts(state)
-    // 持ち越したバーストを確認し終えたら、指定アタックのブロックを確定する
+    // 宣言したバーストは、以降に解決する効果が無くなったここで適用する（BURST.md §1.4）
+    applyDeclaredBursts(state)
+    // バーストを解決し終えたら、指定アタックのブロックを確定する
     settleDirectedAttack(state)
     // 「BPがN以上になった時」は今の効果の処理が終わってから発揮されるので、解決しきったここで判定する
     if (!state.pendingChoice && state.resumeStack.length === 0 && !state.winner) fireBpReachedTriggers(state)

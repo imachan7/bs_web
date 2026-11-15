@@ -2,6 +2,7 @@
 // バースト持ち（BS14-010/091/092/094/X01/X012R）と、確認済み解釈3枚
 // （BS14-093の「バーストがセットされている間」＝自分のバーストのみ／BS14-073のBP+累積／
 //  BS14-X01はライフ3以下のときだけ破壊→召喚。2026-09-27 ユーザー回答で「召喚は常に」から変更＝IF_UNIFY.md Q1）を確認する
+import { resolveMagic, fireFieldEventTriggers } from "./helpers"
 import {
     act,
     assert,
@@ -17,8 +18,6 @@ import {
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
-import { resolveMagic } from "../../server/src/logic/triggers"
-import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function game(seed: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "purple" })

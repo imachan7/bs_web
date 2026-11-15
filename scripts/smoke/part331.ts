@@ -3,6 +3,7 @@
 // destroyAllExceptChosenColors／costMod set+ownBurstSet／keywordGrant clash／coreRemove countCounter／
 // levelAs ownLifeAtLeast／destroyFieldExceptOpponentChosenColor／coreToVoidEqualizeByTotal／
 // discardHandAnyThenCoreRemove／burstSummonSelfIfTargetBpAtLeast）を確認する
+import { fireFieldEventTriggers } from "./helpers"
 import {
     assert,
     createGame,
@@ -19,7 +20,6 @@ import {
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
-import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { effectiveCost } from "../../shared/cost"
 import { instLevels, lifeDamageLimit, spiritHasKeyword } from "../../shared/rules"
 

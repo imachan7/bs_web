@@ -6,7 +6,7 @@
 // - 036-e4: 【合体時】fieldEvent event:"anySpiritAttacked"（【氷壁】を持つ自分のスピリットのアタック時、同じ色の相手を手札に戻す）
 // - 079-e1: action:"markUnblockableByIceWallColorThisTurn"（指定スピリットは【氷壁】と同じ色からブロックされない）
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・色・コストを機械検証してから使う。
-import { destroyTargetsBatch } from "../../server/src/logic/removal"
+import { destroyTargetsBatch } from "./helpers"
 import { canBlock } from "../../shared/block"
 import {
     act,
