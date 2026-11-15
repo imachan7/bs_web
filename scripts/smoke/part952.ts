@@ -1,6 +1,6 @@
 // smoke パート952（待機状態のカードを対象に取れるか・発揮できるかの判定。PENDING_STATE.md §3 P4・P5。公式 Q31574）
 // 待機は手で印を付けて組む（召喚の支払いで消滅した体は、いまの実装では召喚時効果より前にトラッシュへ移るので、自然な流れでは場面にならない）
-import { act, assert, createGame, createInstance, fireTrigger, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, fireFieldEventTriggers, fireTrigger, getCard, placeBurst, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { pushResumeFrames, withLeaveRelated } from "../../server/src/logic/GameState"
 import { destroyTargetsBatch } from "../../server/src/logic/removal"
@@ -10,6 +10,7 @@ import type { CardInstance } from "../../server/src/type"
 const EIR = "BS10-035" // 樹氷の女神エイル（召喚時：相手のスピリット1体を手札に戻す）
 const DUCK = "BS16-030" // セリザワンド・ダック（破壊時：相手のスピリット1体を手札に戻す）
 const GRAVE = "BS06-076" // 暴かれた墓石（ネクサス。アタックステップに自分のスピリットが破壊されたとき、1枚ドロー）
+const JIGEN = "BS16-080" // 次元断（バースト：自分のライフ減少後、相手のスピリット1体を手札に戻す）
 const VANILLA = "BS01-002" // ロクケラトプス
 
 console.log("=== 前提: カードの機械確認 ===")
@@ -19,6 +20,7 @@ console.log("=== 前提: カードの機械確認 ===")
     assert(getCard(EIR).name === "樹氷の女神エイル" && onlyTrigger(EIR, "onSummon"), "EIR は召喚時に手札へ戻す")
     assert(getCard(DUCK).name === "セリザワンド・ダック" && onlyTrigger(DUCK, "onDestroy"), "DUCK は破壊時に手札へ戻す")
     assert(getCard(GRAVE).name === "暴かれた墓石" && getCard(GRAVE).effects.some((e) => e.kind === "fieldEvent" && e.event === "ownSpiritDestroyed" && e.phase === "attack"), "GRAVE は自分のスピリットの破壊で誘発する")
+    assert(getCard(JIGEN).name === "次元断" && getCard(JIGEN).effects.some((e) => e.kind === "burst" && e.event === "ownLifeDamaged" && e.action.type === "return"), "JIGEN はライフ減少後に手札へ戻すバースト")
     assert(getCard(VANILLA).name === "ロクケラトプス", "VANILLA はロクケラトプス")
 }
 
@@ -174,6 +176,18 @@ console.log("=== 8. 後回しにした続きは、消化するときに印を戻
     const pc = s.pendingChoice
     assert(pc?.kind === "target" && pc.candidates.length === 2 && pc.candidates.includes(x.instanceId) && pc.candidates.includes(z.instanceId), "続きの候補に、待機状態の体と待機でない体の両方がある")
     assert(pc?.leaveRelated === true, "続きの選択待ちも、関係する効果の印を持つ")
+}
+
+console.log("=== 9. 破壊時効果の解決中に発動したバーストは、待機状態の体を対象に取れない ===")
+{
+    const s = game("burst", false)
+    s.players.p2.reserve = 10
+    const x = put(s, "p1", VANILLA, { kind: "destroy" })
+    placeBurst(s, "p2", JIGEN)
+    // 破壊時効果が相手のライフを減らした、という状況（欄が立ったまま、ライフ減少の誘発が走る）
+    withLeaveRelated(s, true, () => fireFieldEventTriggers(s, "p2", "ownLifeLost"))
+    assert(!s.players.p2.burstSet, "バーストは発動した")
+    assert(s.players.p1.field.spirits.includes(x), "待機状態の体は手札に戻らない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part952）")

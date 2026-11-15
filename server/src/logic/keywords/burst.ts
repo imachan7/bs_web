@@ -9,7 +9,7 @@ import { withEffectTax } from "../effectTax"
 import { canPayMagicCost, payMagicCostThenResolve } from "../magic/payThenResolve"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { CardInstance, Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
-import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend, withLeaveRelated } from "../GameState"
 import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
 import { burstActivationForbidden, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
@@ -261,7 +261,8 @@ export function fireEventBursts(state: GameState, checks: EventBurstCheck[]): vo
     for (let i = 0; i < checks.length; i++) {
         if (state.winner) return
         const c = checks[i]!
-        fireBurstOnEvent(state, c.pid, c.event, c.subject, c.colors, c.targetInstanceId, c.info)
+        // バーストは別の誘発。破壊時効果などの解決中に発動しても、その待機に関係する効果にはならない（PENDING_STATE.md §3 P5）
+        withLeaveRelated(state, false, () => fireBurstOnEvent(state, c.pid, c.event, c.subject, c.colors, c.targetInstanceId, c.info))
         if (state.pendingChoice) {
             if (i + 1 < checks.length) pushResumeFrames(state, [{ kind: "eventBursts", checks: checks.slice(i + 1) }])
             return

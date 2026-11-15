@@ -11,7 +11,7 @@ import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { askNextPickMany } from "./revivePickMany"
 import type { CardInstance, CardType, Color, EffectAction, EventBurstCheck, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
-import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, resolveInOrder, suspend } from "./GameState"
+import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, resolveInOrder, suspend, withLeaveRelated } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
 import { getAllFamilies, resolveAction } from "./EffectModules"
 import { destroyDenial } from "./destroyGate"
@@ -772,12 +772,15 @@ export function fireQueuedDestroyBursts(state: GameState): void {
         }
         // destroyedAsTarget：グループが1体だけのときのみ cardId を渡す（複数体では1枚に決まらないため対象外。簡略化）
         const selfOverride = { pid, ...(members.length === 1 ? { cardId: members[0]!.cardId } : {}) }
-        fireBurstOnEvent(state, pid, "ownSpiritDestroyed", selfOverride, [...colors], undefined, {
-            byOpponentEffect,
-            destroyedBp,
-            costs,
-            members: memberInfos,
-        })
+        // 破壊後バーストはトラッシュに置かれた後の別の誘発（keywords/burst.ts の fireEventBursts と同じ扱い）
+        withLeaveRelated(state, false, () =>
+            fireBurstOnEvent(state, pid, "ownSpiritDestroyed", selfOverride, [...colors], undefined, {
+                byOpponentEffect,
+                destroyedBp,
+                costs,
+                members: memberInfos,
+            }),
+        )
     }
 }
 
