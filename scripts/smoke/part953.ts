@@ -263,4 +263,57 @@ console.log("=== 9. 指定アタック：バーストを解決し終えてから
     assert(s.battle?.blockerInstanceId === target.instanceId, "バーストを解決し終えたら、指定先のブロックが確定する")
 }
 
+// ACTOR の効果を手で差し替える（終わったら戻す）
+function withEffects(effects: EffectDef[], run: () => void): void {
+    const card = getCard(ACTOR)
+    const original = card.effects
+    card.effects = effects
+    try {
+        run()
+    } finally {
+        card.effects = original
+    }
+}
+
+console.log("=== 10. エンドステップの誘発が選択待ちを挟んだ：バースト効果の適用は、ターンを交代する前 ===")
+withEffects([{ id: "t953-end", kind: "step", step: "end", turn: "own", levels: [1, 2, 3], action: { type: "destroy", filter: { maxBp: 5000 }, count: 1 } }], () => {
+    const s = game("end-step", true)
+    put(s, "p1", ACTOR)
+    put(s, "p2", VANILLA)
+    put(s, "p2", VANILLA)
+    placeBurst(s, "p2", SOKO)
+    s.phase = "attack"
+    const from = s.log.length
+    act(s, "p1", { type: "endTurn" })
+    assert(s.pendingChoice?.pid === "p1" && s.turnPlayer === "p1", "エンドステップの誘発が、対象の選択で止まる")
+    for (let i = 0; i < 8 && s.pendingChoice && s.turnPlayer === "p1"; i++) {
+        const pc = s.pendingChoice
+        act(s, pc.pid, pc.options ? { type: "resolveChoice", option: pc.options[0]! } : { type: "resolveChoice", instanceId: pc.candidates![0]! })
+    }
+    const t = texts(s, from)
+    const applied = at(t, "ユウキは2枚ドローした")
+    const next = at(t, "ユウキのターン ――――")
+    assert(applied !== -1 && next !== -1 && applied < next, "バースト効果を適用してから、相手のターンへ交代する")
+})
+
+console.log("=== 11. バトル終了でアタックステップを終える場面：バースト効果の適用は、その強制終了の前 ===")
+withEffects([{ id: "t953-be", kind: "triggered", trigger: "onBattleEnd", levels: [1, 2, 3], optional: false, action: { type: "destroy", filter: { maxBp: 5000 }, count: 1 } }], () => {
+    const s = game("force-end")
+    const actor = put(s, "p1", ACTOR)
+    put(s, "p2", VANILLA)
+    placeBurst(s, "p2", SOKO)
+    s.phase = "attack"
+    s.endAttackStepAfterBattle = true
+    const from = s.log.length
+    act(s, "p1", { type: "attack", instanceId: actor.instanceId })
+    for (let i = 0; i < 6 && s.battle; i++) {
+        if (s.isFlashTiming) act(s, s.priorityPlayer, { type: "pass" })
+        else act(s, "p2", { type: "takeLife" })
+    }
+    const t = texts(s, from)
+    const applied = at(t, "ユウキは2枚ドローした")
+    const ended = at(t, "アタックステップを終了する")
+    assert(applied !== -1 && ended !== -1 && applied < ended, "バースト効果を適用してから、アタックステップを終了する")
+})
+
 console.log("すべてのチェックに合格しました 🎉（part953）")
