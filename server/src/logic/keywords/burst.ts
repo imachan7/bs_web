@@ -8,8 +8,9 @@ import { burstActivationFee, burstFeeUnpayable, payBurstActivationFee } from "..
 import { withEffectTax } from "../effectTax"
 import { canPayMagicCost, payMagicCostThenResolve } from "../magic/payThenResolve"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
+import { anyWaiting } from "../../../../shared/rules/waiting"
 import type { CardInstance, Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
-import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend, withLeaveRelated } from "../GameState"
+import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
 import { burstActivationForbidden, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
@@ -258,16 +259,28 @@ export function finishSummonEffect(state: GameState): void {
 // 破壊済みの個体はもうCardInstance実体が無いため）
 // 宣言のあとのバースト判定を順に行う。発動の確認などで中断したら、残りを後ろへ積む
 export function fireEventBursts(state: GameState, checks: EventBurstCheck[]): void {
+    // 場を離れる誘発の列の途中では発動しない。列を解決しきってから確認する（BURST.md §1.4。2026-11-15 ユーザー確認）
+    if (anyWaiting(state)) {
+        ;(state.pendingEventBursts ??= []).push(...checks)
+        return
+    }
     for (let i = 0; i < checks.length; i++) {
         if (state.winner) return
         const c = checks[i]!
-        // バーストは別の誘発。破壊時効果などの解決中に発動しても、その待機に関係する効果にはならない（PENDING_STATE.md §3 P5）
-        withLeaveRelated(state, false, () => fireBurstOnEvent(state, c.pid, c.event, c.subject, c.colors, c.targetInstanceId, c.info))
+        fireBurstOnEvent(state, c.pid, c.event, c.subject, c.colors, c.targetInstanceId, c.info)
         if (state.pendingChoice) {
             if (i + 1 < checks.length) pushResumeFrames(state, [{ kind: "eventBursts", checks: checks.slice(i + 1) }])
             return
         }
     }
+}
+
+// 待機状態のカードがいる間に控えたバーストの判定を、いなくなってから確認する（fireQueuedDestroyBursts が呼ぶ）
+export function flushPendingEventBursts(state: GameState): void {
+    const checks = state.pendingEventBursts
+    if (!checks || state.pendingChoice || state.winner || anyWaiting(state)) return
+    delete state.pendingEventBursts
+    fireEventBursts(state, checks)
 }
 
 // セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。

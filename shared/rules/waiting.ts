@@ -59,3 +59,8 @@ export function canFireWhileWaiting(inst: MaybeInst, trigger: string): boolean {
 export function canBeTargeted(board: { leaveRelated?: true }, inst: MaybeInst): boolean {
     return !isWaiting(inst) || board.leaveRelated === true
 }
+
+// 待機状態のカードが場にいるか（＝場を離れる誘発の列をまだ解決しきっていない）
+export function anyWaiting(board: { players: Record<string, { field: { spirits: MaybeInst[]; nexuses: MaybeInst[] } }> }): boolean {
+    return Object.values(board.players).some((p) => p.field.spirits.some(isWaiting) || p.field.nexuses.some(isWaiting))
+}

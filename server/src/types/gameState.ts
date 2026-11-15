@@ -1,6 +1,6 @@
 // 対戦全体の状態 GameState（サーバーだけが持つ。クライアントへは GameView に写して渡す）
 import type { EffectAction } from "./effectAction"
-import type { PendingChoice, ResumeFrame } from "./choice"
+import type { EventBurstCheck, PendingChoice, ResumeFrame } from "./choice"
 import { PlayerId, Phase, Color, CardType, GameEvent, EndStepLock, DestroyContext, CardInstance, PlayerState, BattleState, TimedRecord } from "../type"
 
 // 合体スピリットが場を離れたとき、残さないブレイヴの行き先（合体していたスピリットと同じ領域）
@@ -119,6 +119,9 @@ export interface GameState {
     // 中断・入れ子の破壊に備え、destroyTargetsBatch/resumeDestroyBatch が退避・復元する
     // pickMany：`${発生源instanceId}:${effectId}` → グループの先頭で持ち主が選んだ「戻す体」（空配列＝戻さない）
     destroyGroup?: { id: string; memberIds: string[]; used: string[]; familiesByPid: Partial<Record<PlayerId, string[]>>; pickMany?: Record<string, string[]>; deferred?: { pid: PlayerId; instanceId: string }[]; recordScope?: string }
+    // 場を離れる誘発の列の途中（待機状態のカードがいる間）に条件を満たしたバーストの判定。列を解決しきってから
+    // fireQueuedDestroyBursts が破壊後バーストの後に発動を確認する（BURST.md §1.4。2026-11-15 ユーザー確認）
+    pendingEventBursts?: EventBurstCheck[]
     // 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）が発火を待つ列。
     // commitPendingDestructionが確定のたびに1件積み、ブレイヴの「残す/残さない」まで決着した後
     // （handleAction末尾のfireQueuedDestroyBursts）でgroupKey+pid単位にまとめて1回だけ発火する
