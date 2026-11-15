@@ -34,6 +34,7 @@ import {
     instColors,
     resolveAction,
     resolveKoboOnBattleEnd,
+    applyDeclaredBursts,
 } from "./EffectModules"
 import { finishBlockDeclaration } from "./GameEngine"
 import { startLifeDamageReplace } from "./lifeDamageReplace"
@@ -186,6 +187,14 @@ type LifeDamageResolveFrame = Extract<ResumeFrame, { kind: "lifeDamageResolve" }
 const LIFE_DAMAGE_LAST_STEP = 7
 function driveLifeDamageResolution(state: GameState, frame: LifeDamageResolveFrame): void {
     for (let step = frame.step; step <= LIFE_DAMAGE_LAST_STEP; step++) {
+        // ライフが減ったことで誘発する効果（0〜4）を解決しきったら、宣言されたバーストを適用する。『バトル終了時』より前のまま
+        if (step === 5) {
+            applyDeclaredBursts(state, true)
+            if (state.pendingChoice) {
+                pushResumeFrames(state, [{ ...frame, step }])
+                return
+            }
+        }
         runLifeDamageStep(state, frame, step)
         if (state.pendingChoice) {
             pushResumeFrames(state, [{ ...frame, step: step + 1 }])
@@ -565,11 +574,14 @@ const BATTLE_LAST_STEP = 14
 // 次のステップ番号を battleResolve フレームに載せて抜ければよい
 // （続きは drainResumeStack が resumeBattleResolution 経由で回す）。
 // docs/design/TIMING_CHART.md ／ docs/design/RESUME_STACK.md §7
+const BURST_STEP = 5
 function driveBattleResolution(state: GameState, frame: BattleResolveFrame): void {
     for (let step = frame.step; step <= BATTLE_LAST_STEP; step++) {
         runBattleStep(state, frame, step)
         if (state.pendingChoice) {
-            pushResumeFrames(state, [{ ...frame, step: step + 1 }])
+            // step 5（バースト）は、発動の確認や適用の途中で止まったら同じ step から続ける。
+            // 先へ進めると、対話では宣言したバーストの適用がバトル終了の後になる
+            pushResumeFrames(state, [{ ...frame, step: step === BURST_STEP ? step : step + 1 }])
             return
         }
     }
@@ -657,6 +669,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         // （BURST.md §1.4「発動条件に伴う解決をすべて処理してから」。2026-11-14 ユーザー確認。#536）
         case 5: {
             fireQueuedDestroyBursts(state)
+            applyDeclaredBursts(state, true)
             return
         }
         // ＞７：【呪撃】。アタッカーが現レベルで持つなら、ブロッカーが（BP比較の結果に関わらず）

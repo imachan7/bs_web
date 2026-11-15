@@ -1559,6 +1559,6 @@ export {
     requestCardChoice,
     requestUpToChoice,
 } from "./targeting"
-export { placeBurst, finishBurstActivation, fireOwnBurstActivated, continueBurstActivation, announceBurstActivation, fireEventBursts } from "./keywords/burst"
+export { placeBurst, finishBurstActivation, fireOwnBurstActivated, continueBurstActivation, announceBurstActivation, fireEventBursts, eventBurstsFrame, applyDeclaredBursts } from "./keywords/burst"
 import { markSummonEffectResolved } from "./keywords/burst"
 export { fireSummonSequence, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "./summon"

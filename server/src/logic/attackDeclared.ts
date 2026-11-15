@@ -3,7 +3,7 @@
 // アタック後バースト（＞１-3）は列を解決し終えてから判定する
 import type { CardInstance, EventBurstCheck, GameState, PlayerId } from "../type"
 import { getCard, log, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
-import { fireEventBursts, fireFieldEventTriggers, fireTrigger, instColors } from "./EffectModules"
+import { eventBurstsFrame, fireEventBursts, fireFieldEventTriggers, fireTrigger, instColors } from "./EffectModules"
 import { exhaustedEvents } from "./state/exhaust"
 import { attackEffectsTollActive, instAllCosts } from "../../../shared/rules"
 import type { CollectedTrigger } from "./blockDeclared"
@@ -62,7 +62,7 @@ export function resolveAttackDeclared(state: GameState, pid: PlayerId, inst: Car
     })
     if (state.winner) return
     if (state.pendingChoice) {
-        pushResumeFrames(state, [{ kind: "eventBursts", checks }])
+        pushResumeFrames(state, [eventBurstsFrame(state, checks)])
         return
     }
     fireEventBursts(state, checks)

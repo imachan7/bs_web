@@ -6,7 +6,7 @@
 // - P071-e2: kind:"triggered" trigger:"onAttack" whileCombined action:millThenCoreIfBurst
 // - 080-e1/e2: burst event:"ownLifeDamaged" thenPay:"flash" → magic timing:"flash" action:destroy{filter:damagedOwnLife}
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・色・コストを機械検証してから使う。
-import { destroyTargetsBatch } from "../../server/src/logic/removal"
+import { destroyTargetsBatch } from "./helpers"
 import { attachBrave } from "../../server/src/logic/brave"
 import { fireCombinedAttackTrigger, findSpiritAny } from "../../server/src/logic/EffectModules"
 import {

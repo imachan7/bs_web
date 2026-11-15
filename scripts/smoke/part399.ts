@@ -1,6 +1,7 @@
 // smoke パート399（バーストの発動側：BURST.md §10 A〜C。左右を入れ替えても確かめる）
 // A：「自分のライフ減少後」は持ち主のライフが減ったときだけ。B：「相手による自分のスピリット破壊後」は持ち主のスピリットだけ。
 // C：「相手の『召喚時』発揮後」は相手の召喚時効果を実際に発揮した後に1回（2026-09-27 ユーザー確認）
+import { fireBurstOnEvent } from "./helpers"
 import {
     act,
     assert,
@@ -13,7 +14,6 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { fireBurstOnEvent } from "../../server/src/logic/keywords/burst"
 
 const LIFE_BURST = "BS15-076" // 妖華吸血爪（紫・マジック。【バースト：自分のライフ減少後】2枚ドロー）
 const SUMMON_BURST = "SD06-013" // 双翼乱舞（赤・マジック。【バースト：相手の召喚時発揮後】2枚ドロー）

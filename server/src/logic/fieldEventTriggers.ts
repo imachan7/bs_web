@@ -11,7 +11,7 @@ import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf,
 import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, bravesOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
-import { fireEventBursts } from "./keywords/burst"
+import { eventBurstsFrame, fireEventBursts } from "./keywords/burst"
 import type { CollectedTrigger } from "./blockDeclared"
 import { revertOncePerTurn, revertDestroyGroupUsage, fireTrigger, activationPrompt, confirmPromptIfOptional, isStillOnField } from "./triggers"
 
@@ -720,7 +720,7 @@ export function fireFieldEventTriggers(
     // 上の誘発が選択待ちを立てていたら、捨てずに後ろへ回し、誘発を解決し終えてから判定する
     // （#437 F2：以前はここで return してバーストの確認ごと消え、ライフ減少後のバーストが二度と聞かれなかった）
     if (state.pendingChoice) {
-        pushResumeFrames(state, [{ kind: "eventBursts", checks: [check] }])
+        pushResumeFrames(state, [eventBurstsFrame(state, [check])])
         return
     }
     fireEventBursts(state, [check])

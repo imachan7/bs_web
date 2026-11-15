@@ -178,7 +178,7 @@ console.log("=== 8. 後回しにした続きは、消化するときに印を戻
     assert(pc?.leaveRelated === true, "続きの選択待ちも、関係する効果の印を持つ")
 }
 
-console.log("=== 9. 待機状態のカードがいる間は、バーストは発動しない（列を解決しきってから。part953） ===")
+console.log("=== 9. 待機状態のカードがいる間は、バーストは宣言だけで、効果は適用しない（列を解決しきってから。part953） ===")
 {
     const s = game("burst", false)
     s.players.p2.reserve = 10
@@ -187,7 +187,7 @@ console.log("=== 9. 待機状態のカードがいる間は、バーストは発
     x.waiting = { kind: "destroy" }
     // 破壊時効果が相手のライフを減らした、という状況
     withLeaveRelated(s, true, () => fireFieldEventTriggers(s, "p2", "ownLifeLost"))
-    assert(s.players.p2.burstSet && s.players.p1.field.spirits.includes(x), "バーストは発動せず、待機状態の体は手札に戻らない")
+    assert(s.declaredBursts?.length === 1 && s.players.p2.burstSet && s.players.p1.field.spirits.includes(x), "宣言はするが効果は適用せず、待機状態の体は手札に戻らない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part952）")

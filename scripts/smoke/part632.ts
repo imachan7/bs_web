@@ -1,5 +1,5 @@
 // smoke パート632（BS18 部品5〜6：onBlock／onBlocked の targetMinCost、burst の burstDestroyed 条件）
-import { destroyTargetsBatch } from "../../server/src/logic/removal"
+import { destroyTargetsBatch } from "./helpers"
 import { assert, createGame, createInstance, fireTrigger, getCard, placeBurst, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 

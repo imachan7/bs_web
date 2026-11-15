@@ -2,6 +2,7 @@
 // 今回足した4つの器（AuraDef.uncombinedFilter／globalConstraint ownLifeDamageCapPerSourcePerTurn／
 // timedEffect の cantAttack＋cantBlock／ownNexusIndestructible.nameIncludes）と、
 // SD06-003/005/007/009/010/011/012の効果解釈を確認する
+import { fireFieldEventTriggers } from "./helpers"
 import { cantActByTimed } from "../../shared/rules"
 import {
     act,
@@ -19,7 +20,6 @@ import {
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
-import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function game(seed: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "white" })

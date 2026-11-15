@@ -8,7 +8,7 @@ import type { CardInstance, EffectDef, GameState, Phase, PlayerId } from "../typ
 import { currentLevel, getCard, log, opponentOf, resolveInOrder, withLeaveRelated } from "./GameState"
 import { isWaiting } from "../../../shared/rules/waiting"
 import { countSpiritsWeighted, countSymbols, effectiveBp, effectSources, hostsOf, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast } from "../../../shared/rules"
-import { requestActivationConfirm, resolveAction } from "./EffectModules"
+import { applyDeclaredBursts, requestActivationConfirm, resolveAction } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
@@ -416,6 +416,8 @@ export function fireStepTriggers(
             key: (e) => `${e.pid}:${e.inst.cardId}`,
         },
     })
+    // ステップの誘発を解決しきったら、次のステップへ進む前に、宣言されたバーストを適用する（効果の中から呼ばれたときは何もしない）
+    applyDeclaredBursts(state)
 }
 
 // BP0到達・BP到達の観測が要るカードが場にいるか（fireBpReachedTriggers と ensureBpSeen の共有判定）

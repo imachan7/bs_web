@@ -17,7 +17,7 @@ import { getAllFamilies, resolveAction } from "./EffectModules"
 import { destroyDenial } from "./destroyGate"
 import { coreRemovalAllowed } from "./coreGate"
 
-import { fireBurstOnEvent, fireEventBursts, flushPendingEventBursts } from "./keywords/burst"
+import { eventBurstsFrame, fireBurstOnEvent, fireEventBursts } from "./keywords/burst"
 import type { CollectedTrigger } from "./blockDeclared"
 import { hasGrantedTrigger, notifySpiritCoresRemovedByOpponent } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
@@ -486,7 +486,7 @@ function fireOwnSpiritDestroyed(
     })
     const oppBurst: EventBurstCheck = { pid: opponentOf(ownerPid), event: "opponentSpiritDestroyed", subject: { pid: ownerPid, cardId: inst.cardId }, colors, info: { destroyedBp: effectiveBp(state, ownerPid, inst), costs: instAllCosts(inst) } }
     if (!state.winner) {
-        if (state.pendingChoice) pushResumeFrames(state, [{ kind: "eventBursts", checks: [oppBurst] }])
+        if (state.pendingChoice) pushResumeFrames(state, [eventBurstsFrame(state, [oppBurst])])
         else fireEventBursts(state, [oppBurst])
     }
     if (!isVanishWaiting(inst)) returnTrashOnOwnSpiritDestroyed(state, ownerPid, master.family)
@@ -650,6 +650,7 @@ export function commitPendingDestruction(
         braves: bravesOf(player, inst).map((b) => ({ instanceId: b.instanceId, cost: instAllCosts(b)[0]! })),
         byOpponentEffect: burstInfo?.byOpponentEffect ?? false,
         destroyedBp: burstInfo?.bp ?? 0,
+        setCardId: player.burst,
     })
     player.field.spirits.splice(index, 1)
     trashUnderCards(state, ownerPid, inst) // 下のカードは場を離れるとき破棄（BS19-X02。トラッシュでは下のカードが先）
@@ -742,8 +743,7 @@ export function fireQueuedDestroyBursts(state: GameState): void {
     // コアの行き先選び（destroyedCoresToSelf）も同じく、決着するまで待つ
     if ((state.pendingCoreDestinations?.length ?? 0) > 0) return
     const queue = state.pendingBurstDestroyQueue
-    // 列の途中で控えたバースト（ライフ減少後など）は、破壊後バーストの後に確認する
-    if (!queue || queue.length === 0) return flushPendingEventBursts(state)
+    if (!queue || queue.length === 0) return
     delete state.pendingBurstDestroyQueue
     const groups = new Map<string, typeof queue>()
     for (const e of queue) {
@@ -778,9 +778,8 @@ export function fireQueuedDestroyBursts(state: GameState): void {
             destroyedBp,
             costs,
             members: memberInfos,
-        })
+        }, members[0]!.setCardId)
     }
-    flushPendingEventBursts(state)
 }
 
 // 手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに召喚できる」。
@@ -1243,7 +1242,7 @@ function finishNexusDestruction(
         { pid: opponentOf(ownerPid), event: "anyNexusDestroyed" },
         { pid: ownerPid, event: "ownNexusDestroyed", colors, info: { byOpponentEffect } },
     ]
-    if (state.pendingChoice) pushResumeFrames(state, [{ kind: "eventBursts", checks }])
+    if (state.pendingChoice) pushResumeFrames(state, [eventBurstsFrame(state, checks)])
     else fireEventBursts(state, checks)
 }
 

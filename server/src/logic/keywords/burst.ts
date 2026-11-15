@@ -9,7 +9,7 @@ import { withEffectTax } from "../effectTax"
 import { canPayMagicCost, payMagicCostThenResolve } from "../magic/payThenResolve"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import { anyWaiting } from "../../../../shared/rules/waiting"
-import type { CardInstance, Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
+import type { CardInstance, Color, DeclaredBurst, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
 import { burstActivationForbidden, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
@@ -259,28 +259,21 @@ export function finishSummonEffect(state: GameState): void {
 // 破壊済みの個体はもうCardInstance実体が無いため）
 // 宣言のあとのバースト判定を順に行う。発動の確認などで中断したら、残りを後ろへ積む
 export function fireEventBursts(state: GameState, checks: EventBurstCheck[]): void {
-    // 場を離れる誘発の列の途中では発動しない。列を解決しきってから確認する（BURST.md §1.4。2026-11-15 ユーザー確認）
-    if (anyWaiting(state)) {
-        ;(state.pendingEventBursts ??= []).push(...checks)
-        return
-    }
     for (let i = 0; i < checks.length; i++) {
         if (state.winner) return
         const c = checks[i]!
-        fireBurstOnEvent(state, c.pid, c.event, c.subject, c.colors, c.targetInstanceId, c.info)
+        fireBurstOnEvent(state, c.pid, c.event, c.subject, c.colors, c.targetInstanceId, c.info, c.setCardId)
         if (state.pendingChoice) {
-            if (i + 1 < checks.length) pushResumeFrames(state, [{ kind: "eventBursts", checks: checks.slice(i + 1) }])
+            if (i + 1 < checks.length) pushResumeFrames(state, [eventBurstsFrame(state, checks.slice(i + 1))])
             return
         }
     }
 }
 
-// 待機状態のカードがいる間に控えたバーストの判定を、いなくなってから確認する（fireQueuedDestroyBursts が呼ぶ）
-export function flushPendingEventBursts(state: GameState): void {
-    const checks = state.pendingEventBursts
-    if (!checks || state.pendingChoice || state.winner || anyWaiting(state)) return
-    delete state.pendingEventBursts
-    fireEventBursts(state, checks)
+// バーストの確認を後回しにするフレーム。条件を満たした時点でセットされていたカードを控える
+// （後からセットしたバーストは、その条件では発動できない。BURST.md §1.4）
+export function eventBurstsFrame(state: GameState, checks: EventBurstCheck[]): Extract<ResumeFrame, { kind: "eventBursts" }> {
+    return { kind: "eventBursts", checks: checks.map((c) => (c.setCardId !== undefined ? c : { ...c, setCardId: state.players[c.pid].burst })) }
 }
 
 // セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。
@@ -326,6 +319,7 @@ export function fireBurstOnEvent(
         members?: { colors: Color[]; cost: number; families: string[] }[]
         lifeLossByNoOwnBurst?: boolean
     },
+    setCardId?: string | null, // 確認を後回しにした経路だけ渡る（EventBurstCheck.setCardId）
 ): void {
     // 同時に条件を満たした場合は防御側（ターンプレイヤーでない側）の宣言を優先する＝走査順を固定するだけでよい
     // （2026-09-11 ユーザー確認）
@@ -336,6 +330,9 @@ export function fireBurstOnEvent(
         const holder = state.players[holderPid]
         const burstCardId = holder.burst
         if (burstCardId === null) continue
+        if (setCardId !== undefined && setCardId !== burstCardId) continue
+        // 宣言済みで適用を待っているバーストは、同じ解決の中の次の条件で宣言し直さない
+        if (state.declaredBursts?.some((d) => d.pid === holderPid && d.cardId === burstCardId)) continue
         let effect = getCard(burstCardId).effects.find(
             (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === event,
         )
@@ -365,110 +362,123 @@ export function fireBurstOnEvent(
         if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
         if (effect.destroyedColorFilter !== undefined && !(eventColors ?? []).includes(effect.destroyedColorFilter)) continue
         if (effect.destroyedMinBp !== undefined && (eventInfo?.destroyedBp ?? 0) < effect.destroyedMinBp) continue
-        // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
-        // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
-        const blocked = burstEffectBlocked(state, holderPid, burstCardId)
-        const baseAction: EffectAction = burstConditionMet(state, holderPid, effect.condition, eventInfo?.members) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
-        const actionToRun = withEffectTax(state, holderPid, "burst", burstCardId, baseAction)
+        // 効果の条件（condition）・発揮できない・税は、適用の時点で判定する（applyDeclaredBursts）
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
         const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.cardId : undefined
-        // alsoDrawIfDestroyedColor（BS14-X02）：eventColorsはここでしか手に入らないため、宣言時点でbool化しておく
         const alsoDraw = effect.alsoDrawIfDestroyedColor !== undefined && (eventColors ?? []).includes(effect.alsoDrawIfDestroyedColor)
-        // BS16バッチ0：破壊後バーストのコストが1つの値に決まらない（同時破壊で複数体・値違い）ときは、
-        // 発動者が使う値を1つ選ぶ（対話：選択肢／非対話：最大値。1つだけ・全部同じならそのまま）
-        const costs = eventInfo?.costs ?? []
-        const distinctCosts = [...new Set(costs)]
-        // event:"ownLifeDamaged"限定：ライフを減らしたスピリットのinstanceId（EffectCounter等が読む先はstate.burstEventLifeDamagerId）
+        // 破壊後バーストのコストが1つの値に決まらない（同時破壊で複数体・値違い）ときは、発動者が使う値を1つ選ぶ
+        // （対話：選択肢／非対話：最大値）
+        const distinctCosts = [...new Set(eventInfo?.costs ?? [])]
+        // event:"ownLifeDamaged"限定：ライフを減らしたスピリット
         const lifeDamagerId = event === "ownLifeDamaged" ? (targetInstanceId ?? state.battle?.lifeDamagers?.at(-1)) : undefined
+        const record: DeclaredBurst = {
+            pid: holderPid,
+            cardId: burstCardId,
+            event: effect.event,
+            ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+            ...(destroyedCardId !== undefined ? { destroyedCardId } : {}),
+            ...(alsoDraw ? { alsoDraw: true as const } : {}),
+            ...(distinctCosts.length > 0 ? { eventCost: Math.max(...distinctCosts) } : {}),
+            ...(eventColors && eventColors.length > 0 ? { eventColors } : {}),
+            ...(lifeDamagerId !== undefined ? { lifeDamagerId } : {}),
+            ...(eventInfo?.members !== undefined ? { members: eventInfo.members } : {}),
+        }
         noteCoverage(effect, "burst")
-        // 発動は常に任意（バーストは宣言制。空打ち＝条件未達での宣言は不可なので、ここに来た時点で条件は満たしている）。
-        // 実対戦では発動確認を出し、非対話（テスト）では従来どおり自動で発動する
+        // 発動（宣言）は常に任意。実対戦では確認を出し、非対話（テスト）では自動で宣言する
         if (state.interactiveTargets) {
+            const prompt = `${getCard(burstCardId).name}のバーストを発動しますか？`
             if (distinctCosts.length > 1) {
                 // コストの選択肢つき確認（「発動する」の代わりに「コストNで発動する」を並べる）
                 suspend(state, {
                     pid: holderPid,
                     kind: "option",
-                    prompt: `${getCard(burstCardId).name}のバーストを発動しますか？`,
+                    prompt,
                     candidates: [],
                     options: distinctCosts.map((c) => `コスト${c}で発動する`),
                     optional: true,
                     confirm: true,
-                    action: actionToRun,
+                    action: { type: "noop" },
                     selfInstanceId: null,
                 })
             } else {
                 const fee = burstActivationFee(state, holderPid, burstCardId)
-                requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？${fee > 0 ? `（コスト${fee}を支払います）` : ""}`, actionToRun, null)
+                requestActivationConfirm(state, holderPid, `${prompt}${fee > 0 ? `（コスト${fee}を支払います）` : ""}`, { type: "noop" }, null)
             }
             // ⚠️ 対話モードでは、この1件を確認してから返る。同時に相手側も条件を満たしていた場合、
             // その宣言は今回は提示しない簡略化（1事象につき先着1件。docs/design/BURST.md）
-            // 上の早期 return で pendingChoice は null に絞られているため、型注釈付きの局所変数で読み直す
             const pending = state.pendingChoice as PendingChoice | null
-            if (pending) {
-                pending.burstActivate = {
-                    pid: holderPid,
-                    cardId: burstCardId,
-                    ...(effect.thenPay !== undefined && !blocked ? { thenPay: effect.thenPay } : {}),
-                    ...(destroyedCardId !== undefined ? { destroyedCardId } : {}),
-                    ...(alsoDraw ? { alsoDraw: true as const } : {}),
-                    ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
-                    // BS15共通器：EffectCounter "burstEventCost" が読む値を確認の再入まで持ち回る
-                    // （BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
-                    ...(distinctCosts.length > 1
-                        ? { burstEventCostOptions: distinctCosts }
-                        : costs[0] !== undefined
-                          ? { burstEventCost: costs[0] }
-                          : {}),
-                    ...(eventColors && eventColors.length > 0 ? { burstEventColors: eventColors } : {}),
-                    ...(lifeDamagerId !== undefined ? { burstEventLifeDamagerId: lifeDamagerId } : {}),
-                }
-            }
+            if (pending) pending.burstActivate = { ...record, ...(distinctCosts.length > 1 ? { eventCostOptions: distinctCosts } : {}) }
             return
         }
         if (negateBurstActivation(state, holderPid, burstCardId, { kind: "card", ignoreCondition: false })) continue
-        payBurstActivationFee(state, holderPid, burstCardId)
-        announceBurstActivation(state, holderPid, burstCardId)
-        const before = fieldInstanceIdsOf(state, holderPid)
-        // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。非対話では最大値を使う
-        if (distinctCosts.length > 0) state.burstEventCost = Math.max(...distinctCosts)
-        else delete state.burstEventCost
-        // BS16共通器：条件{burstDestroyedColor}用
-        if (eventColors && eventColors.length > 0) state.burstEventColors = eventColors
-        else delete state.burstEventColors
-        if (lifeDamagerId !== undefined) state.burstEventLifeDamagerId = lifeDamagerId
-        else delete state.burstEventLifeDamagerId
-        // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）。
-        // 色は magicEffectiveColors を通す（紫のマジックのバースト効果にも015が効くように。BS15_PLAN.md §7.3）
-        const burstCard = getCard(burstCardId)
-        resolveAction(
-            state,
-            holderPid,
-            null,
-            actionToRun,
-            destroyedCardId ?? targetInstanceId,
-            magicEffectiveColors(state, holderPid, burstCard),
-            burstCard.type,
-            undefined,
-            undefined,
-            burstCardId,
-            undefined,
-            true,
-        )
-        continueBurstActivation(state, {
-            kind: "burstFinish",
-            stage: "finish",
-            pid: holderPid,
-            cardId: burstCardId,
-            actionType: baseAction.type,
-            ...(effect.thenPay !== undefined && !blocked ? { thenPay: effect.thenPay } : {}),
-            ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
-            ...(alsoDraw ? { alsoDraw: true as const } : {}),
-            before: [...before],
-        })
-        if (state.pendingChoice) return
+        declareBurst(state, record)
     }
+}
+
+// 発動の宣言を確定する：発動の支払いと告知をして、適用を待つ列に積む。効果はここでは解決しない
+export function declareBurst(state: GameState, record: DeclaredBurst): void {
+    payBurstActivationFee(state, record.pid, record.cardId)
+    announceBurstActivation(state, record.pid, record.cardId)
+    ;(state.declaredBursts ??= []).push(record)
+}
+
+// 宣言したバーストの効果を適用する。条件を満たした効果とそれに伴う解決を最後まで処理し、以降に解決する効果が無くなってから
+// （BURST.md §1.4。2026-11-15 ユーザー決定）。同時に宣言があれば防御側から。
+// force：流れの側で時点が決まっている所（バトルの step 5・アタックをライフで受けた直後）は、バトルの続きが再開スタックに残っていても適用する
+// 戻り値＝適用した数
+export function applyDeclaredBursts(state: GameState, force = false): number {
+    let applied = 0
+    for (;;) {
+        const list = state.declaredBursts
+        if (!list || list.length === 0) {
+            delete state.declaredBursts
+            return applied
+        }
+        if (state.winner || state.pendingChoice || state.currentEffectSource !== undefined || anyWaiting(state)) return applied
+        if ((state.pendingBraveKeeps?.length ?? 0) > 0 || (state.pendingCoreDestinations?.length ?? 0) > 0) return applied
+        if (!force && state.resumeStack.length > 0) return applied
+        const at = Math.max(0, list.findIndex((d) => d.pid !== state.turnPlayer))
+        const [d] = list.splice(at, 1)
+        if (d) applyDeclaredBurst(state, d)
+        applied++
+    }
+}
+
+function applyDeclaredBurst(state: GameState, d: DeclaredBurst): void {
+    // 宣言の後でバーストエリアを離れた（破棄されたなど）
+    if (state.players[d.pid].burst !== d.cardId) return
+    const card = getCard(d.cardId)
+    const effect = card.effects.find((e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === d.event)
+    if (!effect) return
+    // 宣言から適用までに効果の条件を満たさなくなっても、発動は取り消されない。action の解決だけを飛ばす
+    // （「このスピリットカードを召喚する」等も発揮せず、finishBurstActivation の既定どおりトラッシュへ置かれる）
+    const blocked = burstEffectBlocked(state, d.pid, d.cardId)
+    const baseAction: EffectAction = burstConditionMet(state, d.pid, effect.condition, d.members) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+    const actionToRun = withEffectTax(state, d.pid, "burst", d.cardId, baseAction)
+    const before = fieldInstanceIdsOf(state, d.pid)
+    // EffectCounter "burstEventCost"・条件 {burstDestroyedColor} などが読む出来事の情報。別の宣言の値と混ざらないよう、適用の直前に立てる
+    if (d.eventCost !== undefined) state.burstEventCost = d.eventCost
+    else delete state.burstEventCost
+    if (d.eventColors !== undefined) state.burstEventColors = d.eventColors
+    else delete state.burstEventColors
+    if (d.lifeDamagerId !== undefined) state.burstEventLifeDamagerId = d.lifeDamagerId
+    else delete state.burstEventLifeDamagerId
+    // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。BURST.md §7）。色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）。
+    // 対話では出来事の対象（ライフを減らしたスピリットなど）を渡さない：渡すと、対象を選ぶ効果がそれを選択済みの対象として扱う
+    const target = state.interactiveTargets ? d.destroyedCardId : (d.destroyedCardId ?? d.targetInstanceId)
+    resolveAction(state, d.pid, null, actionToRun, target, magicEffectiveColors(state, d.pid, card), card.type, undefined, undefined, d.cardId, undefined, true)
+    continueBurstActivation(state, {
+        kind: "burstFinish",
+        stage: "finish",
+        pid: d.pid,
+        cardId: d.cardId,
+        actionType: baseAction.type,
+        ...(effect.thenPay !== undefined && !blocked ? { thenPay: effect.thenPay } : {}),
+        ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
+        ...(d.alsoDraw ? { alsoDraw: true as const } : {}),
+        before: [...before],
+    })
 }
 
 // オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。

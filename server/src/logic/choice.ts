@@ -4,11 +4,10 @@ import { summonPayPlan } from "./summonCores"
 import { payMagicCostThenResolve } from "./magic/payThenResolve"
 import { handGainDenial } from "./handGate"
 import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
-import { payBurstActivationFee } from "./burstActivationFee"
-import { activateBurstCard } from "./keywords/burst"
+import { activateBurstCard, applyDeclaredBursts, declareBurst } from "./keywords/burst"
 import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameAction, GameState, PaySource, PendingChoice, PlayerId } from "../type"
-import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, resumeTriggerBatch, setLeaveRelated } from "./GameState"
+import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setLeaveRelated } from "./GameState"
 import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
@@ -19,7 +18,6 @@ import {
     summonFreeFromTrashIndex,
     continueBurstActivation,
     fireEventBursts,
-    announceBurstActivation,
     applyMagicNegateChoice,
     applyMagicRedirectChoice,
     applyMagicSideChoice,
@@ -44,7 +42,6 @@ import {
     payCost,
 } from "./EffectModules"
 import { validatePaySources } from "./RuleValidator"
-import { magicEffectiveColors } from "../../../shared/cost"
 import { doCastMagic } from "./magic/cast"
 import { setTargetRedirect } from "./magic/redirect"
 import { tryBraveFreeSummon } from "./braveFreeSummon"
@@ -716,43 +713,10 @@ function resolveChoiceInner(
                 } else if (pending.burstActivate && !pending.burstNegateChecked && negateBurstActivation(state, pending.burstActivate.pid, pending.burstActivate.cardId, { kind: "confirm", original: pending, option })) {
                     // 無効にした、または相手の BS21-052 の確認待ち（続きは burstNegate の解決で行う）
                 } else if (pending.burstActivate) {
-                    // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
-                    // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで
-                    // finishBurstActivation がバーストエリアの後始末（召喚以外はトラッシュへ）を行う
-                    const info = pending.burstActivate
-                    const before = fieldInstanceIdsOf(state, info.pid)
-                    payBurstActivationFee(state, info.pid, info.cardId)
-                    announceBurstActivation(state, info.pid, info.cardId)
-                    // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。
-                    // BS16バッチ0：burstEventCostOptionsがあれば、選んだ選択肢（pending.optionsと同じ並び）のコストを使う
-                    if (info.burstEventCostOptions !== undefined) {
-                        const idx = (pending.options ?? []).indexOf(option)
-                        state.burstEventCost = info.burstEventCostOptions[idx] ?? Math.max(...info.burstEventCostOptions)
-                    } else if (info.burstEventCost !== undefined) {
-                        state.burstEventCost = info.burstEventCost
-                    } else {
-                        delete state.burstEventCost
-                    }
-                    // BS16共通器：条件{burstDestroyedColor}用
-                    if (info.burstEventColors !== undefined) state.burstEventColors = info.burstEventColors
-                    else delete state.burstEventColors
-                    if (info.burstEventLifeDamagerId !== undefined) state.burstEventLifeDamagerId = info.burstEventLifeDamagerId
-                    else delete state.burstEventLifeDamagerId
-                    // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）。
-                    // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
-                    const burstCard = getCard(info.cardId)
-                    resolveAction(state, actor, self, pending.action, info.destroyedCardId, magicEffectiveColors(state, info.pid, burstCard), burstCard.type, undefined, undefined, info.cardId, undefined, true)
-                    continueBurstActivation(state, {
-                        kind: "burstFinish",
-                        stage: "finish",
-                        pid: info.pid,
-                        cardId: info.cardId,
-                        actionType: pending.action.type,
-                        ...(info.thenPay !== undefined ? { thenPay: info.thenPay } : {}),
-                        ...(info.toHand ? { toHand: true as const } : {}),
-                        ...(info.alsoDraw ? { alsoDraw: true as const } : {}),
-                        before: [...before],
-                    })
+                    // バーストの発動（宣言）の確認。効果の適用は applyDeclaredBursts が、以降に解決する効果が無くなってから行う（BURST.md §1.4）
+                    const { eventCostOptions, ...record } = pending.burstActivate
+                    const chosen = eventCostOptions?.[(pending.options ?? []).indexOf(option)]
+                    declareBurst(state, chosen !== undefined ? { ...record, eventCost: chosen } : record)
                 } else {
                     delete state.effectFizzled
                     resolveAction(state, actor, self, pending.action, pending.confirmTargetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId)
@@ -854,6 +818,15 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             // 【転召】の対象選択で中断していた召喚の続き。維持コアを置いて場に出し、召喚時効果へ進む
             placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName, frame.braveTargetInstanceId, frame.placeSoul === true ? true : undefined)
             continue
+        }
+        // ターンやステップを先へ進める前に、宣言されたバーストを適用する（誘発が選択待ちで止まった後の続き。
+        // その場で解決し終えた場合は fireStepTriggers の末尾が適用する）。適用が選択待ちで止まったら、進めずに積み直す
+        if (frame.kind === "endTurn" || frame.kind === "turnStart") {
+            applyDeclaredBursts(state, true)
+            if (state.pendingChoice) {
+                pushResumeFrames(state, [frame])
+                continue
+            }
         }
         if (frame.kind === "endTurn") {
             // ターン終了の途中の選択待ちが片付いたので、止めた区切りから続ける

@@ -5,6 +5,7 @@ import type { CardInstance, EventBurstCheck, GameState, PlayerId, ResumeFrame } 
 import { findSpirit, opponentOf, pushResumeFrames, resolveInOrder } from "./GameState"
 import {
     battleOpponentConditionedOnBattleStartIds,
+    eventBurstsFrame,
     fireEventBursts,
     fireFieldEventTriggers,
     fireTrigger,
@@ -103,7 +104,7 @@ export function resolveBlockDeclared(
     })
     if (state.winner) return
     if (state.pendingChoice) {
-        pushResumeFrames(state, [{ kind: "eventBursts", checks }])
+        pushResumeFrames(state, [eventBurstsFrame(state, checks)])
         return
     }
     fireEventBursts(state, checks)

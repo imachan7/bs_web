@@ -9,6 +9,7 @@
 // cantUseHandCardsForPid.cardType／globalConstraint:"braveBpBonusZero"／
 // action:"opponentTrashCardToDeckBottom"／action:"destroyAllByChosenCost"／
 // action:"revealOpponentDeckPickBottomRestTop"／globalConstraint noOpponentTriggerByColor.color省略（全色）
+import { fireTrigger, fireFieldEventTriggers } from "./helpers"
 import {
     assert,
     createGame,
@@ -24,9 +25,8 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
-import { fireTrigger } from "../../server/src/logic/triggers"
 import { fireStepTriggers, fireBattleWonTriggers } from "../../server/src/logic/stepTriggers"
-import { fireFieldEventTriggers, notifyNexusDeployed } from "../../server/src/logic/fieldEventTriggers"
+import { notifyNexusDeployed } from "../../server/src/logic/fieldEventTriggers"
 import { attachBrave } from "../../server/src/logic/brave"
 import { braveBpBonus, attackOncePerTurnByCostLimitApplies, noSummonTriggerByCost } from "../../shared/rules"
 import { hasMagicRestriction } from "../../shared/cost"

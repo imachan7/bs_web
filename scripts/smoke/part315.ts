@@ -4,6 +4,7 @@
 // action:"revealTopSummonFreeOrReturnToDeck"／action:"sequence"／action:"bpBuff.costReturnSelfToHand"（のち pay に統合）／
 // action:"grantCanBlockWhileRestedThisTurn.singleTarget"／action:"summonBurstCardFreeIfCoresAtLeast"／
 // AuraCounter "opponentSpirits"／step.condition.ownTrashOnlyColor
+import { fireTrigger, fireFieldEventTriggers } from "./helpers"
 import {
     act,
     assert,
@@ -21,8 +22,6 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
-import { fireTrigger } from "../../server/src/logic/triggers"
-import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)

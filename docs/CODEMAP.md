@@ -439,7 +439,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/GameEngine.ts
 
-- `handleAction`（fn）：アクションを実行し、エラーがあれば理由を返す（null = 成功）
+- `handleAction`（fn）
 - `passFlashPriority`（fn）：バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする（フラッシュマジック・神速召喚・覚醒で共通）
 - `placeSummonedSpirit`（fn）：【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す（docs/design/RESUME_STACK.md §6）。転召の対象選択で中断した場合は Res…
 - `doSummon`（fn）
@@ -823,9 +823,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `markSummonEffectResolved`（fn）：召喚時効果を発揮した印（効果を解決した・確認で「発動する」を押した）。入れ子のどの段でも、その発生源の分に付ける
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireEventBursts`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
-- `flushPendingEventBursts`（fn）：待機状態のカードがいる間に控えたバーストの判定を、いなくなってから確認する（fireQueuedDestroyBursts が呼ぶ）
+- `eventBurstsFrame`（fn）：バーストの確認を後回しにするフレーム。条件を満たした時点でセットされていたカードを控える
 - `burstCardIgnoresEffects`（fn）：セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。
 - `fireBurstOnEvent`（fn）
+- `declareBurst`（fn）：発動の宣言を確定する：発動の支払いと告知をして、適用を待つ列に積む。効果はここでは解決しない
+- `applyDeclaredBursts`（fn）：宣言したバーストの効果を適用する。条件を満たした効果とそれに伴う解決を最後まで処理し、以降に解決する効果が無くなってから
 - `activateBurstCard`（fn）：オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
 - `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
 
@@ -1330,6 +1332,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/types/choice.ts
 
 - `EventBurstCheck`（型）：バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
+- `DeclaredBurst`（型）：発動を宣言したバースト（BURST.md §1.4「宣言と適用は別の時点」）。適用は applyDeclaredBursts が、以降に解決する効果が無くなってから行う。
 - `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
 - `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。
 

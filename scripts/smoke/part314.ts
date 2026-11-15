@@ -3,6 +3,7 @@
 // （destroy.costDiscardOwnBurst／coreSqueezeOne.all／aura.whileOwnBurstSet／
 //   burst.alsoDrawIfDestroyedColor+returnSelfToHandAfter／opponentNexusCoresToTrashOne／
 //   reviveOnDestroy.cost.opponentLifeOneToTrash）を確認する
+import { fireTrigger, fireFieldEventTriggers } from "./helpers"
 import {
     act,
     assert,
@@ -16,8 +17,6 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
-import { fireTrigger } from "../../server/src/logic/triggers"
-import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { exhaustSpirit } from "../../server/src/logic/EffectModules"
 
 function game(seed: string): GameState {

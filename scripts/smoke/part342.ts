@@ -5,9 +5,9 @@
 // 渡していなかった。そのため「指定された色の相手の効果を受けない」【装甲】をバースト効果がすり抜けていた。
 // 【氷壁】（マジックの無効化）がバーストに効かないのは正しい（使用したマジック効果ではない。BURST.md §7.1）。
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
+import { fireFieldEventTriggers } from "./helpers"
 import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
-import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function game(seed: string, interactive: boolean): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "white" })
