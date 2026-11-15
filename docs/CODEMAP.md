@@ -780,6 +780,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/fieldEventTriggers.ts
 
 - `FieldEventExtraItem`（型）：フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
+- `groupOnceUsed`（fn）：同時破壊につき1回の項目（groupOnce）が、この同時破壊で既に解決されたか
+- `claimGroupOnce`（fn）
 - `fireFieldEventTriggers`（fn）
 - `notifyHandGained`（fn）：フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：
 - `notifyNexusDeployed`（fn）：フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
@@ -1044,7 +1046,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `isInCurrentBattle`（fn）
 - `recordDestroysOf`（fn）
-- `destroySpirit`（fn）
+- `destroySpirit`（fn）：引数の意味は enterDestroyWaiting のコメント。同時破壊は destroyTargetsBatch を使う
 - `resumeDestroyCommit`（fn）
 - `flushCoreDestinations`（fn）：pendingCoreDestinations を先頭から1件ずつ確認に出す（flushBraveKeeps と同じ形。ブレイヴを残す確認より先）
 - `applyCoreDestination`（fn）：選ばれた行き先へコアを置く。行き先の個体が場を離れていたらリザーブへ（コアを消さない）
@@ -1054,9 +1056,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryHandFreeSummonOnLifeDamaged`（fn）：ownLifeDamaged の発火点から呼ぶ。実対戦では確認を出し、非対話では自動で召喚する
 - `applyHandFreeSummon`（fn）：確認を出したあとに手札から失われていた場合は何もしない
 - `resolveHandFreeSummonOnDestroy`（fn）：破壊で誘発した効果の列に並んだ「〜が破壊されたときコストを支払わずに召喚できる」1枚分。
-- `destroySpiritsFrom`（fn）：戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
-- `destroyTargetsBatch`（fn）：復活の確認で中断したら destroyBatch フレームを積んで止まるので、
-- `resumeDestroyBatch`（fn）：破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、
+- `destroyTargetsBatch`（fn）：同時破壊。選択待ちで止まったら destroyBatch フレームに続きを預けて返るので、
+- `resumeDestroyBatch`（fn）：state.destroyGroup は中断をまたいでそのまま（積み直すだけで触らない）
 - `applyDestroyBatchAfter`（fn）：「この効果で破壊したスピリット1体につき」の後処理。
 - `destroyNexus`（fn）：ネクサスを破壊する。破壊耐性（nexusIndestructible）で不発なら false（呼び出し側はカウント・ドロー処理の可否を判定する）。
 - `resumeDestroyNexusCommit`（fn）
@@ -1084,7 +1085,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `nexusReviveSource`（fn）：ネクサス版の reviveOnDestroy（scope:"ownNexus"）で、破壊待機中のネクサスを場に残せる発生源（別の自分のネクサス）。
 - `tryNexusReviveOnDestroy`（fn）：破壊の列の1項目（removal.ts の driveNexusDestruction が積む）。実対戦では確認を出し、断れば破壊はそのまま確定する
 - `applyNexusReviveConfirm`（fn）：確認で「残す」が選ばれたときの後処理（choice.ts から呼ぶ）。コストを払って復活を確定させる。
-- `collectReviveEntries`（fn）：この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用ありに変わった**：
+- `collectReviveEntries`（fn）：この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める。
 - `applyReviveEntry`（fn）：集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
 - `destroyedCostsOf`（fn）：この破壊で【不死】の確認が出るトラッシュのカード位置を列挙する（**副作用なし**）。
 - `destroyedFamiliesOf`（fn）：破壊された個体が【不死：系統】の引き金として持つ系統の一覧（静的な系統。BS13-014 闇騎士アグラヴェイン）
