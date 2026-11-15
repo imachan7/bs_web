@@ -420,10 +420,6 @@ export type ResumeFrame =
           checks: EventBurstCheck[]
       }
     | {
-          // 列を**使い切ったあと**に実行するフレーム（省略可）。破壊で誘発した効果の列では
-          // 「破壊の確定（トラッシュ行き）」をここに入れる。バッチは解決のたびに自分を積み直すので、
-          // 外側から固定位置に積むと追い越されてしまう（docs/design/RESUME_STACK.md §3）
-          after?: ResumeFrame
           kind: "triggerBatch" // 同時に発揮する誘発の束。1グループずつ解決し、2グループ以上残っていれば
           // そのたびにターンプレイヤーへ解決順を聞く（docs/design/TIMING_CHART.md §0-3）
           askPid: PlayerId // 解決順を決める側（＝ターンプレイヤー）

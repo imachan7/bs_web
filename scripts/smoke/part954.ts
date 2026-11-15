@@ -146,4 +146,25 @@ withEffects({ [GORADON]: [ON_DESTROY_DRAW] }, () => {
     assert(s.pendingChoice === null && !onField(s, "p1", a) && !onField(s, "p1", b), "2体ともトラッシュへ行く")
 })
 
+console.log("=== 5. 入れ子：破壊時効果が別の同時破壊を起こし、その中で順番を選ぶ。外側の確定は内側の列の後 ===")
+withEffects({
+    [BELL]: [{ id: "t954-all", kind: "triggered", trigger: "onDestroy", levels: [1, 2, 3], optional: false, action: { type: "destroy", count: 1, all: true } } as EffectDef],
+    [GORADON]: [ON_DESTROY_DRAW],
+    [ROKU]: [ON_DESTROY_DRAW],
+}, () => {
+    const s = game("nested", true)
+    const outer = put(s, "p1", BELL)
+    const a = put(s, "p2", GORADON)
+    const b = put(s, "p2", ROKU)
+    destroyAll(s, [["p1", outer]])
+    assert(s.pendingChoice?.triggerOrder !== undefined && s.pendingChoice.options?.length === 2, "内側の同時破壊で、2体の破壊時効果の順番を聞く")
+    assert(onField(s, "p1", outer) && outer.waiting?.kind === "destroy", "外側のスピリットは、破壊時効果の解決中は破壊待機で場にいる")
+    pickOrder(s, "ロクケラトプス（破壊時）")
+    assert(s.pendingChoice === null, "選択待ちが残らない")
+    assert(!onField(s, "p1", outer) && !onField(s, "p2", a) && !onField(s, "p2", b), "3体ともトラッシュへ行く")
+    assert(s.players.p2.hand.length === 2, `内側の2体の破壊時効果が1回ずつ発揮する（手札 ${s.players.p2.hand.length} 枚）`)
+    const waiting = [...s.players.p1.field.spirits, ...s.players.p2.field.spirits].filter((x) => x.waiting !== undefined)
+    assert(waiting.length === 0 && s.destroyGroup === undefined && s.resumeStack.length === 0, "待機のまま残るカードも、同時破壊の控えも、積み残しも無い")
+})
+
 console.log("すべてのチェックに合格しました 🎉（part954）")

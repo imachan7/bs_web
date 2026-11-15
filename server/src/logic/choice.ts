@@ -800,6 +800,10 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (state.pendingChoice || state.resumeStack.length === 0) continue
         const frame = state.resumeStack.shift()
         if (!frame) continue
+        // このフレームの処理が積む続きは、残っている古いフレームより前に入れる。積む位置は suspend でしか戻らないので、
+        // 戻さないと、前の中断で進んだ位置のまま積まれて古いフレームに追い越される（順番の選択に答えた後の項目が、
+        // 外側の破壊の確定より後ろに入った。2026-11-15）
+        state.resumeInsertAt = 0
         setLeaveRelated(state, false)
         if (frame.kind === "placeSummon") {
             // 【転召】の対象選択で中断していた召喚の続き。維持コアを置いて場に出し、召喚時効果へ進む

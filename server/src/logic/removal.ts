@@ -400,7 +400,7 @@ export function destroySpirit(
     const { inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId } = entry
     fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, destroyExtraItems(state, entry), entry.cause === "destroy" ? context?.battleWinner : undefined)
     if (state.pendingChoice || state.winner) {
-        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
+        suspendDestroyCommit(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
         return true
     }
 
@@ -416,7 +416,6 @@ function suspendDestroyCommit(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-    step: number,
     byBattle: boolean,
     wasAttacker: boolean,
     bySpiritEffect: boolean,
@@ -427,26 +426,18 @@ function suspendDestroyCommit(
         commitOrDefer(state, ownerPid, inst)
         return
     }
-    // ⚠️ 破壊で誘発した効果の列（triggerBatch）が**この中断で既に積まれている**場合、
-    // 破壊の確定はその**あと**に来なければならない。resumeTriggerBatch は
-    // 「フレームを積んでから suspend する」ので、suspend が resumeInsertAt を0へ戻したあとに
-    // ここ（外側）が積むと、pushResumeFrames では列より**前**に入ってしまい、
-    // 誘発を1つも解決しないままトラッシュ行きが確定する（docs/design/RESUME_STACK.md §3）
-    const batchAt = state.resumeStack.map((f) => f.kind).lastIndexOf("triggerBatch")
-    const commitFrame: ResumeFrame = {
+    // 列（とその項目の続き）の後ろに積む（RESUME_STACK.md §3）
+    pushResumeFrames(state, [{
         kind: "destroyCommit",
         pid: ownerPid,
         instanceId: inst.instanceId,
-        step,
+        step: 2,
         byBattle,
         wasAttacker,
         bySpiritEffect,
         byOpponentEffect,
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
-    }
-    const batch = batchAt >= 0 ? state.resumeStack[batchAt] : undefined
-    if (batch !== undefined && batch.kind === "triggerBatch") batch.after = commitFrame
-    else pushResumeFrames(state, [commitFrame])
+    }])
 }
 
 // kind:"trashReturnOnOwnSpiritDestroyed"。同名は1ターン1回なので戻るのは1枚だけ。
@@ -580,7 +571,7 @@ export function resumeDestroyCommit(
     if (frame.step <= 1) {
         fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
         if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
+            suspendDestroyCommit(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
             return
         }
     }
@@ -1022,16 +1013,13 @@ function startDestroyBatch(state: GameState, frame: DestroyBatchFrame): number {
     for (const e of entries) {
         oppBursts.push(collectDestroyTriggers(state, e.pid, e.inst, e.byBattle, e.wasAttacker, e.bySpiritEffect, e.byOpponentEffect, e.sourceInstanceId, destroyExtraItems(state, e), e.context?.battleWinner, items))
     }
-    const stackBefore = new Set(state.resumeStack)
+    // バーストの判定材料には、条件の時点（＝破壊された今）にセットされていたカードを控える。列の途中でセットされたバーストは発動できない（BURST.md §1.4）
+    const finish: DestroyBatchFrame = { ...frame, phase: "finish", ...(oppBursts.length > 0 ? { oppBursts: eventBurstsFrame(state, oppBursts).checks } : {}) }
     resolveDestroyQueue(state, items)
     for (const e of entries) returnTrashOnOwnSpiritDestroyed(state, e.pid, getCard(e.inst.cardId).family)
-    const finish: DestroyBatchFrame = { ...frame, phase: "finish", ...(oppBursts.length > 0 ? { oppBursts } : {}) }
     if (state.pendingChoice && !state.winner) {
-        // 順番の選択で止まったなら、列（triggerBatch）を使い切った後に続ける。別に積むと、選ばれた項目より先に確定が走る
-        // （RESUME_STACK.md §3。2026-11-15 に再現）。列を作らずに項目の途中で止まったなら、その続きの後ろに積めばよい
-        const queue = state.resumeStack.find((f) => f.kind === "triggerBatch" && !stackBefore.has(f))
-        if (queue?.kind === "triggerBatch") queue.after = finish
-        else pushResumeFrames(state, [finish])
+        // 列（とその項目の続き）の後ろに積む。列の項目は消化のたびに先頭へ積み直されるので、追い越されない（RESUME_STACK.md §3）
+        pushResumeFrames(state, [finish])
         return entries.length
     }
     return finishDestroyBatch(state, finish)
@@ -1214,12 +1202,8 @@ function finishNexusDestruction(
     after?: { actorPid: PlayerId; action: EffectAction },
 ): void {
     if (state.pendingChoice && !state.winner) {
-        const commitFrame: ResumeFrame = { kind: "destroyNexusCommit", pid: ownerPid, instanceId: inst.instanceId, byOpponentEffect, ...(after ? { after } : {}) }
-        // 列（triggerBatch）が積まれていれば、確定はその後（suspendDestroyCommit と同じ理由）
-        const batchAt = state.resumeStack.map((f) => f.kind).lastIndexOf("triggerBatch")
-        const batch = batchAt >= 0 ? state.resumeStack[batchAt] : undefined
-        if (batch !== undefined && batch.kind === "triggerBatch") batch.after = commitFrame
-        else pushResumeFrames(state, [commitFrame])
+        // 列（とその項目の続き）の後ろに積む（suspendDestroyCommit と同じ）
+        pushResumeFrames(state, [{ kind: "destroyNexusCommit", pid: ownerPid, instanceId: inst.instanceId, byOpponentEffect, ...(after ? { after } : {}) }])
         return
     }
     const colors = instColors(inst)
