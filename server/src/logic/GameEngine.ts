@@ -138,18 +138,9 @@ function settleDirectedAttack(state: GameState): void {
 }
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
-export function handleAction(
-    state: GameState,
-    pid: PlayerId,
-    action: GameAction,
-): string | null {
-    if (state.winner) return "ゲームはすでに終了しています"
-    ensureBpSeen(state)
-
-    // クライアント演出用イベント列は1アクションごとに配信するため、実行前にクリアする
-    state.events = []
-    noteHandleActionEntry(state)
-    const result = dispatchAction(state, pid, action)
+// 1回の操作で効果を解決し終えた後の後始末（バトルの終了・掃除・召喚時効果を閉じる・破壊後バーストの確認）。
+// 宣言したバーストを適用した後にも、もう一度通す
+function settleAfterResolution(state: GameState): void {
     settleDirectedAttack(state)
     // バトルがどの経路（解決・ライフ受け・endBattle 効果）で終了しても、
     // サイレントウォールの遅延効果（アタックステップ終了）を一元的に処理する
@@ -193,10 +184,26 @@ export function handleAction(
     endBattleIfAttackerLeftField(state)
     // 破壊後バースト：破壊の確定・ブレイヴの残す/残さない・【光芒】等まですべて決着した地点で発火（TIMING_CHART.md ＞６）
     if (!state.pendingChoice) fireQueuedDestroyBursts(state)
-    // 宣言したバーストは、以降に解決する効果が無くなったここで適用する（BURST.md §1.4）
-    applyDeclaredBursts(state)
-    // バーストを解決し終えたら、指定アタックのブロックを確定する
+    // バーストの確認が済んでいれば、指定アタックのブロックを確定する
     settleDirectedAttack(state)
+}
+
+export function handleAction(
+    state: GameState,
+    pid: PlayerId,
+    action: GameAction,
+): string | null {
+    if (state.winner) return "ゲームはすでに終了しています"
+    ensureBpSeen(state)
+
+    // クライアント演出用イベント列は1アクションごとに配信するため、実行前にクリアする
+    state.events = []
+    noteHandleActionEntry(state)
+    const result = dispatchAction(state, pid, action)
+    settleAfterResolution(state)
+    // 宣言したバーストは、以降に解決する効果が無くなったここで適用する（BURST.md §1.4）。
+    // 適用した効果が盤面を動かすので、後始末をもう一度通す。そこで新しく宣言されたバーストがあれば、続けて適用する
+    while (applyDeclaredBursts(state) > 0) settleAfterResolution(state)
     // 「BPがN以上になった時」は今の効果の処理が終わってから発揮されるので、解決しきったここで判定する
     if (!state.pendingChoice && state.resumeStack.length === 0 && !state.winner) fireBpReachedTriggers(state)
     // 最後の網：ライフを減らした経路が勝敗の確定（settleLifeZero）を呼び忘れていても、ここで負けにする
@@ -412,6 +419,8 @@ export function passFlashPriority(state: GameState, pid: PlayerId): void {
 function forceEndTurnIfFlagged(state: GameState): void {
     if (!state.endAttackStepAfterBattle || state.winner) return
     if (state.battle) return
+    // 宣言したバーストの適用が先（適用の後で、後始末がここをもう一度通る）
+    if ((state.declaredBursts?.length ?? 0) > 0) return
     state.endAttackStepAfterBattle = false
     const lifeCheck = state.endAttackStepLifeCheck
     delete state.endAttackStepLifeCheck

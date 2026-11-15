@@ -72,6 +72,7 @@ withAttackEffect({ type: "sequence", actions: [{ type: "lifeCrush", count: 1 }, 
     assert(declared < drew, "宣言は、ライフが減った時点（ドローより前）")
     assert(drew < applied, "バースト効果の適用は、ドローの後")
     assert(!s.players.p2.burstSet && s.declaredBursts === undefined, "適用し終えたらバーストエリアは空で、控えも残らない")
+    assert(!s.players.p1.field.spirits.includes(actor) && s.battle === null, "バースト効果でアタッカーが手札に戻ったので、同じ操作の中でバトルが終了する")
 })
 
 console.log("=== 2. 同じ場面を対話で：発動の確認はライフが減った時点、適用はドローの後 ===")
@@ -145,6 +146,34 @@ console.log("=== 4. バトルの勝利時にライフが減った：適用は、
     assert(s.players.p2.life === 4 && at(texts(s, from), "バースト（次元断）を発動した") !== -1, "勝利時効果でライフが減り、バーストを宣言した")
     assert(appliedWithLoserOnField === false, "バースト効果を適用した時点で、敗者はもう場にいない")
     assert(!s.players.p1.field.spirits.includes(kaiser) && s.players.p1.hand.includes(KAISER), "バースト効果で、勝ったスピリットが手札に戻った")
+}
+
+console.log("=== 4b. 対話のバトル：破壊後バーストは、確認（宣言）の後、バトルが終わる前に適用する ===")
+{
+    const s = game("battle-interactive", true)
+    const kaiser = put(s, "p1", KAISER, 7)
+    const loser = put(s, "p2", VANILLA)
+    placeBurst(s, "p2", "BS14-101") // 仁王壁（相手による自分のスピリット破壊後、ボイドからコア1個をリザーブへ）
+    assert(getCard("BS14-101").name === "仁王壁", "破壊後バーストは仁王壁")
+    s.phase = "attack"
+    act(s, "p1", { type: "attack", instanceId: kaiser.instanceId })
+    declareBlock(s, "p2", loser.instanceId)
+    let appliedInBattle: boolean | undefined
+    const push = s.log.push.bind(s.log)
+    s.log.push = (...items) => {
+        for (const it of items) {
+            const m = typeof it === "string" ? it : (it as { message: string }).message
+            if (m.includes("仁王壁はバーストとして発動し")) appliedInBattle = s.battle !== null
+        }
+        return push(...items)
+    }
+    for (let i = 0; i < 12 && (s.pendingChoice || (s.isFlashTiming && s.battle)); i++) {
+        const pc = s.pendingChoice
+        if (pc) act(s, pc.pid, { type: "resolveChoice", option: pc.options![0]! })
+        else act(s, s.priorityPlayer, { type: "pass" })
+    }
+    assert(appliedInBattle === true, "バースト効果を適用し終えた時点で、バトルはまだ終わっていない（step 5）")
+    assert(s.battle === null && !s.players.p2.burstSet, "その後バトルが終了する")
 }
 
 console.log("=== 5. 破壊後バースト：破壊した効果の「その後」の句まで解決してから適用する ===")

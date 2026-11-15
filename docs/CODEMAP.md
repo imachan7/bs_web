@@ -439,7 +439,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/GameEngine.ts
 
-- `handleAction`（fn）：アクションを実行し、エラーがあれば理由を返す（null = 成功）
+- `handleAction`（fn）
 - `passFlashPriority`（fn）：バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする（フラッシュマジック・神速召喚・覚醒で共通）
 - `placeSummonedSpirit`（fn）：【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す（docs/design/RESUME_STACK.md §6）。転召の対象選択で中断した場合は Res…
 - `doSummon`（fn）

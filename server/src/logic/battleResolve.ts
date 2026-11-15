@@ -574,11 +574,14 @@ const BATTLE_LAST_STEP = 14
 // 次のステップ番号を battleResolve フレームに載せて抜ければよい
 // （続きは drainResumeStack が resumeBattleResolution 経由で回す）。
 // docs/design/TIMING_CHART.md ／ docs/design/RESUME_STACK.md §7
+const BURST_STEP = 5
 function driveBattleResolution(state: GameState, frame: BattleResolveFrame): void {
     for (let step = frame.step; step <= BATTLE_LAST_STEP; step++) {
         runBattleStep(state, frame, step)
         if (state.pendingChoice) {
-            pushResumeFrames(state, [{ ...frame, step: step + 1 }])
+            // step 5（バースト）は、発動の確認や適用の途中で止まったら同じ step から続ける。
+            // 先へ進めると、対話では宣言したバーストの適用がバトル終了の後になる
+            pushResumeFrames(state, [{ ...frame, step: step === BURST_STEP ? step : step + 1 }])
             return
         }
     }

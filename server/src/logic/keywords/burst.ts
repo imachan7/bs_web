@@ -426,19 +426,22 @@ export function declareBurst(state: GameState, record: DeclaredBurst): void {
 // 宣言したバーストの効果を適用する。条件を満たした効果とそれに伴う解決を最後まで処理し、以降に解決する効果が無くなってから
 // （BURST.md §1.4。2026-11-15 ユーザー決定）。同時に宣言があれば防御側から。
 // force：流れの側で時点が決まっている所（バトルの step 5・アタックをライフで受けた直後）は、バトルの続きが再開スタックに残っていても適用する
-export function applyDeclaredBursts(state: GameState, force = false): void {
+// 戻り値＝適用した数
+export function applyDeclaredBursts(state: GameState, force = false): number {
+    let applied = 0
     for (;;) {
         const list = state.declaredBursts
         if (!list || list.length === 0) {
             delete state.declaredBursts
-            return
+            return applied
         }
-        if (state.winner || state.pendingChoice || state.currentEffectSource !== undefined || anyWaiting(state)) return
-        if ((state.pendingBraveKeeps?.length ?? 0) > 0 || (state.pendingCoreDestinations?.length ?? 0) > 0) return
-        if (!force && state.resumeStack.length > 0) return
+        if (state.winner || state.pendingChoice || state.currentEffectSource !== undefined || anyWaiting(state)) return applied
+        if ((state.pendingBraveKeeps?.length ?? 0) > 0 || (state.pendingCoreDestinations?.length ?? 0) > 0) return applied
+        if (!force && state.resumeStack.length > 0) return applied
         const at = Math.max(0, list.findIndex((d) => d.pid !== state.turnPlayer))
         const [d] = list.splice(at, 1)
         if (d) applyDeclaredBurst(state, d)
+        applied++
     }
 }
 

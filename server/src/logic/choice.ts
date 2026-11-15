@@ -4,10 +4,10 @@ import { summonPayPlan } from "./summonCores"
 import { payMagicCostThenResolve } from "./magic/payThenResolve"
 import { handGainDenial } from "./handGate"
 import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
-import { activateBurstCard, declareBurst } from "./keywords/burst"
+import { activateBurstCard, applyDeclaredBursts, declareBurst } from "./keywords/burst"
 import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameAction, GameState, PaySource, PendingChoice, PlayerId } from "../type"
-import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, resumeTriggerBatch, setLeaveRelated } from "./GameState"
+import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setLeaveRelated } from "./GameState"
 import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
@@ -818,6 +818,15 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             // 【転召】の対象選択で中断していた召喚の続き。維持コアを置いて場に出し、召喚時効果へ進む
             placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName, frame.braveTargetInstanceId, frame.placeSoul === true ? true : undefined)
             continue
+        }
+        // ターンやステップを先へ進める前に、宣言されたバーストを適用する（誘発が選択待ちで止まった後の続き。
+        // その場で解決し終えた場合は fireStepTriggers の末尾が適用する）。適用が選択待ちで止まったら、進めずに積み直す
+        if (frame.kind === "endTurn" || frame.kind === "turnStart") {
+            applyDeclaredBursts(state, true)
+            if (state.pendingChoice) {
+                pushResumeFrames(state, [frame])
+                continue
+            }
         }
         if (frame.kind === "endTurn") {
             // ターン終了の途中の選択待ちが片付いたので、止めた区切りから続ける
