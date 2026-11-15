@@ -5,12 +5,18 @@ import { fireQueuedDestroyBursts } from "../../server/src/logic/removal"
 
 const KAISER = "BS02-036" // カイザレオン大帝（Lv2 アタック時：BPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く）
 const JIGEN = "BS16-080" // 次元断（バースト：自分のライフ減少後、相手のスピリット1体を手札に戻す）
+const GANDINOS = "X13-01" // 太陽凶龍アポロ・ガンディノス（アタック時：BP5000以下の相手のスピリット1体を破壊。Lv2 から指定アタック）
+const KARAKURI = "BS20-060" // カラクリバッタ（ブレイヴ）
+const TARAN = "BS16-025" // タランドーズ（Lv1 BP6000・効果なし）
+const SOKO = "BS14-091" // 双光気弾（バースト：相手の効果による自分のスピリット破壊後、2枚ドロー）
 const VANILLA = "BS01-002" // ロクケラトプス
 
 console.log("=== 前提: カードの機械確認 ===")
 {
     assert(getCard(KAISER).name === "カイザレオン大帝" && getCard(KAISER).effects.some((e) => e.kind === "triggered" && e.trigger === "onBattleWin" && e.action.type === "lifeCrush"), "KAISER は勝利時に相手のライフを減らす")
     assert(getCard(JIGEN).name === "次元断" && getCard(JIGEN).effects.some((e) => e.kind === "burst" && e.event === "ownLifeDamaged" && e.action.type === "return"), "JIGEN はライフ減少後に手札へ戻すバースト")
+    assert(getCard(GANDINOS).name === "太陽凶龍アポロ・ガンディノス" && getCard(KARAKURI).type === "brave" && getCard(TARAN).name === "タランドーズ", "指定アタックの場面のカード")
+    assert(getCard(SOKO).name === "双光気弾" && getCard(SOKO).effects.some((e) => e.kind === "burst" && e.event === "ownSpiritDestroyed"), "SOKO は破壊後バースト")
     assert(getCard(VANILLA).name === "ロクケラトプス", "VANILLA はロクケラトプス")
 }
 
@@ -88,6 +94,32 @@ console.log("=== 3. 待機状態のカードがいなければ、その場で発
     fireFieldEventTriggers(s, "p2", "ownLifeLost")
     assert(!s.players.p2.burstSet && s.pendingEventBursts === undefined, "ライフ減少後バーストがその場で発動する")
     assert(!s.players.p1.field.spirits.includes(target), "相手のスピリットが手札に戻る")
+}
+
+console.log("=== 4. 指定アタック：持ち越した破壊後バーストを確認してから、ブロックを確定する（TIMING_CHART §1.10） ===")
+{
+    const s = game("directed")
+    s.interactiveTargets = true
+    const atk = createInstance(GANDINOS, 1, 3)
+    s.players.p1.field.spirits.push(atk)
+    // アタック時効果で破壊される合体スピリット（ブレイヴを残す確認が挟まる）と、指定先（BP6000 で破壊されない）
+    const host = createInstance(VANILLA, 1, 1)
+    const target = createInstance(TARAN, 1, 1)
+    s.players.p2.field.spirits.push(host, target)
+    const brave = createInstance(KARAKURI, 1, 0)
+    s.players.p2.field.combinedBraves.push(brave)
+    host.braveRefs = [{ slot: "single", instanceId: brave.instanceId }]
+    refreshLevelAsOverrides(s)
+    placeBurst(s, "p2", SOKO)
+    s.phase = "attack"
+    assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId, targetSpiritInstanceId: target.instanceId }) === null, "指定アタックできる")
+    assert(s.pendingChoice?.kind === "option" && s.pendingChoice.prompt.includes("カラクリバッタ"), "ブレイヴを残すかの確認が出る")
+    act(s, "p2", { type: "resolveChoice", option: s.pendingChoice!.options![0]! })
+    assert(s.pendingChoice?.prompt.includes("双光気弾") === true, "次に破壊後バーストの確認が出る")
+    assert(s.battle?.blockerInstanceId == null, "バーストの確認の時点では、ブロックはまだ確定していない")
+    for (let i = 0; i < 6 && s.pendingChoice; i++) act(s, s.pendingChoice.pid, { type: "resolveChoice", option: s.pendingChoice.options![0]! })
+    assert(!s.players.p2.burstSet, "バーストが発動した")
+    assert(s.battle?.blockerInstanceId === target.instanceId, "バーストを解決し終えたら、指定先のブロックが確定する")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part953）")
