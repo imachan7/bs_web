@@ -849,6 +849,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (state.pendingChoice || state.resumeStack.length === 0) continue
         const frame = state.resumeStack.shift()
         if (!frame) continue
+        setLeaveRelated(state, false)
         if (frame.kind === "placeSummon") {
             // 【転召】の対象選択で中断していた召喚の続き。維持コアを置いて場に出し、召喚時効果へ進む
             placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName, frame.braveTargetInstanceId, frame.placeSoul === true ? true : undefined)
@@ -956,5 +957,6 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (prevBurst) state.resumeBurst = prevBurst
         else delete state.resumeBurst
     }
+    setLeaveRelated(state, false)
     return null
 }

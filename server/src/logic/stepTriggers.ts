@@ -5,7 +5,8 @@ import { noteCoverage } from "../../../shared/coverage"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { markPays } from "./actions/pay"
 import type { CardInstance, EffectDef, GameState, Phase, PlayerId } from "../type"
-import { currentLevel, getCard, log, opponentOf, resolveInOrder } from "./GameState"
+import { currentLevel, getCard, log, opponentOf, resolveInOrder, withLeaveRelated } from "./GameState"
+import { isWaiting } from "../../../shared/rules/waiting"
 import { countSpiritsWeighted, countSymbols, effectiveBp, effectSources, hostsOf, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast } from "../../../shared/rules"
 import { requestActivationConfirm, resolveAction } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
@@ -135,19 +136,20 @@ export function fireBattleWonTriggers(
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) => (!isVirtualSource(e.inst) && !isStillOnField(state, winnerPid, e.inst.instanceId)) || !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id }),
-        resolve: (e) => {
+        resolve: (e) => withLeaveRelated(state, true, () => {
             // 「〜できる」（optional）は実対戦では発動可否を確認する（step / triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
                 requestActivationConfirm(state, winnerPid, activationPrompt(e.inst), e.effect.action, selfOf(e))
             } else {
                 resolveAction(state, winnerPid, selfOf(e), e.effect.action)
             }
-        },
+        }),
         frame: (e) => ({
             kind: "action" as const,
             selfInstanceId: selfOf(e).instanceId,
             action: e.effect.action,
             actorPid: winnerPid,
+            leaveRelated: true,
             levelRecheck: { instanceId: e.inst.instanceId, effectId: e.effect.id },
             ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
         }),
@@ -236,6 +238,8 @@ export function fireStepTriggers(
             const card = getCard(inst.cardId)
             const level = currentLevel(inst).level
             if (nexusEffectsStopped(state, pid, inst)) continue
+            // 待機状態のカードは、場を離れることに関係しないステップの誘発を発揮できない（PENDING_STATE.md §3 P4）
+            if (isWaiting(inst)) continue
             for (const effect of card.effects) {
                 if (effect.kind !== "step") continue
                 if (effect.step !== step) continue
@@ -361,7 +365,7 @@ export function fireStepTriggers(
     resolveInOrder(state, firing, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）
         skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId) || !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id }),
-        resolve: (e) => {
+        resolve: (e) => withLeaveRelated(state, false, () => {
             // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
             const byName = e.effect.onceScope === "name"
             if (byName) {
@@ -391,12 +395,13 @@ export function fireStepTriggers(
             resolveAction(state, e.pid, e.self, markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }))
             if (state.effectFizzled) revertOnceUsed(state, e.inst, e.effect.id, "stepUsedTurn")
             delete state.effectFizzled
-        },
+        }),
         frame: (e) => ({
             kind: "action" as const,
             selfInstanceId: e.self.instanceId,
             action: e.effect.onceScope === "name" ? markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : e.effect.action,
             actorPid: e.pid,
+            leaveRelated: false,
             levelRecheck: { instanceId: e.inst.instanceId, effectId: e.effect.id },
             ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
             logText: `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,

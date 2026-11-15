@@ -341,6 +341,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isTrashWaiting`（fn）：破壊か消滅で、トラッシュに置かれるのを待っている
 - `isVanishWaiting`（fn）
 - `isReturnWaiting`（fn）：手札・デッキ・バーストへ戻るのを待っている
+- `isLeaveRelatedTrigger`（fn）
+- `canFireWhileWaiting`（fn）：待機中の発生源がこの誘発を発揮できるか（P4）
+- `canBeTargeted`（fn）：効果の対象に取れるか（P5）。待機中のカードは、場を離れることに関係する誘発で発揮した効果の対象にだけなる。
 
 ## shared/summon.ts
 
@@ -461,7 +464,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `createGame`（fn）：first＝先攻。実対戦は index.ts の startGame がランダムに決めて渡す（テストは既定の p1）
 - `opponentOf`（fn）
 - `log`（fn）
-- `suspend`（fn）：── 中断と再開（docs/design/RESUME_STACK.md）──────────────────────────────
+- `withLeaveRelated`（fn）：── 中断と再開（docs/design/RESUME_STACK.md）──────────────────────────────
+- `setLeaveRelated`（fn）
+- `suspend`（fn）
 - `noteHandleActionEntry`（fn）：handleAction の**入口**から呼ぶ。すでに中断中なら、そこを新しい基準にし直す。
 - `checkNoMutationAfterSuspend`（fn）：handleAction の出口から呼ぶ。中断中に盤面が変わっていたら記録する
 - `takeMutationAfterSuspend`（fn）：検査結果の取り出し（smoke のハーネスが集計に使う）

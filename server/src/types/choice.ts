@@ -387,7 +387,7 @@ export type ResumeFrame =
           action: EffectAction
           actorPid?: PlayerId // 省略時は再開を駆動している側の pid として解決する
           recordScope?: string
-          leaveRelated?: true // 場を離れることに関係する誘発で発揮した効果（GameState.leaveRelated へ戻す）
+          leaveRelated?: boolean // 場を離れることに関係する誘発で発揮した効果か（GameState.leaveRelated へ戻す）。誘発の入口は必ず明示し、未指定の続きは pushResumeFrames が state から写す
           burst?: { pid: PlayerId; cardId: string } // 積んだ時点でバースト効果そのものを解決中だった
           // ここから下は fieldEvent 誘発の残りを積むときに使う（2026-08-17）。
           // fieldEvent は「self＝イベント対象／発生源＝エントリを持つカード」がずれることがあり、

@@ -20,8 +20,9 @@ import type {
 import {
     currentLevel, findInstanceAnywhere,
     getCard,
-    log, opponentOf, pushResumeFrames
+    log, opponentOf, pushResumeFrames, withLeaveRelated
 } from "./GameState"
+import { canFireWhileWaiting, isLeaveRelatedTrigger } from "../../../shared/rules/waiting"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
 import type { KeywordInfo } from "../../../shared/rules"
@@ -222,6 +223,9 @@ export function fireTrigger(
     collect?: CollectedTrigger[], // 渡されたら解決せず、同時発揮の1件ずつとして積んで返る（blockDeclared.ts）
     asCard?: { cardId: string; level: number }, // 別カードの効果エントリを selfInstance が発揮したものとして解く（replayOpponentSummonEffect）。Lv は記録した値、ブレイヴと付与分は見ない
 ): void {
+    // 待機状態のカードは、場を離れることに関係する誘発しか発揮できない（PENDING_STATE.md §3 P4）
+    if (!canFireWhileWaiting(selfInstance, event)) return
+    const related = isLeaveRelatedTrigger(event)
     // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ／BS03ゴーレムクラフトで
     // スピリット化されたネクサス）は誘発も出さない
     if (instEffectsSuppressed(selfInstance) || nexusEffectsStopped(state, owner, selfInstance)) {
@@ -501,7 +505,7 @@ export function fireTrigger(
             c.type === "grantEntry" ? getCard(c.cardId).effects.filter((e) => e.id === c.effectId).map((e) => ({ effect: e, src: selfInstance })) : [],
         ),
     ]
-    const resolveEntry = (entry: { effect: EffectDef; src: CardInstance }): void => {
+    const resolveEntry = (entry: { effect: EffectDef; src: CardInstance }): void => withLeaveRelated(state, related, () => {
         const effect = entry.effect as Extract<EffectDef, { kind: "triggered" }>
         // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）。
         // 実際には発揮しなかったとき（コストを払えず不発／確認を断った）は下で巻き戻す
@@ -539,7 +543,7 @@ export function fireTrigger(
             revertOncePerTurn(state, entry.src, effect.id)
             delete state.effectFizzled
         }
-    }
+    })
     // 後で解決するエントリのフレーム。並べ替えの列（collect）と、選択待ちで中断した残り（下のループ）の両方がこれを使う
     // （#437 F3：以前は残りを効果の中身だけのフレームで積み、発動確認・誰の効果か・対象・ターン1回の記録・対象の付け替えが落ちた）。
     // 「ターンに1回」はフレームを作る時点で消費済みにする（run 経由の markOnceUsed は冪等。断った／不発なら pay の onceRevert が戻す）
@@ -552,6 +556,7 @@ export function fireTrigger(
             selfInstanceId: selfInstance.instanceId,
             action: effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action,
             actorPid: owner,
+            leaveRelated: related,
             levelRecheck: { instanceId: entry.src.instanceId, effectId: effect.id },
             ...(target !== undefined ? { targetInstanceId: target } : {}),
             ...(effect.optional && state.interactiveTargets ? { confirmPrompt: `${getCard(entry.src.cardId).name}の効果を発動しますか？` } : {}),
@@ -563,6 +568,7 @@ export function fireTrigger(
         selfInstanceId: selfInstance.instanceId,
         action: a,
         actorPid: owner,
+        leaveRelated: related,
         ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
     })
     if (collect !== undefined) {
@@ -584,7 +590,7 @@ export function fireTrigger(
             collect.push({
                 key,
                 label,
-                run: () => resolveAction(state, owner, selfInstance, a, targetInstanceId),
+                run: () => withLeaveRelated(state, related, () => resolveAction(state, owner, selfInstance, a, targetInstanceId)),
                 frame: grantedFrame(a),
             })
         }
@@ -605,7 +611,7 @@ export function fireTrigger(
     for (let i = 0; i < grantedActions.length; i++) {
         const grantedAction = grantedActions[i]
         if (!grantedAction) continue
-        resolveAction(state, owner, selfInstance, grantedAction, targetInstanceId)
+        withLeaveRelated(state, related, () => resolveAction(state, owner, selfInstance, grantedAction, targetInstanceId))
         if (state.pendingChoice) {
             const remaining = grantedActions.slice(i + 1)
             pushResumeFrames(state, remaining.map(grantedFrame))

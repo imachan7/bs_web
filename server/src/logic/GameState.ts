@@ -364,7 +364,8 @@ export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void 
     const burst = state.currentEffectSource
     for (const frame of frames) {
         const f = frame.kind === "action" && frame.burst === undefined && burst?.burst && burst.cardId !== undefined ? { ...frame, burst: { pid: burst.pid, cardId: burst.cardId } } : frame
-        state.resumeStack.splice(state.resumeInsertAt++, 0, f)
+        const g = f.kind === "action" && f.leaveRelated === undefined && state.leaveRelated ? { ...f, leaveRelated: true } : f
+        state.resumeStack.splice(state.resumeInsertAt++, 0, g)
     }
 }
 
