@@ -3,11 +3,13 @@
 import { act, assert, createGame, createInstance, fireTrigger, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { pushResumeFrames, withLeaveRelated } from "../../server/src/logic/GameState"
+import { destroyTargetsBatch } from "../../server/src/logic/removal"
 import { canBeTargeted, canFireWhileWaiting, isVanishWaiting } from "../../shared/rules/waiting"
 import type { CardInstance } from "../../server/src/type"
 
 const EIR = "BS10-035" // 樹氷の女神エイル（召喚時：相手のスピリット1体を手札に戻す）
 const DUCK = "BS16-030" // セリザワンド・ダック（破壊時：相手のスピリット1体を手札に戻す）
+const GRAVE = "BS06-076" // 暴かれた墓石（ネクサス。アタックステップに自分のスピリットが破壊されたとき、1枚ドロー）
 const VANILLA = "BS01-002" // ロクケラトプス
 
 console.log("=== 前提: カードの機械確認 ===")
@@ -16,6 +18,7 @@ console.log("=== 前提: カードの機械確認 ===")
         getCard(id).effects.some((e) => e.kind === "triggered" && e.trigger === trigger && e.action.type === "return" && e.action.to === "hand")
     assert(getCard(EIR).name === "樹氷の女神エイル" && onlyTrigger(EIR, "onSummon"), "EIR は召喚時に手札へ戻す")
     assert(getCard(DUCK).name === "セリザワンド・ダック" && onlyTrigger(DUCK, "onDestroy"), "DUCK は破壊時に手札へ戻す")
+    assert(getCard(GRAVE).name === "暴かれた墓石" && getCard(GRAVE).effects.some((e) => e.kind === "fieldEvent" && e.event === "ownSpiritDestroyed" && e.phase === "attack"), "GRAVE は自分のスピリットの破壊で誘発する")
     assert(getCard(VANILLA).name === "ロクケラトプス", "VANILLA はロクケラトプス")
 }
 
@@ -132,6 +135,45 @@ console.log("=== 6. 後回しのフレームの印 ===")
     assert(flags[0] === true, "印が未指定の続きは、積んだ時点の効果の種類を引き継ぐ")
     assert(flags[1] === false, "誘発の入口が明示した印は書き換えない")
     assert(flags[2] === undefined, "関係ない効果の続きには印が付かない")
+}
+
+console.log("=== 7. 破壊の列（順番の選択 → 後回しのフレーム）でも、破壊時効果は待機状態の体を対象に取れる ===")
+{
+    const s = game("batch")
+    s.phase = "attack"
+    const duck = put(s, "p1", DUCK)
+    s.players.p1.field.nexuses.push(createInstance(GRAVE, s.turn, 0))
+    refreshLevelAsOverrides(s)
+    // 相手の体の待機は手で組む（同じ同時破壊に入れると、順番の選択を挟んだときに先にトラッシュへ移る。HANDOFF §2）
+    const x = put(s, "p2", VANILLA, { kind: "destroy" })
+    const y = put(s, "p2", VANILLA)
+    destroyTargetsBatch(s, "p2", [{ pid: "p1", instanceId: duck.instanceId }])
+    const order = s.pendingChoice
+    assert(order?.kind === "option" && order.triggerOrder !== undefined, "ダックの破壊で2種の効果が誘発するので、解決順の選択待ちが立つ")
+    const pick = order?.options?.find((o) => o.includes("セリザワンド・ダック"))
+    assert(pick !== undefined, "列にダックの破壊時がある")
+    act(s, order!.pid, { type: "resolveChoice", option: pick! })
+    const pc = s.pendingChoice
+    assert(pc?.kind === "target" && pc.pid === "p1", "ダックの破壊時効果の対象の選択待ちが立つ")
+    assert(x.waiting?.kind === "destroy" && s.players.p2.field.spirits.includes(x), "相手の体は、破壊待機のまま場にいる")
+    assert(pc !== null && pc !== undefined && pc.candidates.includes(x.instanceId) && pc.candidates.includes(y.instanceId), "破壊待機の相手の体も候補にある")
+    assert(pc?.leaveRelated === true, "フレームから再開した効果の選択待ちも、関係する効果の印を持つ")
+}
+
+console.log("=== 8. 後回しにした続きは、消化するときに印を戻して解決する ===")
+{
+    const s = game("drain")
+    const duck = put(s, "p1", DUCK, { kind: "destroy" })
+    const x = put(s, "p2", VANILLA, { kind: "destroy" })
+    const y = put(s, "p2", VANILLA)
+    const z = put(s, "p2", VANILLA)
+    fireTrigger(s, "p1", duck, "onDestroy")
+    // 破壊時効果の続き（同じ効果がもう1体戻す）を、選択待ちの後ろに積む
+    withLeaveRelated(s, true, () => pushResumeFrames(s, [{ kind: "action", selfInstanceId: duck.instanceId, action: { type: "return", to: "hand", count: 1 }, actorPid: "p1" }]))
+    act(s, "p1", { type: "resolveChoice", instanceId: y.instanceId })
+    const pc = s.pendingChoice
+    assert(pc?.kind === "target" && pc.candidates.length === 2 && pc.candidates.includes(x.instanceId) && pc.candidates.includes(z.instanceId), "続きの候補に、待機状態の体と待機でない体の両方がある")
+    assert(pc?.leaveRelated === true, "続きの選択待ちも、関係する効果の印を持つ")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part952）")

@@ -98,7 +98,7 @@ batspi の「消滅について」「バウンスについて」には改訂前�
 - 判定は `shared/rules/waiting.ts` の1か所：`canBeTargeted`（P5）・`canFireWhileWaiting`（P4）。「場を離れることに関係する誘発」の名前の一覧（`LEAVE_RELATED_TRIGGERS`）もここ。新しい誘発を足したら、関係するものだけ一覧へ足す。
 - 「いま解決している効果が、関係する誘発で発揮したものか」は `GameState.leaveRelated`。誘発1件を解決する関数（`fireTrigger` の resolveEntry と付与分、fieldEvent／battleWon／step の `handlers.resolve`）を `withLeaveRelated` で包んで立てる。入口の呼び出しごとは包まない（`collect` を渡す経路は解決せずに返る）。
 - 持ち回り：選択待ちは `suspend` が写す。誘発の入口が作るフレームは `leaveRelated` を必ず明示する（fieldEvent の extra＝破壊の列の項目と battleWon は true、step は false）。効果の途中の続きは `pushResumeFrames` が未指定の action フレームへ写す。`drainResumeStack` はフレームごとに設定し直す。
-- 入れ子の誘発は自分の種類で上書きする（破壊時効果で召喚した体の召喚時効果は、待機中の体を対象に取れない）。【転召】の生贄選びは召喚の手順の中で、破壊時効果の続きなので、破壊待機の自身を選べる（§2 の 11-03 の確認のまま）。
+- 入れ子の誘発は自分の種類で上書きする（破壊時効果で召喚した体の召喚時効果は、待機中の体を対象に取れない）。【転召】の生贄の候補（`keywords/tensho.ts` の `tenshoCandidates`）は `canBeTargeted` を通していないので、破壊待機の自身を選べるまま（§2 の 11-03 の確認どおりの結果だが、判定を通した結果ではない。下の「残り」）。
 - 一覧の分類で境界にあるもの：`onBattleEnd`（バトル終了時）・`opponentSpiritCoresEmptied`・`opponentSpiritBpReachedZero` は関係する誘発に入れていない。『消滅時』は段取り6で足す。
 
 **残り（未対応）**
@@ -107,5 +107,6 @@ batspi の「消滅について」「バウンスについて」には改訂前�
 | :-- | :-- |
 | 欄が真偽値 | 「どのカードの待機で誘発したか」までは見ない。別のカードの待機で誘発した効果からも対象に取れる（例：A の破壊時効果で B を破壊し、B の破壊時効果が破壊待機の A を選ぶ）。判定は1か所なので、欄を instanceId に変えれば直る |
 | 候補集めの残り | `matchesTarget` を直接 filter して選ばせる所は `canBeTargeted` を通っていない：`actions/timedEffect.ts`（6）・`buff.ts`・`exhaustRefresh.ts`・`destroy.ts` の自分側・`pay.ts` など。多くは自分のスピリットへの BP 増減・疲労で、待機中の体に当たっても移動は変わらない |
+| 【転召】の生贄 | `tenshoCandidates` は判定を通らない。通すなら、召喚の手順のフレームが欄を持ち回るかを先に確かめる（消化ループは action 以外のフレームで欄を false に戻す） |
 | 補助の欄 | 破壊の文脈（`pendingDestroyContext`）・バーストの控え（`pendingDestroyBurstInfo`）・`coresAtDestruction` は `waiting` の外のまま。挙動を変えない作り替えとして別の PR |
 | Q31574 の自然な場面 | 召喚の支払いで消滅した体は、召喚時効果より前にトラッシュへ移る。part952 は手で待機の印を付けて確かめている |
