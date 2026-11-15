@@ -515,7 +515,9 @@ export function fireFieldEventTriggers(
                 noStackSeen.add(key)
             }
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
-            if (effect.oncePerTurn && effect.onceScope !== "name") markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
+            // 同時破壊の列の項目（groupOnce）は、発揮する時点で「ターンに1回」を記録する（下の claimsAtResolve）。集める時点で記録すると、
+            // 先頭の破壊誘発元が「残る」で待機でなくなったとき、ほかのスピリットが破壊されても発揮できない（2026-11-15 ユーザー確認）
+            if (effect.oncePerTurn && effect.onceScope !== "name" && groupOnce === undefined) markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
             if (effect.maxPerTurn !== undefined) markUsedOnceThisTurn(state, inst, effect.id)
             noteCoverage(effect, "fieldEvent")
             const lowerPick = effect.action.type === "moveCards" ? effect.action.pick?.lowerCostThanEventTarget : undefined
@@ -605,6 +607,8 @@ export function fireFieldEventTriggers(
             : undefined
     const related = isLeaveRelatedTrigger(event)
     const groupOnceOf = (e: PoolItem): string | undefined => (e.extra !== undefined ? e.extra.groupOnce : e.groupOnce)
+    // 「ターンに1回」を、集める時点ではなく発揮する時点で記録するか（同名で1回の効果と、同時破壊の列の項目）
+    const claimsAtResolve = (e: Extract<PoolItem, { extra?: undefined }>): boolean => e.effect.onceScope === "name" || (e.effect.oncePerTurn === true && e.groupOnce !== undefined)
     const handlers: Parameters<typeof resolveInOrder<PoolItem>>[2] = {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
@@ -620,7 +624,7 @@ export function fireFieldEventTriggers(
                 resolveAction(state, e.extra.actorPid, e.extra.selfInstanceId ? findInstanceAnywhere(state, e.extra.selfInstanceId) ?? null : null, e.extra.action)
                 return
             }
-            if (e.effect.onceScope === "name" && !claimOnce(state, pid, e.inst, e.effect, "triggeredUsedTurn")) return
+            if (claimsAtResolve(e) && !claimOnce(state, pid, e.inst, e.effect, "triggeredUsedTurn")) return
             const c = contextOf(e.inst, e.effect)
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
@@ -672,10 +676,10 @@ export function fireFieldEventTriggers(
                 kind: "action" as const,
                 selfInstanceId: c.actionSelf.instanceId,
                 leaveRelated: related,
-                action: e.effect.onceScope === "name" ? markPays(bindEventTargets(e.effect.action, eventInfo?.eventTargetIds), { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : bindEventTargets(e.effect.action, eventInfo?.eventTargetIds),
+                action: claimsAtResolve(e) ? markPays(bindEventTargets(e.effect.action, eventInfo?.eventTargetIds), { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : bindEventTargets(e.effect.action, eventInfo?.eventTargetIds),
                 actorPid: c.actionPid,
                 levelRecheck: { instanceId: e.inst.instanceId, effectId: e.effect.id },
-                ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
+                ...(claimsAtResolve(e) ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
                 ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
                 ...(e.groupOnce !== undefined ? { groupOnce: e.groupOnce } : {}),
                 ...(restedGuard !== undefined ? { requiresRestedOf: restedGuard } : {}),
