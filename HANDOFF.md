@@ -42,10 +42,19 @@
 - 対戦開始の処理（デッキ指定の解決・先攻決め・最初のターン開始）は `server/src/matchSetup.ts` に出し、サーバーと Worker の両方が使う
 - サーバーの `startAi` は残す（Worker を起動できないブラウザの退避先・E2E）。件数の記録は `POST /api/ai-start` で続ける
 
-### 進行中：待機状態の作り替え（`refactor/waiting-related-effects`。2026-11-15）
+### 進行中：待機状態の作り替え（2026-11-15。確認の答えは [PENDING_STATE.md](./docs/design/PENDING_STATE.md) §3 の C1〜C4）
 
-- 段取り2（対象と発揮の判定。P4・P5）は実装済み。入れたものと**残り**は [PENDING_STATE.md](./docs/design/PENDING_STATE.md) §3 末尾「段取り2で入れたもの」
-- 次：補助の欄を `waiting` へ移す（挙動を変えない。別 PR）→ 段取り3（戻す待機の順番。挙動が変わるので実装前に確認）
+PR は1つずつ別ブランチ。順は ①同時破壊を1本の列に（C1。`fix/simul-destroy-one-queue`）→ ②対象に取れるのは同じ出来事の待機だけ（C2）→ ③戻す待機の順番と待機の変化（C3・C4。part194 の期待値を改める）→ ④補助の欄を `waiting` へ移す（挙動は変えない）。
+
+**① の設計（C1）**
+
+- 同時破壊（`destroyTargetsBatch`）は3段：全員を破壊待機にする → 全員ぶんの項目を1つの配列に集める（破壊誘発元の順。その中は今の順） → `resolveInOrder` を1回。`destroySpirit`（単体）も同じ2つの関数（`enterDestroyWaiting`・`collectDestroyTriggers`）を通す
+- 列の後の処理は `destroyBatch` フレーム1つ（`phase:"finish"`。相手側の「相手のスピリット破壊後」バーストの宣言 → 全員の確定 → 破壊した数の後処理 → 破壊後バースト）。列が順番の選択で止まったら、今回できた `triggerBatch` の `after` に付ける（HANDOFF §2 の追い越しは、この形で経路ごと無くなる）。`phase:"start"` は pickMany の選択の後に3段を始める
+- 「同時破壊につき1回」は、集める時点で消費しない。当てはまる破壊誘発元ごとに項目を作り、項目に `groupOnce`（`destroyGroup.used` の鍵）を付け、解決する時点で消費する（使用済みなら空振り）。先頭の破壊誘発元が「残る」で待機でなくなっても、次の破壊誘発元の項目が発揮する。断った・不発で消費を戻すのは今と同じ（`revertDestroyGroupUsage`）
+  - 対象：fieldEvent の `ownSpiritDestroyed`／`opponentSpiritDestroyed`（`perDestroyed` 以外）、`scope:"ownAll"` の「残る」（`perDestroyed` 以外）、【不死】（トラッシュのカード1枚につき1回）、手札からの無償召喚（手札のカード1枚につき1回）
+  - 「残る」の項目の key とラベルには破壊誘発元を入れる（どのスピリットを残すかをターンプレイヤーの順番選びで選べる）
+- 「どれから破壊処理をしますか」（`PendingChoice.destroyOrder`・`destroyOrderPick`）は、1本の列の順番選びに置き換わるので消す
+- 列の中で復活を断ったときは、破壊をやり直さない（待機のまま列の続きを解決する）
 
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
@@ -163,7 +172,6 @@ BS01〜BS18 は全枚数投入済み。BS14〜BS18 の確定した解釈と器�
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
 - 対象がいないマジックのボタンはクライアントでは消えない（押すとサーバーが理由つきで拒否する）
-- **同時破壊で、後の体の破壊誘発が順番の選択を挟むと、先に処理した体が先にトラッシュへ移る**（2026-11-15 に再現。`resumeTriggerBatch` が選ばれた項目を `resumeInsertAt`（選択の時点で3）へ積むので、`destroyBatch` フレームの後ろに入り、`finishDestroyGroup` が先に走る。後の体の破壊時効果から、同時に破壊された体が見えない）。処理順の直しなので、直す前にユーザーへ確認する
 
 
 
