@@ -1,5 +1,5 @@
 // 効果の対象の選び方（候補の列挙・自動選択）と、プレイヤーへの選択待ち（pendingChoice）の発行
-import { isReturnWaiting, isTrashWaiting } from "../../../shared/rules/waiting"
+import { canBeTargeted, isTrashWaiting } from "../../../shared/rules/waiting"
 import { isResisted, resolveAction } from "./EffectModules"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId } from "../type"
 import { getCard, log, opponentOf, pushResumeFrames, suspend } from "./GameState"
@@ -38,9 +38,8 @@ export function pickEnemyCandidates(
     }
     return state.players[targetPid].field.spirits.filter(
         (s) =>
-            // **バウンス待機中は「戻ることに無関係な効果」の対象にならない**
-            // （バトスピ Wiki「バウンスについて」。破壊待機中は対象に取れるので扱いが違う）
-            !isReturnWaiting(s) &&
+            // 待機状態のカードは、場を離れることに関係する誘発で発揮した効果の対象にだけなる（PENDING_STATE.md §3 P5）
+            canBeTargeted(state, s) &&
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isResisted(state, targetPid, s, attempt) &&
             extraPredicate(s),
@@ -63,8 +62,8 @@ export function pickAnySideCandidates(
     // 封印された魔導書Lv1：マジックの効果なら、片側だけに変更する選択が済んでいる場合がある
     return applyBothSidesRedirectToCandidates(state, sourceType, [
         ...pickEnemyCandidates(state, opp, Infinity, matches, sourceColors, sourceType, op),
-        // 自分側もバウンス待機中は対象外（相手側は pickEnemyCandidates が弾く）
-        ...state.players[owner].field.spirits.filter((s) => !isReturnWaiting(s) && matches(s)),
+        // 自分側も待機状態は同じ判定
+        ...state.players[owner].field.spirits.filter((s) => canBeTargeted(state, s) && matches(s)),
     ])
 }
 
@@ -93,7 +92,7 @@ export function pickAnySideByBp(
         keepPid !== null && keepPid !== owner
             ? []
             : state.players[owner].field.spirits.filter(
-                  (s) => !isReturnWaiting(s) && effectiveBp(state, owner, s) <= maxBp && matches(s),
+                  (s) => canBeTargeted(state, s) && effectiveBp(state, owner, s) <= maxBp && matches(s),
               )
     const ownCandidate =
         ownCandidates.length > 0

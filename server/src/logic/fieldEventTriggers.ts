@@ -1,5 +1,5 @@
 // 盤面の出来事（fieldEvent）で起きる誘発の収集と解決。手札を得た・ネクサスを配置したときの通知もここ
-import { isTrashWaiting } from "../../../shared/rules/waiting"
+import { canFireWhileWaiting, isLeaveRelatedTrigger, isTrashWaiting } from "../../../shared/rules/waiting"
 import { levelStillMet } from "./levelRecheck"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
@@ -7,7 +7,7 @@ import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
 import type { CardInstance, CardType, Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, Keyword, PlayerId, ResolvedTargetFilter } from "../type"
-import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, pushResumeFrames, suspend, resolveInOrder } from "./GameState"
+import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, pushResumeFrames, suspend, resolveInOrder, withLeaveRelated } from "./GameState"
 import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, bravesOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
@@ -175,9 +175,8 @@ export function fireFieldEventTriggers(
     const noStackSeen = new Set<string>()
     for (const inst of instances) {
         if (excludeInstanceIds?.includes(inst.instanceId)) continue
-        // 待機状態のカードは、破壊に関係する効果以外を発揮できない（PENDING_STATE.md §1 の改訂文。part699 R6）。
-        // 勝敗の誘発を破壊待機の列で解決するようになり、待機中に無関係なイベント（ドローなど）が起きるようになった（#554）
-        if (isTrashWaiting(inst) && !/Destroyed|BattleWon|BattleLost/.test(event)) continue
+        // 待機状態のカードは、場を離れることに関係する誘発しか発揮できない（PENDING_STATE.md §3 P4。part699 R6）
+        if (!canFireWhileWaiting(inst, event)) continue
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level
         for (const effect of card.effects) {
@@ -597,6 +596,7 @@ export function fireFieldEventTriggers(
         (event === "anySpiritExhausted" || event === "ownSpiritExhausted" || event === "opponentSpiritExhaustedByOwnSpiritEffect") && selfOverride !== undefined
             ? selfOverride.inst.instanceId
             : undefined
+    const related = isLeaveRelatedTrigger(event)
     const handlers: Parameters<typeof resolveInOrder<PoolItem>>[2] = {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
@@ -605,7 +605,7 @@ export function fireFieldEventTriggers(
             (e.extra === undefined && destroyGuard !== undefined && !isTrashWaiting(findInstanceAnywhere(state, destroyGuard))) ||
             (e.extra === undefined && restedGuard !== undefined && findInstanceAnywhere(state, restedGuard)?.isRested !== true) ||
             (e.extra === undefined && !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id })),
-        resolve: (e) => {
+        resolve: (e) => withLeaveRelated(state, related || e.extra !== undefined, () => {
             if (e.extra !== undefined) {
                 resolveAction(state, e.extra.actorPid, e.extra.selfInstanceId ? findInstanceAnywhere(state, e.extra.selfInstanceId) ?? null : null, e.extra.action)
                 return
@@ -642,7 +642,7 @@ export function fireFieldEventTriggers(
                 }
                 delete state.effectFizzled
             }
-        },
+        }),
         frame: (e) => {
             if (e.extra !== undefined) {
                 return {
@@ -650,6 +650,7 @@ export function fireFieldEventTriggers(
                     selfInstanceId: e.extra.selfInstanceId,
                     action: e.extra.action,
                     actorPid: e.extra.actorPid,
+                    leaveRelated: true,
                     ...(e.extra.requiresPendingDestructionOf !== undefined
                         ? { requiresPendingDestructionOf: e.extra.requiresPendingDestructionOf }
                         : {}),
@@ -659,6 +660,7 @@ export function fireFieldEventTriggers(
             return {
                 kind: "action" as const,
                 selfInstanceId: c.actionSelf.instanceId,
+                leaveRelated: related,
                 action: e.effect.onceScope === "name" ? markPays(bindEventTargets(e.effect.action, eventInfo?.eventTargetIds), { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : bindEventTargets(e.effect.action, eventInfo?.eventTargetIds),
                 actorPid: c.actionPid,
                 levelRecheck: { instanceId: e.inst.instanceId, effectId: e.effect.id },
