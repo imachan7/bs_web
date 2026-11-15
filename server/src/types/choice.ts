@@ -39,7 +39,7 @@ export type DeclaredBurst = {
 export interface PendingChoice {
     pid: PlayerId // 選択するプレイヤー
     recordScope?: string
-    leaveRelated?: true // 中断した時点の GameState.leaveRelated（再開で戻す）
+    waitingEvent?: string // 中断した時点の GameState.waitingEvent（再開で戻す）
     burst?: { pid: PlayerId; cardId: string } // 中断した効果がバースト効果そのものだったか（再開時に GameState.resumeBurst へ戻す）
     flashEffect?: true // 中断した効果がフラッシュ効果だったか（再開時に GameState.flashEffect へ戻す）
     confirmTargetInstanceId?: string // confirm を承認したら resolveAction に渡す効果の対象（イベント対象）
@@ -383,7 +383,8 @@ export type ResumeFrame =
           action: EffectAction
           actorPid?: PlayerId // 省略時は再開を駆動している側の pid として解決する
           recordScope?: string
-          leaveRelated?: boolean // 場を離れることに関係する誘発で発揮した効果か（GameState.leaveRelated へ戻す）。誘発の入口は必ず明示し、未指定の続きは pushResumeFrames が state から写す
+          // この効果を誘発した待機の出来事（GameState.waitingEvent へ戻す）。null＝誘発の入口が「無し」と明示した／未指定＝pushResumeFrames が積む時点の state から写す
+          waitingEvent?: string | null
           burst?: { pid: PlayerId; cardId: string } // 積んだ時点でバースト効果そのものを解決中だった
           // ここから下は fieldEvent 誘発の残りを積むときに使う（2026-08-17）。
           // fieldEvent は「self＝イベント対象／発生源＝エントリを持つカード」がずれることがあり、

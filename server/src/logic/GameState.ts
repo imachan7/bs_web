@@ -269,21 +269,21 @@ export function log(state: GameState, message: string): void {
 // 中断を開始する。**pendingChoice を立てる箇所はすべてここを通す**。
 // ここが唯一の入口であることで、再開スタックの挿入境界（resumeInsertAt）のリセットを
 // 1箇所に集約できる（各所で書き忘れると解決順が壊れる）
-// 誘発1件を解決する間だけ GameState.leaveRelated を誘発の種類に合わせ、終わったら戻す。
-// 入れ子で起きた別の誘発（破壊時効果で召喚したスピリットの召喚時 など）は、自分の種類で上書きする
-export function withLeaveRelated<T>(state: GameState, related: boolean, run: () => T): T {
-    const outer = state.leaveRelated
-    setLeaveRelated(state, related)
+// 誘発1件を解決する間だけ GameState.waitingEvent を誘発の出来事に合わせ、終わったら戻す。
+// 入れ子で起きた別の誘発は、自分の値で上書きする
+export function withWaitingEvent<T>(state: GameState, event: string | undefined, run: () => T): T {
+    const outer = state.waitingEvent
+    setWaitingEvent(state, event)
     try {
         return run()
     } finally {
-        setLeaveRelated(state, outer === true)
+        setWaitingEvent(state, outer)
     }
 }
 
-export function setLeaveRelated(state: GameState, related: boolean | undefined): void {
-    if (related) state.leaveRelated = true
-    else delete state.leaveRelated
+export function setWaitingEvent(state: GameState, event: string | null | undefined): void {
+    if (event) state.waitingEvent = event
+    else delete state.waitingEvent
 }
 
 export function suspend(state: GameState, choice: PendingChoice): void {
@@ -295,7 +295,7 @@ export function suspend(state: GameState, choice: PendingChoice): void {
     const withCard: PendingChoice = src?.cardId !== undefined && withSource.sourceCardId === undefined ? { ...withSource, sourceCardId: src.cardId } : withSource
     const withBurst: PendingChoice = src?.burst && src.cardId !== undefined && withCard.burst === undefined ? { ...withCard, burst: { pid: src.pid, cardId: src.cardId } } : withCard
     const withScope = state.recordScope !== undefined && withBurst.recordScope === undefined ? { ...withBurst, recordScope: state.recordScope } : withBurst
-    const withLeave: PendingChoice = state.leaveRelated && withScope.leaveRelated === undefined ? { ...withScope, leaveRelated: true } : withScope
+    const withLeave: PendingChoice = state.waitingEvent !== undefined && withScope.waitingEvent === undefined ? { ...withScope, waitingEvent: state.waitingEvent } : withScope
     state.pendingChoice = state.flashEffect && withLeave.flashEffect === undefined ? { ...withLeave, flashEffect: true } : withLeave
     // 新しい中断の始まり。ここから積まれるフレームは、既にスタックにある古いフレームより前に入る
     state.resumeInsertAt = 0
@@ -364,7 +364,7 @@ export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void 
     const burst = state.currentEffectSource
     for (const frame of frames) {
         const f = frame.kind === "action" && frame.burst === undefined && burst?.burst && burst.cardId !== undefined ? { ...frame, burst: { pid: burst.pid, cardId: burst.cardId } } : frame
-        const g = f.kind === "action" && f.leaveRelated === undefined && state.leaveRelated ? { ...f, leaveRelated: true } : f
+        const g = f.kind === "action" && f.waitingEvent === undefined && state.waitingEvent !== undefined ? { ...f, waitingEvent: state.waitingEvent } : f
         state.resumeStack.splice(state.resumeInsertAt++, 0, g)
     }
 }

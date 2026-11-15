@@ -256,7 +256,7 @@ console.log("=== 12b. BS16-069 Lv2：破壊待機状態の個体自身を、同�
     const s = game("case12b")
     put(s, "p1", "BS16-069", 3) // Lv2到達
     const destroyed = put(s, "p1", "BS16-038", 2) // 破壊される個体（コア2）
-    destroyed.waiting = { kind: "destroy" }
+    destroyed.waiting = { kind: "destroy", event: destroyed.instanceId }
     const decoy = createInstance("BS16-038", s.turn, 9) // 同名の別インスタンス（コアで区別）。場には出さない
     s.players.p1.trashCards = [decoy.cardId]
     const reserveBefore = s.players.p1.reserve

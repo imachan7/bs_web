@@ -7,7 +7,7 @@ import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
 import { activateBurstCard, applyDeclaredBursts, declareBurst } from "./keywords/burst"
 import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameAction, GameState, PaySource, PendingChoice, PlayerId } from "../type"
-import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setLeaveRelated } from "./GameState"
+import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setWaitingEvent } from "./GameState"
 import { claimGroupOnce, groupOnceUsed, notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
@@ -106,7 +106,7 @@ function resolveChoiceInner(
     if (!pending) return "選択待ちの効果がありません"
     if (pending.pid !== pid) return "あなたが選択するタイミングではありません"
     state.recordScope = pending.recordScope ?? newRecordScope()
-    setLeaveRelated(state, pending.leaveRelated)
+    setWaitingEvent(state, pending.waitingEvent)
 
     // マジックの無効化の確認（鏡の回廊Lv2／【氷壁】）。action は解決せず、
     // 「無効にする」ならコストを払ってマジックの効果を捨て、選ばなければ中断していた解決を続ける
@@ -804,7 +804,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         // 戻さないと、前の中断で進んだ位置のまま積まれて古いフレームに追い越される（順番の選択に答えた後の項目が、
         // 外側の破壊の確定より後ろに入った。2026-11-15）
         state.resumeInsertAt = 0
-        setLeaveRelated(state, false)
+        setWaitingEvent(state, undefined)
         if (frame.kind === "placeSummon") {
             // 【転召】の対象選択で中断していた召喚の続き。維持コアを置いて場に出し、召喚時効果へ進む
             placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName, frame.braveTargetInstanceId, frame.placeSoul === true ? true : undefined)
@@ -875,8 +875,9 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         // （docs/design/TIMING_CHART.md）。フレームは消さず、ここで無効化する
         // 記録の枠：同じ効果の続きは自分の枠へ、持たないフレーム（別の効果）は新しい枠で（IF_UNIFY.md §6）
         state.recordScope = frame.recordScope ?? newRecordScope()
-        // 破壊の列の項目（requiresPendingDestructionOf つき）は、破壊で誘発した効果
-        setLeaveRelated(state, frame.leaveRelated === true || frame.requiresPendingDestructionOf !== undefined)
+        // 欄が無い破壊の列の項目は、見張り先のカードの待機の出来事で誘発した効果
+        // （null＝「無し」と明示したフレームは、見張り先があっても無しのまま）
+        setWaitingEvent(state, frame.waitingEvent !== undefined ? frame.waitingEvent : frame.requiresPendingDestructionOf !== undefined ? findInstanceAnywhere(state, frame.requiresPendingDestructionOf)?.waiting?.event : undefined)
         if (frame.requiresPendingDestructionOf !== undefined) {
             const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
             if (target == null || !isTrashWaiting(target)) continue
@@ -924,6 +925,6 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (prevBurst) state.resumeBurst = prevBurst
         else delete state.resumeBurst
     }
-    setLeaveRelated(state, false)
+    setWaitingEvent(state, undefined)
     return null
 }

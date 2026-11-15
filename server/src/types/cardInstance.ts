@@ -177,6 +177,7 @@ export interface CardInstance {
 // kind は「何を待っているか」。destroy・vanish（維持コア割れ）はトラッシュ、return は to の場所へ移る。
 // byOpponent：vanish は相手の効果で消滅した（byOpponentVanishOnly が読む）、return は相手の効果で戻される
 export type WaitingState =
-    | { kind: "destroy" }
-    | { kind: "vanish"; byOpponent?: true }
-    | { kind: "return"; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true }
+    // 待機の出来事の id。同時に待機に入ったカードで共通（同時破壊は destroyGroup.id）。対象に取れるかの判定に使う（PENDING_STATE §3 C2）
+    | { kind: "destroy"; event: string }
+    | { kind: "vanish"; event: string; byOpponent?: true }
+    | { kind: "return"; event: string; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true }

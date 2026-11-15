@@ -2,7 +2,7 @@
 // 待機は手で印を付けて組む（召喚の支払いで消滅した体は、いまの実装では召喚時効果より前にトラッシュへ移るので、自然な流れでは場面にならない）
 import { act, assert, createGame, createInstance, fireFieldEventTriggers, fireTrigger, getCard, placeBurst, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { pushResumeFrames, withLeaveRelated } from "../../server/src/logic/GameState"
+import { pushResumeFrames, withWaitingEvent } from "../../server/src/logic/GameState"
 import { destroyTargetsBatch } from "../../server/src/logic/removal"
 import { canBeTargeted, canFireWhileWaiting, isVanishWaiting } from "../../shared/rules/waiting"
 import type { CardInstance } from "../../server/src/type"
@@ -43,9 +43,9 @@ function put(s: GameState, pid: PlayerId, cardId: string, waiting?: CardInstance
 }
 
 const WAITINGS: { label: string; waiting: NonNullable<CardInstance["waiting"]> }[] = [
-    { label: "破壊", waiting: { kind: "destroy" } },
-    { label: "消滅", waiting: { kind: "vanish" } },
-    { label: "戻す", waiting: { kind: "return", to: "hand" } },
+    { label: "破壊", waiting: { kind: "destroy", event: "ev" } },
+    { label: "消滅", waiting: { kind: "vanish", event: "ev" } },
+    { label: "戻す", waiting: { kind: "return", event: "ev", to: "hand" } },
 ]
 
 console.log("=== 1. 判定関数 ===")
@@ -54,7 +54,8 @@ console.log("=== 1. 判定関数 ===")
     assert(canBeTargeted({}, inst) && canFireWhileWaiting(inst, "onSummon"), "待機でなければ、対象に取れて発揮もできる")
     for (const w of WAITINGS) {
         inst.waiting = w.waiting
-        assert(!canBeTargeted({}, inst) && canBeTargeted({ leaveRelated: true }, inst), `${w.label}の待機：関係する効果の対象にだけなる`)
+        assert(!canBeTargeted({}, inst) && canBeTargeted({ waitingEvent: "ev" }, inst), `${w.label}の待機：その待機の出来事で誘発した効果の対象にだけなる`)
+        assert(!canBeTargeted({ waitingEvent: "other" }, inst), `${w.label}の待機：別の待機の出来事で誘発した効果の対象にはならない（PENDING_STATE §3 C2）`)
         assert(!canFireWhileWaiting(inst, "onSummon") && !canFireWhileWaiting(inst, "opponentDrew"), `${w.label}の待機：関係ない誘発は発揮できない`)
         assert(canFireWhileWaiting(inst, "onDestroy") && canFireWhileWaiting(inst, "ownSpiritDestroyed") && canFireWhileWaiting(inst, "onBattleWin"), `${w.label}の待機：破壊時・破壊したときは発揮できる`)
     }
@@ -73,12 +74,12 @@ for (const w of WAITINGS) {
     assert(pc?.kind === "target" && pc.pid === "p1", `${w.label}：対象の選択待ちが立つ`)
     assert(pc !== null && pc !== undefined && !pc.candidates.includes(waiting.instanceId), `${w.label}：待機状態の体は候補に無い`)
     assert(pc?.candidates.length === 2 && pc.candidates.includes(y.instanceId) && pc.candidates.includes(z.instanceId), `${w.label}：待機でない2体は候補にある`)
-    assert(pc?.leaveRelated === undefined && s.leaveRelated === undefined, `${w.label}：関係する効果の印は立たない`)
+    assert(pc?.waitingEvent === undefined && s.waitingEvent === undefined, `${w.label}：待機の出来事は立たない`)
 }
 {
     const s = game("summon-only-waiting", false)
     const eir = put(s, "p1", EIR)
-    const waiting = put(s, "p2", VANILLA, { kind: "vanish" })
+    const waiting = put(s, "p2", VANILLA, { kind: "vanish", event: "ev" })
     fireTrigger(s, "p1", eir, "onSummon")
     assert(s.players.p2.field.spirits.includes(waiting) && s.players.p2.hand.every((c) => c !== VANILLA) && s.pendingChoice == null, "待機状態の体しかいなければ、何も戻らない")
 }
@@ -86,24 +87,27 @@ for (const w of WAITINGS) {
 console.log("=== 3. 破壊時効果は、待機状態の体を対象に取れる ===")
 {
     const s = game("destroy-related")
-    const duck = put(s, "p1", DUCK, { kind: "destroy" })
-    const waiting = put(s, "p2", VANILLA, { kind: "destroy" })
+    // ダックと同時に待機に入ったスピリット（同じ出来事）と、別の出来事で待機に入ったスピリット
+    const duck = put(s, "p1", DUCK, { kind: "destroy", event: "ev" })
+    const waiting = put(s, "p2", VANILLA, { kind: "destroy", event: "ev" })
+    const other = put(s, "p2", VANILLA, { kind: "destroy", event: "other" })
     const y = put(s, "p2", VANILLA)
     const handBefore = s.players.p2.hand.length
     fireTrigger(s, "p1", duck, "onDestroy")
     const pc = s.pendingChoice
     assert(pc?.kind === "target" && pc.candidates.includes(waiting.instanceId) && pc.candidates.includes(y.instanceId), "破壊時効果の候補に、待機状態の体と待機でない体の両方がある")
-    assert(pc?.leaveRelated === true, "選択待ちが、関係する効果の印を持ち回る")
-    assert(s.leaveRelated === undefined, "誘発の入口を出たら、印は外側の値（無し）に戻る")
+    assert(pc !== null && pc !== undefined && !pc.candidates.includes(other.instanceId), "別の出来事で待機に入ったスピリットは候補に無い（PENDING_STATE §3 C2）")
+    assert(pc?.waitingEvent === "ev", "選択待ちが、待機の出来事を持ち回る")
+    assert(s.waitingEvent === undefined, "誘発の入口を出たら、外側の値（無し）に戻る")
     act(s, "p1", { type: "resolveChoice", instanceId: y.instanceId })
     assert(!s.players.p2.field.spirits.includes(y) && s.players.p2.hand.length === handBefore + 1, "選んだ体が手札に戻る")
-    assert(s.leaveRelated === undefined && s.pendingChoice == null, "解決し終えたら印は残らない")
+    assert(s.waitingEvent === undefined && s.pendingChoice == null, "解決し終えたら待機の出来事は残らない")
 }
 
 console.log("=== 4. 待機状態の体は、関係ない誘発を発揮できない ===")
 {
     const s = game("waiting-source")
-    const eir = put(s, "p1", EIR, { kind: "destroy" })
+    const eir = put(s, "p1", EIR, { kind: "destroy", event: "ev" })
     const y = put(s, "p2", VANILLA)
     put(s, "p2", VANILLA)
     fireTrigger(s, "p1", eir, "onSummon")
@@ -114,29 +118,29 @@ console.log("=== 5. 関係する効果の中で起きた別の誘発は、自分
 {
     const s = game("nested")
     const eir = put(s, "p1", EIR)
-    const waiting = put(s, "p2", VANILLA, { kind: "destroy" })
+    const waiting = put(s, "p2", VANILLA, { kind: "destroy", event: "ev" })
     put(s, "p2", VANILLA)
     put(s, "p2", VANILLA)
-    withLeaveRelated(s, true, () => {
+    withWaitingEvent(s, "ev", () => {
         fireTrigger(s, "p1", eir, "onSummon")
-        assert(s.leaveRelated === true, "入れ子の誘発を出たら、外側の印に戻る")
+        assert(s.waitingEvent === "ev", "入れ子の誘発を出たら、外側の値に戻る")
     })
     const pc = s.pendingChoice
-    assert(pc?.kind === "target" && !pc.candidates.includes(waiting.instanceId) && pc.leaveRelated === undefined, "破壊時効果の中で起きた召喚時効果は、待機状態の体を対象に取れない")
+    assert(pc?.kind === "target" && !pc.candidates.includes(waiting.instanceId) && pc.waitingEvent === undefined, "破壊時効果の中で起きた召喚時効果は、待機状態の体を対象に取れない")
 }
 
 console.log("=== 6. 後回しのフレームの印 ===")
 {
     const s = game("frames")
     const frame = { kind: "action" as const, selfInstanceId: null, action: { type: "noop" as const } }
-    s.leaveRelated = true
-    pushResumeFrames(s, [frame, { ...frame, leaveRelated: false }])
-    delete s.leaveRelated
+    s.waitingEvent = "ev"
+    pushResumeFrames(s, [frame, { ...frame, waitingEvent: null }])
+    delete s.waitingEvent
     pushResumeFrames(s, [frame])
-    const flags = s.resumeStack.map((f) => (f.kind === "action" ? f.leaveRelated : "other"))
-    assert(flags[0] === true, "印が未指定の続きは、積んだ時点の効果の種類を引き継ぐ")
-    assert(flags[1] === false, "誘発の入口が明示した印は書き換えない")
-    assert(flags[2] === undefined, "関係ない効果の続きには印が付かない")
+    const flags = s.resumeStack.map((f) => (f.kind === "action" ? f.waitingEvent : "other"))
+    assert(flags[0] === "ev", "未指定の続きは、積んだ時点の待機の出来事を引き継ぐ")
+    assert(flags[1] === null, "誘発の入口が「無し」と明示した値は書き換えない")
+    assert(flags[2] === undefined, "関係ない効果の続きには付かない")
 }
 
 console.log("=== 7. 破壊の列（順番の選択 → 後回しのフレーム）でも、破壊時効果は待機状態の体を対象に取れる ===")
@@ -146,10 +150,10 @@ console.log("=== 7. 破壊の列（順番の選択 → 後回しのフレーム�
     const duck = put(s, "p1", DUCK)
     s.players.p1.field.nexuses.push(createInstance(GRAVE, s.turn, 0))
     refreshLevelAsOverrides(s)
-    // 相手の体の待機は手で組む（同じ同時破壊に入れると、順番の選択を挟んだときに先にトラッシュへ移る。HANDOFF §2）
-    const x = put(s, "p2", VANILLA, { kind: "destroy" })
+    // ダックと相手のスピリットを同時に破壊する（同じ出来事で待機に入る）
+    const x = put(s, "p2", VANILLA)
     const y = put(s, "p2", VANILLA)
-    destroyTargetsBatch(s, "p2", [{ pid: "p1", instanceId: duck.instanceId }])
+    destroyTargetsBatch(s, "p2", [{ pid: "p1", instanceId: duck.instanceId }, { pid: "p2", instanceId: x.instanceId }])
     const order = s.pendingChoice
     assert(order?.kind === "option" && order.triggerOrder !== undefined, "ダックの破壊で2種の効果が誘発するので、解決順の選択待ちが立つ")
     const pick = order?.options?.find((o) => o.includes("セリザワンド・ダック"))
@@ -159,23 +163,23 @@ console.log("=== 7. 破壊の列（順番の選択 → 後回しのフレーム�
     assert(pc?.kind === "target" && pc.pid === "p1", "ダックの破壊時効果の対象の選択待ちが立つ")
     assert(x.waiting?.kind === "destroy" && s.players.p2.field.spirits.includes(x), "相手の体は、破壊待機のまま場にいる")
     assert(pc !== null && pc !== undefined && pc.candidates.includes(x.instanceId) && pc.candidates.includes(y.instanceId), "破壊待機の相手の体も候補にある")
-    assert(pc?.leaveRelated === true, "フレームから再開した効果の選択待ちも、関係する効果の印を持つ")
+    assert(pc?.waitingEvent !== undefined && pc.waitingEvent === duck.waiting?.event && pc.waitingEvent === x.waiting?.event, "フレームから再開した効果の選択待ちも、同時破壊の待機の出来事を持つ")
 }
 
 console.log("=== 8. 後回しにした続きは、消化するときに印を戻して解決する ===")
 {
     const s = game("drain")
-    const duck = put(s, "p1", DUCK, { kind: "destroy" })
-    const x = put(s, "p2", VANILLA, { kind: "destroy" })
+    const duck = put(s, "p1", DUCK, { kind: "destroy", event: "ev" })
+    const x = put(s, "p2", VANILLA, { kind: "destroy", event: "ev" })
     const y = put(s, "p2", VANILLA)
     const z = put(s, "p2", VANILLA)
     fireTrigger(s, "p1", duck, "onDestroy")
     // 破壊時効果の続き（同じ効果がもう1体戻す）を、選択待ちの後ろに積む
-    withLeaveRelated(s, true, () => pushResumeFrames(s, [{ kind: "action", selfInstanceId: duck.instanceId, action: { type: "return", to: "hand", count: 1 }, actorPid: "p1" }]))
+    withWaitingEvent(s, "ev", () => pushResumeFrames(s, [{ kind: "action", selfInstanceId: duck.instanceId, action: { type: "return", to: "hand", count: 1 }, actorPid: "p1" }]))
     act(s, "p1", { type: "resolveChoice", instanceId: y.instanceId })
     const pc = s.pendingChoice
     assert(pc?.kind === "target" && pc.candidates.length === 2 && pc.candidates.includes(x.instanceId) && pc.candidates.includes(z.instanceId), "続きの候補に、待機状態の体と待機でない体の両方がある")
-    assert(pc?.leaveRelated === true, "続きの選択待ちも、関係する効果の印を持つ")
+    assert(pc?.waitingEvent === "ev", "続きの選択待ちも、待機の出来事を持つ")
 }
 
 console.log("=== 9. 待機状態のカードがいる間は、バーストは宣言だけで、効果は適用しない（列を解決しきってから。part953） ===")
@@ -184,9 +188,9 @@ console.log("=== 9. 待機状態のカードがいる間は、バーストは宣
     s.players.p2.reserve = 10
     const x = put(s, "p1", VANILLA)
     placeBurst(s, "p2", JIGEN)
-    x.waiting = { kind: "destroy" }
+    x.waiting = { kind: "destroy", event: "ev" }
     // 破壊時効果が相手のライフを減らした、という状況
-    withLeaveRelated(s, true, () => fireFieldEventTriggers(s, "p2", "ownLifeLost"))
+    withWaitingEvent(s, "ev", () => fireFieldEventTriggers(s, "p2", "ownLifeLost"))
     assert(s.declaredBursts?.length === 1 && s.players.p2.burstSet && s.players.p1.field.spirits.includes(x), "宣言はするが効果は適用せず、待機状態の体は手札に戻らない")
 }
 

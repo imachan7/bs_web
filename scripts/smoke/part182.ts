@@ -86,7 +86,7 @@ function makePending(seed: string) {
     runTurnStart(s)
     const vanilla = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0)!
     const inst = put(s, "p1", vanilla.cardId, 2)
-    inst.waiting = { kind: "destroy" }
+    inst.waiting = { kind: "destroy", event: inst.instanceId }
     return { s, inst }
 }
 
@@ -163,7 +163,7 @@ console.log("=== 破壊待機中のネクサスも、継続効果はそのまま
     assert(effectiveBp(s, "p1", spirit) === baseBp + BUFF_AMOUNT, "ネクサスの継続効果でBPが上がる")
 
     // 破壊待機状態にしても、まだフィールドにいるので効果は生きている
-    nexus.waiting = { kind: "destroy" }
+    nexus.waiting = { kind: "destroy", event: nexus.instanceId }
     refreshLevelAsOverrides(s)
     assert(
         effectiveBp(s, "p1", spirit) === baseBp + BUFF_AMOUNT,
@@ -184,7 +184,7 @@ console.log("=== 破壊待機中のネクサスは、そこからさらに破壊
     const nexus = createInstance(BUFF_NEXUS.cardId, s.turn, 2)
     s.players.p1.field.nexuses.push(nexus)
     refreshLevelAsOverrides(s)
-    nexus.waiting = { kind: "destroy" }
+    nexus.waiting = { kind: "destroy", event: nexus.instanceId }
     const reserveBefore = s.players.p1.reserve
     assert(destroyNexus(s, "p1", nexus.instanceId) === false, "破壊は成立しない")
     assert(
@@ -205,7 +205,7 @@ console.log("=== 破壊待機中のスピリットは【転召】の生贄にで
     // （minCost はカードのコストに依存しないよう 0 にする）
     delete inst.waiting
     const before = tenshoCandidates(s, "p1", 0).map((c) => c.instanceId)
-    inst.waiting = { kind: "destroy" }
+    inst.waiting = { kind: "destroy", event: inst.instanceId }
     const after = tenshoCandidates(s, "p1", 0).map((c) => c.instanceId)
     assert(before.includes(inst.instanceId), "（前提）破壊されていなければ候補に入る")
     assert(
