@@ -1,6 +1,6 @@
 // スピリット／ネクサスの除去。EffectModules.ts / triggers.ts と相互 import の関係にある（破壊は誘発を発火し、誘発は破壊を呼ぶ）。
 // CommonJS の循環 require で安全に動く（関数宣言はホイストされ、呼び出しは対戦処理中）。EffectModules.ts がここの export を再エクスポートしている
-import { isReturnWaiting, isTrashWaiting, isVanishWaiting } from "../../../shared/rules/waiting"
+import { isReturnWaiting, isTrashWaiting, isVanishWaiting, destroyContextOf, destroyBurstInfoOf } from "../../../shared/rules/waiting"
 import { bounceDenial, reviveOnReturnStay } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
@@ -11,6 +11,7 @@ import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { askNextPickMany } from "./revivePickMany"
 import type { CardInstance, CardType, Color, EffectAction, EventBurstCheck, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
+import type { WaitingState } from "../types/cardInstance"
 import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, resolveInOrder, suspend } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
 import { getAllFamilies, resolveAction } from "./EffectModules"
@@ -230,10 +231,11 @@ function enterDestroyWaiting(
 
     // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
     // 「フィールドに残る」は、この待機状態を解除する効果として働く（applyRevived が印を消す）
-    inst.waiting =
+    const waiting: WaitingState =
         cause === "deplete"
             ? { kind: "vanish", event: waitingEventOf(state, inst), ...(state.currentEffectSource !== undefined && state.currentEffectSource.pid !== ownerPid ? { byOpponent: true as const } : {}) }
             : { kind: "destroy", event: waitingEventOf(state, inst) }
+    inst.waiting = waiting
     inst.coresAtDestruction = inst.cores
     // ⚠️ 復活チェックは**ここではやらない**。「フィールドに残る」は破壊を無効にするのではなく
     // 「トラッシュに置かれる代わりに場へ戻る」効果なので、**破壊で誘発した効果の列の1項目**として
@@ -245,13 +247,10 @@ function enterDestroyWaiting(
             destroyRecorder.cardIds.push(inst.cardId)
             recordLeftCost(state, inst.cardId, instBaseCost(inst))
         }
-        if (context !== undefined) inst.pendingDestroyContext = context
-        if (options?.allowSuspend === true) inst.pendingDestroyAllowSuspend = true
-    } else {
-        // 消滅（維持コア割れ）と skipRevive のときは復活しない。控えを残さないことで印にする
-        delete inst.pendingDestroyContext
-        delete inst.pendingDestroyAllowSuspend
-        inst.skipReviveOnCommit = true
+        if (context !== undefined && waiting.kind === "destroy") waiting.context = context
+    } else if (waiting.kind === "destroy") {
+        // 復活を断った後の破壊は「フィールドに残る」を見ない（消滅は列に「残る」の項目を作らないので印は要らない）
+        waiting.skipRevive = true
     }
 
     log(
@@ -286,7 +285,7 @@ function enterDestroyWaiting(
     // 強制ブロックで同じ陣営どうしが戦ったバトル（context.sourcePid が持ち主自身）は相手による破壊ではない
     const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || (byBattle && context?.sourcePid !== ownerPid)
     // 破壊後バースト用の控え。BP は破壊直前（まだ場にいてコアも乗ったまま）のこの時点で確定させる
-    inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst), ...(context?.sourceType !== undefined ? { sourceType: context.sourceType } : {}) }
+    waiting.burstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst), ...(context?.sourceType !== undefined ? { sourceType: context.sourceType } : {}) }
     return { pid: ownerPid, inst, cause, context, options, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId }
 }
 
@@ -328,7 +327,7 @@ function destroyExtraItems(state: GameState, entry: DestroyEntry): FieldEventExt
             requiresPendingDestructionOf: inst.instanceId,
         })
     }
-    if (cause === "destroy" && !inst.skipReviveOnCommit) {
+    if (cause === "destroy" && !(inst.waiting?.kind === "destroy" && inst.waiting.skipRevive === true)) {
         for (const entry of collectReviveEntries(state, ownerPid, inst, context)) {
             extraItems.push({
                 // 「残る」は破壊誘発元ごとに別の項目として並べる（同時破壊で、どのスピリットから解決するか・どれを残すかを順番選びで選べる）。
@@ -484,6 +483,7 @@ function collectDestroyTriggers(
     battleWinner: BattleWinner | undefined,
     items: CollectedTrigger[],
 ): EventBurstCheck {
+    const burstSourceType = destroyBurstInfoOf(inst)?.sourceType
     // 色・系統は付与込み（破壊待機中でまだ場にいるので、場を離れる直前の状態を読める）
     const colors = instColors(inst)
     const families = grantedFamilies(state, ownerPid, inst)
@@ -496,7 +496,7 @@ function collectDestroyTriggers(
         destroyedBp: effectiveBp(state, ownerPid, inst),
         bySpiritEffect,
         byOpponentEffect,
-        ...(inst.pendingDestroyBurstInfo?.sourceType !== undefined ? { destroySourceType: inst.pendingDestroyBurstInfo.sourceType } : {}),
+        ...(burstSourceType !== undefined ? { destroySourceType: burstSourceType } : {}),
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
         families,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
@@ -508,7 +508,7 @@ function collectDestroyTriggers(
     // sameFamilyAsDestroyed が読む橋渡し。同時破壊なら破壊待機の全員の系統
     state.lastOpponentSpiritDestroyedFamilies = state.destroyGroup?.familiesByPid[ownerPid] ?? families
     // 破壊した側（発火する側）の効果による破壊なら、その発生源の種別とカード（「自分のスピリット/マジックの効果で」）。バトルは含まない
-    const dctx = inst.pendingDestroyContext
+    const dctx = destroyContextOf(inst)
     const ownEffect = !byBattle && dctx?.sourcePid !== undefined && dctx.sourcePid !== ownerPid ? dctx : undefined
     fireFieldEventTriggers(state, opponentOf(ownerPid), "opponentSpiritDestroyed", { pid: ownerPid, inst }, colors, undefined, undefined, {
         byBattle,
@@ -675,23 +675,19 @@ export function commitPendingDestruction(
     // ⚠️ ここでは「フィールドに残る／戻る」を試さない。**破壊で誘発した効果の列の1項目**として
     // 既に解決済みだから（docs/design/TIMING_CHART.md）。列で復活が成立していれば
     // applyRevived が待機の印を消しているので、この関数は上の行で抜けている
-    const braveCantRemain = inst.pendingDestroyContext?.braveCantRemain === true
-    const commitContext = inst.pendingDestroyContext
-    delete inst.pendingDestroyContext
-    delete inst.pendingDestroyAllowSuspend
-    delete inst.skipReviveOnCommit
+    // 控えは waiting の中にあり、下で待機を消すと一緒に消えるので、ここで読んでおく
+    const commitContext = destroyContextOf(inst)
+    const braveCantRemain = commitContext?.braveCantRemain === true
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
     if (index === -1) {
         delete inst.waiting
-        delete inst.pendingDestroyBurstInfo
         return
     }
     // 破壊後バースト用の材料を、トラッシュ行きが確定したこのタイミングで控える。まだ合体中のここで捕える
     // （instColors／instAllCosts が合体中のブレイヴの色・コストを含むため。detachBravesOnLeave の後では読めない）。hostCost はブレイヴぶんを除いたホスト自身のコスト。
     // 発火はここではせず handleAction 末尾の fireQueuedDestroyBursts に委ねる（ブレイヴを残す/残さない確認が残っていることがあるため）
-    const burstInfo = inst.pendingDestroyBurstInfo
-    delete inst.pendingDestroyBurstInfo
+    const burstInfo = destroyBurstInfoOf(inst)
     // トークンはトラッシュに置かれずトークン置き場へ戻る＝破壊後バーストも起きない（「破壊時」は発揮済み）
     const token = leavesNothingBehind(inst)
     // トラッシュに置かれない破壊（デッキの下へ行く）では破壊後バーストを発動できない（2026-11-14 ユーザー確認。#552）

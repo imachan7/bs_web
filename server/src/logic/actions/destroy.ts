@@ -1,6 +1,6 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import { isTrashWaiting } from "../../../../shared/rules/waiting"
+import { destroyContextOf, isTrashWaiting } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { coreRemovalAllowed } from "../coreGate"
 import { kyokaBonus } from "../keywords/kyoka"
@@ -1254,7 +1254,7 @@ const applyReviveOnDestroyHandler: ActionHandler<"applyReviveOnDestroy"> = (ctx,
     const { state } = ctx
     const found = findSpiritAny(state, action.instanceId)
     if (!found || !isTrashWaiting(found.inst)) return
-    applyReviveEntry(state, found.pid, found.inst, action.effectId, found.inst.pendingDestroyContext)
+    applyReviveEntry(state, found.pid, found.inst, action.effectId, destroyContextOf(found.inst))
 }
 
 // ネクサスの破壊の列の「疲労させて残す」。残ったら列の残りは requiresPendingDestructionOf のガードで空振りする

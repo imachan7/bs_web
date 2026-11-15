@@ -344,6 +344,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isLeaveRelatedTrigger`（fn）
 - `canFireWhileWaiting`（fn）：待機中の発生源がこの誘発を発揮できるか（P4）
 - `canBeTargeted`（fn）：効果の対象に取れるか（P5・C2）。待機中のカードは、その待機の出来事で誘発した効果の対象にだけなる。
+- `destroyContextOf`（fn）：破壊の待機が持つ、その破壊の発生源などの控え（待機でなければ無い）
+- `destroyBurstInfoOf`（fn）：破壊・消滅の待機が持つ、破壊後バースト用の控え
 - `waitingEventFor`（fn）：誘発の入口が立てる値。related＝場を離れることに関係する誘発か。subject＝その誘発が見ているカード（破壊されたスピリットなど）。
 - `frameWaitingEvent`（fn）：上と同じ値をフレームの欄にする。null＝無しと明示。欄なし＝積む時点の値を引き継ぐ
 - `anyWaiting`（fn）：待機状態のカードが場にいるか（＝場を離れる誘発の列をまだ解決しきっていない）
@@ -1332,6 +1334,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `CardInstance`（型）：盤面インスタンス（可変）。data.md 6.2 に対応
 - `WaitingState`（型）：kind は「何を待っているか」。destroy・vanish（維持コア割れ）はトラッシュ、return は to の場所へ移る。
+- `DestroyBurstInfo`（型）
 
 ## server/src/types/choice.ts
 
