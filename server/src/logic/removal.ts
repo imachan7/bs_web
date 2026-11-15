@@ -17,7 +17,7 @@ import { getAllFamilies, resolveAction } from "./EffectModules"
 import { destroyDenial } from "./destroyGate"
 import { coreRemovalAllowed } from "./coreGate"
 
-import { fireBurstOnEvent, fireEventBursts } from "./keywords/burst"
+import { fireBurstOnEvent, fireEventBursts, flushPendingEventBursts } from "./keywords/burst"
 import type { CollectedTrigger } from "./blockDeclared"
 import { hasGrantedTrigger, notifySpiritCoresRemovedByOpponent } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
@@ -742,7 +742,8 @@ export function fireQueuedDestroyBursts(state: GameState): void {
     // コアの行き先選び（destroyedCoresToSelf）も同じく、決着するまで待つ
     if ((state.pendingCoreDestinations?.length ?? 0) > 0) return
     const queue = state.pendingBurstDestroyQueue
-    if (!queue || queue.length === 0) return
+    // 列の途中で控えたバースト（ライフ減少後など）は、破壊後バーストの後に確認する
+    if (!queue || queue.length === 0) return flushPendingEventBursts(state)
     delete state.pendingBurstDestroyQueue
     const groups = new Map<string, typeof queue>()
     for (const e of queue) {
@@ -779,6 +780,7 @@ export function fireQueuedDestroyBursts(state: GameState): void {
             members: memberInfos,
         })
     }
+    flushPendingEventBursts(state)
 }
 
 // 手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに召喚できる」。
