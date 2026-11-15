@@ -1515,7 +1515,6 @@ export { fireFieldEventTriggers, notifyHandGained, notifyNexusDeployed, fireNexu
 // ---- スピリット／ネクサスの除去・ブレイヴ・復活（removal.ts・brave.ts・revive.ts へ分割）----
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
 export {
-    destroySpiritsFrom,
     destroyTargetsBatch,
     applyDestroyBatchAfter,
     resumeDestroyBatch,

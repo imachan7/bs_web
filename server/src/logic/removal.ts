@@ -32,7 +32,7 @@ import { isTokenCard } from "../../../shared/cardDb"
 import { trashUnderCards } from "./zones/underCards"
 import { collectBattleOutcomeTriggers } from "./battleOutcomeTriggers"
 import type { BattleWinner } from "./battleOutcomeTriggers"
-import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, nexusReviveSource, wouldAskReviveConfirm } from "./revive"
+import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, nexusReviveSource } from "./revive"
 import {
     activeConstraints,
     auraAmount,
@@ -152,7 +152,22 @@ export function recordDestroysOf(context: DestroyContext, run: () => void): stri
     return rec.cardIds
 }
 
-export function destroySpirit(
+// 破壊（消滅）の待機に入ったカード1体ぶんの控え。列の項目を集めるのに使う
+interface DestroyEntry {
+    pid: PlayerId
+    inst: CardInstance
+    cause: "destroy" | "deplete"
+    context: DestroyContext | undefined
+    options: { skipRevive?: true; allowSuspend?: true; suppressOnDestroy?: true; includeFushi?: boolean } | undefined
+    byBattle: boolean
+    wasAttacker: boolean
+    bySpiritEffect: boolean
+    byOpponentEffect: boolean
+    sourceInstanceId: string | undefined
+}
+
+// 待機に入れるところまで（誘発は解決しない）。場にいない・既に待機中なら null
+function enterDestroyWaiting(
     state: GameState,
     ownerPid: PlayerId,
     instanceId: string,
@@ -178,19 +193,19 @@ export function destroySpirit(
     // 戻り値：**実際に破壊できたか**。false は「場にいなかった」か
     // 「破壊されるかわりにフィールドに残った（復活）」。
     // 「この効果で破壊したスピリット1体につき」を数える効果が参照する（RESUME_STACK.md §7）
-): boolean {
+): DestroyEntry | null {
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex(
         (s) => s.instanceId === instanceId,
     )
-    if (index === -1) return false
+    if (index === -1) return null
     const inst = player.field.spirits[index]
-    if (!inst) return false
+    if (!inst) return null
     // 破壊待機状態のカードは、**そこからさらに破壊されることはない**（TIMING_CHART.md §1.5）。
     // ただし skipRevive（復活を断ったあとの同じ破壊の続き）は通す
-    if (isTrashWaiting(inst) && !options?.skipRevive) return false
+    if (isTrashWaiting(inst) && !options?.skipRevive) return null
     // 戻す待機のカードは、途中で破壊・消滅しても行き先を保つ（PENDING_STATE §3 P6）
-    if (isReturnWaiting(inst)) return false
+    if (isReturnWaiting(inst)) return null
     const master = getCard(inst.cardId)
 
     // 相手のスピリット/ブレイヴ/マジックの効果でコアが0個になったときは、維持コア割れ（deplete＝消滅・onDestroy不発火）ではなく
@@ -263,6 +278,14 @@ export function destroySpirit(
     const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || (byBattle && context?.sourcePid !== ownerPid)
     // 破壊後バースト用の控え。BP は破壊直前（まだ場にいてコアも乗ったまま）のこの時点で確定させる
     inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst), ...(context?.sourceType !== undefined ? { sourceType: context.sourceType } : {}) }
+    return { pid: ownerPid, inst, cause, context, options, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId }
+}
+
+// 破壊されたカード自身と、列に並ぶ「残る」・【不死】・手札からの召喚の項目
+function destroyExtraItems(state: GameState, entry: DestroyEntry): FieldEventExtraItem[] {
+    const { pid: ownerPid, inst, cause, context, options, byOpponentEffect } = entry
+    const player = state.players[ownerPid]
+    const master = getCard(inst.cardId)
 
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
     // （数・シンボル・効果の対象・【転召】の生贄に数えられる）。
@@ -299,8 +322,11 @@ export function destroySpirit(
     if (cause === "destroy" && !inst.skipReviveOnCommit) {
         for (const entry of collectReviveEntries(state, ownerPid, inst, context)) {
             extraItems.push({
-                key: `revive:${entry.effectId}`,
-                label: `${entry.sourceName}（フィールドに残る）`,
+                // 「残る」は破壊誘発元ごとに別の項目として並べる（同時破壊で、どのスピリットから解決するか・どれを残すかを順番選びで選べる）。
+                // 先頭で戻すスピリットを選び終えたもの（pickMany）は確認もコストも残っていないので、同じ鍵にまとめて順番を聞かない
+                key: entry.pickMany ? `revive:${entry.effectId}` : `revive:${entry.effectId}:${inst.instanceId}`,
+                label: `${entry.sourceName}（${master.name}がフィールドに残る）`,
+                ...(entry.groupOnce !== undefined ? { groupOnce: entry.groupOnce } : {}),
                 action: { type: "applyReviveOnDestroy", instanceId: inst.instanceId, effectId: entry.effectId },
                 selfInstanceId: inst.instanceId,
                 actorPid: ownerPid,
@@ -311,10 +337,14 @@ export function destroySpirit(
     // 【不死】：トラッシュの【不死】持ちも**同じ列**に並べる。先に「フィールドに残る」が解決すると
     // 破壊が無かったことになるので、requiresPendingDestructionOf のガードで自動的に空振りする
     if (cause === "destroy" && options?.includeFushi !== false) {
+        const seen: Record<string, number> = {}
         for (const trashIndex of fushiCandidates(state, ownerPid, destroyedCostsOf(inst), destroyedFamiliesOf(inst))) {
             const cardId = player.trashCards[trashIndex]
             if (cardId === undefined) continue
+            const nth = (seen[cardId] = (seen[cardId] ?? 0) + 1)
             extraItems.push({
+                // 同時破壊では、当てはまる破壊誘発元ごとに項目ができる。トラッシュの1枚につき1回だけ解決する
+                groupOnce: `fushi:${ownerPid}:${cardId}:${nth}`,
                 key: `fushi:${cardId}`,
                 label: `${getCard(cardId).name}（【不死】）`,
                 action: { type: "resolveFushiSummon", pid: ownerPid, cardId },
@@ -327,6 +357,7 @@ export function destroySpirit(
     // 手札の「自分のスピリットが破壊されたときコストを支払わずに召喚できる」も【不死】と同じ列に並ぶ
     // （2026-11-05ユーザー確認・TIMING_CHART）。byOpponent は BP 比べの敗北も含む（byOpponentEffect の定義どおり）
     if (cause === "destroy") {
+        const seen: Record<string, number> = {}
         for (let i = 0; i < player.hand.length; i++) {
             const cardId = player.hand[i]
             if (cardId === undefined || zoneSpiritEffectsDisabled(state, cardId)) continue
@@ -340,7 +371,9 @@ export function destroySpirit(
             }
             if (!canPayFreeSummonSurcharge(state, ownerPid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
             noteCoverage(effect, "freeSummonFromHandOnOwnSpiritDestroyed")
+            const nth = (seen[cardId] = (seen[cardId] ?? 0) + 1)
             extraItems.push({
+                groupOnce: `handFreeSummon:${ownerPid}:${cardId}:${nth}`, // 手札の1枚につき1回
                 key: `handFreeSummonOnDestroy:${ownerPid}:${cardId}`,
                 label: `${getCard(cardId).name}（手札からのコスト不払い召喚）`,
                 action: { type: "resolveHandFreeSummonOnDestroy", pid: ownerPid, cardId },
@@ -350,16 +383,29 @@ export function destroySpirit(
             })
         }
     }
-    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems, cause === "destroy" ? context?.battleWinner : undefined)
+    return extraItems
+}
+
+// 引数の意味は enterDestroyWaiting のコメント。同時破壊は destroyTargetsBatch を使う
+export function destroySpirit(
+    state: GameState,
+    ownerPid: PlayerId,
+    instanceId: string,
+    cause: "destroy" | "deplete" = "destroy",
+    context?: DestroyContext,
+    options?: { skipRevive?: true; allowSuspend?: true; suppressOnDestroy?: true; includeFushi?: boolean },
+): boolean {
+    const entry = enterDestroyWaiting(state, ownerPid, instanceId, cause, context, options)
+    if (!entry) return false
+    const { inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId } = entry
+    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, destroyExtraItems(state, entry), entry.cause === "destroy" ? context?.battleWinner : undefined)
     if (state.pendingChoice || state.winner) {
-        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
+        suspendDestroyCommit(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
         return true
     }
 
     commitOrDefer(state, ownerPid, inst)
-    // 同時破壊グループの外（単体の直接呼び出し）なら、破壊後バーストはここで確定させてよい。
-    // グループの中（destroyTargetsBatchのループ経由）は他のメンバーの確定を待つため、
-    // ここでは発火させず destroyTargetsBatch/resumeDestroyBatch の完了時に回す（TIMING_CHART.md ＞６）
+    // 同時破壊グループの外（単体の直接呼び出し）なら、破壊後バーストはここで確定させてよい
     if (!state.destroyGroup) fireQueuedDestroyBursts(state)
     return true
 }
@@ -370,7 +416,6 @@ function suspendDestroyCommit(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-    step: number,
     byBattle: boolean,
     wasAttacker: boolean,
     bySpiritEffect: boolean,
@@ -381,26 +426,18 @@ function suspendDestroyCommit(
         commitOrDefer(state, ownerPid, inst)
         return
     }
-    // ⚠️ 破壊で誘発した効果の列（triggerBatch）が**この中断で既に積まれている**場合、
-    // 破壊の確定はその**あと**に来なければならない。resumeTriggerBatch は
-    // 「フレームを積んでから suspend する」ので、suspend が resumeInsertAt を0へ戻したあとに
-    // ここ（外側）が積むと、pushResumeFrames では列より**前**に入ってしまい、
-    // 誘発を1つも解決しないままトラッシュ行きが確定する（docs/design/RESUME_STACK.md §3）
-    const batchAt = state.resumeStack.map((f) => f.kind).lastIndexOf("triggerBatch")
-    const commitFrame: ResumeFrame = {
+    // 列（とその項目の続き）の後ろに積む（RESUME_STACK.md §3）
+    pushResumeFrames(state, [{
         kind: "destroyCommit",
         pid: ownerPid,
         instanceId: inst.instanceId,
-        step,
+        step: 2,
         byBattle,
         wasAttacker,
         bySpiritEffect,
         byOpponentEffect,
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
-    }
-    const batch = batchAt >= 0 ? state.resumeStack[batchAt] : undefined
-    if (batch !== undefined && batch.kind === "triggerBatch") batch.after = commitFrame
-    else pushResumeFrames(state, [commitFrame])
+    }])
 }
 
 // kind:"trashReturnOnOwnSpiritDestroyed"。同名は1ターン1回なので戻るのは1枚だけ。
@@ -424,7 +461,8 @@ function grantedFamilies(state: GameState, pid: PlayerId, inst: CardInstance): s
 
 // フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火。
 // 色・バニラ・バトル破壊の判定材料を渡し、selfOverride に破壊された個体自身を渡す（maxBpFromSelf が「破壊されたスピリットのBP以下」を参照するため）
-function fireOwnSpiritDestroyed(
+// 1体ぶんの破壊で誘発する項目を items へ集める（解決はしない）。戻り値は、相手側の「相手のスピリット破壊後」バーストの判定材料
+function collectDestroyTriggers(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
@@ -433,14 +471,13 @@ function fireOwnSpiritDestroyed(
     bySpiritEffect: boolean,
     byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
-    extraItems?: FieldEventExtraItem[],
-    battleWinner?: BattleWinner,
-): void {
-    const master = getCard(inst.cardId)
+    extraItems: FieldEventExtraItem[] | undefined,
+    battleWinner: BattleWinner | undefined,
+    items: CollectedTrigger[],
+): EventBurstCheck {
     // 色・系統は付与込み（破壊待機中でまだ場にいるので、場を離れる直前の状態を読める）
     const colors = instColors(inst)
     const families = grantedFamilies(state, ownerPid, inst)
-    const items: CollectedTrigger[] = []
     fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, colors, undefined, undefined, {
         vanilla: instIsVanilla(inst),
         vanishedByOpponent: inst.waiting?.kind === "vanish" && inst.waiting.byOpponent === true,
@@ -476,20 +513,30 @@ function fireOwnSpiritDestroyed(
         costs: instAllCosts(inst),
     }, undefined, undefined, undefined, undefined, items)
     if (battleWinner) collectBattleOutcomeTriggers(state, ownerPid, inst, battleWinner, items)
-    // 持ち主側と相手側を1つの列で、ターンプレイヤーが順番を決めて解決する（TIMING_CHART「破壊で誘発した効果は1つの列」。
-    // #437 R11B-1：以前は相手側を別に即解決し、持ち主側が選択待ちのあいだに盤面が動いた・質問が上書きされた）
-    resolveInOrder(state, items, {
-        skip: (i) => i.skip?.() === true,
-        resolve: (i) => i.run(),
-        frame: (i) => i.frame,
-        askOrder: { pid: state.turnPlayer, label: (i) => i.label, key: (i) => i.key },
-    })
-    const oppBurst: EventBurstCheck = { pid: opponentOf(ownerPid), event: "opponentSpiritDestroyed", subject: { pid: ownerPid, cardId: inst.cardId }, colors, info: { destroyedBp: effectiveBp(state, ownerPid, inst), costs: instAllCosts(inst) } }
+    return { pid: opponentOf(ownerPid), event: "opponentSpiritDestroyed", subject: { pid: ownerPid, cardId: inst.cardId }, colors, info: { destroyedBp: effectiveBp(state, ownerPid, inst), costs: instAllCosts(inst) } }
+}
+
+// 単体の破壊：この1体ぶんの列を解決する
+function fireOwnSpiritDestroyed(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    byBattle: boolean,
+    wasAttacker: boolean,
+    bySpiritEffect: boolean,
+    byOpponentEffect: boolean,
+    sourceInstanceId: string | undefined,
+    extraItems?: FieldEventExtraItem[],
+    battleWinner?: BattleWinner,
+): void {
+    const items: CollectedTrigger[] = []
+    const oppBurst = collectDestroyTriggers(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems, battleWinner, items)
+    resolveDestroyQueue(state, items)
     if (!state.winner) {
         if (state.pendingChoice) pushResumeFrames(state, [eventBurstsFrame(state, [oppBurst])])
         else fireEventBursts(state, [oppBurst])
     }
-    if (!isVanishWaiting(inst)) returnTrashOnOwnSpiritDestroyed(state, ownerPid, master.family)
+    if (!isVanishWaiting(inst)) returnTrashOnOwnSpiritDestroyed(state, ownerPid, getCard(inst.cardId).family)
 }
 
 // 同時破壊グループの体は、全員の誘発を解決し終えるまで破壊待機のまま場に居る（TIMING_CHART §1.5）。
@@ -524,7 +571,7 @@ export function resumeDestroyCommit(
     if (frame.step <= 1) {
         fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
         if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
+            suspendDestroyCommit(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
             return
         }
     }
@@ -896,93 +943,20 @@ export function resolveHandFreeSummonOnDestroy(state: GameState, pid: PlayerId, 
     summonFreeFromHandIndex(state, pid, getCard(cardId).name, index)
 }
 
-// 指名が無ければ false（＝これから聞く必要があるかもしれない）
-function applyDestroyOrderPick(
-    state: GameState,
-    targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[],
-    index: number,
-): boolean {
-    const pick = state.destroyOrderPick
-    if (pick === undefined) return false
-    delete state.destroyOrderPick
-    const j = targets.findIndex((t, k) => k >= index && t.instanceId === pick)
-    const head = targets[index]
-    const picked = j >= 0 ? targets[j] : undefined
-    if (j > index && head && picked) {
-        targets[index] = picked
-        targets[j] = head
-    }
-    return true
-}
-
-// 残りの対象のうち「フィールドに残る」の確認が出る候補が2体以上なら、
-// ターンプレイヤーに解決順を聞いて中断する（聞いたら true）。
-// 候補が1体以下なら順番に意味が無いので聞かない（TIMING_CHART.md §0-3）
-function askDestroyOrder(
-    state: GameState,
-    targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[],
-    index: number,
-    context?: DestroyContext,
-): boolean {
-    if (!state.interactiveTargets) return false
-    const candidates = targets
-        .slice(index)
-        .filter((t) => wouldAskReviveConfirm(state, t.pid, t.instanceId, t.context ?? context))
-    if (candidates.length < 2) return false
-    // 同名カードが並ぶと選択肢が重複して区別できないため、先頭に番号を振る
-    const options = candidates.map(
-        (t, k) =>
-            `${k + 1}. ${state.players[t.pid].name}の${getCard(
-                state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)?.cardId ?? "",
-            ).name}`,
-    )
-    suspend(state, {
-        pid: state.turnPlayer,
-        kind: "option",
-        prompt: "同時に破壊されるスピリットのうち、どれから破壊処理をしますか？",
-        candidates: [],
-        options,
-        optional: false,
-        destroyOrder: { instanceIds: candidates.map((t) => t.instanceId) },
-        action: { type: "noop" },
-        selfInstanceId: null,
+// 破壊で誘発した効果の列。持ち主側と相手側、同時に破壊された全員ぶんを1つの列で、ターンプレイヤーが順番を決めて解決する
+// （TIMING_CHART §0-3・PENDING_STATE §3 C1。#437 R11B-1：以前は相手側を別に即解決し、持ち主側が選択待ちのあいだに盤面が動いた）
+function resolveDestroyQueue(state: GameState, items: CollectedTrigger[]): void {
+    resolveInOrder(state, items, {
+        skip: (i) => i.skip?.() === true,
+        resolve: (i) => i.run(),
+        frame: (i) => i.frame,
+        askOrder: { pid: state.turnPlayer, label: (i) => i.label, key: (i) => i.key },
     })
-    return true
 }
 
-// 戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
-// 呼び出し元は destroyBatch フレームを積んで return する（GameEngine の drainResumeStack が続きを回す）
-export function destroySpiritsFrom(
-    state: GameState,
-    targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[],
-    startIndex: number,
-    destroyedSoFar: number,
-    context?: DestroyContext,
-): { destroyed: number; stoppedAt: number } {
-    let destroyed = destroyedSoFar
-    if (startIndex === 0 && destroyedSoFar === 0 && context) context.trashedCount = 0
-    for (let i = startIndex; i < targets.length; i++) {
-        // 同時破壊で「フィールドに残る」の確認が2体以上に出るなら、
-        // どの体から破壊処理をするかをターンプレイヤーが決める（docs/design/TIMING_CHART.md §0-3）。
-        if (!applyDestroyOrderPick(state, targets, i) && askDestroyOrder(state, targets, i, context)) {
-            return { destroyed, stoppedAt: i }
-        }
-        const t = targets[i]
-        if (!t) continue
-        const ctx = t.context ?? context
-        // 【不死】も「フィールドに残る」も、destroySpirit の中で破壊で誘発した効果の列の1項目として解決される（TIMING_CHART.md）
-        if (destroySpirit(state, t.pid, t.instanceId, "destroy", ctx, { allowSuspend: true, includeFushi: true })) {
-            destroyed++
-        }
-        if (state.winner) return { destroyed, stoppedAt: targets.length }
-        // 復活の確認で中断した。**この対象はまだ決着していない**ので、次から再開する
-        // （確認の答えは applyReviveConfirm / declineReviveConfirm が決着させる）
-        if (state.pendingChoice) return { destroyed, stoppedAt: i + 1 }
-    }
-    return { destroyed, stoppedAt: targets.length }
-}
+type DestroyBatchFrame = Extract<ResumeFrame, { kind: "destroyBatch" }>
 
-// 復活の確認で中断したら destroyBatch フレームを積んで止まるので、
+// 同時破壊。選択待ちで止まったら destroyBatch フレームに続きを預けて返るので、
 // **呼び出し元は「戻ってきたら state.pendingChoice を見て return する」だけでよい**。
 // 戻り値は（中断していなければ）実際に破壊できた数
 export function destroyTargetsBatch(
@@ -990,7 +964,7 @@ export function destroyTargetsBatch(
     ownerPid: PlayerId,
     targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[],
     context?: DestroyContext,
-    after?: Extract<ResumeFrame, { kind: "destroyBatch" }>["after"],
+    after?: DestroyBatchFrame["after"],
     // バトルの破壊（BP比較）：破壊後バーストはここで発動せず、勝った側のバトルの誘発の後で発動する（battleResolve の step 5。#536）
     deferBurst?: true,
 ): number {
@@ -1006,73 +980,76 @@ export function destroyTargetsBatch(
     }
     // 「破壊した数」はバッチを始めた効果の枠に書く（まとめての確定は中断明けに走ることがあり、そのときの recordScope は別の効果のもの）
     state.destroyGroup = { id: crypto.randomUUID(), memberIds: targets.map((t) => t.instanceId), used: [], familiesByPid, recordScope: currentRecordScope(state) }
+    const frame: DestroyBatchFrame = {
+        kind: "destroyBatch",
+        ownerPid,
+        targets,
+        phase: "start",
+        ...(context ? { context } : {}),
+        ...(after ? { after } : {}),
+        ...(prevGroup ? { prevGroup } : {}),
+        ...(deferBurst ? { deferBurst } : {}),
+    }
     if (askNextPickMany(state, targets, context)) {
-        pushResumeFrames(state, [{
-            kind: "destroyBatch",
-            ownerPid,
-            targets,
-            index: 0,
-            destroyed: 0,
-            ...(context ? { context } : {}),
-            ...(after ? { after } : {}),
-            ...(prevGroup ? { prevGroup } : {}),
-            ...(deferBurst ? { deferBurst } : {}),
-        }])
+        pushResumeFrames(state, [frame])
         return 0
     }
-    const { destroyed: partial, stoppedAt } = destroySpiritsFrom(state, targets, 0, 0, context)
-    if (stoppedAt < targets.length || (state.pendingChoice && !state.winner)) {
-        pushResumeFrames(state, [{
-            kind: "destroyBatch",
-            ownerPid,
-            targets,
-            index: stoppedAt,
-            destroyed: partial,
-            ...(context ? { context } : {}),
-            ...(after ? { after } : {}),
-            ...(prevGroup ? { prevGroup } : {}),
-            ...(deferBurst ? { deferBurst } : {}),
-        }])
-        return partial
+    return startDestroyBatch(state, frame)
+}
+
+// 全員を破壊待機にしてから、全員ぶんの誘発を1本の列で解決する。列が選択待ちで止まったら、列の後の処理（finishDestroyBatch）をフレームに預ける
+function startDestroyBatch(state: GameState, frame: DestroyBatchFrame): number {
+    if (frame.context) frame.context.trashedCount = 0
+    const entries: DestroyEntry[] = []
+    for (const t of frame.targets) {
+        const entry = enterDestroyWaiting(state, t.pid, t.instanceId, "destroy", t.context ?? frame.context, { allowSuspend: true, includeFushi: true })
+        if (!entry) continue
+        entries.push(entry)
+        commitOrDefer(state, entry.pid, entry.inst)
     }
-    const destroyed = finishDestroyGroup(state, context)
-    restoreDestroyGroup(state, prevGroup)
-    // 順番は「破壊 → 破壊誘発（破壊した数につき〜の後処理を含む）→ トラッシュ → バースト」（2026-11-14 ユーザー確認。#552）。
+    // 非対話（順番を聞かない）の並びは、破壊誘発元の順。その中は単体の破壊と同じ
+    const items: CollectedTrigger[] = []
+    const oppBursts: EventBurstCheck[] = []
+    for (const e of entries) {
+        oppBursts.push(collectDestroyTriggers(state, e.pid, e.inst, e.byBattle, e.wasAttacker, e.bySpiritEffect, e.byOpponentEffect, e.sourceInstanceId, destroyExtraItems(state, e), e.context?.battleWinner, items))
+    }
+    // バーストの判定材料には、条件の時点（＝破壊された今）にセットされていたカードを控える。列の途中でセットされたバーストは発動できない（BURST.md §1.4）
+    const finish: DestroyBatchFrame = { ...frame, phase: "finish", ...(oppBursts.length > 0 ? { oppBursts: eventBurstsFrame(state, oppBursts).checks } : {}) }
+    resolveDestroyQueue(state, items)
+    for (const e of entries) returnTrashOnOwnSpiritDestroyed(state, e.pid, getCard(e.inst.cardId).family)
+    if (state.pendingChoice && !state.winner) {
+        // 列（とその項目の続き）の後ろに積む。列の項目は消化のたびに先頭へ積み直されるので、追い越されない（RESUME_STACK.md §3）
+        pushResumeFrames(state, [finish])
+        return entries.length
+    }
+    return finishDestroyBatch(state, finish)
+}
+
+// 列を解決し終えた後：相手側の「相手のスピリット破壊後」バーストの宣言 → 全員の確定 → 破壊した数の後処理 → 破壊後バースト。
+// 順番は「破壊 → 破壊誘発（破壊した数につき〜の後処理を含む）→ トラッシュ → バースト」（2026-11-14 ユーザー確認。#552）
+function finishDestroyBatch(state: GameState, frame: DestroyBatchFrame): number {
+    if (!state.winner && frame.oppBursts !== undefined) {
+        fireEventBursts(state, frame.oppBursts)
+        if (state.pendingChoice) {
+            const { oppBursts: _done, ...rest } = frame
+            pushResumeFrames(state, [rest])
+            return 0
+        }
+    }
+    const destroyed = finishDestroyGroup(state, frame.context)
+    restoreDestroyGroup(state, frame.prevGroup)
     // 後処理が選択待ちで止まったら、バーストは handleAction 末尾の fireQueuedDestroyBursts が解決後に拾う
-    if (after && !state.winner) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
+    if (!state.winner) applyDestroyBatchAfter(state, frame.ownerPid, destroyed, frame.after)
     // グループの外（入れ子の破壊でなければ）に戻ったところで、破壊後バーストをまとめて発火する
-    if (!state.destroyGroup && !deferBurst) fireQueuedDestroyBursts(state)
+    if (!state.destroyGroup && !frame.deferBurst) fireQueuedDestroyBursts(state)
     return destroyed
 }
 
-// 破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、
-// 途中で止まったらフレームを積み直して抜ける（destroyed は中断をまたいで持ち回る）。
-export function resumeDestroyBatch(
-    state: GameState,
-    frame: Extract<ResumeFrame, { kind: "destroyBatch" }>,
-): void {
-    // 中断の原因になった1体（frame.index の1つ前）の決着を取り込む。
-    // 「復活させない」を選んで破壊された場合は「破壊できた数」に算入する（RESUME_STACK.md §7 ①）
-    // 最終的な数は finishDestroyGroup が確定数で数えるので、ここでは足さない
-    const carried = frame.destroyed
+// state.destroyGroup は中断をまたいでそのまま（積み直すだけで触らない）
+export function resumeDestroyBatch(state: GameState, frame: DestroyBatchFrame): void {
     delete state.lastReviveDestroyed
-    // state.destroyGroup は中断をまたいでそのまま（この関数の呼び出し元は積み直すだけで触らない）
-    const { destroyed, stoppedAt } = destroySpiritsFrom(
-        state,
-        frame.targets,
-        frame.index,
-        carried,
-        frame.context,
-    )
-    // 最後の体の確認で中断したときも、その決着の後に確定させるためフレームを積み直す
-    if (stoppedAt < frame.targets.length || (state.pendingChoice && !state.winner)) {
-        pushResumeFrames(state, [{ ...frame, index: stoppedAt, destroyed }])
-        return
-    }
-    const total = finishDestroyGroup(state, frame.context)
-    restoreDestroyGroup(state, frame.prevGroup)
-    if (!state.winner) applyDestroyBatchAfter(state, frame.ownerPid, total, frame.after)
-    if (!state.destroyGroup && !frame.deferBurst) fireQueuedDestroyBursts(state)
+    if (frame.phase === "start") startDestroyBatch(state, frame)
+    else finishDestroyBatch(state, frame)
 }
 
 // 確定した体数を数え、「この効果で破壊した数」として記録する。context が無い破壊は確定数で代用
@@ -1225,12 +1202,8 @@ function finishNexusDestruction(
     after?: { actorPid: PlayerId; action: EffectAction },
 ): void {
     if (state.pendingChoice && !state.winner) {
-        const commitFrame: ResumeFrame = { kind: "destroyNexusCommit", pid: ownerPid, instanceId: inst.instanceId, byOpponentEffect, ...(after ? { after } : {}) }
-        // 列（triggerBatch）が積まれていれば、確定はその後（suspendDestroyCommit と同じ理由）
-        const batchAt = state.resumeStack.map((f) => f.kind).lastIndexOf("triggerBatch")
-        const batch = batchAt >= 0 ? state.resumeStack[batchAt] : undefined
-        if (batch !== undefined && batch.kind === "triggerBatch") batch.after = commitFrame
-        else pushResumeFrames(state, [commitFrame])
+        // 列（とその項目の続き）の後ろに積む（suspendDestroyCommit と同じ）
+        pushResumeFrames(state, [{ kind: "destroyNexusCommit", pid: ownerPid, instanceId: inst.instanceId, byOpponentEffect, ...(after ? { after } : {}) }])
         return
     }
     const colors = instColors(inst)

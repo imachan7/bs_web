@@ -80,7 +80,8 @@ export function normalizeFilter(
         resolved.family = families // 配列＝いずれかの系統でOR
     }
     if (sameFamilyAsDestroyed) {
-        const families = ctx.state.lastOpponentSpiritDestroyedFamilies
+        // 同時破壊の列の途中は、同時に破壊された相手のスピリット全員の系統（両者のスピリットが同時に破壊されると、直近の記録は片方のぶんしか持たない）
+        const families = ctx.state.destroyGroup?.familiesByPid[ctx.owner === "p1" ? "p2" : "p1"] ?? ctx.state.lastOpponentSpiritDestroyedFamilies
         if (families.length === 0) return SELF_REQUIRED
         resolved.family = families
     }

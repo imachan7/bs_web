@@ -59,11 +59,13 @@ const send = (s: GameState, a: Record<string, unknown>) => act(s, who(s), { type
 
 /** 処理順の選択が立っていれば firstId（無ければ先頭）を指名する。立っていなければ何もしない */
 function pickOrderIfAsked(s: GameState, firstId?: string): boolean {
-    const o = s.pendingChoice?.destroyOrder
-    if (!o) return false
+    if (!s.pendingChoice?.triggerOrder) return false
     assert(who(s) === "p2", "処理順を決めるのはターンプレイヤー（p2）")
-    const i = firstId ? o.instanceIds.indexOf(firstId) : 0
-    assert(send(s, { option: s.pendingChoice!.options![Math.max(i, 0)] }) === null, "処理順を指名する")
+    // 同時破壊の誘発は1本の列。「残る」の項目のラベルに破壊されたスピリットの名前が入るので、名前で指名する
+    const inst = firstId ? [...s.players.p1.field.spirits, ...s.players.p2.field.spirits].find((x) => x.instanceId === firstId) : undefined
+    const options = s.pendingChoice.options!
+    const i = inst ? options.findIndex((t) => t.includes(`${getCard(inst.cardId).name}が`)) : 0
+    assert(send(s, { option: options[Math.max(i, 0)] }) === null, "処理順を指名する")
     return true
 }
 
@@ -78,7 +80,7 @@ function drain(
     let confirms = 0
     for (let i = 0; i < 30 && s.pendingChoice; i++) {
         const pc = s.pendingChoice
-        if (pc.destroyOrder) { pickOrderIfAsked(s, o.first); continue }
+        if (pc.triggerOrder) { pickOrderIfAsked(s, o.first); continue }
         if (pc.kind === "option") {
             o.onConfirm?.()
             const ok = (o.decide ?? (() => true))(confirms++)

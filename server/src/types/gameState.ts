@@ -147,14 +147,9 @@ export interface GameState {
     // 「破壊できた数」に算入するかの判定に使う（断って破壊された＝算入する。RESUME_STACK.md §7 ①）。
     // 承認して場に残った／手札へ戻った場合は false。読み取ったら消す
     lastReviveDestroyed?: boolean
-    // 直前の「どの体から破壊処理をするか」（PendingChoice.destroyOrder）でターンプレイヤーが選んだ instanceId。
-    // 破壊バッチ（destroySpiritsFrom）が再開時に読み取り、その個体を残りの先頭へ入れ替えて消す。
-    // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）
-    destroyOrderPick?: string
     // 直前の「どの誘発から解決するか」（PendingChoice.triggerOrder）でターンプレイヤーが選んだ番号。
     // 誘発バッチ（ResumeFrame の triggerBatch）が再開時に読み取り、読んだら消す
     triggerOrderPick?: number
-    // ターンプレイヤーが選んだ側。destroySpiritsFrom が読み取って解決順を組み立て、読んだら消す
     // 召喚の途中で、**まだ場に出していない**スピリットの instanceId（2026-08-20）。
     // 【転召】は「召喚コスト支払い後・維持コアを置く前」に解決するため、その間だけ立つ。
     // これが立っている間は『転召したとき』の誘発を保留する（下の pendingTenshoEvent）

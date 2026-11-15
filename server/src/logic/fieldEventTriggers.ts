@@ -41,10 +41,21 @@ export interface FieldEventExtraItem {
     selfInstanceId: string | null
     actorPid: PlayerId
     requiresPendingDestructionOf?: string // このフレームのガード
+    // 同時破壊につき1回だけ解決する項目の鍵（destroyGroup.used）。当てはまる破壊誘発元ごとに項目を作り、解決する時点で消費する
+    groupOnce?: string
     // 非対話（テスト・AI）で順番を聞かないときの既定位置。true なら fieldEvent の誘発より前に置く。
     // 実対戦では askOrder が並べ替えるので効かない。**従来の解決順を変えないため**に要る
     // （破壊されたカード自身の『破壊時』は、もともと他カードの誘発より先だった）
     first?: true
+}
+
+// 同時破壊につき1回の項目（groupOnce）が、この同時破壊で既に解決されたか
+export function groupOnceUsed(state: GameState, key: string | undefined): boolean {
+    return key !== undefined && state.destroyGroup?.used.includes(key) === true
+}
+
+export function claimGroupOnce(state: GameState, key: string | undefined): void {
+    if (key !== undefined && state.destroyGroup && !state.destroyGroup.used.includes(key)) state.destroyGroup.used.push(key)
 }
 
 export function fireFieldEventTriggers(
@@ -170,6 +181,7 @@ export function fireFieldEventTriggers(
         inst: CardInstance
         effect: Extract<EffectDef, { kind: "fieldEvent" }>
         repeatTimes: number
+        groupOnce?: string
     }[] = []
     // noStackByName（「この効果は重複しない」）の重複確認用。誘発が確定した候補だけを数える
     const noStackSeen = new Set<string>()
@@ -490,17 +502,12 @@ export function fireFieldEventTriggers(
                 : 1
             // 同時破壊グループ：2体以上が同時に破壊されても、他カードの「破壊されたとき」は
             // グループにつき1回だけ（perDestroyed 指定は対象外。公式Q&A Q22359。fix/destroyed-trigger-once）。
-            // 消費は resolve 側で解決確定するまでの間だけ先取りし、断った／不発なら revertDestroyGroupUsage で戻す
-            // （oncePerTurn と同じ「マッチ時点で仮消費 → 未発揮なら巻き戻す」形）
-            if (
-                (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") &&
-                state.destroyGroup &&
-                effect.perDestroyed !== true
-            ) {
-                const groupKey = `${inst.instanceId}:${effect.id}`
-                if (state.destroyGroup.used.includes(groupKey)) continue
-                state.destroyGroup.used.push(groupKey)
-            }
+            // 当てはまる破壊誘発元ごとに項目を作り、解決する時点で消費する（使用済みなら空振り）。先頭の破壊誘発元が
+            // 「残る」で待機でなくなっても、次の破壊誘発元の項目が発揮する。断った／不発なら revertDestroyGroupUsage で戻す
+            const groupOnce =
+                (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") && state.destroyGroup && effect.perDestroyed !== true
+                    ? `${inst.instanceId}:${effect.id}`
+                    : undefined
             // 「この効果は重複しない」：同じ持ち主の同名の発生源の同じ効果idが、この出来事で既に候補に入っていたら出さない
             if (effect.noStackByName) {
                 const key = `${pid}:${card.name}:${effect.id}`
@@ -514,16 +521,16 @@ export function fireFieldEventTriggers(
             const lowerPick = effect.action.type === "moveCards" ? effect.action.pick?.lowerCostThanEventTarget : undefined
             if (lowerPick && effect.action.type === "moveCards") {
                 const { lowerCostThanEventTarget: _l, ...pickRest } = effect.action.pick!
-                firing.push({ inst, effect: { ...effect, action: { ...effect.action, pick: { ...pickRest, cost: { max: (eventInfo?.costs?.[0] ?? 0) - 1 } } } }, repeatTimes })
+                firing.push({ inst, effect: { ...effect, action: { ...effect.action, pick: { ...pickRest, cost: { max: (eventInfo?.costs?.[0] ?? 0) - 1 } } } }, repeatTimes, ...(groupOnce !== undefined ? { groupOnce } : {}) })
                 continue
             }
-            firing.push({ inst, effect, repeatTimes })
+            firing.push({ inst, effect, repeatTimes, ...(groupOnce !== undefined ? { groupOnce } : {}) })
         }
     }
 
     // 集めたものを順に解決する。`remaining` は「この誘発の残り回数」（repeatPerCount のぶん）
-    const queue: { inst: CardInstance; effect: Extract<EffectDef, { kind: "fieldEvent" }> }[] = []
-    for (const e of firing) for (let i = 0; i < e.repeatTimes; i++) queue.push({ inst: e.inst, effect: e.effect })
+    const queue: { inst: CardInstance; effect: Extract<EffectDef, { kind: "fieldEvent" }>; groupOnce?: string }[] = []
+    for (const e of firing) for (let i = 0; i < e.repeatTimes; i++) queue.push({ inst: e.inst, effect: e.effect, ...(e.groupOnce !== undefined ? { groupOnce: e.groupOnce } : {}) })
 
     // 1件ぶんの解決に必要な文脈（再開スタックへ積むときも同じ組み合わせを使う）
     const contextOf = (inst: CardInstance, effect: Extract<EffectDef, { kind: "fieldEvent" }>) => {
@@ -575,7 +582,7 @@ export function fireFieldEventTriggers(
     // 混ぜることで「自身の『破壊時』→他カードの誘発→フィールドに残る」の順番を
     // ターンプレイヤーが1つずつ選べるようになる（docs/design/TIMING_CHART.md）
     type PoolItem =
-        | { extra?: undefined; inst: CardInstance; effect: Extract<EffectDef, { kind: "fieldEvent" }> }
+        | { extra?: undefined; inst: CardInstance; effect: Extract<EffectDef, { kind: "fieldEvent" }>; groupOnce?: string }
         | { extra: FieldEventExtraItem }
     const extras = extraItems ?? []
     const pool: PoolItem[] = [
@@ -597,15 +604,18 @@ export function fireFieldEventTriggers(
             ? selfOverride.inst.instanceId
             : undefined
     const related = isLeaveRelatedTrigger(event)
+    const groupOnceOf = (e: PoolItem): string | undefined => (e.extra !== undefined ? e.extra.groupOnce : e.groupOnce)
     const handlers: Parameters<typeof resolveInOrder<PoolItem>>[2] = {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) =>
+            groupOnceUsed(state, groupOnceOf(e)) ||
             (e.extra === undefined && !isVirtualSource(e.inst) && !extraSources?.some((x) => x.instanceId === e.inst.instanceId) && !isStillOnField(state, pid, e.inst.instanceId)) ||
             (e.extra === undefined && destroyGuard !== undefined && !isTrashWaiting(findInstanceAnywhere(state, destroyGuard))) ||
             (e.extra === undefined && restedGuard !== undefined && findInstanceAnywhere(state, restedGuard)?.isRested !== true) ||
             (e.extra === undefined && !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id })),
         resolve: (e) => withLeaveRelated(state, related || e.extra !== undefined, () => {
+            claimGroupOnce(state, groupOnceOf(e))
             if (e.extra !== undefined) {
                 resolveAction(state, e.extra.actorPid, e.extra.selfInstanceId ? findInstanceAnywhere(state, e.extra.selfInstanceId) ?? null : null, e.extra.action)
                 return
@@ -651,6 +661,7 @@ export function fireFieldEventTriggers(
                     action: e.extra.action,
                     actorPid: e.extra.actorPid,
                     leaveRelated: true,
+                    ...(e.extra.groupOnce !== undefined ? { groupOnce: e.extra.groupOnce } : {}),
                     ...(e.extra.requiresPendingDestructionOf !== undefined
                         ? { requiresPendingDestructionOf: e.extra.requiresPendingDestructionOf }
                         : {}),
@@ -666,6 +677,7 @@ export function fireFieldEventTriggers(
                 levelRecheck: { instanceId: e.inst.instanceId, effectId: e.effect.id },
                 ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
                 ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
+                ...(e.groupOnce !== undefined ? { groupOnce: e.groupOnce } : {}),
                 ...(restedGuard !== undefined ? { requiresRestedOf: restedGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),

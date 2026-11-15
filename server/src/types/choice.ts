@@ -226,19 +226,12 @@ export interface PendingChoice {
         trashIndex: number // resolveMilledFromDeck が splice する前のトラッシュ内位置
     }
     triggerOrder?: {
-        // 同時に発揮する**誘発**のうち「どれから解決するか」の選択待ち。destroyOrder と同じく
+        // 同時に発揮する**誘発**のうち「どれから解決するか」の選択待ち。
         // **action は解決しない**。選ぶのは常にターンプレイヤーで、選ばれた番号は
         // GameState.triggerOrderPick に記録され、誘発バッチ（ResumeFrame の triggerBatch）が
         // その1件を取り出して解決し、残りが2件以上ならまた聞く。
         // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）の実装
         count: number // 候補の件数（PendingChoice.options と同順）
-    }
-    destroyOrder?: {
-        // 同時に破壊される複数体のうち「**どの体から破壊処理をするか**」の選択待ち。
-        // reviveConfirm と同じく **action は解決しない**。選ぶのは常にターンプレイヤーで、
-        // 選ばれた個体は GameState.destroyOrderPick に記録され、破壊バッチが残りの先頭へ入れ替える。
-        // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）の実装
-        instanceIds: string[] // 候補の instanceId（PendingChoice.options と同順）
     }
     extraStepChoice?: {
         // アタックステップ終了後に行うステップの選択（BS15-X04 機獣要塞ナウマンガルド Lv2）。action は解決しない。
@@ -406,6 +399,7 @@ export type ResumeFrame =
           // ⚠️ 再開スタックからフレームを**消さない**のが要点。resolveInOrder の「残りは必ず積む」保証は
           // 積み忘れで実バグ4件を出して作られたものなので穴を開けず、消化時に無効化する
           requiresPendingDestructionOf?: string
+          groupOnce?: string // 同時破壊につき1回の項目（destroyGroup.used の鍵）。解決する時点で消費し、使用済みなら空振りする
           requiresRestedOf?: string // 「疲労したとき」の続き。解決する時点でこの個体が回復していれば空振りさせる（公式Q230。#537）
           // 名前スコープの「ターンに1回」（onceScope:"name"）の効果。消化時に枠を取り、取れなければ何もしない
           onceClaim?: { instanceId: string; effectId: string }
@@ -426,10 +420,6 @@ export type ResumeFrame =
           checks: EventBurstCheck[]
       }
     | {
-          // 列を**使い切ったあと**に実行するフレーム（省略可）。破壊で誘発した効果の列では
-          // 「破壊の確定（トラッシュ行き）」をここに入れる。バッチは解決のたびに自分を積み直すので、
-          // 外側から固定位置に積むと追い越されてしまう（docs/design/RESUME_STACK.md §3）
-          after?: ResumeFrame
           kind: "triggerBatch" // 同時に発揮する誘発の束。1グループずつ解決し、2グループ以上残っていれば
           // そのたびにターンプレイヤーへ解決順を聞く（docs/design/TIMING_CHART.md §0-3）
           askPid: PlayerId // 解決順を決める側（＝ターンプレイヤー）
@@ -473,8 +463,9 @@ export type ResumeFrame =
           // バトルの相打ちは「ブロッカーを破壊したのはアタッカー／アタッカーを破壊したのはブロッカー」と
           // 破壊元が対象ごとに違うため、1つの同時破壊の中で使い分ける必要がある
           targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[]
-          index: number
-          destroyed: number
+          // start＝これから全員を待機にして列を解決する（pickMany の選択の後）／finish＝列を解決し終えた後の確定と後処理
+          phase: "start" | "finish"
+          oppBursts?: EventBurstCheck[] // 列の後で宣言する、相手側の「相手のスピリット破壊後」バーストの判定材料
           context?: DestroyContext
           // このバッチが始まる前の state.destroyGroup（入れ子の破壊があっても正しく戻すため。
           // 完了時に state.destroyGroup へ書き戻す）

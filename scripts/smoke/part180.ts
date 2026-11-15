@@ -103,29 +103,27 @@ console.log("=== 相打ちの破壊処理は、ターンプレイヤーが解決
     closeFlash(s)
 
     // ＞６：同時破壊。復活の確認が2件出るので、まずターンプレイヤーが順番を決める
-    assert(s.pendingChoice?.destroyOrder !== undefined, "相打ちでは解決順の選択が先に立つ")
+    // （同時破壊の誘発は1本の列。2体の「戻る」が列に並び、ターンプレイヤーが順番を選ぶ。PENDING_STATE §3 C1）
+    assert(s.pendingChoice?.triggerOrder !== undefined, "相打ちでは解決順の選択が先に立つ")
     assert(s.pendingChoice?.pid === s.turnPlayer, "順番を決めるのはターンプレイヤー")
-    const ids = s.pendingChoice?.destroyOrder?.instanceIds ?? []
-    assert(ids.length === 2, "候補はアタッカーとブロッカーの2体")
-    assert(
-        ids.includes(attacker.instanceId) && ids.includes(blocker.instanceId),
-        "候補は相打ちになった2体そのもの",
-    )
-    const firstId = ids[0]!
-    const firstPid = ownerOf(s, firstId)
-    const secondId = ids.find((x) => x !== firstId)!
-    const secondPid = ownerOf(s, secondId)
+    assert((s.pendingChoice?.options ?? []).length === 2, "候補はアタッカーとブロッカーの「戻る」の2件")
+    const ids = [attacker.instanceId, blocker.instanceId]
     const firstOption = (s.pendingChoice?.options ?? [])[0]!
     assert(
         act(s, s.turnPlayer, { type: "resolveChoice", option: firstOption }) === null,
-        "先に解決する1体を指名する",
+        "先に解決する1件を指名する",
     )
+    const firstId = s.pendingChoice?.reviveConfirm?.instanceId ?? ""
+    assert(ids.includes(firstId), "指名した項目のスピリットは、相打ちになった2体のどちらか")
+    const firstPid = ownerOf(s, firstId)
+    const secondId = ids.find((x) => x !== firstId)!
+    const secondPid = ownerOf(s, secondId)
 
     // 指名した側の復活確認 → 復活させる（手札に戻る）
     assert(s.pendingChoice?.reviveConfirm?.instanceId === firstId, "指名した体の確認が先に立つ")
     assert(act(s, firstPid, { type: "resolveChoice", option: "復活させる" }) === null, "1体目は復活させる")
     // 残る候補は1体だけなので、順番はもう聞かれない
-    assert(s.pendingChoice?.destroyOrder === undefined, "候補が1体になれば順番は聞かない")
+    assert(s.pendingChoice?.triggerOrder === undefined, "候補が1件になれば順番は聞かない")
     assert(s.pendingChoice?.reviveConfirm?.instanceId === secondId, "続けて2体目の確認が立つ")
     assert(act(s, secondPid, { type: "resolveChoice" }) === null, "2体目は復活させない")
 
