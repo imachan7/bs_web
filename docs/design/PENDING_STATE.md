@@ -105,8 +105,8 @@ batspi の「消滅について」「バウンスについて」には改訂前�
 ### 段取り2で入れたもの（2026-11-15。smoke part952）
 
 - 判定は `shared/rules/waiting.ts` の1か所：`canBeTargeted`（P5）・`canFireWhileWaiting`（P4）。「場を離れることに関係する誘発」の名前の一覧（`LEAVE_RELATED_TRIGGERS`）もここ。新しい誘発を足したら、関係するものだけ一覧へ足す。
-- 「いま解決している効果が、関係する誘発で発揮したものか」は `GameState.leaveRelated`。誘発1件を解決する関数（`fireTrigger` の resolveEntry と付与分、fieldEvent／battleWon／step の `handlers.resolve`）を `withLeaveRelated` で包んで立てる。入口の呼び出しごとは包まない（`collect` を渡す経路は解決せずに返る）。
-- 持ち回り：選択待ちは `suspend` が写す。誘発の入口が作るフレームは `leaveRelated` を必ず明示する（fieldEvent の extra＝破壊の列の項目と battleWon は true、step は false）。効果の途中の続きは `pushResumeFrames` が未指定の action フレームへ写す。`drainResumeStack` はフレームごとに設定し直す。
+- 「いま解決している効果を、どの待機の出来事が誘発したか」は `GameState.waitingEvent`（2026-11-15。C2）。待機には出来事の id（`CardInstance.waiting.event`）があり、同時破壊の全員は同じ id（`destroyGroup.id`）、単体の破壊・消滅・ネクサスの破壊・戻すはそのカードの `instanceId`。`canBeTargeted` は、待機中のカードの id がこの値と同じときだけ対象に取れると答える。A の破壊時効果で B を破壊し、B の破壊時効果が破壊待機の A を選ぶことはできない（smoke part955）。
+- 立てる値は `waitingEventFor(related, subject, outer)`：関係する誘発でなければ無し／その誘発が見ているカード（破壊されたスピリットなど）が待機中ならその出来事／待機中でなければ外側の値のまま。誘発1件を解決する関数（`fireTrigger` の resolveEntry と付与分、fieldEvent／battleWon／step の `handlers.resolve`）を `withWaitingEvent` で包む。勝敗の誘発は主語の勝者が待機していないので、敗者の出来事を `collectBattleOutcomeTriggers` が包んで渡す。持ち回り：選択待ちは `suspend` が写す。誘発の入口が作るフレームは `frameWaitingEvent` で欄を作る（null＝無しと明示／欄なし＝積む時点の値を引き継ぐ）。効果の途中の続きは `pushResumeFrames` が未指定の action フレームへ写す。`drainResumeStack` はフレームごとに設定し直す（欄の無い破壊の列の項目は、見張り先のカードの出来事）。
 - 入れ子の誘発は自分の種類で上書きする（破壊時効果で召喚した体の召喚時効果は、待機中の体を対象に取れない）。【転召】の生贄の候補（`keywords/tensho.ts` の `tenshoCandidates`）は `canBeTargeted` を通していないので、破壊待機の自身を選べるまま（§2 の 11-03 の確認どおりの結果だが、判定を通した結果ではない。下の「残り」）。
 - バーストは、待機状態のカードがいる間も条件の時点で宣言はするが、効果は適用しない（列を解決しきってから適用する。BURST.md §1.4。part953）。そのため、バーストの効果が待機中の体を対象に取る場面は起きない。
 - 一覧の分類で境界にあるもの：`onBattleEnd`（バトル終了時）・`opponentSpiritCoresEmptied`・`opponentSpiritBpReachedZero` は関係する誘発に入れていない。『消滅時』は段取り6で足す。
@@ -115,7 +115,7 @@ batspi の「消滅について」「バウンスについて」には改訂前�
 
 | 項目 | 内容 |
 | :-- | :-- |
-| 欄が真偽値 | 「どのカードの待機で誘発したか」までは見ない。別のカードの待機で誘発した効果からも対象に取れる（例：A の破壊時効果で B を破壊し、B の破壊時効果が破壊待機の A を選ぶ）。判定は1か所なので、欄を instanceId に変えれば直る |
+| 外側の値の引き継ぎ | 関係する誘発で、その誘発が見ているカードが待機中でないときは、外側の待機の出来事を引き継ぐ（勝敗の誘発のため）。戻す待機の順番を直す（C3）までは、「手札に戻ったとき」（移動の後に誘発する）も引き継ぐので、破壊時効果の中で手札に戻したときの誘発から、破壊待機のカードを対象に取れる |
 | 候補集めの残り | `matchesTarget` を直接 filter して選ばせる所は `canBeTargeted` を通っていない：`actions/timedEffect.ts`（6）・`buff.ts`・`exhaustRefresh.ts`・`destroy.ts` の自分側・`pay.ts` など。多くは自分のスピリットへの BP 増減・疲労で、待機中の体に当たっても移動は変わらない |
 | 【転召】の生贄 | `tenshoCandidates` は判定を通らない。通すなら、召喚の手順のフレームが欄を持ち回るかを先に確かめる（消化ループは action 以外のフレームで欄を false に戻す） |
 | 欄を引き継ぐフレーム | 召喚の手順（`summonSequence`）など、誘発の入口が作らない action フレームは、破壊時効果の中で積まれると欄を引き継ぐ。召喚時効果は入口で上書きするので正しい（バーストは待機中には適用しない）。引き継いだまま対象を選ぶ処理は、今のところ【転召】の生贄だけ（上の行） |

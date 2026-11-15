@@ -197,7 +197,7 @@ console.log("=== 6. 待機状態のカードがいる間は適用しない ===")
     const waiting = put(s, "p1", VANILLA)
     const target = put(s, "p1", VANILLA)
     placeBurst(s, "p2", JIGEN)
-    waiting.waiting = { kind: "destroy" }
+    waiting.waiting = { kind: "destroy", event: waiting.instanceId }
     fireFieldEventTriggers(s, "p2", "ownLifeLost")
     assert(s.declaredBursts?.length === 1 && s.players.p2.burstSet, "条件を満たした時点で宣言する（カードは適用までバーストエリアに残る）")
     applyDeclaredBursts(s)

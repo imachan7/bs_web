@@ -166,6 +166,11 @@ interface DestroyEntry {
     sourceInstanceId: string | undefined
 }
 
+// 待機の出来事の id。同時破壊の全員は同じ出来事（destroyGroup.id）、単体はそのカード自身
+function waitingEventOf(state: GameState, inst: CardInstance): string {
+    return state.destroyGroup?.memberIds.includes(inst.instanceId) ? state.destroyGroup.id : inst.instanceId
+}
+
 // 待機に入れるところまで（誘発は解決しない）。場にいない・既に待機中なら null
 function enterDestroyWaiting(
     state: GameState,
@@ -223,8 +228,8 @@ function enterDestroyWaiting(
     // 「フィールドに残る」は、この待機状態を解除する効果として働く（applyRevived が印を消す）
     inst.waiting =
         cause === "deplete"
-            ? { kind: "vanish", ...(state.currentEffectSource !== undefined && state.currentEffectSource.pid !== ownerPid ? { byOpponent: true as const } : {}) }
-            : { kind: "destroy" }
+            ? { kind: "vanish", event: waitingEventOf(state, inst), ...(state.currentEffectSource !== undefined && state.currentEffectSource.pid !== ownerPid ? { byOpponent: true as const } : {}) }
+            : { kind: "destroy", event: waitingEventOf(state, inst) }
     inst.coresAtDestruction = inst.cores
     // ⚠️ 復活チェックは**ここではやらない**。「フィールドに残る」は破壊を無効にするのではなく
     // 「トラッシュに置かれる代わりに場へ戻る」効果なので、**破壊で誘発した効果の列の1項目**として
@@ -1135,7 +1140,7 @@ export function destroyNexus(
     // 破壊待機状態のネクサスは、そこからさらに破壊されない（TIMING_CHART.md §1.5）
     if (isTrashWaiting(inst)) return false
     // この間もネクサスの効果（誘発・継続効果）は普通に働く（2026-08-14 ユーザー確認）
-    inst.waiting = { kind: "destroy" }
+    inst.waiting = { kind: "destroy", event: inst.instanceId }
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊された。`)
     // 直近に破壊されたネクサスを記録する（「その破壊されたネクサス」を参照する効果用）
     state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.cardId }
@@ -1378,7 +1383,7 @@ export function markBounce(
     // 解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは持ち主のデッキの上に戻る」を張っていれば、
     // 手札への戻しをデッキの上へ振り替える。手札への戻しはすべてここを通るので、「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
     const srcPid = state.currentEffectSource?.pid
-    inst.waiting = { kind: "return", to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to, ...(srcPid !== undefined && srcPid !== ownerPid ? { byOpponent: true as const } : {}), ...(bounceBraveCantRemain ? { braveCantRemain: true as const } : {}) }
+    inst.waiting = { kind: "return", event: inst.instanceId, to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to, ...(srcPid !== undefined && srcPid !== ownerPid ? { byOpponent: true as const } : {}), ...(bounceBraveCantRemain ? { braveCantRemain: true as const } : {}) }
     recordLeftCost(state, inst.cardId, instBaseCost(inst))
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
     return true

@@ -54,10 +54,23 @@ export function canFireWhileWaiting(inst: MaybeInst, trigger: string): boolean {
     return !isWaiting(inst) || isLeaveRelatedTrigger(trigger)
 }
 
-// 効果の対象に取れるか（P5）。待機中のカードは、場を離れることに関係する誘発で発揮した効果の対象にだけなる。
-// leaveRelated は「いま解決している効果がその種類か」（GameState.leaveRelated。誘発の入口が立てる）
-export function canBeTargeted(board: { leaveRelated?: true }, inst: MaybeInst): boolean {
-    return !isWaiting(inst) || board.leaveRelated === true
+// 効果の対象に取れるか（P5・C2）。待機中のカードは、その待機の出来事で誘発した効果の対象にだけなる。
+// waitingEvent は「いま解決している効果を誘発した待機の出来事」（GameState.waitingEvent。誘発の入口が立てる）
+export function canBeTargeted(board: { waitingEvent?: string }, inst: MaybeInst): boolean {
+    return !isWaiting(inst) || (board.waitingEvent !== undefined && inst?.waiting?.event === board.waitingEvent)
+}
+
+// 誘発の入口が立てる値。related＝場を離れることに関係する誘発か。subject＝その誘発が見ているカード（破壊されたスピリットなど）。
+// 主語が待機中ならその出来事。待機中でなければ外側の値のまま（勝敗の誘発は主語の勝者が待機していないので、敗者の出来事を外側が渡す）
+export function waitingEventFor(related: boolean, subject: MaybeInst, outer: string | undefined): string | undefined {
+    if (!related) return undefined
+    return subject?.waiting?.event ?? outer
+}
+
+// 上と同じ値をフレームの欄にする。null＝無しと明示。欄なし＝積む時点の値を引き継ぐ
+export function frameWaitingEvent(related: boolean, subject: MaybeInst): { waitingEvent?: string | null } {
+    if (!related) return { waitingEvent: null }
+    return subject?.waiting ? { waitingEvent: subject.waiting.event } : {}
 }
 
 // 待機状態のカードが場にいるか（＝場を離れる誘発の列をまだ解決しきっていない）

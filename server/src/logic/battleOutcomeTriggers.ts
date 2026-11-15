@@ -9,6 +9,7 @@ import { instColors } from "../../../shared/rules"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { fireBattleWonTriggers } from "./stepTriggers"
 import { fireTrigger } from "./triggers"
+import { withWaitingEvent } from "./GameState"
 
 export type BattleWinner = { pid: PlayerId; instanceId: string; role: "attacker" | "blocker" }
 
@@ -27,11 +28,14 @@ export function collectBattleOutcomeTriggers(
     fireBattleWonTriggers(state, winner.pid, winnerInst, winner.role, raw)
     fireFieldEventTriggers(state, winner.pid, "ownSpiritBattleWon", { pid: winner.pid, inst: winnerInst }, instColors(winnerInst), undefined, undefined, undefined, undefined, undefined, undefined, undefined, raw)
     fireFieldEventTriggers(state, loserPid, "ownSpiritBattleLost", { pid: loserPid, inst: loser }, instColors(loser), undefined, undefined, undefined, undefined, undefined, undefined, undefined, raw)
+    // 勝敗の誘発は敗者の破壊待機で誘発した効果。主語の勝者は待機していないので、敗者の出来事をここで渡す
+    const event = loser.waiting?.event
     for (const item of raw) {
         collect.push({
             ...item,
             skip: () => !isTrashWaiting(loser) || item.skip?.() === true,
-            frame: item.frame.kind === "action" ? { ...item.frame, requiresPendingDestructionOf: loser.instanceId } : item.frame,
+            run: () => withWaitingEvent(state, event, item.run),
+            frame: item.frame.kind === "action" ? { ...item.frame, requiresPendingDestructionOf: loser.instanceId, ...(event !== undefined ? { waitingEvent: event } : {}) } : item.frame,
         })
     }
 }

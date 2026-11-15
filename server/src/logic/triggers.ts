@@ -20,9 +20,9 @@ import type {
 import {
     currentLevel, findInstanceAnywhere,
     getCard,
-    log, opponentOf, pushResumeFrames, withLeaveRelated
+    log, opponentOf, pushResumeFrames, withWaitingEvent
 } from "./GameState"
-import { canFireWhileWaiting, isLeaveRelatedTrigger } from "../../../shared/rules/waiting"
+import { canFireWhileWaiting, isLeaveRelatedTrigger, waitingEventFor, frameWaitingEvent } from "../../../shared/rules/waiting"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
 import type { KeywordInfo } from "../../../shared/rules"
@@ -505,7 +505,7 @@ export function fireTrigger(
             c.type === "grantEntry" ? getCard(c.cardId).effects.filter((e) => e.id === c.effectId).map((e) => ({ effect: e, src: selfInstance })) : [],
         ),
     ]
-    const resolveEntry = (entry: { effect: EffectDef; src: CardInstance }): void => withLeaveRelated(state, related, () => {
+    const resolveEntry = (entry: { effect: EffectDef; src: CardInstance }): void => withWaitingEvent(state, waitingEventFor(related, selfInstance, state.waitingEvent), () => {
         const effect = entry.effect as Extract<EffectDef, { kind: "triggered" }>
         // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）。
         // 実際には発揮しなかったとき（コストを払えず不発／確認を断った）は下で巻き戻す
@@ -556,7 +556,7 @@ export function fireTrigger(
             selfInstanceId: selfInstance.instanceId,
             action: effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action,
             actorPid: owner,
-            leaveRelated: related,
+            ...frameWaitingEvent(related, selfInstance),
             levelRecheck: { instanceId: entry.src.instanceId, effectId: effect.id },
             ...(target !== undefined ? { targetInstanceId: target } : {}),
             ...(effect.optional && state.interactiveTargets ? { confirmPrompt: `${getCard(entry.src.cardId).name}の効果を発動しますか？` } : {}),
@@ -568,7 +568,7 @@ export function fireTrigger(
         selfInstanceId: selfInstance.instanceId,
         action: a,
         actorPid: owner,
-        leaveRelated: related,
+        ...frameWaitingEvent(related, selfInstance),
         ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
     })
     if (collect !== undefined) {
@@ -590,7 +590,7 @@ export function fireTrigger(
             collect.push({
                 key,
                 label,
-                run: () => withLeaveRelated(state, related, () => resolveAction(state, owner, selfInstance, a, targetInstanceId)),
+                run: () => withWaitingEvent(state, waitingEventFor(related, selfInstance, state.waitingEvent), () => resolveAction(state, owner, selfInstance, a, targetInstanceId)),
                 frame: grantedFrame(a),
             })
         }
@@ -611,7 +611,7 @@ export function fireTrigger(
     for (let i = 0; i < grantedActions.length; i++) {
         const grantedAction = grantedActions[i]
         if (!grantedAction) continue
-        withLeaveRelated(state, related, () => resolveAction(state, owner, selfInstance, grantedAction, targetInstanceId))
+        withWaitingEvent(state, waitingEventFor(related, selfInstance, state.waitingEvent), () => resolveAction(state, owner, selfInstance, grantedAction, targetInstanceId))
         if (state.pendingChoice) {
             const remaining = grantedActions.slice(i + 1)
             pushResumeFrames(state, remaining.map(grantedFrame))

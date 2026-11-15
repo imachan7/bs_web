@@ -15,14 +15,14 @@ p1.field.spirits = [spirit]
 console.log("=== 待機状態ごとの軽減シンボルの数 ===")
 assert(countSymbols(p1, ["red"]) === 1, "通常：1")
 
-spirit.waiting = { kind: "destroy" }
+spirit.waiting = { kind: "destroy", event: spirit.instanceId }
 assert(countSymbols(p1, ["red"]) === 1, "破壊待機：1")
 
-spirit.waiting = { kind: "vanish" }
+spirit.waiting = { kind: "vanish", event: spirit.instanceId }
 assert(countSymbols(p1, ["red"]) === 1, "消滅待機：1")
 
 delete spirit.waiting
-spirit.waiting = { kind: "return", to: "hand" }
+spirit.waiting = { kind: "return", event: spirit.instanceId, to: "hand" }
 assert(countSymbols(p1, ["red"]) === 1, "戻す待機：1")
 
 console.log("すべてのチェックに合格しました 🎉（part329）")

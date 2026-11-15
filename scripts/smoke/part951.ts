@@ -7,11 +7,11 @@ console.log("=== 待機の種類ごとの判定 ===")
 {
     const inst = createInstance("BS01-002", 1, 1)
     assert(!isWaiting(inst) && !isTrashWaiting(inst) && !isReturnWaiting(inst), "通常：どれでもない")
-    inst.waiting = { kind: "destroy" }
+    inst.waiting = { kind: "destroy", event: inst.instanceId }
     assert(isWaiting(inst) && isTrashWaiting(inst) && !isVanishWaiting(inst) && !isReturnWaiting(inst), "破壊：トラッシュ行きの待機")
-    inst.waiting = { kind: "vanish" }
+    inst.waiting = { kind: "vanish", event: inst.instanceId }
     assert(isWaiting(inst) && isTrashWaiting(inst) && isVanishWaiting(inst) && !isReturnWaiting(inst), "消滅：トラッシュ行きの待機で、消滅でもある")
-    inst.waiting = { kind: "return", to: "hand" }
+    inst.waiting = { kind: "return", event: inst.instanceId, to: "hand" }
     assert(isWaiting(inst) && !isTrashWaiting(inst) && isReturnWaiting(inst), "戻す：トラッシュ行きではない")
     assert(!isWaiting(undefined) && !isTrashWaiting(null), "個体が無ければ待機でない")
 }
