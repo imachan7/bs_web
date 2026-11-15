@@ -237,6 +237,10 @@ export interface GameState {
     enemyExhaustNotifiedPid?: PlayerId // opponentSpiritExhaustedByOwnSpiritEffect をその効果の持ち主についてすでに発火したか（効果1回の解決につき1回の印。選択待ちをまたいでも1回に数えるため ActionCtx でなく state に置く。一番外側の効果を解決し終えた時点で消す）
     coresEmptiedNotifiedPid?: PlayerId // opponentSpiritCoresEmptied の同じ印
     recordScope?: string
+    // いま解決している効果が、場を離れることに関係する誘発（破壊時・破壊したとき など）で発揮したものか。
+    // 待機中のカードを対象に取れるかの判定（shared/rules/waiting.ts の canBeTargeted）が読む。
+    // 誘発の入口（fireTrigger など）が誘発の種類から立て、選択待ちと後回しのフレームが持ち回る（recordScope と同じ運び方）
+    leaveRelated?: true
     bpSeen?: Record<string, number> // instanceId -> 前回観測した実効BP（ownSpiritBpReached の「前回値」。BPが届いたかを判定する効果が場に無いときは消す。サーバー内部のみ）
     bpMinusSourceBy?: Record<string, string> // instanceId -> 最後にそのスピリットのBPを下げた効果の発生源instanceId（currentEffectSource が無い下げ方は記録しない。opponentSpiritBpReachedZero の bySelfEffectOnly が読む。発火のたびに消す。サーバー内部のみ）
     flashEffect?: true // いまフラッシュ効果（マジックのフラッシュ・【起動：フラッシュ】）を解決中（ownSpiritBpUpByFlash の判定用。中断しても pendingChoice.flashEffect 経由で再開時に戻す）

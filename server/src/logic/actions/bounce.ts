@@ -1,5 +1,5 @@
 // バウンス（手札・デッキ上へ戻す）アクションのハンドラと候補数の判定
-import { isReturnWaiting, isTrashWaiting } from "../../../../shared/rules/waiting"
+import { canBeTargeted, isTrashWaiting } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { handGainDenial } from "../handGate"
 import { bounceDenial } from "../bounceGate"
@@ -27,7 +27,7 @@ function ownSideBounceCandidates(
     filter: ResolvedTargetFilter,
     to: "hand" | "deckTop",
 ): CardInstance[] {
-    return state.players[owner].field.spirits.filter((s) => !isReturnWaiting(s) && matchesTarget(state, owner, s, filter, selfInstanceId) && bounceDenial(state, owner, s, to, true) === null)
+    return state.players[owner].field.spirits.filter((s) => canBeTargeted(state, s) && matchesTarget(state, owner, s, filter, selfInstanceId) && bounceDenial(state, owner, s, to, true) === null)
 }
 
 // ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
@@ -270,7 +270,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
         const own = action.side === "own"
         const matchesBp = (s: CardInstance) => effectiveBp(state, owner, s) <= limitBp && matchesTarget(state, opp, s, filter, self?.instanceId)
         const ownMatchesBp = (s: CardInstance) =>
-            effectiveBp(state, owner, s) <= limitBp && !isReturnWaiting(s) && matchesTarget(state, owner, s, filter, self?.instanceId) && bounceDenial(state, owner, s, "hand") === null
+            effectiveBp(state, owner, s) <= limitBp && canBeTargeted(state, s) && matchesTarget(state, owner, s, filter, self?.instanceId) && bounceDenial(state, owner, s, "hand") === null
         // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
         const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
         const pool = own
@@ -760,7 +760,7 @@ const returnToBurstHandler: ActionHandler<"returnToBurst"> = (ctx, action) => {
     }
     const filter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
     const candidates = player.field.spirits.filter(
-        (s) => !isReturnWaiting(s) && (filter === undefined || (filter !== SELF_REQUIRED && matchesTarget(state, owner, s, filter, self?.instanceId))),
+        (s) => canBeTargeted(state, s) && (filter === undefined || (filter !== SELF_REQUIRED && matchesTarget(state, owner, s, filter, self?.instanceId))),
     )
     const picked = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : candidates[0]
     if (!picked) {
