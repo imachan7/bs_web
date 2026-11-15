@@ -46,6 +46,11 @@
 
 C1〜C4（同時破壊を1本の列に・対象に取れるのは同じ出来事の待機だけ・戻す待機の順番・待機の変化）は実装済み（PENDING_STATE §3、TIMING_CHART §1.5・§1.6）。残りは、補助の欄（`pendingDestroyContext`・`pendingDestroyBurstInfo`・`coresAtDestruction`）を `waiting` へ移す（挙動は変えない）と、段取り5（合体中のブレイヴだけの待機）・6（『消滅時』）。
 
+**補助の欄の移行の設計（`refactor/waiting-aux-fields`。挙動は変えない）**
+
+- 破壊待機の間だけ持つ欄を `waiting` の中へ移す：`pendingDestroyContext` → `waiting.context`（destroy）、`skipReviveOnCommit` → `waiting.skipRevive`（destroy）、`pendingDestroyBurstInfo` → `waiting.burstInfo`（destroy・vanish）。読むのは `shared/rules/waiting.ts` の `destroyContextOf`・`destroyBurstInfoOf`。待機が消えれば一緒に消える（今は、残ったスピリットに前の破壊の控えが残る）
+- `pendingDestroyAllowSuspend` は書くだけで誰も読んでいないので消す。`coresAtDestruction` は移さない（バトルの写し＝待機でないスナップショットにも書くため）
+
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
 - **対象**：BS13-038 魔女タランダ（手札のスピリット）・BS10-046 龍仙公主（手札のマジック）。「好きなだけ破棄、**破棄した1枚につき**破壊された体を1体戻す」。#423（perDestroyed）の置き換え（#423 は閉じる）
