@@ -1,5 +1,5 @@
 // 盤面の出来事（fieldEvent）で起きる誘発の収集と解決。手札を得た・ネクサスを配置したときの通知もここ
-import { canFireWhileWaiting, isLeaveRelatedTrigger, isTrashWaiting, waitingEventFor, frameWaitingEvent } from "../../../shared/rules/waiting"
+import { canFireWhileWaiting, isLeaveRelatedTrigger, isReturnWaiting, isTrashWaiting, waitingEventFor, frameWaitingEvent } from "../../../shared/rules/waiting"
 import { levelStillMet } from "./levelRecheck"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
@@ -605,6 +605,12 @@ export function fireFieldEventTriggers(
         (event === "anySpiritExhausted" || event === "ownSpiritExhausted" || event === "opponentSpiritExhaustedByOwnSpiritEffect") && selfOverride !== undefined
             ? selfOverride.inst.instanceId
             : undefined
+    // 「手札に戻るとき／戻ったとき」は、解決する時点で主語のスピリットが戻す待機でなくなっていれば発揮しない
+    // （同じ列で先に解決した効果に破壊されて、待機が変わった。PENDING_STATE §3 P6・C4）
+    const returnGuard =
+        (event === "ownSpiritReturnedToHand" || event === "anySpiritReturnedToHand") && selfOverride !== undefined && isReturnWaiting(selfOverride.inst)
+            ? selfOverride.inst.instanceId
+            : undefined
     const related = isLeaveRelatedTrigger(event)
     const groupOnceOf = (e: PoolItem): string | undefined => (e.extra !== undefined ? e.extra.groupOnce : e.groupOnce)
     // この項目が見ているカード（待機の出来事を引く）。破壊の列の項目は見張り先、fieldEvent は破壊の見張り先か主語
@@ -624,6 +630,7 @@ export function fireFieldEventTriggers(
             (e.extra === undefined && !isVirtualSource(e.inst) && !extraSources?.some((x) => x.instanceId === e.inst.instanceId) && !isStillOnField(state, pid, e.inst.instanceId)) ||
             (e.extra === undefined && destroyGuard !== undefined && !isTrashWaiting(findInstanceAnywhere(state, destroyGuard))) ||
             (e.extra === undefined && restedGuard !== undefined && findInstanceAnywhere(state, restedGuard)?.isRested !== true) ||
+            (e.extra === undefined && returnGuard !== undefined && !isReturnWaiting(findInstanceAnywhere(state, returnGuard))) ||
             (e.extra === undefined && !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id })),
         resolve: (e) => withWaitingEvent(state, waitingEventFor(related || e.extra !== undefined, subjectOf(e), state.waitingEvent), () => {
             claimGroupOnce(state, groupOnceOf(e))
@@ -690,6 +697,7 @@ export function fireFieldEventTriggers(
                 ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
                 ...(e.groupOnce !== undefined ? { groupOnce: e.groupOnce } : {}),
                 ...(restedGuard !== undefined ? { requiresRestedOf: restedGuard } : {}),
+                ...(returnGuard !== undefined ? { requiresReturnWaitingOf: returnGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
                 ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),

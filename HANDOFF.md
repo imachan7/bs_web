@@ -44,14 +44,7 @@
 
 ### 進行中：待機状態の作り替え（2026-11-15。確認の答えは [PENDING_STATE.md](./docs/design/PENDING_STATE.md) §3 の C1〜C4）
 
-PR は1つずつ別ブランチ。①同時破壊を1本の列に（C1）と ②対象に取れるのは同じ出来事の待機だけ（C2）は実装済み（PENDING_STATE §3 末尾）。残りの順は ③戻す待機の順番と待機の変化（C3・C4。part194 の期待値を改める。1つの効果で同時に戻すカードには共通の `waiting.event` を入れる）→ ④補助の欄を `waiting` へ移す（挙動は変えない）。
-
-**③ の設計（C3・C4。`fix/return-waiting-queue`）**
-
-- `flushBounces` の順を「誘発の列 → 移動」に替える：まだ列を始めていない戻す待機のカードに共通の `waiting.event` と `resolving: true` を付ける → 「手札に戻るとき／戻ったとき」（`ownSpiritReturnedToHand`・`anySpiritReturnedToHand`）を1本の列に集めて `resolveInOrder`（ターンプレイヤーが順番を選ぶ）→ 列が止まったら `returnMove` フレーム（`event`・`order?`）を積む → 列の後に、その出来事でまだ戻す待機のカードだけを移す（`moveReturned`）。`resolving` は、列が止まっている間に `flushBounces` がもう一度呼ばれても列を始め直さないための印
-- 移動の後に出すもの：手札が増えた通知・ブレイヴを残す確認・バーストとしてセットした通知（`ownBurstSet`／`opponentBurstSet`。従来の `bounceFlush` フレームと `fireBounceTriggers` はこの通知だけに使う）
-- 待機の変化（C4）：戻す待機のカードが破壊されたら破壊の待機に変わる（`enterDestroyWaiting`。消滅は従来どおり行き先を保つ）。前の待機で誘発した項目は解決しない：戻すの誘発の項目に見張り `requiresReturnWaitingOf`（解決の時点で主語が戻す待機でなければ空振り）を付ける
-- part194 の期待値（戻るスピリットは破壊されない）は改める
+C1〜C4（同時破壊を1本の列に・対象に取れるのは同じ出来事の待機だけ・戻す待機の順番・待機の変化）は実装済み（PENDING_STATE §3、TIMING_CHART §1.5・§1.6）。残りは、補助の欄（`pendingDestroyContext`・`pendingDestroyBurstInfo`・`coresAtDestruction`）を `waiting` へ移す（挙動は変えない）と、段取り5（合体中のブレイヴだけの待機）・6（『消滅時』）。
 
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 

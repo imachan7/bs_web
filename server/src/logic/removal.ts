@@ -209,8 +209,12 @@ function enterDestroyWaiting(
     // 破壊待機状態のカードは、**そこからさらに破壊されることはない**（TIMING_CHART.md §1.5）。
     // ただし skipRevive（復活を断ったあとの同じ破壊の続き）は通す
     if (isTrashWaiting(inst) && !options?.skipRevive) return null
-    // 戻す待機のカードは、途中で破壊・消滅しても行き先を保つ（PENDING_STATE §3 P6）
-    if (isReturnWaiting(inst)) return null
+    // 戻す待機のカードは、途中で消滅しても行き先を保つ。破壊されたら破壊の待機に変わり、トラッシュへ行く
+    // （待機状態の変化。PENDING_STATE §3 P6・C4。2026-11-15 ユーザー確認）
+    if (isReturnWaiting(inst)) {
+        if (cause === "deplete") return null
+        bounceSourceNames.delete(inst.instanceId)
+    }
     const master = getCard(inst.cardId)
 
     // 相手のスピリット/ブレイヴ/マジックの効果でコアが0個になったときは、維持コア割れ（deplete＝消滅・onDestroy不発火）ではなく
@@ -1321,8 +1325,8 @@ export function returnNexusToDeckTop(
 }
 
 // **その場では移さず、バウンス待機状態にするだけ**（バトスピ Wiki「バウンスについて」）。
-// 実際の移動と「手札に戻ったとき」の誘発は、バウンス効果の解決が終わってから
-// flushBounces がまとめて行う。破壊ではないため onDestroy は誘発しない。
+// 「手札に戻ったとき」の誘発と実際の移動は、戻す効果の解決が終わってから
+// flushBounces がまとめて行う（誘発が先）。破壊ではないため onDestroy は誘発しない。
 export function returnSpiritToHand(
     state: GameState,
     ownerPid: PlayerId,
@@ -1338,7 +1342,7 @@ export function returnSpiritToHand(
 // **すでに待機中なら何もしない**（同じカードを2つの効果が戻そうとしても1回しか戻らない）。
 //
 // **1つの効果で複数体を戻すときはこれを直接呼び、最後に flushBounces を1回呼ぶ**。
-// そうすると「全部戻ってから、まとめて『戻ったとき』が誘発する」というルールどおりになる
+// そうすると「全員を待機にしてから、まとめて『戻るとき／戻ったとき』を解決し、その後で移す」というルールどおりになる
 // （1体ずつ戻すと、1体目の誘発が2体目以降の対象を変えてしまう）。
 // 1体だけ戻す場合は returnSpiritToHand 等がその場で flush するので結果は変わらない
 // いま解決中の効果の持ち主に「手札に戻る先をデッキの上へ」が張られているか
@@ -1393,14 +1397,52 @@ export function markBounce(
 // **待機中だけの一時情報**としてここに置く（flushBounces が使い終わったら消す）
 const bounceSourceNames = new Map<string, string>()
 
-// バウンス待機状態のカードを実際に手札／デッキへ移し、そのあとで誘発をまとめて発揮する。バウンス効果の解決が終わった時点で呼ぶ。
-//
-// 移動を先に全部済ませてから誘発するのが要点（Wiki：待機中の「戻るとき」効果は割り込まない）。
-// 1体戻すごとに誘発していると、その誘発が2体目以降の対象を変えてしまう
+// 戻す待機のカードについて、誘発を1本の列で解決してから、まとめて移す（PENDING_STATE §3 C3。破壊の待機と違うのは行き先だけ）。
+// 戻す効果の解決が終わった時点で呼ぶ。1体戻すごとに誘発していると、その誘発が2体目以降の対象を変えてしまう
 //
 // order（instanceId の列）を渡すと**その順に移す**。プレイヤーが決めた順番がデッキの並びに出る効果（好きな順番でデッキの下に戻す）で使う。
-// 列に無いものは従来どおりフィールドの並び順で、そのあとに続く
+// 列に無いものはフィールドの並び順で、そのあとに続く
 export function flushBounces(state: GameState, order?: string[]): void {
+    const fresh: { pid: PlayerId; inst: CardInstance }[] = []
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of state.players[pid].field.spirits) {
+            if (inst.waiting?.kind === "return" && inst.waiting.resolving !== true) fresh.push({ pid, inst })
+        }
+    }
+    if (fresh.length === 0) return
+    // 1回でまとめて戻すカードは同じ出来事（互いの誘発から対象に取れる。C2）
+    const event = crypto.randomUUID()
+    for (const { inst } of fresh) {
+        if (inst.waiting?.kind === "return") inst.waiting = { ...inst.waiting, event, resolving: true }
+    }
+    // バーストは判定しない（skipBurst）。「手札に戻った後」のバーストは今のプールに無い。足すときは、移した後（moveReturned）で判定する
+    const items: CollectedTrigger[] = []
+    for (const m of fresh) {
+        const w = m.inst.waiting
+        // 分身は手札に入らないので「手札に戻ったとき」は誘発しない（Q788）
+        if (w?.kind !== "return" || w.to !== "hand" || m.inst.bunshinOf !== undefined) continue
+        fireFieldEventTriggers(state, m.pid, "ownSpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst), undefined, undefined, { byOpponentEffect: w.byOpponent === true }, undefined, undefined, undefined, true, items)
+        // 「**相手の**スピリットが手札に戻ったとき」を書けるように、両者のフィールド発生源にも配る（subjectSide で主体の陣営を絞る）
+        for (const pid of ["p1", "p2"] as PlayerId[]) {
+            fireFieldEventTriggers(state, pid, "anySpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst), undefined, undefined, undefined, undefined, undefined, undefined, true, items)
+        }
+    }
+    resolveInOrder(state, items, {
+        skip: (i) => i.skip?.() === true,
+        resolve: (i) => i.run(),
+        frame: (i) => i.frame,
+        askOrder: { pid: state.turnPlayer, label: (i) => i.label, key: (i) => i.key },
+    })
+    if (state.pendingChoice && !state.winner) {
+        pushResumeFrames(state, [{ kind: "returnMove", event, ...(order ? { order } : {}) }])
+        return
+    }
+    // 勝敗が決まっていても移す（待機のまま場に残さない）
+    moveReturned(state, event, order)
+}
+
+// 誘発の列を解決し終えた後：この出来事でまだ戻す待機のカードを移す。途中で破壊されて待機が変わったカードは、ここでは移さない（C4）
+export function moveReturned(state: GameState, event: string, order?: string[]): void {
     const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true }[] = []
     const rank = (inst: CardInstance): number => {
         if (!order) return 0
@@ -1410,8 +1452,9 @@ export function flushBounces(state: GameState, order?: string[]): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
         for (const inst of [...player.field.spirits].sort((a, b) => rank(a) - rank(b))) {
-            const pb = inst.waiting?.kind === "return" ? inst.waiting : undefined
+            const pb = inst.waiting?.kind === "return" && inst.waiting.event === event ? inst.waiting : undefined
             if (!pb) continue
+
             const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (index === -1) continue
             player.field.spirits.splice(index, 1)
@@ -1479,8 +1522,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
     fireBounceTriggers(state, moved, 0)
 }
 
-// 移動後の誘発をまとめて発揮する。**選択待ちで中断したら残りを再開スタックへ送る**
-// （割り込まれる側の作法。docs/design/RESUME_STACK.md）
+// 移した後の通知：バーストとしてセットした。**選択待ちで中断したら残りを再開スタックへ送る**（docs/design/RESUME_STACK.md）
 export function fireBounceTriggers(
     state: GameState,
     moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true }[],
@@ -1489,16 +1531,6 @@ export function fireBounceTriggers(
     for (let i = from; i < moved.length; i++) {
         const m = moved[i]!
         if (state.winner) return
-        // フィールドイベント誘発「自分のスピリットが手札に戻ったとき」。
-        // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
-        if (m.to === "hand") {
-            // 同時に戻るスピリット自身の「戻るとき」も、もう場にいなくても発揮する（待機中に誘発する扱い）
-            fireFieldEventTriggers(state, m.pid, "ownSpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst), undefined, undefined, { byOpponentEffect: m.byOpponent === true }, moved.filter((x) => x.pid === m.pid && x.to === "hand").map((x) => x.inst))
-            // 「**相手の**スピリットが手札に戻ったとき」を書けるように、両者のフィールド発生源にも配る（subjectSide で主体の陣営を絞る。anySpiritAttacked と同じ形）
-            for (const pid of ["p1", "p2"] as PlayerId[]) {
-                fireFieldEventTriggers(state, pid, "anySpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
-            }
-        }
         if (m.to === "burst") {
             fireFieldEventTriggers(state, m.pid, "ownBurstSet")
             fireFieldEventTriggers(state, opponentOf(m.pid), "opponentBurstSet")

@@ -1531,6 +1531,7 @@ export {
     returnSpiritToDeckBottom,
     flushBounces,
     fireBounceTriggers,
+    moveReturned,
     markBounce,
     canTakeCoresFrom,
     coreFloorFor,

@@ -180,4 +180,5 @@ export type WaitingState =
     // 待機の出来事の id。同時に待機に入ったカードで共通（同時破壊は destroyGroup.id）。対象に取れるかの判定に使う（PENDING_STATE §3 C2）
     | { kind: "destroy"; event: string }
     | { kind: "vanish"; event: string; byOpponent?: true }
-    | { kind: "return"; event: string; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true }
+    // resolving＝誘発の列を始めた（flushBounces が付ける）。列が選択待ちで止まっている間に flushBounces がもう一度呼ばれても、列を始め直さない
+    | { kind: "return"; event: string; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true; resolving?: true }

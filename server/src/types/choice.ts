@@ -402,6 +402,7 @@ export type ResumeFrame =
           requiresPendingDestructionOf?: string
           groupOnce?: string // 同時破壊につき1回の項目（destroyGroup.used の鍵）。解決する時点で消費し、使用済みなら空振りする
           requiresRestedOf?: string // 「疲労したとき」の続き。解決する時点でこの個体が回復していれば空振りさせる（公式Q230。#537）
+          requiresReturnWaitingOf?: string // 「手札に戻るとき／戻ったとき」の続き。解決する時点でこのカードが戻す待機でなければ空振りさせる（破壊されて待機が変わった。PENDING_STATE §3 C4）
           // 名前スコープの「ターンに1回」（onceScope:"name"）の効果。消化時に枠を取り、取れなければ何もしない
           onceClaim?: { instanceId: string; effectId: string }
           // 同時発揮の列で後回しにした誘発：消化時の Lv でも levels を満たすか見直す（logic/levelRecheck.ts。Q2717）
@@ -498,11 +499,16 @@ export type ResumeFrame =
       }
     | { kind: "burstFinish"; stage: "finish" | "settle" | "notify"; pid: PlayerId; cardId: string; actionType: EffectAction["type"]; thenPay?: "main" | "flash"; toHand?: true; alsoDraw?: true; handUse?: true; before: string[] }
     | {
-          // バウンス待機状態の続き。**移動はすでに済んでいて、残りの誘発だけ**を後へ送る。
-          // 戻ったカードはもうフィールドに無いので、誘発に渡すインスタンスをそのまま持ち回る
+          // 戻す待機のカードを移した後の通知（バーストとしてセットした）の続き。移動はすでに済んでいる
           kind: "bounceFlush"
           moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true }[]
           index: number
+      }
+    | {
+          // 戻す待機の誘発の列が選択待ちで止まったときの続き。列を解決し終えたら、この出来事でまだ戻す待機のカードを移す
+          kind: "returnMove"
+          event: string // CardInstance.waiting.event
+          order?: string[] // 移す順（instanceId）。好きな順番でデッキに戻す効果
       }
     | {
           // ネクサスの破壊処理（＞６）の続き。誘発が中断したときに、
