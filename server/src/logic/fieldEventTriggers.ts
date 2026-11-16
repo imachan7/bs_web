@@ -578,6 +578,7 @@ export function fireFieldEventTriggers(
                 actionSelf: selfOverride.inst,
                 actionTargetId,
                 srcColors: instColors(inst),
+                srcInstanceId: inst.instanceId,
                 srcType: getCard(inst.cardId).type,
                 // self（イベントの主語）と発生源が違うので、発生源のカードも明示的に渡す（名前・召喚時効果の印・「〜の効果で」の記録）
                 srcCardId: inst.cardId,
@@ -708,6 +709,7 @@ export function fireFieldEventTriggers(
                 ...(returnGuard !== undefined ? { requiresReturnWaitingOf: returnGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
+                ...(c.srcInstanceId !== undefined ? { sourceInstanceId: c.srcInstanceId } : {}),
                 ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
                 ...(c.srcCardId !== undefined ? { sourceCardId: c.srcCardId } : {}),
                 ...confirmPromptIfOptional(state, e.inst, e.effect.optional),

@@ -409,6 +409,7 @@ export type ResumeFrame =
           levelRecheck?: { instanceId: string; effectId: string }
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
+          sourceInstanceId?: string // 発生源の個体。再開時はこの個体の今の色で判定する（集めた時点の色を焼き付けない。#579）。見つからないときだけ sourceColors を使う
           sourceType?: CardType // 発生源の種別（同上）
           sourceCardId?: string // 発生源のカード（同上。名前と召喚時効果の印・「〜の効果で」の記録に使う）
           // 解決の直前に対象の付け替え（magicTargetRedirect）を掛け直す。誘発を同時発揮の列から解決するとき、
