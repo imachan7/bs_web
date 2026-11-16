@@ -29,11 +29,6 @@
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
-### 進行中：#573 エンドステップのトラッシュ→手札を誘発の列へ（2026-11-16 ユーザー確認。`fix/endstep-trash-return`）
-
-- `trashReturnAtEndStep` を PhaseManager の後処理から外し、`fireStepTriggers(state,"end")` の列に入れる（解決順はターンプレイヤーが決める）。解決は `resolveAction(…, {type:"trashReturnToHandInternal", cardId}, …, sourceType=カードの種類, …, sourceCardId)` で、発生源が立ち `notifyHandGained` が飛ぶ（獣の氷窟Lv2 が反応する）。中断は既存の再開スタックに乗る（後処理の二重実行が起きない）
-- maxCount（同じカードは何枚まで）は今のまま。テスト part963
-
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
 - 実測（直近30日）：Cloud Run の稼働 92.9 時間（無料枠は月約50時間）。対戦開始 1,626 件の 88% が AI戦。AI戦をサーバーから外せば、接続を張るのは対人戦だけになる
