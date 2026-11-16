@@ -3,6 +3,7 @@ import { isWaiting } from "./waiting"
 import { noteCoverage } from "../coverage"
 
 import type {
+    ConstraintDef,
     EffectAction,
     CardData,
     CardInstance,
@@ -495,6 +496,21 @@ export interface DirectAttackFilter {
     targetMaxCost?: number // 指定時は相手スピリットのコストがこれ以下のもののみ指定できる（EX006輝星龍ジークヴルム・デネブ：コスト4以下）
 }
 
+// canDirectAttack の定義から対象条件を組む。forced＝相手の効果で指定が決まっている個体（mustBeAttackTarget）
+export function directAttackFilterOf(
+    constraint: Extract<ConstraintDef, { type: "canDirectAttack" }>,
+    forced: string[],
+): DirectAttackFilter {
+    const filter: DirectAttackFilter = { targetFilter: constraint.targetFilter }
+    if (forced.length > 0) filter.onlyInstanceIds = forced
+    if (constraint.targetMinBp !== undefined) filter.targetMinBp = constraint.targetMinBp
+    if (constraint.targetMinCost !== undefined) filter.targetMinCost = constraint.targetMinCost
+    if (constraint.targetMaxCost !== undefined) filter.targetMaxCost = constraint.targetMaxCost
+    if (constraint.targetCombinedOnly) filter.targetCombinedOnly = true
+    if (constraint.targetHighestBp) filter.targetHighestBp = true
+    return filter
+}
+
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
 export function directAttackFilter(
     board: Board,
@@ -507,14 +523,7 @@ export function directAttackFilter(
     if (!constraint || constraint.type !== "canDirectAttack" || (constraint.firstAttackOfTurnOnly && board.attacksThisTurn > 0)) {
         return forced.length > 0 ? { targetFilter: "any", onlyInstanceIds: forced } : null
     }
-    const filter: DirectAttackFilter = { targetFilter: constraint.targetFilter }
-    if (forced.length > 0) filter.onlyInstanceIds = forced
-    if (constraint.targetMinBp !== undefined) filter.targetMinBp = constraint.targetMinBp
-    if (constraint.targetMinCost !== undefined) filter.targetMinCost = constraint.targetMinCost
-    if (constraint.targetMaxCost !== undefined) filter.targetMaxCost = constraint.targetMaxCost
-    if (constraint.targetCombinedOnly) filter.targetCombinedOnly = true
-    if (constraint.targetHighestBp) filter.targetHighestBp = true
-    return filter
+    return directAttackFilterOf(constraint, forced)
 }
 
 // ---- 維持コア ----

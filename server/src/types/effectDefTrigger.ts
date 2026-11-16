@@ -24,6 +24,7 @@ export type EffectDefTrigger =
           levels: number[] | null
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           whileCombined?: true
+          separateEffect?: true // 『』の見出しの区切り。このエントリから別の見出しの効果になる（BS13-049イリテバンが借りる単位。2026-11-16 ユーザー確認）
           combinedBraveColors?: Color[] // 合体中のブレイヴのいずれかがこの色を持つとき（多色は1色でも該当。2026-09-07確認）
           action: EffectAction
           optional: boolean // 「〜できる」＝任意。interactiveTargetsでは発動確認を出す

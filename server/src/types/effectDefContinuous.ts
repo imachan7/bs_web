@@ -24,6 +24,7 @@ export type EffectDefContinuous =
           kind: "constraint"
           levels: number[] | null
           whileCombined?: true
+          separateEffect?: true // 『』の見出しの区切り（triggered と同じ。BS13-049イリテバンが借りる単位）
           whileSpirit?: true // ブレイヴがスピリット状態（単独）のときだけ。whileCombinedの逆
           whileOwnBurstSet?: true
           condition?: AuraCondition
