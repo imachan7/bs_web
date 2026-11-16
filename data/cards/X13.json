@@ -1216,7 +1216,75 @@
    }
   ],
   "braveConditionText": "コスト4以上",
-  "effects": [],
+  "effects": [
+   {
+    "id": "X13-15-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "chooseActionMode",
+     "chooser": "opponent",
+     "modes": [
+      {
+       "label": "ライフに置く",
+       "actions": [
+        {
+         "type": "if",
+         "cond": {
+          "count": "opponentReserve",
+          "atLeast": 1
+         },
+         "then": {
+          "type": "sequence",
+          "actions": [
+           {
+            "type": "removeCores",
+            "side": "opponent",
+            "from": [
+             "reserve"
+            ],
+            "to": "life",
+            "count": 1
+           },
+           {
+            "type": "chooseActionMode",
+            "modes": [
+             {
+              "label": "ライフに置く",
+              "actions": [
+               {
+                "type": "removeCores",
+                "side": "own",
+                "from": [
+                 "reserve"
+                ],
+                "to": "life",
+                "count": 1
+               }
+              ]
+             },
+             {
+              "label": "置かない",
+              "actions": []
+             }
+            ]
+           }
+          ]
+         }
+        }
+       ]
+      },
+      {
+       "label": "置かない",
+       "actions": []
+      }
+     ]
+    }
+   }
+  ],
   "braveCondition": {
    "minCost": 4
   }

@@ -10720,6 +10720,30 @@
   "effect": "【バースト：相手による自分のスピリット破壊後】\nこのバースト発動時にBP7000以上のスピリットが破壊されていたら、このスピリットカードを召喚する。\nこの効果発揮後、自分の手札か自分のトラッシュにある、カード名に「ロード・ドラゴン」と入っているスピリットカード1枚を召喚できる。\nLv2･Lv3『自分のアタックステップ』\nカード名に「ロード・ドラゴン」と入っている自分のスピリットすべてをBP+2000する。",
   "effects": [
     {
+      "id": "X013-e1",
+      "kind": "burst",
+      "event": "ownSpiritDestroyed",
+      "byOpponentEffectOnly": true,
+      "destroyedMinBp": 7000,
+      "action": {
+        "type": "sequence",
+        "actions": [
+          {
+            "type": "summon",
+            "from": "burst"
+          },
+          {
+            "type": "summon",
+            "from": "hand",
+            "count": 1,
+            "upTo": true,
+            "alsoFrom": "trash",
+            "nameIncludes": "ロード・ドラゴン"
+          }
+        ]
+      }
+    },
+    {
       "id": "X013-e2",
       "kind": "aura",
       "levels": [

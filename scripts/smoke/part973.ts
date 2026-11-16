@@ -47,8 +47,7 @@ scenario({
         opp: { spirits: [{ card: VANILLA, label: "弱", rested: true }, { card: BALLOON, label: "控え" }] },
     },
     steps(t) {
-        t.act("me", { type: "attack", instanceId: t.id("オーバーレックス") })
-        settle(t, true, "弱")
+        t.act("me", { type: "attack", instanceId: t.id("オーバーレックス"), targetSpiritInstanceId: t.id("弱") })
         t.closeFlash()
         settle(t)
     },
@@ -70,8 +69,7 @@ scenario({
         opp: { spirits: [{ card: VANILLA, label: "弱", rested: true }, { card: BALLOON, label: "控え" }] },
     },
     steps(t) {
-        t.act("me", { type: "attack", instanceId: t.id("オーバーレックス") })
-        settle(t, true, "弱")
+        t.act("me", { type: "attack", instanceId: t.id("オーバーレックス"), targetSpiritInstanceId: t.id("弱") })
         t.closeFlash()
         settle(t)
     },
@@ -92,8 +90,7 @@ scenario({
         opp: { spirits: [{ card: LEO, label: "レオ", cores: 2 }] },
     },
     steps(t) {
-        t.act("me", { type: "attack", instanceId: t.id("オーバーレックス") })
-        settle(t, true, "レオ")
+        t.act("me", { type: "attack", instanceId: t.id("オーバーレックス"), targetSpiritInstanceId: t.id("レオ") })
         t.closeFlash()
         settle(t)
     },
@@ -125,6 +122,20 @@ scenario({
         "相手.ライフ: 5 → 4",
         "相手.リザーブ: 10 → 11",
     ],
+})
+
+// 「必ず」：指定できる相手のスピリットがいるのに、指定なしのアタックは拒否される
+scenario({
+    name: "x13-13 指定なしは拒否",
+    start: {
+        phase: "attack",
+        me: { spirits: [{ card: OVER, label: "オーバーレックス", cores: 3 }] },
+        opp: { spirits: [{ card: VANILLA, label: "弱", rested: true }] },
+    },
+    steps(t) {
+        t.actRejected("me", { type: "attack", instanceId: t.id("オーバーレックス") })
+    },
+    expect: [],
 })
 
 console.log("=== X13-16 バースト：相手による自分のスピリット破壊後（自分のスピリットの色が2色以上のとき召喚） ===")
@@ -284,9 +295,10 @@ scenario({
     },
     steps(t) {
         t.act("me", { type: "attack", instanceId: t.id("マナカ") })
-        settle(t, true, "覇皇")
+        if (t.state.pendingChoice?.kind === "target") t.act("me", { type: "resolveChoice", instanceId: t.id("覇皇") })
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
+        settle(t, false) // 相手のセット済みバーストの発動確認は見送る（バーストはセットされたまま）
     },
     expect: [
         "自分.マナカ.疲労: false → true",

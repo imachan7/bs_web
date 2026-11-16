@@ -32,7 +32,9 @@ function settle(t: ScenarioCtx, answers: boolean | boolean[] = true, prefer?: st
         const pc = t.state.pendingChoice
         const side = pc.pid === t.me ? "me" : "opp"
         const yes = list[Math.min(i, list.length - 1)]
-        if (!yes) t.act(side, { type: "resolveChoice" })
+        // 「〜できる」をモードの選択（chooseActionMode）で出す効果は、見送りも選択肢の「置かない」で答える
+        const decline = pc.options?.find((o) => o === "置かない")
+        if (!yes) t.act(side, decline ? { type: "resolveChoice", option: decline } : { type: "resolveChoice" })
         else if (pc.kind === "card") t.act(side, { type: "resolveChoice", cardIndex: 0 })
         else if (pc.options?.length) t.act(side, { type: "resolveChoice", option: pc.options[0] as string })
         else if (prefer) t.act(side, { type: "resolveChoice", instanceId: t.id(prefer) })
@@ -41,8 +43,8 @@ function settle(t: ScenarioCtx, answers: boolean | boolean[] = true, prefer?: st
 }
 
 console.log("=== X13-15 合体アタック時：相手はコア1個をライフに置ける／置かれたとき自分もライフに置ける ===")
-// 合体の結果（スピリット状態のブレイヴがホストに載り、コアはリザーブへ戻る。ホストのBPは+2000）
-const combined = ["自分.マジカルハンマー.場所: フィールド → 合体", "自分.マジカルハンマー.コア: 1 → 0", "自分.風船魔人.BP: 5000 → 7000", "自分.風船魔人.疲労: false → true"]
+// 合体の結果（スピリット状態のブレイヴがホストに載り、コアはホストへ移る。ホストのBPは+2000）
+const combined = ["自分.マジカルハンマー.場所: フィールド → 合体", "自分.マジカルハンマー.コア: 1 → 0", "自分.風船魔人.コア: 1 → 2", "自分.マジカルハンマー.BP: 2000 → なし", "自分.風船魔人.BP: 5000 → 7000", "自分.風船魔人.疲労: false → true"]
 const hammerStart = (oppReserve = 10) => ({
     phase: "main" as const,
     interactive: true,
@@ -60,28 +62,28 @@ scenario({
     name: "x13-15 両方置く",
     start: hammerStart(),
     steps: (t) => hammerAttack(t, true),
-    expect: [...combined, "相手.ライフ: 5 → 6", "相手.リザーブ: 10 → 9", "自分.ライフ: 5 → 6", "自分.リザーブ: 10 → 11"],
+    expect: [...combined, "相手.ライフ: 5 → 6", "相手.リザーブ: 10 → 9", "自分.ライフ: 5 → 6", "自分.リザーブ: 10 → 9"],
 })
 // 起きない：相手が置かない（Q21818）→ 自分も置けない
 scenario({
     name: "x13-15 相手が置かない",
     start: hammerStart(),
     steps: (t) => hammerAttack(t, false),
-    expect: [...combined, "自分.リザーブ: 10 → 11"],
+    expect: [...combined],
 })
 // 相手が置いても、自分は置かないこともできる
 scenario({
     name: "x13-15 相手が置き自分は置かない",
     start: hammerStart(),
     steps: (t) => hammerAttack(t, [true, false]),
-    expect: [...combined, "相手.ライフ: 5 → 6", "相手.リザーブ: 10 → 9", "自分.リザーブ: 10 → 11"],
+    expect: [...combined, "相手.ライフ: 5 → 6", "相手.リザーブ: 10 → 9"],
 })
 // 起きない：相手のリザーブにコアが無く、置けない → 「置かれたとき」は起きない
 scenario({
     name: "x13-15 相手のリザーブが空",
     start: hammerStart(0),
     steps: (t) => hammerAttack(t, false),
-    expect: [...combined, "自分.リザーブ: 10 → 11"],
+    expect: [...combined],
 })
 // 起きない：合体せずにアタックした（【合体時】の効果）
 scenario({
@@ -150,15 +152,14 @@ scenario({
     steps: intiSteps([true, false]),
     expect: [...intiBlockerDestroyed, ...intiSummoned, "自分.リザーブ: 10 → 11"],
 })
-// 起きない：破壊されたのはBP1000（不発。手札の召喚もしない）
+// 起きない：破壊されたのはBP1000（条件を満たさないのでバーストは発動できず、セットされたまま残る。確認も出ない）
 scenario({
     name: "x013 バースト BP7000未満",
     start: intiStart([{ card: VANILLA, label: "ブロッカー" }]),
     steps: intiSteps(true),
     expect: [
         "自分.ブロッカー.場所: フィールド → なし",
-        "自分.トラッシュ: なし → ロクケラトプス、黄金皇ロード・ドラゴン・インティ",
-        "自分.バースト: 黄金皇ロード・ドラゴン・インティ → なし",
+        "自分.トラッシュ: なし → ロクケラトプス",
         "自分.リザーブ: 10 → 11",
         "相手.攻撃.疲労: false → true",
     ],
@@ -170,8 +171,7 @@ scenario({
     steps: intiSteps(true),
     expect: [
         "自分.ブロッカー.場所: フィールド → なし",
-        "自分.トラッシュ: なし → ロクケラトプス、黄金皇ロード・ドラゴン・インティ",
-        "自分.バースト: 黄金皇ロード・ドラゴン・インティ → なし",
+        "自分.トラッシュ: なし → ロクケラトプス",
         "自分.リザーブ: 10 → 11",
         "相手.攻撃.疲労: false → true",
     ],
