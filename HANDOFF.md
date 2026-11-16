@@ -29,6 +29,11 @@
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
+### 進行中：#567「回復したとき」の再確認（2026-11-16 確定。`fix/refreshed-trigger-recheck`）
+
+- `requiresRestedOf?: string` を `requiresRestStateOf?: { instanceId; rested: boolean }` に置き換え、`restedGuard` を「疲労したとき」＝rested:true／`ownSpiritRefreshed`・`anySpiritRefreshed`＝rested:false に広げる（Q230 の対称。2026-11-15 ユーザー裁定）。判定は skip と choice.ts の再開の2か所で同じ式
+- テストは part961（回復→同じ列で再疲労→フォートレスキューブ不発／対照：回復のまま→発揮）
+
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
 - 実測（直近30日）：Cloud Run の稼働 92.9 時間（無料枠は月約50時間）。対戦開始 1,626 件の 88% が AI戦。AI戦をサーバーから外せば、接続を張るのは対人戦だけになる
