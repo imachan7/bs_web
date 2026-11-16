@@ -296,7 +296,8 @@ export function suspend(state: GameState, choice: PendingChoice): void {
     const withBurst: PendingChoice = src?.burst && src.cardId !== undefined && withCard.burst === undefined ? { ...withCard, burst: { pid: src.pid, cardId: src.cardId } } : withCard
     const withScope = state.recordScope !== undefined && withBurst.recordScope === undefined ? { ...withBurst, recordScope: state.recordScope } : withBurst
     const withLeave: PendingChoice = state.waitingEvent !== undefined && withScope.waitingEvent === undefined ? { ...withScope, waitingEvent: state.waitingEvent } : withScope
-    state.pendingChoice = state.flashEffect && withLeave.flashEffect === undefined ? { ...withLeave, flashEffect: true } : withLeave
+    const withEffect: PendingChoice = src?.effectId !== undefined && withLeave.effectId === undefined ? { ...withLeave, effectId: src.effectId } : withLeave
+    state.pendingChoice = state.flashEffect && withEffect.flashEffect === undefined ? { ...withEffect, flashEffect: true } : withEffect
     // 新しい中断の始まり。ここから積まれるフレームは、既にスタックにある古いフレームより前に入る
     state.resumeInsertAt = 0
     if (DEBUG_CHECKS) suspendFingerprint = boardFingerprint(state)
@@ -364,7 +365,8 @@ export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void 
     const burst = state.currentEffectSource
     for (const frame of frames) {
         const f = frame.kind === "action" && frame.burst === undefined && burst?.burst && burst.cardId !== undefined ? { ...frame, burst: { pid: burst.pid, cardId: burst.cardId } } : frame
-        const g = f.kind === "action" && f.waitingEvent === undefined && state.waitingEvent !== undefined ? { ...f, waitingEvent: state.waitingEvent } : f
+        const g0 = f.kind === "action" && f.waitingEvent === undefined && state.waitingEvent !== undefined ? { ...f, waitingEvent: state.waitingEvent } : f
+        const g = g0.kind === "action" && g0.effectId === undefined && burst?.effectId !== undefined ? { ...g0, effectId: burst.effectId } : g0
         state.resumeStack.splice(state.resumeInsertAt++, 0, g)
     }
 }

@@ -1,6 +1,6 @@
 // 場にある1枚の個体 CardInstance（コア・疲労・合体・期間つきの印など）
 import type { EffectDef } from "./effectDef"
-import { PlayerId, Color, CardType, LevelDef, DestroyContext, ImmuneSource } from "../type"
+import { PlayerId, Color, CardType, LevelDef, DestroyContext, ImmuneSource, EffectAction } from "../type"
 
 // 盤面インスタンス（可変）。data.md 6.2 に対応
 export interface CardInstance {
@@ -170,9 +170,24 @@ export type WaitingState =
     // context：その破壊の発生源など（「フィールドに残る」の判定と、破壊時効果の条件が読む）。
     // skipRevive：「フィールドに残る」を見ない（復活を断った後の破壊）。
     // burstInfo：破壊後バースト用に、破壊直前（まだ場にいてコアも乗っている時点）で確定させた値。トラッシュ行きの確定で読む
-    | { kind: "destroy"; event: string; context?: DestroyContext; skipRevive?: true; burstInfo?: DestroyBurstInfo }
-    | { kind: "vanish"; event: string; byOpponent?: true; burstInfo?: DestroyBurstInfo }
+    | { kind: "destroy"; event: string; context?: DestroyContext; skipRevive?: true; burstInfo?: DestroyBurstInfo; effectId?: string; derived?: DerivedDestroy; nexus?: DerivedNexusDestroy }
+    | { kind: "vanish"; event: string; byOpponent?: true; burstInfo?: DestroyBurstInfo; effectId?: string; derived?: DerivedDestroy }
     // resolving＝誘発の列を始めた（flushBounces が付ける）。列が選択待ちで止まっている間に flushBounces がもう一度呼ばれても、列を始め直さない
     | { kind: "return"; event: string; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true; resolving?: true }
+
+// 効果の中で待機に入った破壊・消滅が、効果の出口（derivedSettle）で列を集めるために持つ控え。effectId は出口で集めたら消す
+export type DerivedDestroy = {
+    context?: DestroyContext
+    options?: { skipRevive?: true; allowSuspend?: true; suppressOnDestroy?: true; includeFushi?: boolean }
+    wasAttacker: boolean
+    bySpiritEffect: boolean
+    byOpponentEffect: boolean
+    sourceInstanceId?: string
+    // 同時破壊で持ち主が選んだ「戻す体」（destroyGroup.pickMany）。出口で合わせて復活判定に渡す
+    pickMany?: Record<string, string[]>
+}
+
+// ネクサスの破壊が、効果の出口で列を集めるために持つ控え（after＝破壊した側の「破壊したとき〜」）
+export type DerivedNexusDestroy = { byOpponentEffect: boolean; after?: { actorPid: PlayerId; action: EffectAction } }
 
 export type DestroyBurstInfo = { byOpponentEffect: boolean; bp: number; sourceType?: CardType }

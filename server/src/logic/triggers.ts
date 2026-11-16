@@ -205,7 +205,7 @@ export function revertDestroyGroupUsage(state: GameState, instanceId: string, ef
     const g = state.destroyGroup
     if (!g) return
     const key = `${instanceId}:${effectId}`
-    const at = g.used.indexOf(key)
+    const at = g.used.findIndex((k) => k === key || k.endsWith(`|${key}`))
     if (at !== -1) g.used.splice(at, 1)
 }
 

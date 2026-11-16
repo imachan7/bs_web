@@ -9,6 +9,7 @@ import { doSummonFromTegamoto } from "./tegamotoSummon"
 import { tryBraveFreeSummon } from "./braveFreeSummon"
 import { exSymbolsOfTrashCard, findSokuFreeSummonSource, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
+import { settleAllDerived } from "./derivedSettle"
 import {
     clearBattle,
     coresForLevel,
@@ -152,7 +153,7 @@ function settleAfterResolution(state: GameState): void {
     separateBravesBelowMinCost(state)
     separateBravesOverLimit(state)
     // バウンス待機カードは選択待ちが無くなった時点で手札／デッキへ移す。resolveAction を通らない経路（エンドステップのデッキ下戻し・召喚時の入れ替え）の安全網
-    if (!state.pendingChoice) flushBounces(state)
+    if (!state.pendingChoice) settleAllDerived(state)
     // 【迷彩】の支払い済み目印は、払った効果の解決（中断含む）が終わるまで持ち、次の効果へ持ち越さない
     if (!state.pendingChoice) delete state.meisaiPaidFor
     if (!state.pendingChoice) delete state.summonSurchargePaid

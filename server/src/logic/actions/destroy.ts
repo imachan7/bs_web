@@ -732,9 +732,10 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 ? state.players[pid].field.nexuses.filter(matchesIn(pid)).length
                 : action.count
             for (let i = s === (prog?.s ?? 0) ? (prog?.i ?? 0) : 0; i < iterations; i++) {
-                const cands = action.levelFilter !== undefined || action.filter !== undefined
+                // 効果の中で待機に入ったネクサスは、場に残っていても次の対象にしない
+                const cands = (action.levelFilter !== undefined || action.filter !== undefined
                     ? state.players[pid].field.nexuses.filter(matchesIn(pid))
-                    : [...state.players[pid].field.nexuses]
+                    : [...state.players[pid].field.nexuses]).filter((n) => !isTrashWaiting(n))
                 let nexus: CardInstance | undefined
                 if (picked !== undefined) {
                     nexus = cands.find((n) => n.instanceId === picked)

@@ -10509,7 +10509,7 @@
         },
         "then": {
           "type": "placeCores",
-          "from": "destroyed",
+          "from": "paidSpirit",
           "to": "life",
           "count": 1
         }

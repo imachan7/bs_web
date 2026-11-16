@@ -162,12 +162,15 @@ export function destroyCombinedBraves(state: GameState, ownerPid: PlayerId, targ
         host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
         if (host.braveRefs.length === 0) delete host.braveRefs
         delete brave.braveCombined
-        brave.waiting = { kind: "destroy", event }
+        // 効果の中なら、列と確定は効果の出口（derivedSettle）。待機に入れる（スピリットとの参照・合体の印は今切る）
+        const effectId = context?.effectId ?? state.currentEffectSource?.effectId
+        brave.waiting = { kind: "destroy", event, ...(effectId !== undefined ? { effectId } : {}) }
         const name = getCard(brave.cardId).name
         log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${name}」は破壊された。`)
         emitEvent(state, { type: "destroy", pid: ownerPid, cardName: name })
     }
     refreshLevelAsOverrides(state)
+    if (first.brave.waiting?.kind === "destroy" && first.brave.waiting.effectId !== undefined) return
     resumeBraveDestroy(state, { kind: "braveDestroy", ownerPid, event, phase: "triggers" })
 }
 

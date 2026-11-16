@@ -25,7 +25,8 @@ import type {
 import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, noteMissedPayAsk, opponentOf, suspend } from "./GameState"
 // shared/ の純粋述語。外部が EffectModules 経由で import しているため、再エクスポートで名前を残す
 // triggers.ts とは相互 import になる（CommonJS の循環 require で安全）
-import { destroySpirit, flushBounces } from "./removal"
+import { destroySpirit } from "./removal"
+import { settleDerived, hasPendingFramesOfEffect } from "./derivedSettle"
 import { wouldDeplete, soulCoreLeavesField, soulCoreInReserve, moveSoulCore, soulCoreOnInstance, normalReserveOf, normalCoresOn } from "./soulCore"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import ACTION_HANDLERS from "./actions"
@@ -1400,6 +1401,10 @@ export function resolveAction(
     const selfIsSource = self !== null && (sourceCardId === undefined || sourceCardId === self.cardId)
     if (self !== null && selfIsSource && action.type !== "pay" && action.type !== "summonSequence") markSummonEffectResolved(state, self)
     const opp = opponentOf(owner)
+    // 効果の id。一番外側の効果が発行し、入れ子はそれを引き継ぐ。中断からの再開は resumeEffectId で同じ効果の続きになる
+    // （derivedSettle：効果の中で待機に入ったカードの列は、この id の効果が終わってから解決する）
+    const effectId = state.currentEffectSource?.effectId ?? state.resumeEffectId ?? crypto.randomUUID()
+    if (state.currentEffectSource === undefined) delete state.resumeEffectId
     const sourceName = self ? getCard(selfIsSource ? self.cardId : sourceCardId!).name : "効果"
     const srcColors = sourceColors ?? (self ? instColors(self) : undefined)
     // マジック効果耐性判定用のカード種別（マジックは self=null なので、呼び出し側=resolveMagic が明示的に"magic"を渡す）
@@ -1417,6 +1422,7 @@ export function resolveAction(
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する
     const destroyContext: DestroyContext = {
+        effectId,
         sourcePid: owner,
         ...(srcType !== undefined ? { sourceType: srcType } : {}),
         // 発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用）
@@ -1472,6 +1478,7 @@ export function resolveAction(
         (outerEffectSource?.burst === true && self === null && owner === outerEffectSource.pid && srcCardId === outerEffectSource.cardId) ||
         (outerEffectSource === undefined && resumed !== undefined && self === null && owner === resumed.pid && (srcCardId === undefined || srcCardId === resumed.cardId))
     state.currentEffectSource = {
+        effectId,
         ...(inBurst ? { burst: true as const } : {}),
         pid: owner,
         ...(srcType !== undefined ? { type: srcType } : {}),
@@ -1502,10 +1509,10 @@ export function resolveAction(
             refreshLevelAsOverrides(state)
         }
     }
-    // バウンス待機状態のカードを、**この効果の解決が終わった時点で**まとめて手札／デッキへ移す
-    // （Wiki「バウンスについて」：待機中の「戻るとき」効果は割り込まず、解決後に発揮する）。
-    // 選択待ちで中断している間はまだ解決が終わっていないので、待機のまま残す
-    if (!state.pendingChoice) flushBounces(state)
+    // 効果の中で待機に入った破壊・消滅と、戻す待機のカードの誘発・確定は、この効果が終わってから解決する
+    // （Wiki「バウンスについて」・Q26091。docs/design/DERIVED_AFTER_EFFECT.md）。
+    // 選択待ちで止まっている間、同じ効果の続きのフレームが残っている間は、まだ終わっていない
+    if (isOutermostEffect && !state.pendingChoice && !hasPendingFramesOfEffect(state, effectId) && state.holdDerivedFor !== effectId) settleDerived(state, effectId)
 
 }
 

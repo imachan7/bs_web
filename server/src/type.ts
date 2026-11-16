@@ -199,6 +199,7 @@ export interface EndStepLock {
 
 // 破壊の発生源コンテキスト（省略可）。復活系効果（reviveOnDestroy）が参照する。
 export interface DestroyContext {
+    effectId?: string // 破壊を起こした効果の id。あれば待機に入れるだけで、列の解決と確定は効果の出口（derivedSettle.settleDerived）
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
     sourceType?: CardType
     trashedCount?: number // この破壊で実際にトラッシュへ置かれた体数（removal.ts の commitPendingDestruction が数える。手札へ戻った個体・トークンは数えない。BS22-073 Q25205）

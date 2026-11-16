@@ -38,6 +38,7 @@ import surchargePay from "./surchargePay"
 import moveCards from "./moveCards"
 import designate from "./designate"
 import token from "./token"
+import { settleDerivedHandler } from "../derivedSettle"
 import bunshin from "../keywords/bunshin"
 import declare from "./declare"
 import fireEffect from "./fireEffect"
@@ -59,6 +60,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...exhaustRefresh,
     ...grant,
     ...life,
+    settleDerived: settleDerivedHandler,
     magicMirrorRepeat: magicMirrorRepeatHandler,
     resumeMagicEntry: resumeMagicEntryHandler,
     resumeMagicAfterEffects: resumeMagicAfterEffectsHandler,

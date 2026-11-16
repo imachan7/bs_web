@@ -465,16 +465,19 @@ function kyoshuSelfPayable(state: GameState, owner: PlayerId, action: Extract<Ef
 // then が払ったスピリットの値（合計コスト・色）を要るか（BS11-076 の budget.atLeast・X13-17-e3 の CardPick）
 function needsPaidSpirit(then: EffectAction): boolean {
     return (then.type === "destroy" && then.budget?.atLeast === "paidCost") ||
+        (then.type === "placeCores" && then.from === "paidSpirit") ||
         (then.type === "activateBurstIgnoringCondition" && (then.filter?.maxCostAsPaid === true || then.filter?.sameColorAsPaid === true))
 }
 
 // 払うスピリットの値。合体中はブレイヴを含む合計コストと、ブレイヴの色を含む色（instBaseCost・instColors）
-function paidValuesOf(inst: CardInstance): { cost: number; colors: Color[] } {
-    return { cost: instBaseCost(inst), colors: instColors(inst) }
+function paidValuesOf(inst: CardInstance): { cost: number; colors: Color[]; instanceId: string } {
+    return { cost: instBaseCost(inst), colors: instColors(inst), instanceId: inst.instanceId }
 }
 
 // 払ったスピリットの値を then に入れる。"paidCost"・maxCostAsPaid・sameColorAsPaid を数値・色へ置き換えるのはここだけ
-function bindPaidValues(then: EffectAction, paid: { cost: number; colors: Color[] }): EffectAction {
+function bindPaidValues(then: EffectAction, paid: { cost: number; colors: Color[]; instanceId: string }): EffectAction {
+    // 払ったスピリットは破壊待機のまま場に残っている。そのコアを instanceId で指して渡す（効果の出口までコアは乗ったまま）
+    if (then.type === "placeCores" && then.from === "paidSpirit") return { ...then, from: "destroyed", fromInstanceId: paid.instanceId }
     if (then.type === "destroy" && then.budget?.atLeast === "paidCost") return { ...then, budget: { ...then.budget, atLeast: paid.cost } }
     if (then.type === "activateBurstIgnoringCondition" && then.filter !== undefined) {
         const { maxCostAsPaid, sameColorAsPaid, ...rest } = then.filter

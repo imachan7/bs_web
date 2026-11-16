@@ -7,6 +7,7 @@ import { isSelfInBattle, magicEffectiveColors } from "../../../../shared/cost"
 import { magicConditionFailure } from "../../../../shared/magicCondition"
 import { effectSources } from "../../../../shared/rules"
 import { resolveAction } from "../EffectModules"
+import { hasPendingFramesOfEffect, settleDerived } from "../derivedSettle"
 import { markPayConfirmed } from "../actions/pay"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { setTargetRedirect } from "./redirect"
@@ -212,6 +213,11 @@ export function runMagicActions(
     // 税を課されているときは、同じタイミングの効果をまとめて1回だけ払わせるため、集めてから解決する
     const taxed = hasEffectTax(state, owner, "magic")
     const collected: EffectAction[] = []
+    // エントリは別々に解決するが、1枚のマジックの効果は1つ。破壊・戻すの派生は、全エントリを解決し終えてから解決する
+    const effectId = crypto.randomUUID()
+    const prevHold = state.holdDerivedFor
+    state.holdDerivedFor = effectId
+    try {
     for (let i = 0; i < effects.length; i++) {
         const effect = effects[i]
         if (!effect || !matches(effect)) continue
@@ -223,14 +229,16 @@ export function runMagicActions(
             collected.push(markPayConfirmed(effect.action))
             continue
         }
+        state.resumeEffectId = effectId
         runMagicEntryAction(state, owner, card, effect, targetInstanceId)
+        delete state.resumeEffectId
         if (state.pendingChoice) {
             // 残りのエントリは、解決時の条件・ターンに1回・色と種別の受け渡しも含めて、エントリごとに解決し直す
             // （以前は中身のアクションだけを積んでいて、2つ目の「〜とき」が再開で素通りしていた。BS13-080）
             const remaining = effects.slice(i + 1).filter(matches)
             pushResumeFrames(
                 state,
-                remaining.map((e) => ({ kind: "action" as const, selfInstanceId: null, action: { type: "resumeMagicEntry" as const, cardId, effectId: e.id } })),
+                remaining.map((e) => ({ kind: "action" as const, selfInstanceId: null, action: { type: "resumeMagicEntry" as const, cardId, effectId: e.id }, effectId })),
             )
             // 選択待ちで抜けるときも絞り込みは持ち越さない（選択の解決は別のアクションとして走る）
             delete state.magicRedirectTo
@@ -247,6 +255,11 @@ export function runMagicActions(
     }
     // 対象の絞り込みはこのマジックの解決中だけ有効（誘発効果には及ぼさない）
     delete state.magicRedirectTo
+    } finally {
+        if (prevHold !== undefined) state.holdDerivedFor = prevHold
+        else delete state.holdDerivedFor
+    }
+    if (!state.pendingChoice && !hasPendingFramesOfEffect(state, effectId)) settleDerived(state, effectId)
 }
 
 // 「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
