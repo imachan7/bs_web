@@ -25,6 +25,7 @@ import { countedAmount } from "../counted"
 import { recordCores, recordEmptiedSpirits, recordLeftCost, recordMoved, lastEmptiedSpiritsOf } from "../record"
 import { canPayLife, lifeCostQuery, lifeLossAllowed, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import { kyokaBonus } from "../keywords/kyoka"
+import { isTrashWaiting } from "../../../../shared/rules/waiting"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
 type Zone = "spirit" | "nexus" | "reserve" | "trash" | "life"
@@ -492,7 +493,10 @@ function pickAutoSource(state: GameState, candidates: RemoveSource[], hurting: b
         const inKind = candidates.filter((c) => c.kind === kind)
         if (inKind.length === 0) continue
         if (kind !== "spirit") return inKind[0]!
-        return inKind.reduce((best, c) =>
+        // 破壊待機中のスピリットから取っても損にならないので、ほかに候補があれば自動選択では選ばない（対話では選べる）
+        const live = inKind.filter((c) => !(c.inst && isTrashWaiting(c.inst)))
+        const pool = live.length > 0 ? live : inKind
+        return pool.reduce((best, c) =>
             hurting
                 ? (sourceCoresOf(state, c) < sourceCoresOf(state, best) ? c : best)
                 : (sourceCoresOf(state, c) > sourceCoresOf(state, best) ? c : best),

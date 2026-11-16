@@ -863,7 +863,8 @@
     "action": {
      "type": "removeCores",
      "count": 1,
-     "countCounter": "opponentFieldColors"
+     "countCounter": "opponentFieldColors",
+     "target": "spread"
     }
    }
   ]
@@ -1083,7 +1084,8 @@
      "then": {
       "type": "removeCores",
       "count": 3,
-      "to": "reserve"
+      "to": "reserve",
+      "target": "spread"
      }
     }
    },
@@ -4111,7 +4113,8 @@
     "optional": false,
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    }
   ],
@@ -5407,7 +5410,8 @@
        ],
        "to": "trash",
        "count": 1,
-       "countCounter": "lastMoved"
+       "countCounter": "lastMoved",
+       "target": "spread"
       }
      ]
     }

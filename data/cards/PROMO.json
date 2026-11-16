@@ -414,7 +414,8 @@
           "count": 1,
           "filter": {
             "rested": true
-          }
+          },
+          "target": "spread"
         }
       }
     ]
@@ -2099,7 +2100,8 @@
                 "cost": {
                   "max": 4
                 }
-              }
+              },
+              "target": "spread"
             }
           ]
         }
@@ -2479,7 +2481,8 @@
             "spirit"
           ],
           "to": "void",
-          "count": 1
+          "count": 1,
+          "target": "spread"
         }
       }
     ]
@@ -7394,7 +7397,8 @@
             "nexus"
           ],
           "to": "trash",
-          "count": 1
+          "count": 1,
+          "target": "spread"
         }
       },
       {

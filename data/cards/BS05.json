@@ -5406,7 +5406,8 @@
     "action": {
      "type": "removeCores",
      "to": "void",
-     "count": 2
+     "count": 2,
+     "target": "spread"
     }
    }
   ]
