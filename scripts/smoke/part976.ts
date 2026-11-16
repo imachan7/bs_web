@@ -37,11 +37,14 @@ const confirm = (t: ScenarioCtx, side: Side, yes: boolean) => {
     const hit = pc.options.find((o) => (yes ? /はい|する|払|発動/ : /いいえ|しない|しません/).test(o) && (yes ? !/しない|しません/.test(o) : true))
     t.act(side, { type: "resolveChoice", option: hit ?? (yes ? pc.options[0] : pc.options[pc.options.length - 1]) ?? "" })
 }
-// 発動後の「コストを支払ってください」。出ていれば既定（リザーブ）から払う
-const payIfAsked = (t: ScenarioCtx, side: Side) => {
+// 発動後の「コストを支払ってください」。出ていれば「支払う」で答え、from のスピリット（戻した待機中のカード）のコアから払う。
+// 支払い元を省くと自動で払うため、ケイのコアから払われてしまう（§8：待機中のカードのコアも払える）
+const payIfAsked = (t: ScenarioCtx, side: Side, from?: string) => {
     const pc = t.state.pendingChoice
-    // 「コストNを支払ってください」は選択肢「支払う」で答える（支払い元を省くとリザーブから払う）
-    if (pc && /支払/.test(pc.prompt) && !/スピリットを選んで/.test(pc.prompt)) t.act(side, { type: "resolveChoice", option: "支払う" })
+    if (pc && /支払/.test(pc.prompt) && !/スピリットを選んで/.test(pc.prompt)) {
+        const need = pc.effectCostPay?.need ?? 0
+        t.act(side, { type: "resolveChoice", option: "支払う", ...(from !== undefined ? { paySources: [{ instanceId: t.id(from), count: need }] } : {}) })
+    }
 }
 const answer = (t: ScenarioCtx, side: Side, label: string) => t.act(side, { type: "resolveChoice", instanceId: t.id(label) })
 const oppStart = (reserve = 10) => [`相手.リザーブ: ${reserve} → ${reserve + 1}`, "相手.デッキ枚数: 40 → 39", "相手.手札: なし → ロクケラトプス"]
@@ -196,7 +199,7 @@ scenario({
         t.actRejected("me", { type: "resolveChoice", instanceId: t.id("G") }) // 白は赤のバーストと色が合わない
         answer(t, "me", "M")
         confirm(t, "me", true)
-        payIfAsked(t, "me") // 武威煌炎刃：発動後に「コストを支払うことでフラッシュ効果」。戻した M のコア1個から払う
+        payIfAsked(t, "me", "M") // 武威煌炎刃：発動後に「コストを支払うことでフラッシュ効果」。戻した M のコア1個から払う
     },
     expect: ["自分.M.場所: フィールド → なし", "自分.トラッシュのコア: 0 → 1", "自分.デッキ枚数: 40 → 41", "自分.バースト: 武威煌炎刃 → なし", "自分.トラッシュ: なし → 武威煌炎刃",
         "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし", "相手.リザーブ: 10 → 13", "相手.デッキ枚数: 40 → 39", "相手.手札: なし → ロクケラトプス",
@@ -271,7 +274,7 @@ if (CHAIN_MARKED) scenario({
     expect: ["自分.A.疲労: false → true", "自分.B.疲労: false → true", "相手.手札: コールオブディープ → なし", "相手.トラッシュ: なし → コールオブディープ",
         "相手.リザーブ: 10 → 7", "相手.トラッシュのコア: 0 → 3"],
 })
-// ケイ Lv3 エンドステップ：ターン1回。次のターンのエンドステップにはまた出る（1体のまま）
+// ケイ Lv3 エンドステップ：ターン1回。次のターンのエンドステップにはまた出る（1体のまま）。支払いは戻した M・M2 のコアから（§8）。2回目の自分のターン開始でトラッシュのコア1個がリザーブへ戻るので、トラッシュ1・リザーブ2
 scenario({
     name: "kei-Lv3-次のターンのエンドステップにもう一度発動できる",
     start: { interactive: true,
@@ -282,20 +285,20 @@ scenario({
         confirm(t, "me", true)
         answer(t, "me", "M")
         confirm(t, "me", true)
-        payIfAsked(t, "me")
+        payIfAsked(t, "me", "M")
         t.act("opp", { type: "endTurn" })
         t.act("me", { type: "setBurst", handIndex: 0 })
         t.act("me", { type: "endTurn" })
         confirm(t, "me", true)
         answer(t, "me", "M2")
         confirm(t, "me", true)
-        payIfAsked(t, "me")
+        payIfAsked(t, "me", "M2")
     },
-    expect: ["自分.M.場所: フィールド → なし", "自分.M2.場所: フィールド → なし", "自分.リザーブ: 0 → 1", "自分.トラッシュのコア: 0 → 2", "自分.デッキ枚数: 40 → 41", "自分.手札: 武威煌炎刃 → ロクケラトプス",
+    expect: ["自分.M.場所: フィールド → なし", "自分.M2.場所: フィールド → なし", "自分.リザーブ: 0 → 2", "自分.トラッシュのコア: 0 → 1", "自分.デッキ枚数: 40 → 41", "自分.手札: 武威煌炎刃 → ロクケラトプス",
         "自分.バースト: 武威煌炎刃 → なし", "自分.トラッシュ: なし → 武威煌炎刃、武威煌炎刃", "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし",
         "相手.リザーブ: 10 → 14", "相手.デッキ枚数: 40 → 38", "相手.手札: なし → ロクケラトプス、ロクケラトプス", "相手.トラッシュ: なし → バーサーカー・ガン、ロクケラトプス"],
 })
-// Q18941：合体したスピリットを戻すなら、ホスト＋ブレイヴの合計コスト以下のバーストを発動できる（烈光閃刃はコスト4。メタルバーン単体はコスト3で届かない）
+// 支払い（2）はホストのコアから（§8）。残りの1個はリザーブへ。Q18941：合体したスピリットを戻すなら、ホスト＋ブレイヴの合計コスト以下のバーストを発動できる（烈光閃刃はコスト4。メタルバーン単体はコスト3で届かない）
 const combinedKei = (combine: boolean) => ({ interactive: true,
     me: { reserve: 0, burst: BURST_BS14, spirits: [{ card: KEI, label: "ケイ", cores: 3 }, { card: METAL, label: "M" }, ...(combine ? [{ card: SHOGORS, label: "ブレイヴ", cores: 2 }] : [])] },
     opp: { spirits: [{ card: RED, label: "R" }, { card: WHITE, label: "W" }] } })
@@ -307,15 +310,16 @@ scenario({
         t.act("me", { type: "endTurn" })
         confirm(t, "me", true)
         answer(t, "me", "M")
-        // BRAVE.md §6.3.2：ブレイヴを残さなければ、ホストと同じデッキの下へ行く
-        t.act("me", { type: "resolveChoice" })
         confirm(t, "me", true)
-        payIfAsked(t, "me")
+        payIfAsked(t, "me", "M")
+        // BRAVE.md §6.3.2：支払いで M が場を離れると、ブレイヴを残すかの確認が出る。残さない（スキップ）と、ホストと同じデッキの下へ行く
+        if (t.state.pendingChoice?.braveKeep !== undefined) t.act("me", { type: "resolveChoice" })
     },
     expect: ["自分.M.場所: フィールド → なし", "自分.ブレイヴ.場所: フィールド → なし", "自分.デッキ枚数: 40 → 42", "自分.バースト: 烈光閃刃 → なし",
-        "自分.トラッシュ: なし → 烈光閃刃", "自分.トラッシュのコア: 0 → 3", "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし", "相手.リザーブ: 10 → 13",
+        "自分.トラッシュ: なし → 烈光閃刃", "自分.トラッシュのコア: 0 → 2", "自分.リザーブ: 0 → 1", "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし", "相手.リザーブ: 10 → 13",
         "相手.デッキ枚数: 40 → 39", "相手.手札: なし → ロクケラトプス", "相手.トラッシュ: なし → バーサーカー・ガン、ロクケラトプス"],
 })
+// 支払いは戻したケイのコアから（§8）。バーストで破壊した M は「その後」の時点でまだトラッシュに無いので手札に戻らず、トラッシュへ行く。
 // 合体していない M（コスト3）は払う候補に入らない。「このスピリット以外」と書かれていないのでケイ自身（コスト6・6色）は入り、候補が1体なのでそのまま戻る
 scenario({
     name: "kei-Lv3-合体していないメタルバーン（コスト3）はコスト4のバーストに届かず、払えるのはケイ自身だけ",
@@ -324,10 +328,10 @@ scenario({
         t.act("me", { type: "endTurn" })
         confirm(t, "me", true)
         confirm(t, "me", true)
-        payIfAsked(t, "me")
+        payIfAsked(t, "me", "ケイ")
     },
-    expect: ["自分.ケイ.場所: フィールド → なし", "自分.デッキ枚数: 40 → 41", "自分.M.場所: フィールド → なし", "自分.手札: なし → メタルバーン", "自分.バースト: 烈光閃刃 → なし",
-        "自分.トラッシュ: なし → 烈光閃刃", "自分.トラッシュのコア: 0 → 4", "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし", "相手.リザーブ: 10 → 13",
+    expect: ["自分.ケイ.場所: フィールド → なし", "自分.デッキ枚数: 40 → 41", "自分.M.場所: フィールド → なし", "自分.バースト: 烈光閃刃 → なし",
+        "自分.トラッシュ: なし → メタルバーン、烈光閃刃", "自分.トラッシュのコア: 0 → 2", "自分.リザーブ: 0 → 2", "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし", "相手.リザーブ: 10 → 13",
         "相手.デッキ枚数: 40 → 39", "相手.手札: なし → ロクケラトプス", "相手.トラッシュ: なし → バーサーカー・ガン、ロクケラトプス"],
 })
 

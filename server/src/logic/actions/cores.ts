@@ -32,6 +32,7 @@ import {
 } from "../EffectModules"
 import { canDiscardHand, coreIntakeRefused, effectiveBp, matchesFamilyFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+import { isVanishWaiting } from "../../../../shared/rules/waiting"
 import { countedAmount } from "../counted"
 import { kyokaBonus } from "../keywords/kyoka"
 
@@ -110,7 +111,8 @@ const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, act
             }
             const before = state.players[pid].field.spirits.length
             removeCores(state, pid, inst, 1, owner, srcType)
-            if (state.players[pid].field.spirits.length < before) destroyed++
+            // 効果の中の消滅は待機に入るだけで場に残るので、待機に入ったものも数える
+            if (state.players[pid].field.spirits.length < before || isVanishWaiting(inst)) destroyed++
         }
         log(
             state,

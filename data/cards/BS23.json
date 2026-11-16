@@ -4418,6 +4418,9 @@
        }
       },
       {
+       "type": "settleDerived"
+      },
+      {
        "type": "if",
        "cond": {
         "last": {}

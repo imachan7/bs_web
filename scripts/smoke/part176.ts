@@ -115,7 +115,6 @@ console.log("=== タイダルタイド：自分のネクサスを好きなだけ
     act(s, "p1", { type: "resolveChoice", instanceId: n1.instanceId })
     act(s, "p1", { type: "resolveChoice", instanceId: n2.instanceId })
     assert(act(s, "p1", { type: "resolveChoice" }) === null, "2つ選んで確定する")
-    assert(s.players.p1.field.nexuses.length === 1, "選んだ2つだけ破壊され、1つは残る（好きなだけ）")
     assert(s.pendingChoice?.pid === "p2", "破壊する1体を選ぶのは相手")
     assert(s.pendingChoice?.actorPid === "p1", "解決は発生源の持ち主の効果として行う")
 
@@ -123,6 +122,7 @@ console.log("=== タイダルタイド：自分のネクサスを好きなだけ
     assert(s.pendingChoice?.pid === "p2", "ネクサス2つぶんなので、もう1体選ばせる")
     assert(act(s, "p2", { type: "resolveChoice", instanceId: giveB }) === null, "2体目を相手が選ぶ")
     assert(s.pendingChoice === null, "2体で終わる（破壊したネクサス数と同じ）")
+    assert(s.players.p1.field.nexuses.length === 1, "選んだ2つだけ破壊され、1つは残る（好きなだけ。確定は効果の後）")
     assert(alive(s, "p2", keep), "残す1体は相手が決められる")
 }
 

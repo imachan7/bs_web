@@ -567,6 +567,9 @@
               }
             },
             {
+              "type": "settleDerived"
+            },
+            {
               "type": "if",
               "cond": {
                 "event": {

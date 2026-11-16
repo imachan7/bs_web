@@ -85,11 +85,15 @@ export interface GameState {
     // （fieldEvent.sourceColorFilter）。ドローステップのドローやコアステップのコア置きのような
     // **効果によらない**動きでは undefined のままなので、それだけで「効果によるものか」を区別できる。
     // 詳細は docs/design/EFFECT_SOURCE_CONTEXT.md
-    currentEffectSource?: { pid: PlayerId; type?: CardType; colors?: Color[]; instanceId?: string; cardId?: string; burst?: true } // burst：バースト効果そのものを解決している間だけ立つ（バースト効果で召喚されたスピリット自身の効果には引き継がない。EFFECT_GATE.md §4 2b）。instanceIdはresolveActionのself（発生源インスタンス）が確定しているときだけ載る（BS15共通器：BS15-042オリンピアの天使アラトロンLv2「そのスピリットを相手のデッキの下に戻す」＝デッキ破棄を起こしたスピリット自身を特定するために使う）
+    currentEffectSource?: { effectId?: string; pid: PlayerId; type?: CardType; colors?: Color[]; instanceId?: string; cardId?: string; burst?: true } // burst：バースト効果そのものを解決している間だけ立つ（バースト効果で召喚されたスピリット自身の効果には引き継がない。EFFECT_GATE.md §4 2b）。instanceIdはresolveActionのself（発生源インスタンス）が確定しているときだけ載る（BS15共通器：BS15-042オリンピアの天使アラトロンLv2「そのスピリットを相手のデッキの下に戻す」＝デッキ破棄を起こしたスピリット自身を特定するために使う）
     // 直近の coresGainedFromVoid で増えたコアの置き場所（voidGainedCores が読む）。同じ効果で両陣営に増えたときは後のもの
     lastCoresGained?: { gainerPid: PlayerId; places: { where: "reserve" | "life" | "instance"; instanceId?: string; n: number }[] }
     // 選択待ち・再開フレームから再開した直後の解決だけが読む。バースト効果の文脈を resolveAction に戻すための橋
     resumeBurst?: { pid: PlayerId; cardId: string }
+    // 中断した効果の effectId。再開した最初の resolveAction が引き継ぐ（resumeBurst と同じ橋。引き継いだら消す）
+    resumeEffectId?: string
+    // この id の効果は、出口で派生を解決しない（複数エントリのマジックを1つの効果として最後に解決する。magic/resolve.ts が立てる）
+    holdDerivedFor?: string
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     lastOpponentSpiritDestroyedFamilies: string[] // 直近に発火した fieldEvent "opponentSpiritDestroyed" の対象（破壊された相手のスピリット）の系統。

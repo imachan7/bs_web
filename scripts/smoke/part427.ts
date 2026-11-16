@@ -181,11 +181,12 @@ console.log("=== 10. destroyNexus upTo：1つ選んだあとで止められる =
     s.players.p2.field.nexuses.push(n1, n2)
     resolveAction(s, "p1", null, destroyNexusAction)
     assert(handleAction(s, "p1", { type: "resolveChoice", instanceId: n1.instanceId }) === null, "1つ目を選ぶ")
-    assert(!s.players.p2.field.nexuses.some((n) => n.instanceId === n1.instanceId), "選んだネクサスは破壊された")
+    assert(s.pendingChoice?.candidates.includes(n1.instanceId) === false, "選んだネクサスは破壊待機に入り、次の候補に残らない")
     assert(s.players.p2.field.nexuses.some((n) => n.instanceId === n2.instanceId), "残りはまだ破壊されていない")
     assert(s.pendingChoice !== null && s.pendingChoice.prompt.includes("あと1つ"), "残り1つぶんの選択が立ち直す")
     assert(handleAction(s, "p1", { type: "resolveChoice" }) === null, "残りは選ばずに終える")
     assert(s.players.p2.field.nexuses.some((n) => n.instanceId === n2.instanceId), "スキップしたので2つ目は破壊されないまま")
+    assert(!s.players.p2.field.nexuses.some((n) => n.instanceId === n1.instanceId), "選んだネクサスは効果が終わってトラッシュへ")
 }
 
 console.log("=== 11. destroyNexus upTo：候補1つでも自動解決せず聞く ===")

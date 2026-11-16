@@ -41,6 +41,7 @@ export interface PendingChoice {
     pid: PlayerId // 選択するプレイヤー
     recordScope?: string
     waitingEvent?: string // 中断した時点の GameState.waitingEvent（再開で戻す）
+    effectId?: string // 中断した効果の id（再開で GameState.resumeEffectId へ戻す）
     burst?: { pid: PlayerId; cardId: string } // 中断した効果がバースト効果そのものだったか（再開時に GameState.resumeBurst へ戻す）
     flashEffect?: true // 中断した効果がフラッシュ効果だったか（再開時に GameState.flashEffect へ戻す）
     confirmTargetInstanceId?: string // confirm を承認したら resolveAction に渡す効果の対象（イベント対象）
@@ -387,6 +388,7 @@ export type ResumeFrame =
           // この効果を誘発した待機の出来事（GameState.waitingEvent へ戻す）。null＝誘発の入口が「無し」と明示した／未指定＝pushResumeFrames が積む時点の state から写す
           waitingEvent?: string | null
           burst?: { pid: PlayerId; cardId: string } // 積んだ時点でバースト効果そのものを解決中だった
+          effectId?: string // 積んだ時点で解決中だった効果の id。同じ id のフレームが残るあいだは、その効果の派生を解決しない（derivedSettle）
           // ここから下は fieldEvent 誘発の残りを積むときに使う（2026-08-17）。
           // fieldEvent は「self＝イベント対象／発生源＝エントリを持つカード」がずれることがあり、
           // 発生源の色・種別を渡さないと装甲やマジック効果耐性の判定が self 側から導出されて誤る
@@ -474,6 +476,7 @@ export type ResumeFrame =
           // このバッチが始まる前の state.destroyGroup（入れ子の破壊があっても正しく戻すため。
           // 完了時に state.destroyGroup へ書き戻す）
           prevGroup?: GameState["destroyGroup"]
+          settle?: true // 効果の出口での列の解決（derivedSettle）。破壊した数は効果の中で数え済みなので、確定時に数え直さない
           deferBurst?: true // バトルの破壊。破壊後バーストはバトル解決の step 5 で発動する（#536）
           after?: {
               // 全体を破壊し終えたあとの処理（破壊できた数を使うもの）

@@ -512,7 +512,7 @@ export function fireFieldEventTriggers(
             // 「残る」で待機でなくなっても、次の破壊誘発元の項目が発揮する。断った／不発なら revertDestroyGroupUsage で戻す
             const groupOnce =
                 (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") && state.destroyGroup && effect.perDestroyed !== true
-                    ? `${inst.instanceId}:${effect.id}`
+                    ? `${selfOverride?.inst.waiting?.event ?? ""}|${inst.instanceId}:${effect.id}` // 出来事ごとに1回（効果の出口で別の出来事が1本の列に並ぶ）
                     : undefined
             // 「この効果は重複しない」：同じ持ち主の同名の発生源の同じ効果idが、この出来事で既に候補に入っていたら出さない
             if (effect.noStackByName) {

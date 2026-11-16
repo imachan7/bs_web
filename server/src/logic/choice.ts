@@ -83,9 +83,11 @@ export function doResolveChoice(
     if (state.pendingChoice?.flashEffect) state.flashEffect = true
     const prevBurst = state.resumeBurst
     if (state.pendingChoice?.burst) state.resumeBurst = state.pendingChoice.burst
+    if (state.pendingChoice?.effectId !== undefined) state.resumeEffectId = state.pendingChoice.effectId
     try {
         return resolveChoiceInner(state, ...rest)
     } finally {
+        delete state.resumeEffectId
         if (prevBurst) state.resumeBurst = prevBurst
         else delete state.resumeBurst
         if (prev) state.flashEffect = true
@@ -921,6 +923,8 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         const prevBurst = state.resumeBurst
         if (frame.burst) state.resumeBurst = frame.burst
         else delete state.resumeBurst
+        if (frame.effectId !== undefined) state.resumeEffectId = frame.effectId
+        else delete state.resumeEffectId
         if (frame.redirectTarget) setTargetRedirect(state, frame.actorPid ?? pid, frame.targetInstanceId, frame.action)
         // 発生源は個体が今も居るなら、その個体の今の色で判定する（#579。集めた時点の色は使わない）
         const srcInst = frame.sourceInstanceId !== undefined ? findInstanceAnywhere(state, frame.sourceInstanceId) : undefined
@@ -937,6 +941,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             undefined,
             frame.sourceCardId,
         )
+        delete state.resumeEffectId
         if (frame.redirectTarget) delete state.magicRedirectTo
         if (prevBurst) state.resumeBurst = prevBurst
         else delete state.resumeBurst

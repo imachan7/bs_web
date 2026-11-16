@@ -6,9 +6,10 @@ import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
 import type { CardInstance, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { coresForLevel, getCard, log, opponentOf } from "../GameState"
+import { coresForLevel, findInstanceAnywhere, getCard, log, opponentOf } from "../GameState"
 import {
     countEffectCounter,
+    destroySpirit,
     fireFieldEventTriggers,
     placeCoresOnSpirit,
     requestChoice,
@@ -106,6 +107,8 @@ function takeFromSource(
             if (!self) return 0
             const taken = Math.min(amount, normalCoresOn(player, self))
             self.cores -= taken
+            // 破壊待機のまま残っているスピリットのコアが0になったら消滅へ切り替わる（enterDestroyWaiting）
+            if (taken > 0 && self.cores === 0 && player.field.spirits.includes(self)) destroySpirit(state, owner, self.instanceId, "deplete")
             return taken
         }
         case "field": {
@@ -209,6 +212,8 @@ function placeCoresSpread(ctx: ActionCtx, action: PlaceCoresAction): void {
 
 const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, wide) => {
     if (!isLegacyPlaceCores(wide)) return placeCoresGather(ctx, wide)
+    // pay が払ったスピリットを instanceId で渡された形。取り元の「破壊されたスピリット」はその個体
+    if (wide.from === "destroyed" && wide.fromInstanceId !== undefined) return placeCoresLegacy({ ...ctx, self: findInstanceAnywhere(ctx.state, wide.fromInstanceId) ?? null }, wide)
     return placeCoresLegacy(ctx, wide)
 }
 

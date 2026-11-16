@@ -7124,6 +7124,9 @@
         }
        },
        {
+        "type": "settleDerived"
+       },
+       {
         "type": "summon",
         "from": "burst"
        }

@@ -772,6 +772,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `applyDeckPolicy`（fn）：カードデータの limited / limitCount を、上のポリシーに沿って上書きしたコピーを返す。
 
+## server/src/logic/derivedSettle.ts
+
+- `hasPendingFramesOfEffect`（fn）：この効果の続きがまだ再開スタックに残っているか（残っているあいだは効果が終わっていない）
+- `pendingEffectIds`（fn）：待機に effectId が残っているカードの id を全部（安全網。resolveAction を通らなかった経路の取りこぼしを拾う）
+- `settleAllDerived`（fn）
+- `settleDerived`（fn）：戻り値は、列を解決し終えて実際にトラッシュに置かれたスピリットの数（列が選択待ちで止まったときは 0。区切りの後の数え直しは未対応）
+- `settleDerivedHandler`（const）
+
 ## server/src/logic/destroyGate.ts
 
 - `DestroyDenialQuery`（型）
@@ -1063,7 +1071,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `isInCurrentBattle`（fn）
 - `recordDestroysOf`（fn）
+- `DestroyEntry`（型）：破壊（消滅）の待機に入ったカード1体ぶんの控え。列の項目を集めるのに使う
+- `isDerived`（fn）：効果の中で待機に入った（列の解決と確定は効果の出口。derivedSettle）
 - `destroySpirit`（fn）：引数の意味は enterDestroyWaiting のコメント。同時破壊は destroyTargetsBatch を使う
+- `grantedFamilies`（fn）：付与された系統も含む（破壊待機中はまだ場にいるので、場を離れる直前の状態を読める。2026-10-31 ユーザー決定）
+- `commitOrDefer`（fn）：同時破壊グループの体は、全員の誘発を解決し終えるまで破壊待機のまま場に居る（TIMING_CHART §1.5）。
 - `resumeDestroyCommit`（fn）
 - `flushCoreDestinations`（fn）：pendingCoreDestinations を先頭から1件ずつ確認に出す（flushBraveKeeps と同じ形。ブレイヴを残す確認より先）
 - `applyCoreDestination`（fn）：選ばれた行き先へコアを置く。行き先の個体が場を離れていたらリザーブへ（コアを消さない）
@@ -1074,9 +1086,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyHandFreeSummon`（fn）：確認を出したあとに手札から失われていた場合は何もしない
 - `resolveHandFreeSummonOnDestroy`（fn）：破壊で誘発した効果の列に並んだ「〜が破壊されたときコストを支払わずに召喚できる」1枚分。
 - `destroyTargetsBatch`（fn）：同時破壊。選択待ちで止まったら destroyBatch フレームに続きを預けて返るので、
+- `runDestroyQueue`（fn）：待機に入った全員ぶんの誘発を1本の列で解決し、確定する。列が選択待ちで止まったら、確定は finish フレームに預ける
 - `resumeDestroyBatch`（fn）：state.destroyGroup は中断をまたいでそのまま（積み直すだけで触らない）
+- `restoreDestroyGroup`（fn）
 - `applyDestroyBatchAfter`（fn）：「この効果で破壊したスピリット1体につき」の後処理。
 - `destroyNexus`（fn）：ネクサスを破壊する。破壊耐性（nexusIndestructible）で不発なら false（呼び出し側はカウント・ドロー処理の可否を判定する）。
+- `driveNexusDestruction`（fn）：ネクサスの破壊処理（＞６）。この破壊で誘発するものは**すべて1つの列**に並べ、ターンプレイヤーが1つずつ選んで解決する
 - `resumeDestroyNexusCommit`（fn）
 - `commitPendingNexusDestruction`（fn）
 - `returnNexusToHand`（fn）：ネクサスを持ち主の手札へ戻す（バウンス）。破壊ではないため destroyNexus とは別処理
@@ -1347,6 +1362,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `CardInstance`（型）：盤面インスタンス（可変）。data.md 6.2 に対応
 - `WaitingState`（型）：kind は「何を待っているか」。destroy・vanish（維持コア割れ）はトラッシュ、return は to の場所へ移る。
+- `DerivedDestroy`（型）：効果の中で待機に入った破壊・消滅が、効果の出口（derivedSettle）で列を集めるために持つ控え。effectId は出口で集めたら消す
+- `DerivedNexusDestroy`（型）：ネクサスの破壊が、効果の出口で列を集めるために持つ控え（after＝破壊した側の「破壊したとき〜」）
 - `DestroyBurstInfo`（型）
 
 ## server/src/types/choice.ts
