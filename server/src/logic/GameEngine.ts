@@ -217,10 +217,12 @@ export function handleAction(
 // ⚠️ 判定は「破壊されたか」ではなく「場にいないか」（2026-08-23 ユーザー確認）。
 // 破壊されても場に残った場合と破壊待機中は、アタックを継続する。
 // ブロック宣言後は resolveBattle が面倒を見る（割り込むと＞５〜＞７の順序を壊す）。
+// アタック宣言後のフラッシュ①が閉じるまでは終わらせない（2026-11-16 ユーザー確認。公式Q22290。TIMING_CHART §1.8）。
 function endBattleIfAttackerLeftField(state: GameState): void {
     const battle = state.battle
     if (!battle || state.winner || state.pendingChoice) return
     if (battle.blockerInstanceId) return
+    if (battle.flashOneClosed !== true) return
     // 「場にいるか」は両者のフィールドで判定する（盤面を手で組んだテストはアタッカーを相手側に置くことがある）
     const attackerPid = state.turnPlayer
     const attackerAlive =
@@ -1275,10 +1277,8 @@ function doAttack(
     // アタック時・『バトル時』・アタックしたとき・アタッカーが疲労したときは同時発揮。続けてアタック後バースト（attackDeclared.ts）
     if (!state.winner) resolveAttackDeclared(state, pid, inst, targetSpiritInstanceId !== undefined)
     if (state.pendingChoice) return null
-    if (state.battle && !findSpirit(player, instanceId)) {
-        log(state, `${card.name}は消滅したため、バトルは発生しなかった。`)
-        clearBattle(state)
-    }
+    // アタック時の効果で場を離れてもフラッシュ①は行う（TIMING_CHART §1.8。2026-11-16 ユーザー確認）。
+    // バトルの終了は、フラッシュ①が閉じた後に endBattleIfAttackerLeftField が見る
 
     if (state.winner) state.battle = null
     return null
@@ -1732,6 +1732,8 @@ function doPass(state: GameState, pid: PlayerId): string | null {
             resolveDirectedBlock(state)
         }
         // ブロック未宣言なら isFlashTiming を下ろすのみ（ライフ受けはフラッシュ②を開かず宣言時に即解決するため、ここでは扱わない）
+        // ブロックされずに閉じたフラッシュ①の印（ブロックが確定した経路は blockerInstanceId が立っているので付かない）
+        if (state.battle && !state.battle.blockerInstanceId) state.battle.flashOneClosed = true
     }
     return null
 }
