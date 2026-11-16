@@ -269,7 +269,7 @@ export function assignPayCore(instanceId: string): void {
     // 【神速】召喚は基礎ルールではリザーブからのみ支払える。
     // sokuPaySourceGrant（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が許可した対象のみ例外
     // （判定はサーバー validateSummon と同一の共有実装）
-    if (view.isFlashTiming && card.type === "spirit" && (ownHandKeyword(view, cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))) {
+    if (view.isFlashTiming && (card.type === "spirit" || card.type === "brave") && (ownHandKeyword(view, cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))) {
         if (!sokuPayableInstanceIds(view, view.you).has(instanceId)) return
     }
     // payingRemaining（renderer）と同じ計算にすること。
