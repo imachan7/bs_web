@@ -7,7 +7,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { burstTenshoUnpayable } from "../keywords/tensho"
-import { fireRensaActivated, isRensaClause, rensaConditionIgnored } from "../keywords/rensa"
+import { fireRensaActivated, markRensa, rensaConditionIgnored } from "../keywords/rensa"
 import { createInstance, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice, requestCardChoice } from "../EffectModules"
 import { matchesPick } from "./revealAction"
@@ -305,12 +305,17 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
         return
     }
     // 【連鎖】の[色]の節が発揮したら、解決後に「【連鎖】が発揮したとき」を起こす（027・033）
-    const rensaColor = met && cond !== undefined && "count" in cond && typeof cond.count === "object" && "ownColorSymbols" in cond.count ? cond.count.ownColorSymbols : undefined
-    if (rensaColor !== undefined && self !== null && isRensaClause(state, owner, self, action)) {
-        ctx.resolve({ type: "sequence", actions: [branch, { type: "rensaActivated", color: rensaColor, drawFrom: state.drawCount?.[owner] ?? 0 }] })
+    if (action.rensa !== true) {
+        ctx.resolve(branch)
         return
     }
-    ctx.resolve(branch)
+    const rensaColor = met && cond !== undefined && "count" in cond && typeof cond.count === "object" && "ownColorSymbols" in cond.count ? cond.count.ownColorSymbols : undefined
+    // マジックは self が無く、「【連鎖】が発揮したとき」の誘発先も無い
+    if (rensaColor !== undefined && self !== null) {
+        ctx.resolve({ type: "sequence", actions: [markRensa(branch), { type: "rensaActivated", color: rensaColor, drawFrom: state.drawCount?.[owner] ?? 0 }] })
+        return
+    }
+    ctx.resolve(markRensa(branch))
 }
 
 // 器AK：発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める

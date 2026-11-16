@@ -46,6 +46,8 @@ export function ownTargetRedirect(
     }
     // バースト効果そのものは付け替えられない（Q23567）
     if (state.currentEffectSource?.burst === true) return ids
+    // 【連鎖】の部分も付け替えられない（Q23568）
+    if (action.rensa === true) return ids
     if (action.picked !== undefined || owner === holder || !state.interactiveTargets || ids.length < 2) return ids
     const source = findOwnTargetRedirectSource(state, holder, srcType)
     if (!source) return ids

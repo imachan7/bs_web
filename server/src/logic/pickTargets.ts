@@ -18,6 +18,7 @@ export interface PickProgress {
     choosing?: true
     chosenIds?: string[]
     picked?: PickedTargets
+    rensa?: true // 【連鎖】の節の中のアクション（keywords/rensa.ts の markRensa が付ける）
 }
 
 export interface PickOptions {
