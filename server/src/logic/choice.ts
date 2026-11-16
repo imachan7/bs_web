@@ -9,6 +9,7 @@ import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameAction, GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setWaitingEvent } from "./GameState"
 import { claimGroupOnce, groupOnceUsed, notifyHandGained, restStateHolds } from "./fieldEventTriggers"
+import { instColors } from "../../../shared/rules"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit, applyCoreDestination, flushCoreDestinations } from "./removal"
@@ -921,13 +922,16 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (frame.burst) state.resumeBurst = frame.burst
         else delete state.resumeBurst
         if (frame.redirectTarget) setTargetRedirect(state, frame.actorPid ?? pid, frame.targetInstanceId, frame.action)
+        // 発生源は個体が今も居るなら、その個体の今の色で判定する（#579。集めた時点の色は使わない）
+        const srcInst = frame.sourceInstanceId !== undefined ? findInstanceAnywhere(state, frame.sourceInstanceId) : undefined
+        const srcColors = srcInst ? instColors(srcInst) : frame.sourceColors
         resolveAction(
             state,
             frame.actorPid ?? pid,
             frameSelf,
             frame.action,
             frame.targetInstanceId,
-            frame.sourceColors,
+            srcColors,
             frame.sourceType,
             undefined,
             undefined,
