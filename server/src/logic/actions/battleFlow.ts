@@ -1310,10 +1310,8 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         const actions: EffectAction[] = []
         for (const entry of chosen.effects) {
             if (entry.kind === "constraint") {
-                // 連鎖の条件は借りるエントリごとに、発揮を組むときに見る（解決の直前には見直さない）
-                if (entry.condition !== undefined && !checkAuraCondition(state, owner, entry.condition, self)) continue
                 if (entry.constraint.type !== "canDirectAttack") continue
-                actions.push({ type: "directAttack", constraint: entry.constraint })
+                actions.push({ type: "directAttack", constraint: entry.constraint, ...(entry.condition !== undefined ? { condition: entry.condition } : {}) })
                 continue
             }
             // 結果連動型（アタック宣言の後に起きる出来事で発揮する）は、このバトルの間エントリごと与え、出来事が起きたら発揮する
@@ -1399,6 +1397,10 @@ const directAttackHandler: ActionHandler<"directAttack"> = (ctx, action) => {
         log(state, `${sourceName}：指定してアタックする相手を立てられなかった。`)
         return
     }
+    if (action.condition !== undefined && !checkAuraCondition(state, owner, action.condition, self)) {
+        log(state, `${sourceName}：条件を満たさないため、指定しなかった。`)
+        return
+    }
     const filter = directAttackFilterOf(action.constraint, mustBeAttackTargetIds(state, owner, self))
     const candidates = state.players[opp].field.spirits.filter(
         (t) => matchesDirectedAttackFilter(filter, t, state, opp, { pid: owner, inst: self }) === null,
@@ -1417,7 +1419,7 @@ const directAttackHandler: ActionHandler<"directAttack"> = (ctx, action) => {
             owner,
             `${sourceName}：指定してアタックする相手のスピリットを選んでください`,
             candidates.map((c) => c.instanceId),
-            { type: "directAttack", constraint: action.constraint },
+            { type: "directAttack", constraint: action.constraint, ...(action.condition !== undefined ? { condition: action.condition } : {}) },
             self,
         )
         return
