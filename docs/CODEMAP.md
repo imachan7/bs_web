@@ -777,7 +777,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasPendingFramesOfEffect`（fn）：この効果の続きがまだ再開スタックに残っているか（残っているあいだは効果が終わっていない）
 - `pendingEffectIds`（fn）：待機に effectId が残っているカードの id を全部（安全網。resolveAction を通らなかった経路の取りこぼしを拾う）
 - `settleAllDerived`（fn）
-- `settleDerived`（fn）
+- `settleDerived`（fn）：戻り値は、列を解決し終えて実際にトラッシュに置かれたスピリットの数（列が選択待ちで止まったときは 0。区切りの後の数え直しは未対応）
 - `settleDerivedHandler`（const）
 
 ## server/src/logic/destroyGate.ts
