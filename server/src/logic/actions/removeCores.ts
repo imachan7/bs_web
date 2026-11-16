@@ -35,12 +35,13 @@ type CountSpec = number | "all" | "toLowerLevel"
 // 【強化】（紫）でリザーブに置くコアが+1個になる条件。行き先がリザーブ（既定）で、スピリットから
 // 取る数値 count のときだけ（ライフのコア・行き先リザーブ以外・downTo／「1個残して残りすべて」は除く：Q759・Q761）。
 // from にライフが混ざる全体にも足さない（ライフのコアには効かないので、混在を個別に増やすのは複雑すぎる）
-export function removeCoresKyokaBonus(state: GameState, owner: PlayerId, action: RemoveCoresAction, srcType: CardType | undefined): number {
+export function removeCoresKyokaBonus(state: GameState, owner: PlayerId, action: RemoveCoresAction, srcType: CardType | undefined, targetPid?: PlayerId): number {
     if (action.kyokaSettled === true) return 0
     const from = action.from ?? ["spirit"]
     if ((action.to ?? "reserve") !== "reserve") return 0
-    // 行き先がリザーブからトラッシュに変わるなら+1しない（Q765）
-    if (action.side !== "own" && coresToOpponentReserveGoToTrash(state, opponentOf(owner), srcType)) return 0
+    // Q765：行き先が変わるのは相手のスピリットから取るときだけ。陣営を書かない除去は対象が決まってから見る（2026-11-16 ユーザー指示）
+    const takesOpponentsCore = targetPid !== undefined ? targetPid === opponentOf(owner) : action.side !== "own" && action.side !== "any"
+    if (takesOpponentsCore && coresToOpponentReserveGoToTrash(state, opponentOf(owner), srcType)) return 0
     // ponytail: すべてのスピリットから取る除去は Q760（追加の1個は1体からだけ）の分け方が要る。該当カードが出たら足す
     if (action.target === "all") return 0
     if (action.side === "own") return 0 // 自分のスピリットのコアを置くのは「相手へのコアシュート」ではない
@@ -51,11 +52,11 @@ export function removeCoresKyokaBonus(state: GameState, owner: PlayerId, action:
 }
 
 // countCounter を解決した後の count（typeof action.count === "number" のときだけ EffectCounter を適用）
-function resolvedCount(ctx: ActionCtx, action: RemoveCoresAction): CountSpec {
+function resolvedCount(ctx: ActionCtx, action: RemoveCoresAction, targetPid?: PlayerId): CountSpec {
     if (action.count === "any") return 0 // removeCoresHandler が数を決めてから入れ直すので、ここには来ない
     if (typeof action.count !== "number") return action.count
     const base = action.countCounter === undefined ? action.count : countedAmount(ctx.state, ctx.owner, ctx.self, action.count, action.countCounter, ctx.srcType)
-    return base + removeCoresKyokaBonus(ctx.state, ctx.owner, action, ctx.srcType)
+    return base + removeCoresKyokaBonus(ctx.state, ctx.owner, action, ctx.srcType, targetPid)
 }
 
 // 個体（スピリット／ネクサス）1体から取れる量。leaveAtLeast は個体上限、toLowerLevel は1つ下のLvのコア数まで
@@ -243,7 +244,7 @@ const resolveSelfTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         log(state, `${sourceName}のコア除去：対象がいなかった。`)
         return
     }
-    const count = resolvedCount(ctx, action)
+    const count = resolvedCount(ctx, action, owner)
     if (count === 0) {
         log(state, `${sourceName}のコア除去：カウントが0のため発動しなかった。`)
         return
@@ -269,7 +270,7 @@ const resolveEventTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => 
         log(state, `${sourceName}のコア除去：対象が見つからなかった。`)
         return
     }
-    const count = resolvedCount(ctx, action)
+    const count = resolvedCount(ctx, action, found.pid)
     if (count === 0) return
     const amount = amountFor(found.inst, count, action.leaveAtLeast)
     if (amount <= 0) return
@@ -384,6 +385,8 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
 
     // 払う確認で中断したら true。resume は「この1体の続きから」解決し直すアクション
     const applyOne = (pid: PlayerId, inst: CardInstance, resume: typeof action = action): boolean => {
+        // 対象が選ばれた後に数える（対象の陣営で Q765 の判定が変わる。選択前に数えた count は使わない）
+        const countFor = resolvedCount(ctx, action, pid)
         if (pid !== owner) {
             const attempt = attemptOf(ctx, "coreRemove", "targeted")
             if (askPayToNegateIfNeeded(state, pid, inst, attempt, continueWith(ctx, resume), self, sourceName)) return true
@@ -393,7 +396,7 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
                 return false
             }
         }
-        const amount = amountFor(inst, count, action.leaveAtLeast)
+        const amount = amountFor(inst, countFor, action.leaveAtLeast)
         if (amount <= 0) {
             log(state, `${sourceName}のコア除去：${getCard(inst.cardId).name}のコアは取り除けなかった。`)
             return false
@@ -607,7 +610,7 @@ const resolveSpread = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     // 自分のコアを失う側が選ぶか（損を小さく）、相手のコアを奪う側が選ぶか（痛手を大きく）
     const hurting = drainPid === undefined ? chooserPid === owner : chooserPid !== drainPid
 
-    const count = resolvedCount(ctx, action)
+    const count = resolvedCount(ctx, action, drainPid)
     if (count === 0) {
         log(state, `${sourceName}のコア除去：カウントが0のため発動しなかった。`)
         return
@@ -782,7 +785,7 @@ const removeCoresHandler: ActionHandler<"removeCores"> = (ctx, action0) => {
 // 「ライフは0にならない」が働いている間は払って0にできない（COST_MODEL §9。2026-09-16 ユーザー確定）
 function resolveLife(ctx: ActionCtx, action: RemoveCoresAction): void {
     const { state, owner, opp, sourceName, self } = ctx
-    const count = resolvedCount(ctx, action)
+    const count = resolvedCount(ctx, action, owner)
     const player = state.players[owner]
     if (action.side !== "own" || typeof count !== "number" || player.life < count || !canPayLife(state, lifeCostQuery(owner, count, self))) {
         log(state, `${sourceName}：ライフのコアを置けないため発動しなかった。`)
