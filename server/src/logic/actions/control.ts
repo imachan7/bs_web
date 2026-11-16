@@ -1,5 +1,6 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
+import { targetableSpirits } from "../targeting"
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { payMagicCostThenResolve } from "../magic/payThenResolve"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
@@ -481,7 +482,7 @@ const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx, action)
 // 色は指定した時点のiceWallColorsOfを固定値として保存する（後で【氷壁】が無効化されても保持。Q25026〜Q25028）
 const markUnblockableByIceWallColorThisTurnHandler: ActionHandler<"markUnblockableByIceWallColorThisTurn"> = (ctx) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
-    const candidates = state.players[owner].field.spirits.filter((inst) => spiritHasKeyword(state, owner, inst, "hyoheki"))
+    const candidates = targetableSpirits(state, owner, (inst) => spiritHasKeyword(state, owner, inst, "hyoheki"))
     if (candidates.length === 0) {
         log(state, `${sourceName}：【氷壁】を持つ自分のスピリットがいなかった。`)
         return

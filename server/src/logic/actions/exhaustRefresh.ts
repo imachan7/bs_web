@@ -1,5 +1,6 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { targetableSpirits, targetableNexuses } from "../targeting"
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
@@ -85,7 +86,7 @@ const exhaustBody: ActionHandler<"exhaust"> = (ctx, action) => {
         // 疲労状態も対象に選べる（2026-10-22 ユーザー裁定）が、「好きなだけ」では選んでも何も起きず記録にも入らない
         // （BS18-080 の BP 合計は実際に疲労させた分だけ）。聞き直しで同じ個体を選び続けられるので、候補から外す
         const matches = (s: CardInstance) => matchesTarget(state, owner, s, filter, self?.instanceId) && !action.excludeIds?.includes(s.instanceId)
-        const candidates = () => state.players[owner].field.spirits.filter((s) => matches(s) && !s.isRested)
+        const candidates = () => targetableSpirits(state, owner, (s) => matches(s) && !s.isRested)
         const ask = (picked?: string) =>
             requestUpToChoice(
                 state,
@@ -205,7 +206,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             }
             // 複数は全部選んでから疲労させる（pickTargets.ts）。自動選択は実効BP最小（コストとして失う損が小さい方）。
             // autoPickMaxBp は疲労させた個体のBPがそのまま得になる効果（BP+(疲労させたスピリットのBP)）用で、BP最大を選ぶ
-            const candidates = state.players[owner].field.spirits.filter(matchesOwn)
+            const candidates = targetableSpirits(state, owner, matchesOwn)
             let ids: string[] | null
             if (state.interactiveTargets) {
                 ids = pickTargets(ctx, action, { candidates: candidates.map((s) => s.instanceId), count: action.count, upTo: action.upTo === true, prompt: `${sourceName}：疲労させる自分のスピリットを選んでください`, verb: "疲労させる" })
@@ -454,7 +455,7 @@ function exhaustOwnNexus(ctx: ActionCtx, action: ExhaustNum): void {
         log(state, `${sourceName}：ネクサスを疲労させられないため発動しなかった。`)
         return
     }
-    const candidates = state.players[owner].field.nexuses.filter((n) => !n.isRested)
+    const candidates = targetableNexuses(state, owner, (n) => !n.isRested)
     if (candidates.length === 0) {
         log(state, `${sourceName}：疲労させられる自分のネクサスがなかった。`)
         return
@@ -600,14 +601,16 @@ export function refreshOneOwnCandidates(
     self: CardInstance | null,
     filter: import("../../type").ResolvedTargetFilter,
 ): CardInstance[] {
-    return state.players[owner].field.spirits.filter(
+    return targetableSpirits(
+        state,
+        owner,
         (s) => s.isRested && matchesTarget(state, owner, s, filter, self?.instanceId),
     )
 }
 
 const refreshOwnNexusHandler: ActionHandler<"refreshOwnNexus"> = (ctx, action) => {
     const { state, owner, self, sourceName, srcType, targetInstanceId } = ctx
-    const candidates = state.players[owner].field.nexuses.filter((n) => n.isRested && !isTrashWaiting(n))
+    const candidates = targetableNexuses(state, owner, (n) => n.isRested)
     if (candidates.length === 0) {
         log(state, `${sourceName}の回復：回復できる自分のネクサスがなかった。`)
         return
@@ -863,7 +866,9 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
         // どれを指定するかは発生源の持ち主が選ぶ（2026-09-02。PROCEDURES_AUDIT §5 の一般則）。
         // 非対話（テスト・AI）と候補1体のときは実効BP最大を自動選択する
         if (!self) return
-        const candidates = state.players[opp].field.spirits.filter(
+        const candidates = targetableSpirits(
+            state,
+            opp,
             (s) => s.isRested && !isResisted(state, opp, s, { ...attemptOf(ctx, "other", "targeted"), probing: true }),
         )
         if (candidates.length === 0) {
@@ -948,7 +953,7 @@ const exhaustOwnNexusesHandler: ActionHandler<"exhaustOwnNexuses"> = (ctx, actio
         }
     }
     if (!canExhaustNexus(state, owner)) return
-    const open = state.players[owner].field.nexuses.filter((n) => !n.isRested)
+    const open = targetableNexuses(state, owner, (n) => !n.isRested)
     if (state.interactiveTargets) {
         if (open.length > 0) requestUpToChoice(state, owner, `${sourceName}：疲労させる自分のネクサスを選んでください`, open.map((n) => n.instanceId), { ...action, started: true }, self)
         return

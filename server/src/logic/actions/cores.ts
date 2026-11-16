@@ -1,5 +1,6 @@
 // コア操作系のアクションハンドラ（相手のコアを取り除く・自分のコアを払う／動かす）。コアを置く系は coreGain.ts、ライフは life.ts、【転召】は tensho.ts
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { targetableSpirits } from "../targeting"
 import { coreGainBlocked, takeCoreGainAllowance } from "../coreGainCap"
 import { coreRemovalAllowed } from "../coreGate"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
@@ -345,7 +346,9 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
 const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     // 装甲・マジック効果耐性で効果を受けない個体は対象から外す（他のコア操作アクションと同じ扱い）
-    const candidates = state.players[opp].field.spirits.filter(
+    const candidates = targetableSpirits(
+        state,
+        opp,
         (s) =>
             !isResisted(state, opp, s, attemptOf(ctx, "coreRemove", "area")),
     )

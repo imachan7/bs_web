@@ -1,4 +1,5 @@
 // バウンス（手札・デッキ上へ戻す）アクションのハンドラと候補数の判定
+import { targetableSpirits } from "../targeting"
 import { canBeTargeted, isTrashWaiting } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { handGainDenial } from "../handGate"
@@ -274,7 +275,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
         // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
         const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
         const pool = own
-            ? state.players[owner].field.spirits.filter(ownMatchesBp)
+            ? targetableSpirits(state, owner, ownMatchesBp)
             : action.anySide
               ? pickAnySideCandidates(state, owner, matchesBp, srcColors, srcType, "bounce")
               : pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType, "bounce")
@@ -554,7 +555,7 @@ function returnAllTargetsToHand(
         const moved: string[] = []
         for (const pid of sides) {
             // returnSpiritToHand が field.spirits を破壊的に変更するため、対象をスナップショットしてから戻す
-            const targets = state.players[pid].field.spirits.filter((s) => {
+            const targets = targetableSpirits(state, pid, (s) => {
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instMatchesCostFilter(s, action.costFilter)) return false
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) return false
@@ -587,7 +588,7 @@ function returnAllMatchingToDeck(ctx: ActionCtx, action: DeckReturnAction, posit
             return
         }
         const targetPid = action.side === "own" ? owner : opp
-        const pool = state.players[targetPid].field.spirits.filter((s) =>
+        const pool = targetableSpirits(state, targetPid, (s) =>
             resolvedFilter === undefined || matchesTarget(state, targetPid, s, resolvedFilter, self?.instanceId),
         )
         const ordered = action.orderedIds ?? []
@@ -692,7 +693,7 @@ function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" 
         // anySide は自分側に耐性を挟まない。chooserIsTarget（BS07ブリシンガメンの首飾り）は戻される側が選び、解決は発生源の持ち主の効果
         const own = action.side === "own"
         const pool = own
-            ? state.players[owner].field.spirits.filter((s) => filterOk(owner, s))
+            ? targetableSpirits(state, owner, (s) => filterOk(owner, s))
             : (action.anySide
                   ? pickAnySideCandidates(state, owner, (s) => action.excludeIds?.includes(s.instanceId) !== true, srcColors, srcType, "bounce")
                   : pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce")
@@ -759,8 +760,10 @@ const returnToBurstHandler: ActionHandler<"returnToBurst"> = (ctx, action) => {
         return
     }
     const filter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
-    const candidates = player.field.spirits.filter(
-        (s) => canBeTargeted(state, s) && (filter === undefined || (filter !== SELF_REQUIRED && matchesTarget(state, owner, s, filter, self?.instanceId))),
+    const candidates = targetableSpirits(
+        state,
+        owner,
+        (s) => (filter === undefined || (filter !== SELF_REQUIRED && matchesTarget(state, owner, s, filter, self?.instanceId))),
     )
     const picked = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : candidates[0]
     if (!picked) {

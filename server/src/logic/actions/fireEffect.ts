@@ -5,7 +5,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { getCard, log, pushResumeFrames } from "../GameState"
 import { fireSummonTrigger, fireTrigger, requestChoice, resolveAction } from "../EffectModules"
-import { requestCardChoice } from "../targeting"
+import { requestCardChoice, targetableSpirits } from "../targeting"
 import { bravesOf, currentLevel, effectActiveAtLevel, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
@@ -106,7 +106,9 @@ const fireEffectHandler: ActionHandler<"fireEffect"> = (ctx, action) => {
     // 『ブロック時』は「このスピリットの」＝与えられた個体自身だけ（選ばない）
     const filter = action.trigger === "onBlock" ? {} : normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) return
-    const candidates = action.trigger === "onBlock" ? (self && effectGroups(state, owner, self, "onBlock").length > 0 ? [self] : []) : player.field.spirits.filter(
+    const candidates = action.trigger === "onBlock" ? (self && effectGroups(state, owner, self, "onBlock").length > 0 ? [self] : []) : targetableSpirits(
+        state,
+        owner,
         (s) => matchesTarget(state, owner, s, filter, self?.instanceId) && effectGroups(state, owner, s, action.trigger).length > 0 && (!action.soryoOnly || soryoIds(s).length > 0),
     )
     const chosenId = action.chosenId ?? targetInstanceId
