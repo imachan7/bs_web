@@ -42,6 +42,13 @@
   - D（確定 11-16）：①`magicTargetRedirect` に `redirectTo?: "self" | "ownTargetChosen"`（省略＝self）と `sourceTypes?: ("spirit"|"magic")[]` を足す。ownTargetChosen＝相手が対象を選び終えた後・解決前に、持ち主が元の対象に含まれる自分のスピリットから1体選び対象をそれだけにする（バースト・持続・連鎖は除く Q23566〜68。BSC05-017）②destroy の `budget.atLeast`（合計コストの下限。しきい値は pay で破壊した自分のスピリットのコスト）＋`chooserIsTarget`。相手は1体ずつ選び、届いたらコスト1以上は選べない・最低1体・コスト0は任意（Q24867〜70）。払えるかは COST_MODEL の完全解決の判定で決まる（相手の合計がしきい値未満・相手0体なら払えない＝Q24868。BS11-076）
   - E：ImmuneSource `"burst"`＋TargetFilter `sameColorAsLastTarget`（X13-17）
   - 払ったものを後続へ渡す（確定 11-16）：pay は払った自分のスピリットの**その時点の**コスト（合体中はブレイヴ込みの合計）と色を、then の action に値として書き込んでから解決する（記録 lastMoved を後で読まない＝原則3）。トークン `"paidCost"`／`"paidColors"` を budget.atLeast（BS11-076）と CardPick の上限コスト・色（X13-17。Q18941：合体コスト12なら12以下、ブレイヴが場に残っても）で使う
+- 残り（11-16 夜、5h枠84%で中断）：
+  1. part976 ケイ「合体したスピリットは合計コスト6として戻せ…」：合体した M が払う候補に出ない（「選択できない候補です」）。instBaseCost は braveComposite を足すので、ownSideBounceCandidates か canPayResolve(bindPaidValues) のどちらで落ちるかを調べる
+  2. part976 ケイ「合体していないメタルバーンでは…戻せない」：ケイ自身（コスト6・全色）も払う候補に入るので、テストの前提が違い例外で止まる。M が候補に無いことを確かめる形に直す
+  3. 古の魔王城の【連鎖】除外（Q23568）：【連鎖】の部分（ownColorSymbols 条件の if）に印が無い。136件に印を付ける移行をするかユーザー確認待ち
+  4. 既存の器の後半16枚の期待値テスト（part978。BSC05-014 016 018 021 023〜028、EX024〜026、X13-07 X13-08 X13-14）。前半は part977 で全部通った
+  5. 統合検証の定型＋coverage:check・part197 の発火基準・gaps:update、card-notes、お知らせ（新カード49種）、PR 本文（maxCostAsLast・コスト合計が合体込みになった既存カードへの影響を書く）
+  6. ユーザー確認待ち：オーバーレックスの指定は宣言時でよいか／条件つきバースト（BS15-034・X013）は条件未満なら発動できないでよいか／ダイヤモンドの月 Lv1 はバトル中だけでよいか
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 

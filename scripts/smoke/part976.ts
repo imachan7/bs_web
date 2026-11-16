@@ -37,6 +37,12 @@ const confirm = (t: ScenarioCtx, side: Side, yes: boolean) => {
     const hit = pc.options.find((o) => (yes ? /はい|する|払|発動/ : /いいえ|しない|しません/).test(o) && (yes ? !/しない|しません/.test(o) : true))
     t.act(side, { type: "resolveChoice", option: hit ?? (yes ? pc.options[0] : pc.options[pc.options.length - 1]) ?? "" })
 }
+// 発動後の「コストを支払ってください」。出ていれば既定（リザーブ）から払う
+const payIfAsked = (t: ScenarioCtx, side: Side) => {
+    const pc = t.state.pendingChoice
+    // 「コストNを支払ってください」は選択肢「支払う」で答える（支払い元を省くとリザーブから払う）
+    if (pc && /支払/.test(pc.prompt) && !/スピリットを選んで/.test(pc.prompt)) t.act(side, { type: "resolveChoice", option: "支払う" })
+}
 const answer = (t: ScenarioCtx, side: Side, label: string) => t.act(side, { type: "resolveChoice", instanceId: t.id(label) })
 const oppStart = (reserve = 10) => [`相手.リザーブ: ${reserve} → ${reserve + 1}`, "相手.デッキ枚数: 40 → 39", "相手.手札: なし → ロクケラトプス"]
 
@@ -140,15 +146,15 @@ scenario({
 console.log("=== X13-17 六楯の皇帝ケイ ===")
 // 節1：1コスト以上支払わなければ召喚できない（シンボル軽減で0にならない）
 const sixSymbols = [{ card: RED, label: "赤" }, { card: PURPLE, label: "紫" }, { card: SHOCK, label: "緑" }, { card: WHITE, label: "白" }, { card: PIYON, label: "黄" }, { card: BULL, label: "青" }]
+// Q18936：軽減で支払いが0になるなら召喚できない（1払って召喚、ではない）
 scenario({
-    name: "kei-6色のシンボルで軽減しても最低1コスト払って召喚する",
+    name: "kei-6色のシンボルで軽減して支払いが0になるなら召喚できない",
     start: { me: { hand: [KEI], spirits: sixSymbols } },
-    steps: (t) => t.act("me", { type: "summon", handIndex: 0 }),
-    expect: ["自分.手札: 六楯の皇帝ケイ → なし", "自分.リザーブ: 10 → 8", "自分.トラッシュのコア: 0 → 1", "自分.六楯の皇帝ケイ.場所: なし → フィールド",
-        "自分.六楯の皇帝ケイ.疲労: なし → false", "自分.六楯の皇帝ケイ.コア: なし → 1", "自分.六楯の皇帝ケイ.Lv: なし → 1", "自分.六楯の皇帝ケイ.BP: なし → 4000"],
+    steps: (t) => t.actRejected("me", { type: "summon", handIndex: 0 }),
+    expect: [],
 })
 scenario({
-    name: "kei-シンボル4つの軽減ならコスト2を払う（下限1に当たらない）",
+    name: "kei-シンボル4つの軽減ならコスト2を払う（軽減後に1以上残れば通常どおり召喚できる）",
     start: { me: { hand: [KEI], spirits: sixSymbols.slice(0, 4) } },
     steps: (t) => t.act("me", { type: "summon", handIndex: 0 }),
     expect: ["自分.手札: 六楯の皇帝ケイ → なし", "自分.リザーブ: 10 → 7", "自分.トラッシュのコア: 0 → 2", "自分.六楯の皇帝ケイ.場所: なし → フィールド",
@@ -190,9 +196,10 @@ scenario({
         t.actRejected("me", { type: "resolveChoice", instanceId: t.id("G") }) // 白は赤のバーストと色が合わない
         answer(t, "me", "M")
         confirm(t, "me", true)
+        payIfAsked(t, "me") // 武威煌炎刃：発動後に「コストを支払うことでフラッシュ効果」。戻した M のコア1個から払う
     },
-    expect: ["自分.M.場所: フィールド → なし", "自分.リザーブ: 0 → 1", "自分.デッキ枚数: 40 → 41", "自分.バースト: 武威煌炎刃 → なし", "自分.トラッシュ: なし → 武威煌炎刃",
-        "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし", "相手.リザーブ: 12 → 13", "相手.デッキ枚数: 40 → 39", "相手.手札: なし → ロクケラトプス",
+    expect: ["自分.M.場所: フィールド → なし", "自分.トラッシュのコア: 0 → 1", "自分.デッキ枚数: 40 → 41", "自分.バースト: 武威煌炎刃 → なし", "自分.トラッシュ: なし → 武威煌炎刃",
+        "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし", "相手.リザーブ: 10 → 13", "相手.デッキ枚数: 40 → 39", "相手.手札: なし → ロクケラトプス",
         "相手.トラッシュ: なし → バーサーカー・ガン、ロクケラトプス"],
 })
 scenario({
@@ -273,18 +280,47 @@ scenario({
         confirm(t, "me", true)
         answer(t, "me", "M")
         confirm(t, "me", true)
-        confirm(t, "me", false) // 発動後のフラッシュ効果の支払いは断る
+        payIfAsked(t, "me")
         t.act("opp", { type: "endTurn" })
         t.act("me", { type: "setBurst", handIndex: 0 })
         t.act("me", { type: "endTurn" })
         confirm(t, "me", true)
         answer(t, "me", "M2")
         confirm(t, "me", true)
-        confirm(t, "me", false)
+        payIfAsked(t, "me")
     },
-    expect: ["自分.M.場所: フィールド → なし", "自分.M2.場所: フィールド → なし", "自分.リザーブ: 0 → 3", "自分.デッキ枚数: 40 → 41", "自分.手札: 武威煌炎刃 → ロクケラトプス",
+    expect: ["自分.M.場所: フィールド → なし", "自分.M2.場所: フィールド → なし", "自分.リザーブ: 0 → 1", "自分.トラッシュのコア: 0 → 2", "自分.デッキ枚数: 40 → 41", "自分.手札: 武威煌炎刃 → ロクケラトプス",
         "自分.バースト: 武威煌炎刃 → なし", "自分.トラッシュ: なし → 武威煌炎刃、武威煌炎刃", "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし",
         "相手.リザーブ: 10 → 14", "相手.デッキ枚数: 40 → 38", "相手.手札: なし → ロクケラトプス、ロクケラトプス", "相手.トラッシュ: なし → バーサーカー・ガン、ロクケラトプス"],
+})
+// Q18941：合体したスピリットを戻すなら、ホスト＋ブレイヴの合計コスト以下のバーストを発動できる（烈光閃刃はコスト4。メタルバーン単体はコスト3で届かない）
+const combinedKei = (combine: boolean) => ({ interactive: true,
+    me: { reserve: 0, burst: BURST_BS14, spirits: [{ card: KEI, label: "ケイ", cores: 3 }, { card: METAL, label: "M" }, ...(combine ? [{ card: SHOGORS, label: "ブレイヴ", cores: 2 }] : [])] },
+    opp: { spirits: [{ card: RED, label: "R" }, { card: WHITE, label: "W" }] } })
+scenario({
+    name: "kei-Lv3-合体したスピリットは合計コスト6として戻せ、コスト4のバーストを発動できる",
+    start: combinedKei(true),
+    steps(t) {
+        t.act("me", { type: "combineBrave", braveInstanceId: t.id("ブレイヴ"), hostInstanceId: t.id("M") })
+        t.act("me", { type: "endTurn" })
+        confirm(t, "me", true)
+        answer(t, "me", "M")
+        confirm(t, "me", true)
+        payIfAsked(t, "me")
+    },
+    expect: ["自分.M.場所: フィールド → なし", "自分.ブレイヴ.場所: フィールド → なし", "自分.デッキ枚数: 40 → 42", "自分.バースト: 烈光閃刃 → なし",
+        "自分.トラッシュ: なし → 烈光閃刃", "自分.リザーブ: 0 → 3", "相手.R.場所: フィールド → なし", "相手.W.場所: フィールド → なし", "相手.リザーブ: 10 → 13",
+        "相手.デッキ枚数: 40 → 39", "相手.手札: なし → ロクケラトプス", "相手.トラッシュ: なし → バーサーカー・ガン、ロクケラトプス"],
+})
+scenario({
+    name: "kei-Lv3-合体していないメタルバーン（コスト3）ではコスト4のバーストに届かず戻せない",
+    start: combinedKei(false),
+    steps(t) {
+        t.act("me", { type: "endTurn" })
+        confirm(t, "me", true)
+        t.actRejected("me", { type: "resolveChoice", instanceId: t.id("M") })
+    },
+    expect: [],
 })
 
 console.log("すべてのチェックに合格しました 🎉（part976）")
