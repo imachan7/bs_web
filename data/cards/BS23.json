@@ -5118,6 +5118,7 @@
     "trigger": "onAttack",
     "levels": null,
     "whileCombined": true,
+    "separateEffect": true,
     "optional": false,
     "action": {
      "type": "fireEffect",
