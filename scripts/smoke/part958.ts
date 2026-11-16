@@ -1,5 +1,5 @@
 // smoke パート958（合体中のブレイヴだけの破壊：破壊待機で場に残り、誘発を解決してからトラッシュへ。
-// 1つの効果で複数破壊されたら同時破壊で、「ブレイヴだけが破壊されたとき」は1回。PENDING_STATE §3 C6〜C8。2026-11-16 ユーザー確認）
+// 1つの効果で複数破壊されたら同時破壊で、「ブレイヴだけが破壊されたとき」は1回。戻るのは破壊されたブレイヴ全部。PENDING_STATE §3 C6〜C8。2026-11-16 ユーザー確認）
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import type { CardInstance } from "../../server/src/type"
@@ -61,27 +61,33 @@ console.log("=== 2. 確認を断ったら、ブレイヴはトラッシュへ行
     assert(s.pendingChoice === null && s.resumeStack.length === 0 && !combined(s, braves[0]!) && s.players.p1.trashCards.includes(CITRI) && s.players.p1.hand.length === 0, "ブレイヴはトラッシュへ行き、続きは残らない")
 }
 
-console.log("=== 3. 合体スピリットすべてのブレイヴを破壊：同時破壊。ネコロン山は1回だけ発揮し、戻すブレイヴは持ち主が選ぶ ===")
+console.log("=== 3. 合体スピリットすべてのブレイヴを破壊：同時破壊。ネコロン山は1回だけ発揮し、発動したら破壊されたブレイヴが全部手札に戻る ===")
 {
     const { s, braves } = game("simul", [CITRI, PANDA], true, true)
     resolveAction(s, "p2", null, { type: "destroyBrave", allHosts: true })
-    const pick = s.pendingChoice
-    assert(pick?.pid === "p1" && pick.options?.length === 2 && pick.optional === false, "どのブレイヴについて発揮するかを、持ち主が選ぶ")
-    assert(braves.every((b) => combined(s, b) && b.waiting?.kind === "destroy") && braves[0]!.waiting?.event === braves[1]!.waiting?.event, "2つとも同じ出来事の破壊待機で場にいる")
-    act(s, "p1", { type: "resolveChoice", option: pick!.options!.find((o) => o.includes("ぐるみパンダ"))! })
     const pc = s.pendingChoice
-    assert(pc?.confirm === true && pc.selfInstanceId === braves[1]!.instanceId, "選んだブレイヴについて、ネコロン山を発動するかを聞く")
+    assert(pc?.confirm === true && pc.pid === "p1", "どのブレイヴかは選ばせず、ネコロン山を発動するかだけを聞く")
+    assert(braves.every((b) => combined(s, b) && b.waiting?.kind === "destroy") && braves[0]!.waiting?.event === braves[1]!.waiting?.event, "2つとも同じ出来事の破壊待機で場にいる")
     act(s, "p1", { type: "resolveChoice", option: pc!.options![0]! })
     assert(s.pendingChoice === null && s.resumeStack.length === 0, "確認は1回だけで、続きは残らない")
-    assert(JSON.stringify(s.players.p1.hand) === JSON.stringify([PANDA]) && s.players.p1.trashCards.includes(CITRI) && !s.players.p1.trashCards.includes(PANDA), "選んだブレイヴだけ手札に戻り、もう1つはトラッシュへ行く")
-    assert(s.players.p1.field.combinedBraves.length === 0, "場にブレイヴは残らない")
+    assert(JSON.stringify([...s.players.p1.hand].sort()) === JSON.stringify([CITRI, PANDA].sort()), "破壊されたブレイヴは2つとも手札に戻る")
+    assert(!s.players.p1.trashCards.includes(CITRI) && !s.players.p1.trashCards.includes(PANDA) && s.players.p1.field.combinedBraves.length === 0 && braves.every((b) => b.waiting === undefined), "トラッシュへは行かず、場にも残らない")
 }
 
-console.log("=== 4. 選ばせない設定（AI・テスト）では、最初のブレイヴについて1回だけ発揮する ===")
+console.log("=== 3b. 同時破壊で確認を断ったら、全部トラッシュへ行く（確認は1回だけ） ===")
+{
+    const { s } = game("simul-decline", [CITRI, PANDA], true, true)
+    resolveAction(s, "p2", null, { type: "destroyBrave", allHosts: true })
+    assert(s.pendingChoice?.confirm === true, "ネコロン山を発動するかを聞く")
+    act(s, "p1", { type: "resolveChoice" })
+    assert(s.pendingChoice === null && s.resumeStack.length === 0 && s.players.p1.hand.length === 0 && s.players.p1.trashCards.includes(CITRI) && s.players.p1.trashCards.includes(PANDA) && s.players.p1.field.combinedBraves.length === 0, "2回目の確認は出ず、2つともトラッシュへ行く")
+}
+
+console.log("=== 4. 選ばせない設定（AI・テスト）でも、破壊されたブレイヴが全部手札に戻る ===")
 {
     const { s } = game("auto", [CITRI, PANDA], true, false)
     resolveAction(s, "p2", null, { type: "destroyBrave", allHosts: true })
-    assert(s.pendingChoice === null && JSON.stringify(s.players.p1.hand) === JSON.stringify([CITRI]) && s.players.p1.trashCards.includes(PANDA) && s.players.p1.field.combinedBraves.length === 0, "1つは手札、もう1つはトラッシュ")
+    assert(s.pendingChoice === null && JSON.stringify([...s.players.p1.hand].sort()) === JSON.stringify([CITRI, PANDA].sort()) && s.players.p1.field.combinedBraves.length === 0, "2つとも手札に戻る")
 }
 
 console.log("=== 5. ネコロン山が無ければ、選択なしで全部トラッシュへ行く ===")

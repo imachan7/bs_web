@@ -171,43 +171,15 @@ export function destroyCombinedBraves(state: GameState, ownerPid: PlayerId, targ
     resumeBraveDestroy(state, { kind: "braveDestroy", ownerPid, event, phase: "triggers" })
 }
 
-// 「自分の合体スピリットのブレイヴだけが破壊されたとき」をいま発揮できる発生源が、持ち主の側にあるか
-function hasBraveOnlyDestroyedSource(state: GameState, ownerPid: PlayerId): boolean {
-    return effectSources(state, ownerPid).some((source) =>
-        getCard(source.cardId).effects.some((e) => e.kind === "fieldEvent" && e.event === "ownBraveOnlyDestroyed" && entryActive(state, ownerPid, source, e, currentLevel(source).level)),
-    )
-}
-
 export function resumeBraveDestroy(state: GameState, frame: BraveDestroyFrame): void {
     const { ownerPid, event } = frame
     const player = state.players[ownerPid]
     const waiting = (): CardInstance[] => player.field.combinedBraves.filter((b) => b.waiting?.kind === "destroy" && b.waiting.event === event)
     if (frame.phase === "triggers") {
         const braves = waiting()
-        // 「ブレイヴだけが破壊されたとき、そのブレイヴを〜」は同時破壊につき1回で、「そのブレイヴ」は持ち主が1つ選ぶ（C8）。
-        // 復活で戻すスピリットを選ぶのと同じく、列の前に選ぶ。選んだ番号は順番の選択と同じ受け皿（triggerOrderPick）で受け取る
-        let subject = braves[0]
-        if (braves.length >= 2 && hasBraveOnlyDestroyedSource(state, ownerPid)) {
-            const pick = state.triggerOrderPick
-            if (pick !== undefined) {
-                delete state.triggerOrderPick
-                subject = braves[pick] ?? subject
-            } else if (state.interactiveTargets) {
-                suspend(state, {
-                    pid: ownerPid,
-                    kind: "option",
-                    prompt: "ブレイヴだけが破壊されたときの効果は、どのブレイヴについて発揮しますか？",
-                    candidates: [],
-                    options: braves.map((b, i) => `${i + 1}：${getCard(b.cardId).name}`),
-                    optional: false,
-                    triggerOrder: { count: braves.length },
-                    action: { type: "noop" },
-                    selfInstanceId: null,
-                })
-                pushResumeFrames(state, [frame])
-                return
-            }
-        }
+        // 「ブレイヴだけが破壊されたとき、そのブレイヴを〜」は同時破壊につき1回。主語には最初のブレイヴを渡し、
+        // 「そのブレイヴ」が同時に破壊された全部を指すことは、戻す側（returnDestroyedSelfToHand）が同じ出来事の待機で見る（C8）
+        const subject = braves[0]
         const items: CollectedTrigger[] = []
         for (const b of braves) fireTrigger(state, ownerPid, b, "onDestroy", undefined, undefined, undefined, undefined, undefined, undefined, items)
         if (subject) fireFieldEventTriggers(state, ownerPid, "ownBraveOnlyDestroyed", { pid: ownerPid, inst: subject }, instColors(subject), undefined, undefined, undefined, undefined, undefined, undefined, undefined, items)

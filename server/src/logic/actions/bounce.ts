@@ -798,13 +798,19 @@ function returnDestroyedSelfToHand(ctx: ActionCtx): void {
                 player.reserve += self.cores
                 detachBravesOnLeave(state, owner, self, false, "hand") // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1。残さないなら手札へ §6.3.2）
             }
-            // 破壊待機の、合体していたブレイヴ（ブレイヴだけの破壊。brave.ts の destroyCombinedBraves）
-            const braveIdx = player.field.combinedBraves.findIndex((b) => b.instanceId === self.instanceId)
-            if (braveIdx >= 0) player.field.combinedBraves.splice(braveIdx, 1)
-            delete self.waiting
-            player.hand.push(self.cardId)
-            log(state, `${getCard(self.cardId).name}は手札に戻った。`)
-            notifyHandGained(state, owner, 1)
+            // 破壊待機の、合体していたブレイヴ（ブレイヴだけの破壊。brave.ts の destroyCombinedBraves）：
+            // 「そのブレイヴ」は同時に破壊されたブレイヴ全部を指すので、同じ出来事で破壊待機のブレイヴをまとめて戻す（PENDING_STATE §3 C8。2026-11-16 ユーザー確認）。
+            // ponytail: ブレイヴ自身の『破壊時』で自身だけを戻すカードが出たら、同時に破壊された他のブレイヴまで戻してしまう。そのときは誘発の引数で対象の一覧を渡す
+            const event = self.waiting?.event
+            const returned = player.field.combinedBraves.includes(self) ? player.field.combinedBraves.filter((b) => b.waiting?.kind === "destroy" && b.waiting.event === event) : [self]
+            for (const card of returned) {
+                const braveIdx = player.field.combinedBraves.indexOf(card)
+                if (braveIdx >= 0) player.field.combinedBraves.splice(braveIdx, 1)
+                delete card.waiting
+                player.hand.push(card.cardId)
+                log(state, `${getCard(card.cardId).name}は手札に戻った。`)
+            }
+            notifyHandGained(state, owner, returned.length)
             return
         }
         // 破壊以外の経路（既にトラッシュへ送られている場合）への保険
