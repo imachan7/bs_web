@@ -154,8 +154,10 @@ export function destroyCombinedBrave(
     const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
     if (at !== -1) player.field.combinedBraves.splice(at, 1)
     const name = getCard(brave.cardId).name
-    // 破壊時の誘発は**ブレイヴ自身のもの**だけ。この時点でブレイヴは場から抜けているので、
-    // 発生源として渡して発火させる（スピリットの破壊待機のような窓は設けない）
+    // ブレイヴだけの破壊では、【合体時】『このスピリットの破壊時』は発揮しない（スピリットは破壊されていない。
+    // PENDING_STATE §1 例1・§3 C5。2026-11-16 ユーザー確認）。合体の印を消して【合体時】のエントリを外す。
+    // 発揮するのはブレイヴ自身の『破壊時』だけ（プールに該当カードが無く、テストは無い）
+    delete brave.braveCombined
     player.trashCards.push(brave.cardId)
     refreshLevelAsOverrides(state)
     log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${name}」は破壊された。`)
