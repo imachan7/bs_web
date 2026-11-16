@@ -24,7 +24,9 @@ const confirm = (t: ScenarioCtx, side: Side, yes: boolean) => {
     const pc = t.state.pendingChoice
     if (!pc || pc.kind !== "option" || !pc.options) return
     const hit = pc.options.find((o) => (yes ? /はい|する|払|発動/ : /いいえ|しない|しません/).test(o) && (yes ? !/しない|しません/.test(o) : true))
-    t.act(side, { type: "resolveChoice", option: hit ?? (yes ? pc.options[0] : pc.options[pc.options.length - 1]) ?? "" })
+    // 断る選択肢が無い確認（「復活させる」1つだけ）は、選ばずに見送る（resolveChoice に option を付けない）
+    if (!yes && hit === undefined) return t.act(side, { type: "resolveChoice" })
+    t.act(side, { type: "resolveChoice", option: hit ?? pc.options[0] ?? "" })
 }
 // 同時に誘発した効果の「どれから解決するか」（ターンプレイヤーが選ぶ）。option なら文言が re に合うもの、それ以外は対象の instanceId で答える
 const order = (t: ScenarioCtx, side: Side, re: RegExp, instanceId?: string) => {
@@ -179,7 +181,7 @@ scenario({
         opp: { hand: ["BS09-072"], spirits: [{ card: RED, label: "赤" }, { card: "BS01-031", label: "紫" }] } },
     steps(t) {
         t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash" }) // 2つの効果（ドローと戻す）が同じ列に並び、ターンプレイヤー（相手）が順番を選ぶ
-        order(t, "opp", /戻/)
+        order(t, "opp", /残る/)
         confirm(t, "me", true)
     },
     expect: ["自分.ビリット.場所: フィールド → なし", "自分.手札: なし → 電精ビリット", "自分.リザーブ: 10 → 13", "相手.手札: シャドウブレイド → なし",
@@ -192,7 +194,7 @@ scenario({
         opp: { hand: ["BS09-072"], spirits: [{ card: RED, label: "赤" }, { card: "BS01-031", label: "紫" }] } },
     steps(t) {
         t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash" }) // 2つの効果（ドローと戻す）が同じ列に並び、ターンプレイヤー（相手）が順番を選ぶ
-        order(t, "opp", /ドロー|引/)
+        order(t, "opp", /破壊時/)
         confirm(t, "me", true)
     },
     expect: ["自分.ビリット.場所: フィールド → なし", "自分.手札: なし → ロクケラトプス、電精ビリット", "自分.リザーブ: 10 → 13", "自分.デッキ枚数: 40 → 39", "相手.手札: シャドウブレイド → なし",
