@@ -802,7 +802,8 @@
         },
         "action": {
           "type": "removeCores",
-          "count": 1
+          "count": 1,
+          "target": "spread"
         }
       }
     ]
@@ -907,7 +908,8 @@
         "fushiSummonOnly": true,
         "action": {
           "type": "removeCores",
-          "count": 1
+          "count": 1,
+          "target": "spread"
         }
       }
     ]
@@ -1110,7 +1112,8 @@
         },
         "action": {
           "type": "removeCores",
-          "count": 1
+          "count": 1,
+          "target": "spread"
         }
       },
       {
@@ -1290,7 +1293,8 @@
         "action": {
           "type": "removeCores",
           "count": 1,
-          "countCounter": "selfLevel"
+          "countCounter": "selfLevel",
+          "target": "spread"
         }
       }
     ]
@@ -3982,7 +3986,8 @@
         "phase": "attack",
         "action": {
           "type": "removeCores",
-          "count": 1
+          "count": 1,
+          "target": "spread"
         }
       },
       {

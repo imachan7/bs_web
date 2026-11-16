@@ -789,7 +789,7 @@
       "nexus"
      ],
      "to": "reserve",
-     "target": "one",
+     "target": "spread",
      "count": 1
     }
    }
@@ -1157,7 +1157,7 @@
       "spirit"
      ],
      "to": "trash",
-     "target": "one",
+     "target": "spread",
      "count": 1
     }
    }
@@ -5178,7 +5178,7 @@
         "spirit"
        ],
        "to": "reserve",
-       "target": "one",
+       "target": "spread",
        "count": 1
       },
       {
@@ -5209,7 +5209,7 @@
          "spirit"
         ],
         "to": "void",
-        "target": "one",
+        "target": "spread",
         "count": 3
        }
       }
@@ -5908,7 +5908,7 @@
       "spirit"
      ],
      "to": "void",
-     "target": "one",
+     "target": "spread",
      "count": 1
     }
    }

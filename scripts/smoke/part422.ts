@@ -42,7 +42,7 @@ console.log("=== ポイズンミスト：相手のリザーブが2個なら、�
     assert(s.players.p2.reserve === 0 && s.players.p2.trashCores === 2, "相手のリザーブから同じ2個")
 }
 
-console.log("=== ディルガン：置ける数は相手の1体から取れる数まで。選んだ1体から N 個 ===")
+console.log("=== ディルガン：置ける数は絞り込みに合う相手のスピリットのコアの合計まで。合計N個を相手のスピリットから1個ずつ ===")
 {
     const s = game()
     const dilgan = createInstance(DILGAN, s.turn, 5)
@@ -55,15 +55,17 @@ console.log("=== ディルガン：置ける数は相手の1体から取れる�
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", dilgan, actionOf(DILGAN, "BS12-012-e1"))
     answerPayConfirm(s, "p1")
-    assert(s.pendingChoice?.options?.join(",") === "0,1,2,3", "選べるのは0〜3（1体の最大コア数）")
+    assert(s.pendingChoice?.options?.join(",") === "0,1,2,3,4,5", "選べるのは0〜5（絞り込みに合う2体の合計3＋2）")
     act(s, "p1", { type: "resolveChoice", option: "2" })
     assert(dilgan.cores === 3, "自分のコアを2個トラッシュへ")
-    assert(s.pendingChoice?.kind === "target", "対象を1体選ぶ")
+    assert(s.pendingChoice?.kind === "target", "対象を1個ずつ選ぶ")
     act(s, "p1", { type: "resolveChoice", instanceId: a.instanceId })
-    assert(!s.pendingChoice && a.cores === 1 && b.cores === 2, "選んだ1体から2個（2体目は選ばない）")
+    assert(s.pendingChoice?.kind === "target", "2個目の対象を選ぶ")
+    act(s, "p1", { type: "resolveChoice", instanceId: b.instanceId })
+    assert(!s.pendingChoice && a.cores === 2 && b.cores === 1, "相手の2体から1個ずつ（3→2、2→1）")
 }
 
-console.log("=== 妖華吸血爪：破棄した2枚ぶん、選んだ1体から2個 ===")
+console.log("=== 妖華吸血爪：破棄した2枚ぶん、相手のスピリットから1個ずつ2個 ===")
 {
     const s = game()
     s.players.p1.hand = [VANILLA, VANILLA, VANILLA]
@@ -76,7 +78,9 @@ console.log("=== 妖華吸血爪：破棄した2枚ぶん、選んだ1体から2
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
     act(s, "p1", { type: "resolveChoice" })
     act(s, "p1", { type: "resolveChoice", instanceId: b.instanceId })
-    assert(!s.pendingChoice && a.cores === 3 && b.cores === 1, "1体から2個")
+    assert(s.pendingChoice?.kind === "target", "2個目の対象を選ぶ")
+    act(s, "p1", { type: "resolveChoice", instanceId: a.instanceId })
+    assert(!s.pendingChoice && a.cores === 2 && b.cores === 2, "相手の2体から1個ずつ（3→2、3→2）")
 }
 
 console.log("=== 王蛇ケツァルカトル：相手のスピリットが1体なら破棄できるのは1枚まで ===")
