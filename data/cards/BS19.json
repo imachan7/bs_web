@@ -1028,7 +1028,8 @@
      "actions": [
       {
        "type": "removeCores",
-       "count": 1
+       "count": 1,
+       "target": "spread"
       },
       {
        "type": "draw",
@@ -1182,7 +1183,8 @@
     "optional": false,
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    },
    {
@@ -5470,7 +5472,8 @@
     },
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    }
   ]

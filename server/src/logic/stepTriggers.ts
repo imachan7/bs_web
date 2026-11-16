@@ -4,10 +4,10 @@ import { levelStillMet } from "./levelRecheck"
 import { noteCoverage } from "../../../shared/coverage"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { markPays } from "./actions/pay"
-import type { CardInstance, EffectDef, GameState, Phase, PlayerId } from "../type"
+import type { CardInstance, EffectDef, GameState, Phase, PlayerId, ResumeFrame } from "../type"
 import { currentLevel, getCard, log, opponentOf, resolveInOrder, withWaitingEvent } from "./GameState"
 import { isWaiting, waitingEventFor } from "../../../shared/rules/waiting"
-import { countSpiritsWeighted, countSymbols, effectiveBp, effectSources, hostsOf, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast } from "../../../shared/rules"
+import { countSpiritsWeighted, countSymbols, effectiveBp, effectSources, hostsOf, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, isTrashReturnAtEndStep, trashCardEffectsDisabled } from "../../../shared/rules"
 import { applyDeclaredBursts, requestActivationConfirm, resolveAction } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
@@ -228,7 +228,7 @@ export function fireStepTriggers(
     // 中断したら残りを再開スタックへ積む（fireTrigger と同じ形）。
     // 条件（handNotGreaterThanOpponent など）は**誘発した時点**で判定する
     // self＝効果の「このスピリット」。合体中のブレイヴはホスト（合体スピリット）になる
-    const firing: { pid: PlayerId; inst: CardInstance; self: CardInstance; effect: Extract<EffectDef, { kind: "step" }> }[] = []
+    const firing: StepFiring[] = []
     for (const pid of order) {
         const player = state.players[pid]
         const instances = [...player.field.spirits, ...player.field.nexuses]
@@ -357,14 +357,19 @@ export function fireStepTriggers(
                     // 26系「【Fチェンジ】で召喚されているか」など（step軸。triggeredの条件判定と同じ。発生源自身の召喚経路と突合）
                     if (inst.summonedBy !== effect.condition.summonedBy) continue
                 }
-                firing.push({ pid, inst, self: player.field.combinedBraves.includes(inst) ? (hostsOf(player, inst)[0] ?? inst) : inst, effect })
+                firing.push({ kind: "field", pid, inst, self: player.field.combinedBraves.includes(inst) ? (hostsOf(player, inst)[0] ?? inst) : inst, effect })
             }
         }
     }
+    if (step === "end" && timing === "enter") firing.push(...collectTrashReturns(state))
     resolveInOrder(state, firing, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）
-        skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId) || !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id }),
+        skip: (e) => e.kind === "trashReturn" ? !state.players[e.pid].trashCards.includes(e.cardId) : !isStillOnField(state, e.pid, e.inst.instanceId) || !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id }),
         resolve: (e) => withWaitingEvent(state, undefined, () => {
+            if (e.kind === "trashReturn") {
+                resolveTrashReturn(state, e)
+                return
+            }
             // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
             const byName = e.effect.onceScope === "name"
             if (byName) {
@@ -395,7 +400,7 @@ export function fireStepTriggers(
             if (state.effectFizzled) revertOnceUsed(state, e.inst, e.effect.id, "stepUsedTurn")
             delete state.effectFizzled
         }),
-        frame: (e) => ({
+        frame: (e) => e.kind === "trashReturn" ? trashReturnFrame(state, e) : ({
             kind: "action" as const,
             selfInstanceId: e.self.instanceId,
             action: e.effect.onceScope === "name" ? markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : e.effect.action,
@@ -409,14 +414,63 @@ export function fireStepTriggers(
         // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
         askOrder: {
             pid: state.turnPlayer,
-            label: (e) => `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}`,
+            label: (e) => e.kind === "trashReturn" ? `${state.players[e.pid].name}の${getCard(e.cardId).name}` : `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}`,
             // ⚠️ **カード単位**で見る（同じカードの複数エントリはテキスト順で決まっており同時発揮ではない）。
             // 持ち主が違えば別扱い（自分と相手の同名ネクサスは順序が結果を変えうる）
-            key: (e) => `${e.pid}:${e.inst.cardId}`,
+            key: (e) => e.kind === "trashReturn" ? `${e.pid}:${e.cardId}` : `${e.pid}:${e.inst.cardId}`,
         },
     })
     // ステップの誘発を解決しきったら、次のステップへ進む前に、宣言されたバーストを適用する（効果の中から呼ばれたときは何もしない）
     applyDeclaredBursts(state)
+}
+
+// 同時発揮の列の要素。field＝場の誘発、trashReturn＝トラッシュのカードの『自分のエンドステップ』の手札戻し
+type StepFiring =
+    | { kind: "field"; pid: PlayerId; inst: CardInstance; self: CardInstance; effect: Extract<EffectDef, { kind: "step" }> }
+    | { kind: "trashReturn"; pid: PlayerId; cardId: string }
+type TrashReturn = Extract<StepFiring, { kind: "trashReturn" }>
+
+// ターンプレイヤーのトラッシュから、『自分のエンドステップ』に手札へ戻るカードを集める（kind:"trashReturnAtEndStep"）。
+// 同じカードは maxCount（無ければ無制限）枚まで（BS13-077 ブリーズライドは1枚まで）
+function collectTrashReturns(state: GameState): TrashReturn[] {
+    const pid = state.turnPlayer
+    const trash = state.players[pid].trashCards
+    const counts = new Map<string, number>()
+    const out: TrashReturn[] = []
+    for (let i = trash.length - 1; i >= 0; i--) {
+        const cardId = trash[i]
+        if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || trashCardEffectsDisabled(state, cardId)) continue
+        const eff = getCard(cardId).effects.find((x) => x.kind === "trashReturnAtEndStep")
+        const max = eff?.kind === "trashReturnAtEndStep" ? (eff.maxCount ?? Infinity) : Infinity
+        const n = counts.get(cardId) ?? 0
+        if (n >= max) continue
+        counts.set(cardId, n + 1)
+        out.push({ kind: "trashReturn", pid, cardId })
+    }
+    return out
+}
+
+// 戻す効果の発生源は戻すカード自身（sourceCardId）。手札の増加の禁止・通知は returnTrashCardToHand に任せる
+function resolveTrashReturn(state: GameState, e: TrashReturn): void {
+    const card = getCard(e.cardId)
+    noteCoverage(card.effects.find((x) => x.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
+    log(state, `${state.players[e.pid].name}の${card.name}の効果が発動した。（${STEP_LABELS.end}）`)
+    resolveAction(state, e.pid, null, { type: "trashReturnToHandInternal", cardId: e.cardId }, undefined, card.colors, card.type, undefined, undefined, e.cardId)
+}
+
+function trashReturnFrame(state: GameState, e: TrashReturn): ResumeFrame {
+    const card = getCard(e.cardId)
+    return {
+        kind: "action",
+        selfInstanceId: null,
+        action: { type: "trashReturnToHandInternal", cardId: e.cardId },
+        actorPid: e.pid,
+        waitingEvent: null,
+        sourceType: card.type,
+        sourceCardId: e.cardId,
+        sourceColors: card.colors,
+        logText: `${state.players[e.pid].name}の${card.name}の効果が発動した。（${STEP_LABELS.end}）`,
+    }
 }
 
 // BP0到達・BP到達の観測が要るカードが場にいるか（fireBpReachedTriggers と ensureBpSeen の共有判定）

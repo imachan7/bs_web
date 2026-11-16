@@ -113,19 +113,20 @@ for (const [atk, cores, protectedExp, label] of [
     const s = game(`core-${atk}-${cores}`, ["BS17-075", "BS17-075"])
     const a = put(s, "p1", atk, cores)
     const b1 = put(s, "p2", VAN, 2)
-    const b2 = put(s, "p2", VAN, 2)
+    const b2 = put(s, "p2", VAN, protectedExp ? 4 : 2) // 守られたb1の代わりに、1回目の撃ちで別の相手から取られる
     const second = put(s, "p1", VAN, 1)
     assert(attackAndBlock(s, a.instanceId, b1.instanceId) === null, `${label}: ブロックできる`)
     pass(s, "p2")
     fog(s, b1)
     assert(protectedExp ? b1.cores === 2 : b1.cores === 1, `${label}: ブロッカーのコア ${protectedExp ? "は取り除けない（2個のまま）" : "は取り除ける（2→1）"}（実際${b1.cores}）`)
+    if (protectedExp) assert(b2.cores === 3, `${label}: 守られていない別の相手のスピリットから1個（4→3）（実際${b2.cores}）`)
     if (protectedExp) {
         finishBattle(s)
         assert(!s.battle, `${label}: 1つ目のバトルが終わった`)
         assert(attackAndBlock(s, second.instanceId, b2.instanceId) === null, `${label}: 次のバトルのブロック`)
         pass(s, "p2")
         fog(s, b2)
-        assert(b2.cores === 1, `${label}: 次のバトルでは取り除ける（2→1）（実際${b2.cores}）`)
+        assert(b2.cores === 2, `${label}: 次のバトルでは取り除ける（3→2）（実際${b2.cores}）`)
     }
 }
 

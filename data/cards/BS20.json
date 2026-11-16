@@ -1065,7 +1065,8 @@
     "optional": false,
     "action": {
  "type": "removeCores",
- "count": 1
+ "count": 1,
+ "target": "spread"
 }
    },
    {
@@ -1163,7 +1164,8 @@
     "optional": false,
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    },
    {
@@ -1243,7 +1245,8 @@
     "optional": false,
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    }
   ]
@@ -4003,7 +4006,8 @@
     "optional": false,
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    }
   ]
@@ -4438,7 +4442,7 @@
          "nexus"
         ],
         "to": "reserve",
-        "target": "one",
+        "target": "spread",
         "count": 1
        }
       }
@@ -4781,7 +4785,8 @@
      ],
      "to": "trash",
      "count": 1,
-     "chooser": "owner"
+     "chooser": "owner",
+     "target": "spread"
     },
     "phase": "attack",
     "turn": "opponent",
@@ -5245,7 +5250,8 @@
      "type": "removeCores",
      "side": "opponent",
      "to": "reserve",
-     "count": 2
+     "count": 2,
+     "target": "spread"
     }
    },
    {

@@ -502,7 +502,8 @@
           "count": 1,
           "countCounter": {
             "ownFamily": "霊獣"
-          }
+          },
+          "target": "spread"
         }
       }
     ]
@@ -1011,7 +1012,8 @@
               "覇皇",
               "雄将"
             ]
-          }
+          },
+          "target": "spread"
         }
       },
       {

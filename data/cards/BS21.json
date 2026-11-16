@@ -190,7 +190,8 @@
          "cost": {
           "max": 2
          }
-        }
+        },
+        "target": "spread"
        }
       },
       {
@@ -1190,7 +1191,8 @@
     },
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    }
   ]
@@ -1320,7 +1322,8 @@
       "spirit",
       "nexus"
      ],
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    },
    {
@@ -3489,7 +3492,7 @@
        "spirit"
       ],
       "to": "reserve",
-      "target": "one",
+      "target": "spread",
       "count": 1
      }
     }
@@ -4197,7 +4200,7 @@
       "nexus"
      ],
      "to": "reserve",
-     "target": "one",
+     "target": "spread",
      "count": 1
     }
    }
@@ -4464,7 +4467,8 @@
          "spirit",
          "nexus"
         ],
-        "count": 1
+        "count": 1,
+        "target": "spread"
        }
       }
      ]
