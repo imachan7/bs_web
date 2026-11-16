@@ -47,6 +47,7 @@ import {
     refreshSpirit,
     requestCardChoice,
     requestChoice,
+    requestUpToChoice,
     requestActivationConfirm,
     resolveAction,
     resolveKoboOnBattleEnd,
@@ -75,7 +76,11 @@ import {
     braveCombineOntoSelfCandidates,
     firesAs,
     headingRewritesOn,
+    checkAuraCondition,
+    directAttackFilterOf,
+    mustBeAttackTargetIds,
 } from "../../../../shared/rules"
+import { matchesDirectedAttackFilter } from "../../../../shared/block"
 import { flushBraveKeeps } from "../brave"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
@@ -1228,8 +1233,8 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
 }
 
 // 器G：自分のスピリット状態のブレイヴ／自分の合体スピリットのブレイヴ（発生源自身を含む）が持つ
-// 『このスピリットの合体アタック時』（kind:"triggered" trigger:"onAttack" whileCombined:true）効果を
-// 1つ選んで、発生源自身（self＝合体スピリット）の効果として発揮する（BS13-049イリテバン【合体時】）。
+// 『このスピリットの合体アタック時』効果を、カード1枚単位で借りて発揮する（BS13-049イリテバン【合体時】）。
+// 借りるエントリは triggered（『アタック時』）と constraint（canDirectAttack。BS20-058 等の指定アタック）。
 // 「このスピリット」は発揮する側（self）を指すため、借りた効果はselfのレベルで判定しselfへ渡す
 // （docs/design/BRAVE.md §12。2026-09-07/08 ユーザー確認）
 const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffect"> = (ctx, action) => {
@@ -1240,17 +1245,27 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
     }
     const player = state.players[owner]
     const level = currentLevel(self).level
-    type Candidate = { inst: CardInstance; effect: Extract<EffectDef, { kind: "triggered" }> }
+    type BorrowEntry = Extract<EffectDef, { kind: "triggered" }> | Extract<EffectDef, { kind: "constraint" }>
+    // 借りる元のカード1枚と、そのカードが持つ借りるエントリ（effects の順）
+    type Candidate = { inst: CardInstance; effects: BorrowEntry[] }
     const candidates: Candidate[] = []
+    const isBorrowable = (effect: EffectDef, rewrites: ReturnType<typeof headingRewritesOn>): effect is BorrowEntry => {
+        if (effect.kind === "triggered") {
+            return effect.whileCombined === true && firesAs(effect, rewrites).includes("attack")
+        }
+        return effect.kind === "constraint" && effect.whileCombined === true && effect.constraint.type === "canDirectAttack"
+    }
     // 見出し（書き換えを足したもの）が『アタック時』の【合体時】エントリ。結果連動型（BPを比べ破壊したとき 等）も含む（#505）。
     // 書き換えは持っている個体（スピリット状態のブレイヴ自身／合体先のホスト）に掛かっているものを見る
     const collect = (inst: CardInstance, holder: CardInstance): void => {
         const rewrites = headingRewritesOn(state, owner, holder)
+        const effects: BorrowEntry[] = []
         for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "triggered" || effect.whileCombined !== true || !firesAs(effect, rewrites).includes("attack")) continue
+            if (!isBorrowable(effect, rewrites)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
-            candidates.push({ inst, effect })
+            effects.push(effect)
         }
+        if (effects.length > 0) candidates.push({ inst, effects })
     }
     // 自分のスピリット状態のブレイヴ
     for (const sp of player.field.spirits) {
@@ -1265,7 +1280,7 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
     // エントリを持つカードが含まれる場合（イリテバン自身がこの効果のエントリを持つため候補に入る）。
     // 選ぶと同じ効果がもう1回発揮される（2026-09-08ユーザー確認）が、**2回まで**で止める
     // （再帰的にまた自身を選べてしまうと無限に連鎖するため。BS13-049）
-    const isSelfBorrow = (c: Candidate): boolean => c.effect.action.type === "borrowCombinedAttackEffect"
+    const isSelfBorrow = (c: Candidate): boolean => c.effects.some((e) => e.kind === "triggered" && e.action.type === "borrowCombinedAttackEffect")
     const effectiveCandidates = self.borrowedAttackEffectOnce
         ? candidates.filter((c) => !isSelfBorrow(c))
         : candidates
@@ -1283,14 +1298,27 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         log(state, `${player.name}は${sourceName}の効果として、${getCard(chosen.inst.cardId).name}の効果を借りて発揮した。`)
         const wasSelfBorrow = isSelfBorrow(chosen)
         if (wasSelfBorrow) self.borrowedAttackEffectOnce = true
-        // 結果連動型（アタック宣言の後に起きる出来事で発揮する）は、このバトルの間エントリごと与え、出来事が起きたら発揮する
-        // （2026-11-13 ユーザー確認。BRAVE.md §12.4。#505）
-        if (!wasSelfBorrow && chosen.effect.trigger !== "onAttack" && chosen.effect.trigger !== "onBlock") {
-            recordTimed(state, { content: [{ type: "grantEntry", cardId: chosen.inst.cardId, effectId: chosen.effect.id }], target: { kind: "instance", instanceId: self.instanceId }, until: "battle", ownerPid: owner })
-            return
+        const actions: EffectAction[] = []
+        for (const entry of chosen.effects) {
+            if (entry.kind === "constraint") {
+                // 連鎖の条件は借りるエントリごとに、発揮を組むときに見る（解決の直前には見直さない）
+                if (entry.condition !== undefined && !checkAuraCondition(state, owner, entry.condition, self)) continue
+                if (entry.constraint.type !== "canDirectAttack") continue
+                actions.push({ type: "directAttack", constraint: entry.constraint })
+                continue
+            }
+            // 結果連動型（アタック宣言の後に起きる出来事で発揮する）は、このバトルの間エントリごと与え、出来事が起きたら発揮する
+            // （2026-11-13 ユーザー確認。BRAVE.md §12.4。#505）
+            if (!wasSelfBorrow && entry.trigger !== "onAttack" && entry.trigger !== "onBlock") {
+                recordTimed(state, { content: [{ type: "grantEntry", cardId: chosen.inst.cardId, effectId: entry.id }], target: { kind: "instance", instanceId: self.instanceId }, until: "battle", ownerPid: owner })
+                continue
+            }
+            // 自身を選んだ2回目は同じ発揮の連鎖なので、確認は聞き直さない
+            actions.push(wasSelfBorrow ? { type: "borrowCombinedAttackEffect", confirmed: true } : entry.action)
         }
-        // 自身を選んだ2回目は同じ発揮の連鎖なので、確認は聞き直さない
-        resolveAction(state, owner, self, wasSelfBorrow ? { type: "borrowCombinedAttackEffect", confirmed: true } : chosen.effect.action)
+        // 複数あるときは effects の順に並べる（途中で選択待ちになっても残りは再開スタックで続く）
+        if (actions.length === 1) resolveAction(state, owner, self, actions[0]!)
+        else if (actions.length > 1) resolveAction(state, owner, self, { type: "sequence", actions })
         if (wasSelfBorrow) delete self.borrowedAttackEffectOnce
     }
     if (targetInstanceId !== undefined) {
@@ -1313,6 +1341,46 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         return
     }
     fire(effectiveCandidates[0]!)
+}
+
+// 器：指定アタック（canDirectAttack）を借りて発揮したとき、アタック中に相手のスピリット1体を指定先として立てる
+// （BS13-049イリテバンが BS20-058 等の指定を借りた場合）。指定の確定は今と同じくフラッシュ①を閉じる時（settleDirectedAttack）
+// 対話では任意（選ばない＝指定しない）。「〜できる」は確認式なので、候補が1体でも自動では決めない
+const directAttackHandler: ActionHandler<"directAttack"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    const battle = state.battle
+    if (!self || !battle || battle.blockerInstanceId !== null || battle.directedTargetInstanceId !== undefined || battle.attackerInstanceId !== self.instanceId) {
+        log(state, `${sourceName}：指定してアタックする相手を立てられなかった。`)
+        return
+    }
+    const filter = directAttackFilterOf(action.constraint, mustBeAttackTargetIds(state, owner, self))
+    const candidates = state.players[opp].field.spirits.filter(
+        (t) => matchesDirectedAttackFilter(filter, t, state, opp, { pid: owner, inst: self }) === null,
+    )
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。`)
+        return
+    }
+    let chosen: CardInstance | undefined
+    if (targetInstanceId !== undefined) {
+        chosen = candidates.find((c) => c.instanceId === targetInstanceId)
+        if (!chosen) return
+    } else if (state.interactiveTargets) {
+        requestUpToChoice(
+            state,
+            owner,
+            `${sourceName}：指定してアタックする相手のスピリットを選んでください`,
+            candidates.map((c) => c.instanceId),
+            { type: "directAttack", constraint: action.constraint },
+            self,
+        )
+        return
+    } else {
+        chosen = candidates.reduce((best, c) => (effectiveBp(state, opp, c) < effectiveBp(state, opp, best) ? c : best))
+    }
+    battle.directed = true
+    battle.directedTargetInstanceId = chosen.instanceId
+    log(state, `${state.players[owner].name}の${getCard(self.cardId).name}は${getCard(chosen.cardId).name}を指定してアタックする。`)
 }
 
 
@@ -1640,6 +1708,7 @@ const handlers = {
     combineOwnBrave: combineOwnBraveHandler,
     refreshSelfBraveThenCombine: refreshSelfBraveThenCombineHandler,
     borrowCombinedAttackEffect: borrowCombinedAttackEffectHandler,
+    directAttack: directAttackHandler,
     removeOneOfAnyType: removeOneOfAnyTypeHandler,
     lifeCoresBySymbolDiff: lifeCoresBySymbolDiffHandler,
     negateContinuousMagicByName: negateContinuousMagicByNameHandler,
