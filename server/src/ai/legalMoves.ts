@@ -22,6 +22,7 @@ import {
     validateTakeLife,
 } from "../logic/RuleValidator"
 import { activatableAbility, activatedActionResolvable, bravesOf, mustBeAttackTargetIds } from "../../../shared/rules"
+import { braveCombineCandidates } from "../../../shared/summon"
 
 // 1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
 export interface AiMove {
@@ -78,6 +79,30 @@ function handMoves(state: GameState, pid: PlayerId): AiMove[] {
                         reason: `${card.name}をLv${lv.level}で召喚`,
                     })
                     break
+                }
+            }
+        } else if (card.type === "brave") {
+            // ブレイヴは「スピリットとして単体で出す」手と「自分のスピリットに合体させて出す」手（ダイレクトブレイヴ）がある。
+            // どちらも払える最大レベルを1つだけ候補にする（スピリットと同じ）
+            for (const lv of [...card.levels].sort((a, b) => b.level - a.level)) {
+                if (validateSummon(state, pid, handIndex, undefined, lv.level) === null) {
+                    moves.push({
+                        action: { type: "summon", handIndex, level: lv.level },
+                        reason: `${card.name}をLv${lv.level}で召喚`,
+                    })
+                    break
+                }
+            }
+            for (const hostId of braveCombineCandidates(state, pid, cardId)) {
+                const hostName = getCard(player.field.spirits.find((sp) => sp.instanceId === hostId)!.cardId).name
+                for (const lv of [...card.levels].sort((a, b) => b.level - a.level)) {
+                    if (validateSummon(state, pid, handIndex, undefined, lv.level, undefined, undefined, hostId) === null) {
+                        moves.push({
+                            action: { type: "summon", handIndex, level: lv.level, braveTargetInstanceId: hostId },
+                            reason: `${card.name}を${hostName}に合体させて召喚`,
+                        })
+                        break
+                    }
                 }
             }
         } else if (card.type === "nexus") {
