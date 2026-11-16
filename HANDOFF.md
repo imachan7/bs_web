@@ -46,10 +46,7 @@
 
 C1〜C4（同時破壊を1本の列に・対象に取れるのは同じ出来事の待機だけ・戻す待機の順番・待機の変化）は実装済み（PENDING_STATE §3、TIMING_CHART §1.5・§1.6）。破壊待機の間だけ使う控え（破壊の発生源・「残る」を見ない印・破壊後バースト用の値）は `waiting` の中に移した（読むのは `destroyContextOf`・`destroyBurstInfoOf`）。残りは段取り6（『消滅時』）で、挙動が変わるので実装前に確認する。
 
-**段取り5（合体中のブレイヴだけの待機）の設計**（2026-11-16 確定。PENDING_STATE §3 C5〜C8。`feat/brave-only-waiting`。#584 の上に積んでいる）：
-- 入口は `brave.ts` の `destroyCombinedBraves(state, ownerPid, [{host, brave}], context)`（1つでも同じ。`destroyCombinedBrave` はこれを呼ぶ）。スピリットとの参照と合体の印を切り、ブレイヴは `waiting:{kind:"destroy", event}` で `combinedBraves` に残す（同時破壊は全員同じ event）。
-- 誘発は1本の列（ブレイヴ自身の『破壊時』＋ `ownBraveOnlyDestroyed` を出来事につき1回）。2つ以上の同時破壊で `ownBraveOnlyDestroyed` の発生源があれば、列の前に持ち主が「そのブレイヴ」を1つ選ぶ（復活の pickMany と同じく先頭で選ぶ。番号の受け取りは `triggerOrder` の仕組みを使う）。
-- 列が止まったら `braveDestroy` フレーム（`phase:"triggers"|"commit"`）。確定は、その event でまだ破壊待機のブレイヴをトラッシュへ。手札戻しは既存の `returnDestroyedSelfToHand`（待機を解いて手札へ）に `combinedBraves` から抜く処理を足す。
+段取り5（合体中のブレイヴだけの破壊の待機）は実装済み（PENDING_STATE §3 C5〜C8、BRAVE.md §6.5）。
 
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
