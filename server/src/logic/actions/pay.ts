@@ -190,7 +190,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
             const spirits = state.players[action.side === "own" ? owner : opponentOf(owner)].field.spirits.length
             return achievable >= 1 && (action.targets === undefined || spirits >= action.targets)
         }
-        const need = (action.countCounter !== undefined ? countedAmount(state, owner, self, action.count, action.countCounter, srcType) : action.count) + removeCoresKyokaBonus(state, owner, action)
+        const need = (action.countCounter !== undefined ? countedAmount(state, owner, self, action.count, action.countCounter, srcType) : action.count) + removeCoresKyokaBonus(state, owner, action, srcType)
         return achievable >= need
     },
     treatAsUnblocked: (state) => (state.battle?.blockerInstanceId ?? null) !== null,
