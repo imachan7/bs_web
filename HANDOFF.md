@@ -42,6 +42,11 @@
 - 対戦開始の処理（デッキ指定の解決・先攻決め・最初のターン開始）は `server/src/matchSetup.ts` に出し、サーバーと Worker の両方が使う
 - サーバーの `startAi` は残す（Worker を起動できないブラウザの退避先・E2E）。件数の記録は `POST /api/ai-start` で続ける
 
+### 進行中：#559 相手に選ばせる破壊で、候補が1体だと破壊した側が入れ替わる（2026-11-16 確定。`fix/mutual-choice-actor`）
+
+- 原因：`actions/destroy.ts` の `mutualDestroyChoiceHandler`・`mutualKeepChoiceHandler` が `requestChoice(state, opp, …)` で相手に選ばせ、後から `pendingChoice.actorPid = owner` を書いている。候補1体だと `requestChoice` は選択待ちを立てずに `resolveAction(state, pid, …)` へ入るので、実行者が相手になる。
+- 直し方：`requestChoice` の既存の引数 `chooserPid` を使う。`requestChoice(state, owner, 文言, 候補, false, action, self, "target", undefined, opp)` に変え、後書きの `actorPid = owner` の行は消す（2か所とも）。`requestChoice` 自体は変えない。
+
 ### 進行中：待機状態の作り替え（2026-11-15。確認の答えは [PENDING_STATE.md](./docs/design/PENDING_STATE.md) §3 の C1〜C4）
 
 C1〜C4（同時破壊を1本の列に・対象に取れるのは同じ出来事の待機だけ・戻す待機の順番・待機の変化）は実装済み（PENDING_STATE §3、TIMING_CHART §1.5・§1.6）。破壊待機の間だけ使う控え（破壊の発生源・「残る」を見ない印・破壊後バースト用の値）は `waiting` の中に移した（読むのは `destroyContextOf`・`destroyBurstInfoOf`）。残りは段取り5（合体中のブレイヴだけの待機）・6（『消滅時』）で、どちらも挙動が変わるので実装前に確認する。
