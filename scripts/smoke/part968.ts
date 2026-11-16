@@ -2,7 +2,7 @@
 // A 対話：BS20-058 のコア除去のあと指定の選択が出て、選んだ相手が指定先になる／B 赤シンボル無し：指定は出ない
 // C 任意：BS18-056 の指定候補は疲労状態だけ・選ばなければ通常のアタック／D 指定の後に連鎖（白シンボル）も発揮
 // E 非対話：指定は実効BPが最も低い相手になる
-import { assert, act, createGame, createInstance, effectiveBp, getCard, giveBp, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { assert, act, createGame, createInstance, effectiveBp, getCard, giveBp, lockedFor, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import type { CardInstance } from "../../server/src/type"
 import { attachBrave } from "../../server/src/logic/brave"
@@ -42,15 +42,19 @@ function game(seed: string, interactive: boolean): GameState {
     return s
 }
 
-type Pick = { borrow?: string; core?: string; directed?: string; onDirected?: (candidates: string[]) => void }
+type Pick = { borrow?: string; core?: string; directed?: string; option?: string; count?: string; onDirected?: (candidates: string[]) => void; onOption?: (options: string[]) => void }
 
-// 選択待ちを答え続ける。確認は「発動する」、借りる元は pick.borrow、コア除去は pick.core、指定は pick.directed（無ければスキップ）
+// 選択待ちを答え続ける。確認は「発動する」、借りる元は pick.borrow、見出しの選択は pick.option（無ければ「発動する」）、コア除去は pick.core、指定は pick.directed（無ければスキップ）
 function drive(s: GameState, pick: Pick): void {
     for (let n = 0; s.pendingChoice && !s.winner; n++) {
         if (n > 20) throw new Error("選択が終わらない")
         const pc = s.pendingChoice
         if (pc.kind === "option") {
-            const err = act(s, pc.pid, { type: "resolveChoice", option: "発動する" })
+            pick.onOption?.([...(pc.options ?? [])])
+            // 【分身】の発揮は置く枚数・置くコアの数を聞く（stepper）。どちらも pick.count（無ければ1）
+            const label = pick.option !== undefined && (pc.options ?? []).includes(pick.option) ? pick.option
+                : pc.prompt.includes("枚数") || pc.prompt.includes("コアの数") ? (pick.count ?? "1") : "発動する"
+            const err = act(s, pc.pid, { type: "resolveChoice", option: label })
             assert(err === null, `発動する: ${err}`)
             continue
         }
@@ -154,6 +158,42 @@ console.log("=== E. 非対話：指定は実効BPが最も低い相手になる 
     assert(effectiveBp(s, "p2", b.oppB) < effectiveBp(s, "p2", b.oppA), "前提：Bの方がBPが低い")
     attackWith(s, b.host)
     assert(closeFlash(s) === b.oppB.instanceId, "実効BPが最も低いBがブロッカーになる")
+}
+
+// F 系：BS23-060 日輪丸は『アタック時』の見出しが2つ（e1 バースト封じ／e2 【分身】の発揮）。借りるのは見出し1つ
+// 分身の発揮は host（BS23-025 JU＝分身持ち）の分身が作られるかで見る（part859 の 060 と同じ観測）
+console.log("=== F. 対話：日輪丸の見出しが2つ → 『相手はバーストを発動できない』を選ぶと、その効果だけが発揮される ===")
+{
+    const s = game("p968-f", true)
+    const b = board(s, "BS23-025", "BS23-060")
+    const brave = s.players.p1.field.spirits.find((x) => x.cardId === "BS23-060")!
+    attackWith(s, b.host)
+    let labels: string[] = []
+    // 確認（「発動する」1つ）の選択肢は除き、見出しの選択肢（2つ）だけを記録する
+    drive(s, { borrow: brave.instanceId, option: "相手はバーストを発動できない。", onOption: (o) => { if (o.length > 1) labels = o } })
+    assert(labels.length === 2 && labels[0] === "相手はバーストを発動できない。" && labels[1]?.includes("分身") === true, `見出しの選択肢は2つ（${labels.join(" / ")}）`)
+    assert(lockedFor(s, "p2", "burst"), "e1：相手はバーストを発動できない（借りた見出し）")
+    assert(!s.players.p1.field.spirits.some((x) => x.bunshinOf !== undefined), "e2：【分身】は発揮されない（借りていない見出し）")
+}
+
+console.log("=== F2. 非対話：日輪丸は1つ目の見出し（バースト封じ）だけが発揮される ===")
+{
+    const s = game("p968-f2", false)
+    const b = board(s, "BS23-025", "BS23-060")
+    attackWith(s, b.host)
+    assert(lockedFor(s, "p2", "burst"), "1つ目の見出し：相手はバーストを発動できない")
+    assert(!s.players.p1.field.spirits.some((x) => x.bunshinOf !== undefined), "2つ目の見出し（【分身】）は発揮されない")
+}
+
+console.log("=== F3. 対照：2つ目の見出し（【分身】）を選ぶと分身が作られ、バーストは封じられない ===")
+{
+    const s = game("p968-f3", true)
+    const b = board(s, "BS23-025", "BS23-060")
+    const brave = s.players.p1.field.spirits.find((x) => x.cardId === "BS23-060")!
+    attackWith(s, b.host)
+    drive(s, { borrow: brave.instanceId, option: "このスピリットが持つ【分身】を発揮させる。" })
+    assert(s.players.p1.field.spirits.some((x) => x.bunshinOf !== undefined), "【分身】が発揮されて分身ができる")
+    assert(!lockedFor(s, "p2", "burst"), "バースト封じは掛からない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part968）")

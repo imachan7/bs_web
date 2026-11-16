@@ -1238,7 +1238,7 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
 // 「このスピリット」は発揮する側（self）を指すため、借りた効果はselfのレベルで判定しselfへ渡す
 // （docs/design/BRAVE.md §12。2026-09-07/08 ユーザー確認）
 const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffect"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const { state, owner, self, sourceName, targetInstanceId, chosenOption } = ctx
     if (!self) {
         log(state, `${sourceName}：発揮する対象がいなかった。`)
         return
@@ -1246,8 +1246,9 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
     const player = state.players[owner]
     const level = currentLevel(self).level
     type BorrowEntry = Extract<EffectDef, { kind: "triggered" }> | Extract<EffectDef, { kind: "constraint" }>
-    // 借りる元のカード1枚と、そのカードが持つ借りるエントリ（effects の順）
+    // 借りる元のカード1枚の、『』の見出し1つ（separateEffect で区切ったグループ）と、そのグループが持つ借りるエントリ（effects の順）
     type Candidate = { inst: CardInstance; effects: BorrowEntry[] }
+    const isSeparateEffect = (effect: EffectDef): boolean => (effect.kind === "triggered" || effect.kind === "constraint") && effect.separateEffect === true
     const candidates: Candidate[] = []
     const isBorrowable = (effect: EffectDef, rewrites: ReturnType<typeof headingRewritesOn>): effect is BorrowEntry => {
         if (effect.kind === "triggered") {
@@ -1257,15 +1258,23 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
     }
     // 見出し（書き換えを足したもの）が『アタック時』の【合体時】エントリ。結果連動型（BPを比べ破壊したとき 等）も含む（#505）。
     // 書き換えは持っている個体（スピリット状態のブレイヴ自身／合体先のホスト）に掛かっているものを見る
+    // 見出しごとに区切ってから借りる。区切りの外側にある効果（別の見出しのエントリ）は、同じカードでも別の候補になる
     const collect = (inst: CardInstance, holder: CardInstance): void => {
         const rewrites = headingRewritesOn(state, owner, holder)
-        const effects: BorrowEntry[] = []
-        for (const effect of getCard(inst.cardId).effects) {
-            if (!isBorrowable(effect, rewrites)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            effects.push(effect)
+        const groups: EffectDef[][] = []
+        getCard(inst.cardId).effects.forEach((effect, i) => {
+            if (i === 0 || isSeparateEffect(effect)) groups.push([])
+            groups[groups.length - 1]!.push(effect)
+        })
+        for (const group of groups) {
+            const effects: BorrowEntry[] = []
+            for (const effect of group) {
+                if (!isBorrowable(effect, rewrites)) continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                effects.push(effect)
+            }
+            if (effects.length > 0) candidates.push({ inst, effects })
         }
-        if (effects.length > 0) candidates.push({ inst, effects })
     }
     // 自分のスピリット状態のブレイヴ
     for (const sp of player.field.spirits) {
@@ -1321,14 +1330,10 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         else if (actions.length > 1) resolveAction(state, owner, self, { type: "sequence", actions })
         if (wasSelfBorrow) delete self.borrowedAttackEffectOnce
     }
-    if (targetInstanceId !== undefined) {
-        const chosen = effectiveCandidates.find((c) => c.inst.instanceId === targetInstanceId)
-        if (!chosen) return
-        fire(chosen)
-        return
-    }
+    // 借りる元のカード：選ばれた答え（targetInstanceId＝カード選択の再入、borrowInstanceId＝見出し選択の再入）を優先し、
+    // 無ければ対話では聞く（候補が1枚なら聞かない）
     const uniqueIds = [...new Set(effectiveCandidates.map((c) => c.inst.instanceId))]
-    if (state.interactiveTargets && uniqueIds.length >= 2) {
+    if (targetInstanceId === undefined && action.borrowInstanceId === undefined && state.interactiveTargets && uniqueIds.length >= 2) {
         requestChoice(
             state,
             owner,
@@ -1340,7 +1345,48 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         )
         return
     }
-    fire(effectiveCandidates[0]!)
+    const pickedId = targetInstanceId ?? action.borrowInstanceId ?? uniqueIds[0]!
+    const groups = effectiveCandidates.filter((c) => c.inst.instanceId === pickedId)
+    if (groups.length === 0) return
+    if (groups.length === 1) {
+        fire(groups[0]!)
+        return
+    }
+    // 1枚に見出しが2つ以上あるとき（BS23-060 日輪丸）は、どの見出しを借りるかを選ぶ
+    const labels = borrowOptionLabels(getCard(groups[0]!.inst.cardId).effect ?? "", groups.length)
+    if (chosenOption !== undefined) {
+        const picked = groups[labels.indexOf(chosenOption)]
+        if (picked) fire(picked)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：${getCard(groups[0]!.inst.cardId).name}のどの効果を借りますか？`,
+            [],
+            false,
+            { type: "borrowCombinedAttackEffect", confirmed: true, borrowInstanceId: pickedId },
+            self,
+            "option",
+            labels,
+        )
+        return
+    }
+    fire(groups[0]!)
+}
+
+// 「どの見出しを借りるか」の選択肢の表示。見出しに『アタック時』を含むブロックを順に取り、本文の先頭1行（25字まで）にする。
+// 数が候補のグループ数と合わない・重複するときは「効果N」にする（ラベルは選ぶ答えとして戻ってくるので一意であること）
+const borrowOptionLabels = (effectText: string, count: number): string[] => {
+    const parts = effectText.split(/『([^』]*)』/)
+    const bodies: string[] = []
+    for (let i = 1; i + 1 < parts.length; i += 2) {
+        if (!parts[i]!.includes("アタック時")) continue
+        bodies.push((parts[i + 1]!.trim().split("\n")[0] ?? "").slice(0, 25))
+    }
+    if (bodies.length === count && new Set(bodies).size === count && bodies.every((b) => b !== "")) return bodies
+    return Array.from({ length: count }, (_, k) => `効果${k + 1}`)
 }
 
 // 器：指定アタック（canDirectAttack）を借りて発揮したとき、アタック中に相手のスピリット1体を指定先として立てる

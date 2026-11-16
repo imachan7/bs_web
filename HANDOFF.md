@@ -31,7 +31,7 @@
 
 ### 進行中：#583 借りた指定アタック（2026-11-16 ユーザー確認①〜③。`fix/borrow-directed-attack`）
 
-- イリテバンが借りる単位は**カード1枚**：そのブレイヴの【合体時】『アタック時』のエントリ（triggered onAttack と constraint canDirectAttack。whileCombined）を効果文の順にすべて発揮する（スカルプレイン＝コア除去→連鎖の指定、ザグナ・オリックス＝指定→連鎖）。constraint の condition（連鎖の色）は解決時に判定
+- イリテバンが借りる単位は**『』の見出し1つ**（BRAVE.md §12.4）：そのブレイヴの【合体時】『アタック時』のエントリ（triggered onAttack と constraint canDirectAttack。whileCombined）を、`separateEffect` で区切ったまとまりごとに効果文の順に発揮する（スカルプレイン＝コア除去→連鎖の指定、日輪丸は2つから選ぶ）
 - 指定は新アクション `directAttack { constraint: canDirectAttack の制約そのもの }`：アタック中・ブロック前・まだ指定していないときに、相手のスピリット1体を選んで `battle.directed`／`directedTargetInstanceId` を立てる（「できる」なので選ばなくてよい）。候補は `matchesDirectedAttackFilter`。確定は既存の `settleDirectedAttack`／`resolveDirectedBlock`
 - 対象6枚：BS20-058・BS23-057・BS18-056・BS19-068・SD17-X02・X009
 
