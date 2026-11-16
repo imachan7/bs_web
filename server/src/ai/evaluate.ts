@@ -143,7 +143,8 @@ export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
             const level = card.levels.find((l) => l.level === (action.level ?? 1))
             // 場のスピリットは打点でもブロッカーでもあるので、召喚は基本的に強い手として扱う。
             // シンボルはコスト軽減に効くので体数と別に加点する
-            return 80 + (level ? level.bp / 1000 : 0) + card.symbol.length * 5
+            // ブレイヴの合体召喚は維持コアが要らず、合体先の打点も上がるので、同じブレイヴの単体召喚より少し上に置く
+            return 80 + (level ? level.bp / 1000 : 0) + card.symbol.length * 5 + (action.braveTargetInstanceId !== undefined ? 10 : 0)
         }
         case "setNexus":
             return 60

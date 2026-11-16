@@ -11,7 +11,7 @@ import { master } from "../renderer"
 export function payableFieldCores(view: GameView, cardId: string): number {
     const player = view.players[view.you]
     const card = master(cardId)
-    const isSoku = view.isFlashTiming && card.type === "spirit" && (ownHandKeyword(view, cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))
+    const isSoku = view.isFlashTiming && (card.type === "spirit" || card.type === "brave") && (ownHandKeyword(view, cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))
     const allowed = isSoku ? sokuPayableInstanceIds(view, view.you) : null
     return [...player.field.spirits, ...player.field.nexuses]
         .filter((i) => allowed === null || allowed.has(i.instanceId))

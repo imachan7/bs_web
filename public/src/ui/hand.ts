@@ -59,7 +59,7 @@ export function renderHand(view: GameView, ui: UiState): void {
         // 神速：静的に持つか、grantKeywordToHandCardで一時付与されているか、
         // 場の発生源から継続的に与えられているか（緑芽吹く原野Lv2。判定はサーバーと同一の共有実装）
         const flashSummonable =
-            m.type === "spirit" &&
+            (m.type === "spirit" || m.type === "brave") &&
             (ownHandKeyword(view, cardId, "soku") ||
                 ((tempSokuCardIds.has(cardId) || hasHandKeywordGrant(view, view.you, m, "soku")) && !zoneSpiritEffectsDisabled(view, cardId)) ||
                 flashSummonFromHandNow(view, view.you, cardId))
