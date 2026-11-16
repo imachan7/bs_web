@@ -1072,7 +1072,48 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n相手のスピリット1体を指定し、そのスピリットにアタックする。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。",
-  "effects": []
+  "effects": [
+    {
+     "id": "X13-13-e1",
+     "kind": "constraint",
+     "levels": [
+      1,
+      2,
+      3
+     ],
+     "constraint": {
+      "type": "canDirectAttack",
+      "targetFilter": "any",
+      "mandatory": true
+     }
+    },
+    {
+     "id": "X13-13-e2",
+     "kind": "triggered",
+     "keyword": "rensa",
+     "trigger": "onBattleWin",
+     "heading": "attack",
+     "levels": [
+      1,
+      2,
+      3
+     ],
+     "optional": false,
+     "action": {
+      "type": "if",
+      "cond": {
+       "count": {
+        "ownColorSymbols": "green"
+       },
+       "atLeast": 1
+      },
+      "then": {
+       "type": "opponentLifeToReserve",
+       "count": 1
+      }
+     }
+    }
+   ]
  },
  {
   "cardId": "X13-14",
@@ -1226,7 +1267,71 @@
   "rarity": "X",
   "limited": false,
   "effect": "【バースト：相手による自分のスピリット破壊後】\n自分のスピリットの色が2色以上のとき、このスピリットカードを召喚する。\nLv1･Lv2･Lv3･Lv4『このスピリットのアタック時』\n系統：「覇皇」を持つ相手のスピリット1体を破壊する。\nLv2･Lv3･Lv4\n相手がバーストをセットしている間/バースト効果を持つ相手のスピリットがいる間、このスピリットをBP+10000する。",
-  "effects": []
+  "effects": [
+    {
+     "id": "X13-16-e1",
+     "kind": "burst",
+     "event": "ownSpiritDestroyed",
+     "subjectSide": "own",
+     "byOpponentEffectOnly": true,
+     "action": {
+      "type": "if",
+      "cond": {
+       "count": "ownFieldSpiritColors",
+       "atLeast": 2
+      },
+      "then": {
+       "type": "summon",
+       "from": "burst"
+      }
+     }
+    },
+    {
+     "id": "X13-16-e2",
+     "kind": "triggered",
+     "trigger": "onAttack",
+     "levels": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "optional": false,
+     "action": {
+      "type": "destroy",
+      "count": 1,
+      "filter": {
+       "family": "覇皇"
+      }
+     }
+    },
+    {
+     "id": "X13-16-e3",
+     "kind": "aura",
+     "levels": [
+      2,
+      3,
+      4
+     ],
+     "aura": {
+      "type": "bp",
+      "target": "self",
+      "amount": 10000,
+      "condition": {
+       "anyOf": [
+        {
+         "opponentBurstSet": true
+        },
+        {
+         "opponentSpiritMatches": {
+          "hasBurst": true
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
  },
  {
   "cardId": "X13-17",

@@ -35,6 +35,7 @@ import {
     matchesFamilyFilter,
     KEYWORDS,
     spiritHasKeyword,
+    directAttackFilter,
     type DirectAttackFilter,
 } from "./rules"
 
@@ -247,4 +248,15 @@ export function matchesDirectedAttackFilter(
         return `コスト${filter.targetMaxCost}以下のスピリットしか指定できません`
     }
     return null
+}
+
+// 必ず指定アタック（canDirectAttack.mandatory。X13-13）の指定先候補：指定できる相手のスピリット。mandatory でなければ空。
+// 候補が1体でもあれば、指定せずにアタックすることは拒否される（validateAttack）。AI の合法手もこの候補から指定アタックを作る
+export function mandatoryDirectAttackTargetIds(board: Board, pid: PlayerId, inst: CardInstance): string[] {
+    const filter = directAttackFilter(board, pid, inst)
+    if (!filter?.mandatory) return []
+    const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
+    return board.players[oppPid].field.spirits
+        .filter((t) => matchesDirectedAttackFilter(filter, t, board, oppPid, { pid, inst }) === null)
+        .map((t) => t.instanceId)
 }

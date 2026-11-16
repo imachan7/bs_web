@@ -494,6 +494,7 @@ export interface DirectAttackFilter {
     targetMinBp?: number // 指定時は相手スピリットの実効BPがこれ以上のもののみ指定できる（BS05シンクロニシティ：BP4000以上）
     targetMinCost?: number // 指定時は相手スピリットのコストがこれ以上のもののみ指定できる（BS05天焦がす大聖火Lv2：コスト5以上）
     targetMaxCost?: number // 指定時は相手スピリットのコストがこれ以下のもののみ指定できる（EX006輝星龍ジークヴルム・デネブ：コスト4以下）
+    mandatory?: true // 指定できる相手のスピリットがいる間は、指定せずにアタックできない（mandatoryDirectAttackTargetIds を参照。X13-13）
 }
 
 // canDirectAttack の定義から対象条件を組む。forced＝相手の効果で指定が決まっている個体（mustBeAttackTarget）
@@ -508,6 +509,7 @@ export function directAttackFilterOf(
     if (constraint.targetMaxCost !== undefined) filter.targetMaxCost = constraint.targetMaxCost
     if (constraint.targetCombinedOnly) filter.targetCombinedOnly = true
     if (constraint.targetHighestBp) filter.targetHighestBp = true
+    if (constraint.mandatory) filter.mandatory = true
     return filter
 }
 

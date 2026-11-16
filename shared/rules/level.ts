@@ -460,8 +460,13 @@ export function colorlessWhenAttacking(board: Board, pid: PlayerId, inst: CardIn
 // 多色カードは各色を数える。合体中のブレイヴの色は instColors（braveComposite.colors 経由）で
 // 自動的に含まれる。colorless の個体は instColors が空配列を返すため自動的に除外される
 export function opponentFieldColorCount(board: Board, pid: PlayerId, spiritsOnly = false): number {
-    const opp = board.players[pid === "p1" ? "p2" : "p1"]
-    const insts = spiritsOnly ? opp.field.spirits : [...opp.field.spirits, ...opp.field.nexuses]
+    return fieldColorCount(board, pid === "p1" ? "p2" : "p1", spiritsOnly)
+}
+
+// 指定した陣営（side）のフィールドの色の種類数（重複除く）。自分側は side に持ち主を渡す（X13-16 バースト条件：自分のスピリットの色が2色以上）
+export function fieldColorCount(board: Board, side: PlayerId, spiritsOnly = false): number {
+    const p = board.players[side]
+    const insts = spiritsOnly ? p.field.spirits : [...p.field.spirits, ...p.field.nexuses]
     const colors = new Set<Color>()
     for (const inst of insts) for (const c of instColors(inst)) colors.add(c)
     return colors.size

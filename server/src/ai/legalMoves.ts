@@ -22,6 +22,7 @@ import {
     validateTakeLife,
 } from "../logic/RuleValidator"
 import { activatableAbility, activatedActionResolvable, bravesOf, mustBeAttackTargetIds } from "../../../shared/rules"
+import { mandatoryDirectAttackTargetIds } from "../../../shared/block"
 import { braveCombineCandidates } from "../../../shared/summon"
 
 // 1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
@@ -203,7 +204,8 @@ function attackStepMoves(state: GameState, pid: PlayerId): AiMove[] {
             continue
         }
         // 指定アタックを強いられている個体（mustBeAttackTarget）は、指定先ごとに手を出す
-        for (const targetId of mustBeAttackTargetIds(state, pid, inst)) {
+        // 必ず指定アタック（mandatory）の指定先も候補に入れる（指定なしのアタックは validateAttack が拒否する）
+        for (const targetId of [...mustBeAttackTargetIds(state, pid, inst), ...mandatoryDirectAttackTargetIds(state, pid, inst)]) {
             if (validateAttack(state, pid, inst.instanceId, targetId) !== null) continue
             moves.push({
                 action: { type: "attack", instanceId: inst.instanceId, targetSpiritInstanceId: targetId },

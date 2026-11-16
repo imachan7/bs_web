@@ -74,6 +74,7 @@ import {
     spiritHasKeywordOrLabel,
     instIsCombined,
     opponentFieldColorCount,
+    fieldColorCount,
    
 } from "../../../shared/rules"
 import { lastCoresCount, lastDestroyedCountOf, lastDrawnCount, lastEmptiedSpiritsOf, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
@@ -1026,6 +1027,7 @@ export function countEffectCounter(
     if (counter === "opponentLife") return state.players[opponentOf(owner)].life
     if (counter === "opponentFieldColors") return opponentFieldColorCount(state, owner)
     if (counter === "opponentFieldSpiritColors") return opponentFieldColorCount(state, owner, true)
+    if (counter === "ownFieldSpiritColors") return fieldColorCount(state, owner, true)
     if (counter === "selfBraveCount") return self?.braveRefs?.length ?? 0
     if (counter === "ownNexuses") return state.players[owner].field.nexuses.length
     if (counter === "allNexuses") {

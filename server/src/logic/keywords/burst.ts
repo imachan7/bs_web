@@ -337,21 +337,24 @@ export function fireBurstOnEvent(
             (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === event,
         )
         // BS15共通器：globalConstraint "burstAltEventFromOpponentSummon"（発生源=holder自身）が
-        // 効いている間、event:"opponentSummonEffectResolved"のバーストは"ownLifeDamaged"でも拾う
-        // （BS15-069太陰の宮廷Lv2）
-        const hasBurstAltEvent = effectSources(state, holderPid).some((src) => {
+        // 効いている間、event:"opponentSummonEffectResolved"のバーストは alsoOn の事象でも拾う
+        // （省略時は"ownLifeDamaged"。BS15-069太陰の宮廷Lv2。X016 は alsoOn:"ownSpiritDestroyed"）
+        const altEventHere = effectSources(state, holderPid).some((src) => {
             const srcLevel = currentLevel(src).level
             return getCard(src.cardId).effects.some(
                 (e) =>
                     e.kind === "globalConstraint" &&
                     e.constraint.type === "burstAltEventFromOpponentSummon" &&
+                    (e.constraint.alsoOn ?? "ownLifeDamaged") === event &&
                     effectActiveAtLevel(e.levels, srcLevel),
             )
         })
-        if (!effect && event === "ownLifeDamaged" && hasBurstAltEvent) {
+        if (!effect && altEventHere) {
             effect = getCard(burstCardId).effects.find(
                 (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === "opponentSummonEffectResolved",
             )
+            // 破壊が絡む代替は、「相手による」の判定（byOpponentEffectOnly と同じ。バトル破壊を含む）を通す
+            if (effect && event === "ownSpiritDestroyed" && !eventInfo?.byOpponentEffect) continue
         }
         if (!effect) continue
         if (burstActivationBlocked(state, holderPid, burstCardId, effect.event, eventInfo)) continue

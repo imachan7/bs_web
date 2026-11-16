@@ -29,6 +29,8 @@ export type AuraCondition =
     | { ownAllHaveTeam: string } // 自分のフィールドのスピリット/ネクサスが1体以上あり、そのすべてが指定チーム（CardData.team）に所属する間（26系「自分のスピリット/ネクサスすべてが【X】を持つなら」。0体では不成立。条件系のownAllHaveTeamと同じ判定）
     | { ownAllHaveFamily: string }
     | { ownAllSpiritsHaveFamily: string; costIn?: number[] } // 自分のスピリットすべて（ネクサスは見ない。1体以上必要）が系統を持ち、costIn指定時はコストもそのどれかである間（26RBS03-055/060「すべてがコスト2/4/6/8で系統：「黄玉」を持つなら」。IfCond.ownAllSpiritsHaveFamily と同じ判定）
+    | { anyOf: AuraCondition[] } // いずれか1つが成り立つ間（重ねない。X13-16 Lv2-4：「バーストをセットしている間／バースト効果を持つ相手のスピリットがいる間」＝どちらか成立で+10000。オーラを2つに分けると両方成立で二重になる）
+    | { opponentSpiritMatches: TargetFilter } // 持ち主から見た相手のスピリットのうち絞り込みに合うものが1体以上いる間（ownSpiritMatches の相手側。X13-16）
     | { ownSpiritMatches: TargetFilter } // 自分のスピリットのうち絞り込みに合うものが1体以上いる間（発生源自身も数える。excludeSelf は効かない。26RBS03-062「効果の記述を持たない自分の青のスピリットがいるなら」）
     | { ownColorSymbolsAtLeast: { color: Color; count: number } } // 自分のフィールドの指定色シンボルの合計がcount個以上（スピリット/ネクサス両方。countSymbols と同じ数え方。26RSD04-002「自分の白シンボルが3つ以上あるなら」）
     | { ownTrashAllColor: Color } // 自分のトラッシュのカードすべてがこの色を持つ間（多色は色のどれかが一致すれば可。**0枚は不成立**＝ownTrashOnlyColor と逆。26RBS02-X06「トラッシュのカードすべてが紫なら」）
