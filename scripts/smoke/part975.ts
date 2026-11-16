@@ -26,6 +26,13 @@ const confirm = (t: ScenarioCtx, side: Side, yes: boolean) => {
     const hit = pc.options.find((o) => (yes ? /はい|する|払|発動/ : /いいえ|しない|しません/).test(o) && (yes ? !/しない|しません/.test(o) : true))
     t.act(side, { type: "resolveChoice", option: hit ?? (yes ? pc.options[0] : pc.options[pc.options.length - 1]) ?? "" })
 }
+// 同時に誘発した効果の「どれから解決するか」（ターンプレイヤーが選ぶ）。option なら文言が re に合うもの、それ以外は対象の instanceId で答える
+const order = (t: ScenarioCtx, side: Side, re: RegExp, instanceId?: string) => {
+    const pc = t.state.pendingChoice
+    if (!pc) return
+    if (pc.kind === "option" && pc.options) t.act(side, { type: "resolveChoice", option: pc.options.find((o) => re.test(o)) ?? pc.options[0] ?? "" })
+    else t.act(side, instanceId ? { type: "resolveChoice", instanceId } : { type: "resolveChoice" })
+}
 const answer = (t: ScenarioCtx, side: Side, label: string) => t.act(side, { type: "resolveChoice", instanceId: t.id(label) })
 // 自分がエンドしたあと、相手のターン開始で起きる変化（ドロー1枚・コアステップ）
 const oppStart = (reserve = 10) => [`相手.リザーブ: ${reserve} → ${reserve + 1}`, "相手.デッキ枚数: 40 → 39", "相手.手札: なし → ロクケラトプス"]
@@ -139,7 +146,7 @@ console.log("=== BSC05-011 電精ビリット ===")
 const defendWith = (t: ScenarioCtx, atk: string, blk: string) => attackAndBlock(t, "opp", atk, blk)
 scenario({
     name: "bilit-Lv3-他のスピリットが破壊されると、ビリットを手札に戻してそのスピリットを破壊時のまま残す",
-    start: { turn: "opp", me: { spirits: [{ card: BILIT, label: "ビリット", cores: 3 }, { card: WHITE, label: "A" }] }, opp: { spirits: [{ card: RED, label: "敵", cores: 3 }] } },
+    start: { turn: "opp", interactive: true, me: { spirits: [{ card: BILIT, label: "ビリット", cores: 3 }, { card: WHITE, label: "A" }] }, opp: { spirits: [{ card: RED, label: "敵", cores: 3 }] } },
     steps(t) {
         defendWith(t, "敵", "A")
         confirm(t, "me", true)
@@ -154,7 +161,7 @@ scenario({
 })
 scenario({
     name: "bilit-Lv3-戻すのを断れば、他のスピリットは破壊されたまま（ビリットは場に残る）",
-    start: { turn: "opp", me: { spirits: [{ card: BILIT, label: "ビリット", cores: 3 }, { card: WHITE, label: "A" }] }, opp: { spirits: [{ card: RED, label: "敵", cores: 3 }] } },
+    start: { turn: "opp", interactive: true, me: { spirits: [{ card: BILIT, label: "ビリット", cores: 3 }, { card: WHITE, label: "A" }] }, opp: { spirits: [{ card: RED, label: "敵", cores: 3 }] } },
     steps(t) {
         defendWith(t, "敵", "A")
         confirm(t, "me", false)
@@ -162,20 +169,34 @@ scenario({
     expect: ["自分.A.場所: フィールド → なし", "自分.リザーブ: 10 → 11", "自分.トラッシュ: なし → バーサーカー・ガン", "相手.敵.疲労: false → true"],
 })
 // Q2814：ビリット自身と他の1体が同時に破壊されるなら、ビリットを手札に戻して他を残せる（ビリット自身の破壊時ドローは起きない）
-// シャドウブレイド（紫・コスト7。紫のシンボル1つで軽減されコスト6）：疲労状態の相手のスピリットすべてを破壊（赤と紫のスピリットがいるとき）
+// シャドウブレイド（紫・コスト7。盤面のシンボルで軽減されコスト5）：疲労状態の相手のスピリットすべてを破壊（赤と紫のスピリットがいるとき）
+// Q2814＋TIMING_CHART：ビリット自身と他の1体が同時に破壊される。ドローと戻す効果は同じ列に並び、先に解決した方で結果が変わる
+// シャドウブレイド（紫・コスト7。盤面のシンボルで軽減されコスト5）：疲労状態の相手のスピリットすべてを破壊（赤と紫のスピリットがいるとき）
 scenario({
-    name: "bilit-Lv3-自分と他の1体が同時に破壊されるなら、ビリットを戻して他を残せる",
+    name: "bilit-Lv3-自分と他の1体が同時に破壊：戻す効果を先に解決すると、ビリットの破壊待機が解けてドローは処理されない",
     start: { turn: "opp", interactive: true,
         me: { spirits: [{ card: BILIT, label: "ビリット", cores: 3, rested: true }, { card: WHITE, label: "A", rested: true }] },
         opp: { hand: ["BS09-072"], spirits: [{ card: RED, label: "赤" }, { card: "BS01-031", label: "紫" }] } },
     steps(t) {
-        const a = t.id("A")
-        t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash" })
+        t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash" }) // 2つの効果（ドローと戻す）が同じ列に並び、ターンプレイヤー（相手）が順番を選ぶ
+        order(t, "opp", /戻/)
         confirm(t, "me", true)
-        t.act("me", { type: "resolveChoice", instanceId: a })
     },
     expect: ["自分.ビリット.場所: フィールド → なし", "自分.手札: なし → 電精ビリット", "自分.リザーブ: 10 → 13", "相手.手札: シャドウブレイド → なし",
-        "相手.トラッシュ: なし → シャドウブレイド", "相手.リザーブ: 10 → 4", "相手.トラッシュのコア: 0 → 6"],
+        "相手.トラッシュ: なし → シャドウブレイド", "相手.リザーブ: 10 → 5", "相手.トラッシュのコア: 0 → 5"],
+})
+scenario({
+    name: "bilit-Lv3-自分と他の1体が同時に破壊：ドローを先に解決すれば、ドローしてから戻して他を残せる",
+    start: { turn: "opp", interactive: true,
+        me: { spirits: [{ card: BILIT, label: "ビリット", cores: 3, rested: true }, { card: WHITE, label: "A", rested: true }] },
+        opp: { hand: ["BS09-072"], spirits: [{ card: RED, label: "赤" }, { card: "BS01-031", label: "紫" }] } },
+    steps(t) {
+        t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash" }) // 2つの効果（ドローと戻す）が同じ列に並び、ターンプレイヤー（相手）が順番を選ぶ
+        order(t, "opp", /ドロー|引/)
+        confirm(t, "me", true)
+    },
+    expect: ["自分.ビリット.場所: フィールド → なし", "自分.手札: なし → ロクケラトプス、電精ビリット", "自分.リザーブ: 10 → 13", "自分.デッキ枚数: 40 → 39", "相手.手札: シャドウブレイド → なし",
+        "相手.トラッシュ: なし → シャドウブレイド", "相手.リザーブ: 10 → 5", "相手.トラッシュのコア: 0 → 5"],
 })
 scenario({
     name: "bilit-Lv3-相手のスピリットが破壊されても戻さない",
@@ -205,8 +226,8 @@ scenario({
     steps(t) {
         const a = t.id("A") // 破壊待機に入るとラベルで引けなくなるので先に取る
         t.act("opp", { type: "castMagic", handIndex: 0, timing: "main" })
+        order(t, "opp", /バーサーカー/, a) // ビリットの効果は破壊された体ごとに列に並ぶ。先に解決した体が戻る対象（2つ目は払えず出ない）
         confirm(t, "me", true)
-        t.act("me", { type: "resolveChoice", instanceId: a })
     },
     expect: ["自分.ビリット.場所: フィールド → なし", "自分.手札: なし → 電精ビリット", "自分.B.場所: フィールド → なし", "自分.リザーブ: 10 → 14",
         "自分.トラッシュ: なし → ロクケラトプス", "相手.手札: フェラールスラッシュ → なし", "相手.トラッシュ: なし → フェラールスラッシュ",
