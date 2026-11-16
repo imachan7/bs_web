@@ -283,6 +283,8 @@ if (inst.cores < instMinLevelCores(inst)) destroySpirit(state, ownerPid, inst.in
 
 #### 実装への当てはめ
 
+**2026-11-17 から**：効果の中の破壊は、②に限らず①も、誘発（「残る」を含む）を効果の出口で1本の列にして解決する（[DERIVED_AFTER_EFFECT.md](./DERIVED_AFTER_EFFECT.md) §8）。下の `allowSuspend`／`pendingReviveConfirms` の使い分けは、効果の外の破壊にだけ残る。
+
 **「この効果で破壊したスピリット1体につき〜」は、最終的にフィールドに残っても、破壊待機のまま解決していれば数える**（2026-09-27 ユーザー確認。②と同じく同じ効果の中の後半なので、派生の「残る」より先に数える）。
 実装は `destroySpirit` が場に残った場合も true を返す形で満たしている（TIMING_CHART.md）。
 **①の「別の効果の『〜が破壊されたとき』」は、同じ列で「残る」が先に解決したら発揮しない**。fieldEvent の `ownSpiritDestroyed`／`opponentSpiritDestroyed` にも `requiresPendingDestructionOf` のガードを掛けた（2026-09-27。smoke part401。それまでは『破壊時』と【不死】だけにしか掛かっておらず、残った後でも発揮していた）。

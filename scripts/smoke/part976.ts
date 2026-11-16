@@ -43,7 +43,7 @@ const payIfAsked = (t: ScenarioCtx, side: Side, from?: string) => {
     const pc = t.state.pendingChoice
     if (pc && /支払/.test(pc.prompt) && !/スピリットを選んで/.test(pc.prompt)) {
         const need = pc.effectCostPay?.need ?? 0
-        t.act(side, { type: "resolveChoice", option: "支払う", paySources: from !== undefined ? [{ instanceId: t.id(from), count: need }] : undefined })
+        t.act(side, { type: "resolveChoice", option: "支払う", ...(from !== undefined ? { paySources: [{ instanceId: t.id(from), count: need }] } : {}) })
     }
 }
 const answer = (t: ScenarioCtx, side: Side, label: string) => t.act(side, { type: "resolveChoice", instanceId: t.id(label) })
