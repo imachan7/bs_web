@@ -53,7 +53,7 @@ export function instanceSymbolColors(inst: CardInstance): Color[] {
 // 画面用：シンボル1つずつを「数えられる色の集合」で返す。「◯色としても扱う」を持つ個体のシンボルは
 // 元の色と付与色のどれとしても数える（flexibleSymbolUnits と同じ規則。2026-08-20 ユーザー確認）
 export function instanceSymbolUnits(inst: CardInstance): Color[][] {
-    if (inst.colorlessThisBattle) return []
+    if (inst.colorless) return []
     const granted = grantedColorsOf(inst)
     return instanceSymbolColors(inst).map((sym) => [...new Set([sym, ...granted])])
 }
@@ -93,9 +93,9 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
         // 待機状態（破壊・消滅・戻す）のシンボルも軽減に使える（待機状態の統一。PENDING_STATE.md §1）
-        // colorlessThisBattle（器S）：色とシンボルを無いものとして扱う個体は軽減の数からまるごと飛ばす
+        // colorless（器S）：色とシンボルを無いものとして扱う個体は軽減の数からまるごと飛ばす
         // （BS13-011/015/052。docs/design/BS13_PLAN.md §1 #10）
-        if (inst.colorlessThisBattle) continue
+        if (inst.colorless) continue
         const { symbols: cardSymbols, fixed } = symbolsOf(inst, forSummon)
         // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / timedColors）を持つ個体は、
         // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
@@ -121,7 +121,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
 export function flexibleSymbolUnits(player: BoardPlayer, forSummon = false): Color[][] {
     const units: Color[][] = []
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
-        if (inst.colorlessThisBattle) continue
+        if (inst.colorless) continue
         const granted = grantedColorsOf(inst)
         if (granted.length === 0) continue
         const { symbols, fixed } = symbolsOf(inst, forSummon)

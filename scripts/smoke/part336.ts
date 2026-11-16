@@ -146,7 +146,7 @@ console.log("=== §D Lv1-2の手札破棄は持ち主が選ぶ（末尾の自動
     assert(act(s, "p1", { type: "resolveChoice", cardIndex: 0 }) === null, "先頭の手札を選んで破棄する")
     assert(!s.players.p1.hand.includes("BS01-001"), "選んだ手札（先頭）が破棄された")
     assert(s.players.p1.hand.includes("BS02-040"), "選ばなかった手札（末尾）は残る（旧実装なら消えていたはず）")
-    assert(attacker.colorlessThisBattle === true, "このバトルの間、アタッカーの色は無いものとして扱われる")
+    assert(attacker.colorless === true, "このバトルの間、アタッカーの色は無いものとして扱われる")
 }
 
 console.log("=== 対照: 非対話では決定的に選ぶ（discardSelfChoose と同じく末尾の1枚） ===")

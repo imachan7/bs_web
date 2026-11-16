@@ -82,7 +82,7 @@ console.log("=== 1. opponentFieldColorCount：色の種類数 ===")
     const s5 = game("p330-colorcount-colorless")
     const cl = putSpirit(s5, "p2", "T330-COLORLESS")
     giveTimed(s5, cl, { type: "colorless" }, "battle")
-    assert(opponentFieldColorCount(s5, "p1") === 0, "colorlessThisBattleの個体は数えない")
+    assert(opponentFieldColorCount(s5, "p1") === 0, "colorlessの個体は数えない")
 }
 
 console.log("=== 2. ownFieldOnlyColor：自分のフィールドが◯色しかない ===")

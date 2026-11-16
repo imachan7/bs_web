@@ -17,7 +17,7 @@ import { minLevelCoresOf } from "./activation"
 import { activeConstraints, braveBpBonusZeroFor, braveExtraMinCostFor, hasGlobalConstraint, timedBattleContents, timedPlayerRules, trashFrozen } from "./constraints"
 import { grantedColorsOf, instanceSymbolColors, instanceSymbolCount } from "./symbols"
 import { LABELED_KEYWORDS, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { cardNameContains, instMatchesCostFilter } from "./targetFilter"
+import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
 import { extraCombineAllowed } from "./braveExtraCombine"
 
 // ---- キーワード ----
@@ -404,10 +404,10 @@ export function cardHasColor(cardData: CardData, color: Color): boolean {
 
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（timedColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
-// ⚠️ colorlessThisBattle（器S。BS13-011/015/052「色を無いものとして扱う」）が立っている間は、
+// ⚠️ colorless（色を無いものとして扱う写し）が立っている間は、
 //    付与色も含めて常に無色（false）を返す
 export function instHasColor(inst: CardInstance, color: Color): boolean {
-    if (inst.colorlessThisBattle) return false
+    if (inst.colorless) return false
     if (cardHasColor(card(inst.cardId), color)) return true
     if (inst.timedColors.includes(color)) return true
     if (grantedColorsOf(inst).includes(color)) return true
@@ -417,9 +417,9 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
 
 // 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
 // （多色カードは複数返る。付与色＝timedColors／colorsAsContinuous も含む）
-// colorlessThisBattle が立っている間は常に空配列（instHasColorと同じ扱い）
+// colorless が立っている間は常に空配列（instHasColorと同じ扱い）
 export function instColors(inst: CardInstance): Color[] {
-    if (inst.colorlessThisBattle) return []
+    if (inst.colorless) return []
     const colors = new Set<Color>(card(inst.cardId).colors)
     for (const c of grantedColorsOf(inst)) colors.add(c)
     // 合体しているブレイヴの色が加わり、合体スピリットは**混色扱い**になる
@@ -432,10 +432,33 @@ export function instColors(inst: CardInstance): Color[] {
     return [...colors]
 }
 
+// inst（pid のスピリット）が、継続の kind:"colorlessGrant"（期間の指定なしの「色を無いものとして扱う」）で
+// 無色になるか。「アタックしている」かどうかは見ない＝呼び出し側が attackerInstanceId で見る。
+// 指定アタックは宣言の時点（まだ state.battle が無い）で判定するため、ここには混ぜない
+// （2026-11-16 ユーザー確認。#579 解決順の誘発から継続へ移した理由・#582 指定アタックの装甲判定）
+export function colorlessWhenAttacking(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    const player = board.players[pid]
+    for (const src of effectSources(board, pid)) {
+        for (const effect of card(src.cardId).effects) {
+            if (effect.kind !== "colorlessGrant") continue
+            if (!effectActiveOn(src, effect, currentLevel(src).level)) continue
+            // 合体中のブレイヴの「このスピリット」は合体スピリット（ホスト）
+            const hit =
+                effect.target === "self"
+                    ? src.instanceId === inst.instanceId || hostsOf(player, src).some((h) => h.instanceId === inst.instanceId)
+                    : player.field.spirits.some((s) => s.instanceId === inst.instanceId) && matchesTarget(board, pid, inst, effect.subjectFilter, src.instanceId)
+            if (!hit) continue
+            noteCoverage(effect, "colorlessGrant")
+            return true
+        }
+    }
+    return false
+}
+
 // 持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く）。
 // 「相手のフィールドのスピリット/ネクサスの色1色につき」を表す共通器（BS15）。
 // 多色カードは各色を数える。合体中のブレイヴの色は instColors（braveComposite.colors 経由）で
-// 自動的に含まれる。colorlessThisBattle の個体は instColors が空配列を返すため自動的に除外される
+// 自動的に含まれる。colorless の個体は instColors が空配列を返すため自動的に除外される
 export function opponentFieldColorCount(board: Board, pid: PlayerId, spiritsOnly = false): number {
     const opp = board.players[pid === "p1" ? "p2" : "p1"]
     const insts = spiritsOnly ? opp.field.spirits : [...opp.field.spirits, ...opp.field.nexuses]

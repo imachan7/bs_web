@@ -1376,13 +1376,10 @@
    },
    {
     "id": "BS13-011-e2",
-    "kind": "triggered",
-    "trigger": "onAttack",
-    "levels": [
-     2
-    ],
-    "optional": false,
-    "action": {"type": "timedEffect", "content": [{"type": "colorless"}], "duration": "battle", "target": "self"}
+    "kind": "colorlessGrant",
+    "levels": [2],
+    "whileAttacking": true,
+    "target": "self"
    }
   ]
  },
@@ -1667,19 +1664,11 @@
    },
    {
     "id": "BS13-015-e3",
-    "kind": "fieldEvent",
-    "event": "anySpiritAttacked",
-    "levels": [
-     2
-    ],
-    "ownOnly": true,
-    "subjectFilter": {
-     "keyword": [
-      "jugeki",
-      "fushi"
-     ]
-    },
-    "action": {"type": "timedEffect", "content": [{"type": "colorless"}], "duration": "battle", "target": "self"}
+    "kind": "colorlessGrant",
+    "levels": [2],
+    "whileAttacking": true,
+    "target": "ownSpirits",
+    "subjectFilter": {"keyword": ["jugeki", "fushi"]}
    }
   ]
  },
@@ -1899,14 +1888,11 @@
    },
    {
     "id": "BS13-052-e2",
-    "kind": "triggered",
-    "trigger": "onAttack",
-    "levels": [
-     1
-    ],
+    "kind": "colorlessGrant",
+    "levels": [1],
+    "whileAttacking": true,
     "whileCombined": true,
-    "optional": false,
-    "action": {"type": "timedEffect", "content": [{"type": "colorless"}], "duration": "battle", "target": "self"}
+    "target": "self"
    }
   ],
   "braveCondition": {

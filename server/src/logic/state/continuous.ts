@@ -16,6 +16,7 @@ import {
     instColors,
     instHasColor,
     instHasCost,
+    colorlessWhenAttacking,
     instIsVanilla,
     isVirtualSource,
     cardNameContains,
@@ -60,7 +61,7 @@ function applyTimedCopies(state: GameState): void {
             inst.tempBpBuff = 0
             delete inst.battleBpBuff
             delete inst.battleBpAs
-            delete inst.colorlessThisBattle
+            delete inst.colorless
             inst.immuneToOpponentThisTurn = false
             delete inst.immuneAgainstThisTurn
             delete inst.untargetableByOpponentMagicTimed
@@ -91,7 +92,7 @@ function applyTimedCopies(state: GameState): void {
             else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
             if (c.type === "effectsDisabled") inst.timedEffectsDisabled = true
             if (c.type === "ownAttackStepEffectsDisabled") inst.timedAttackStepEffectsDisabled = true
-            if (c.type === "colorless") inst.colorlessThisBattle = true
+            if (c.type === "colorless") inst.colorless = true
             if (c.type === "alsoCost" && !inst.tempAlsoCosts.includes(c.cost)) inst.tempAlsoCosts.push(c.cost)
             if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount
             if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color ?? getCard(inst.cardId).symbol[0]!)
@@ -961,6 +962,16 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     noteCoverage(effect, "coresAs")
                     nexus.coresOverride = effect.count
                 }
+            }
+        }
+    }
+    // アタックしている間の無色（kind:"colorlessGrant"）。Lvを読むので、levelAs の上書きを組んだ後に判定する。
+    // 宣言の時点から立つよう、アタック宣言の直後にもこの関数が呼ばれている（GameEngine）
+    const attackerId = state.battle?.attackerInstanceId
+    if (attackerId !== undefined) {
+        for (const pid of ["p1", "p2"] as PlayerId[]) {
+            for (const inst of state.players[pid].field.spirits) {
+                if (inst.instanceId === attackerId && colorlessWhenAttacking(state, pid, inst)) inst.colorless = true
             }
         }
     }

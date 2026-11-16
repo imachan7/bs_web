@@ -28,7 +28,7 @@ export interface CardInstance {
     noOnSummon?: true
     tempBpBuff: number // ターン終了時まで有効なBP増減
     battleBpBuff?: number // このバトルの間だけ有効なBP増減（timedEffect の duration:"battle"）。clearBattle でリセットする。
-    colorlessThisBattle?: true // 期間つき効果の一覧（colorless）から作り直す写し。色とシンボルを無いものとして扱う
+    colorless?: true // 期間つきの無色化と、アタック中の colorlessGrant から作り直す写し。色とシンボルを無いものとして扱う
     bpAsContinuous?: number // 継続的な「BPを◯として扱う」上書き（kind:"bpAs"。levelAsのBP版。EffectModules.refreshLevelAsOverridesが毎回再計算する。器Q。BS13-X011）
     bpEqualizeContinuous?: number // 継続的な「Lv1/Lv2/Lv3BPを、発生源のBPと同じとして扱う」（kind:"bpEqualizeFamily"）。扱いは bpAsContinuous と同じ
     battleBpAs?: { levels: number[]; amount: number } // 期間つき効果の一覧（bpAs）から作り直す写し
