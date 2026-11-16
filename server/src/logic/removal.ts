@@ -718,7 +718,7 @@ export function commitPendingDestruction(
     }
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、destroyedCoresToTrash が有効な間、またはバトル中に
     // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）。
-    // destroyedCoresToSelf（BS20-X01）の候補があるときは、コアは候補へ（複数・常時効果のトラッシュ行き（destroyedCoresGoToTrash）との衝突時は選択）
+    // destroyedCoresToSelf（BS20-X01）の候補があるときは、コアは候補へ（2体以上なら持ち主が選ぶ）
     // 行き先を変える一時の効果が複数あれば、最後に発揮したものが優先（矛盾する効果は後から発揮した効果が優先。issue #571・公式回答）
     const redirectEntry = timedContentsFor(state, ownerPid).filter((c) => c.type === "destroyedCoresTo").at(-1)
     // soleOnly：効果の持ち主側のバトル中のスピリットが同じ破壊バッチにいる（または既に場にいない）なら相打ちなので適用しない
@@ -737,25 +737,21 @@ export function commitPendingDestruction(
         moveSoulCore(player, redirect === "trash" || destroyedCoresGoToTrash(state) ? { zone: "trash" } : { zone: "reserve" }, inst)
     }
     const baseDest: "reserve" | "trash" | "void" = redirect === "void" ? "void" : redirect === "trash" || destroyedCoresGoToTrash(state) ? "trash" : "reserve"
-    // 一時の効果（redirect）は常時効果の「自身に置く」より後から発揮しているので、矛盾したら選ばせずに一時の効果へ置く（#571）
-    const selfDests = redirect !== undefined ? [] : destroyedCoresToSelfCandidates(state, ownerPid)
-    if (selfDests.length > 0 && baseDest === "reserve" && (selfDests.length === 1 || !state.interactiveTargets)) {
-        // 候補が1体（または非対話）でトラッシュ/ボイド行きとの衝突が無ければ、選ばずにその候補へ（非対話は先頭）
-        const dest = selfDests[0]!
-        dest.cores += inst.cores
-        log(state, `破壊された${getCard(inst.cardId).name}のコア${inst.cores}個は${getCard(dest.cardId).name}に置かれた。`)
-    } else if (selfDests.length > 0 && !state.interactiveTargets) {
-        // 非対話でトラッシュ/ボイド行きと衝突していても候補の先頭へ（決定的簡略化）
+    // トラッシュ／ボイド行きの効果（一時の効果も、破壊で発揮する古龍の縄張りも）は、常時効果の「自身に置く」より後から発揮している。
+    // 矛盾する効果は後から発揮した効果が優先なので、行き先がリザーブ以外なら「自身に置く」は見ない（issue #571・公式回答。2026-11-16 ユーザー確認）
+    const selfDests = baseDest === "reserve" ? destroyedCoresToSelfCandidates(state, ownerPid) : []
+    if (selfDests.length > 0 && (selfDests.length === 1 || !state.interactiveTargets)) {
+        // 非対話は先頭の候補へ
         const dest = selfDests[0]!
         dest.cores += inst.cores
         log(state, `破壊された${getCard(inst.cardId).name}のコア${inst.cores}個は${getCard(dest.cardId).name}に置かれた。`)
     } else if (selfDests.length > 0) {
-        // 候補が2体以上、またはトラッシュ/ボイド行き（古龍の縄張り等）との衝突。持ち主（衝突時はターンプレイヤー）が選ぶ
+        // 「自身に置く」が2体以上：同じ内容で矛盾ではないので、持ち主が置き先を選ぶ
         ;(state.pendingCoreDestinations ??= []).push({
-            chooser: baseDest === "reserve" ? ownerPid : state.turnPlayer,
+            chooser: ownerPid,
             ownerPid,
             cores: inst.cores,
-            options: [...selfDests.map((s) => s.instanceId), ...(baseDest === "reserve" ? [] : [baseDest])],
+            options: selfDests.map((s) => s.instanceId),
         })
         inst.cores = 0
         flushCoreDestinations(state)

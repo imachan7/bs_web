@@ -92,30 +92,19 @@ console.log("=== A. X01が2体：破壊された自分のスピリットのコ�
     assert(s.players.p1.reserve === reserve, "リザーブは増えない")
 }
 
-console.log("=== B. 古龍の縄張り（相手の場・相手のターン）とX01の競合：ターンプレイヤーが行き先を選ぶ。トラッシュへ／X01へ ===")
-{
-    const s = game("b1", true, "p2")
+// 古龍の縄張りは破壊によって発揮する効果で、常時効果のジエンドより後から発揮している。矛盾する効果は後から発揮した効果が優先
+// （公式回答・issue #571。2026-11-16 ユーザー確認。それまでは「ターンプレイヤーが行き先を選ぶ」の仮決めだった）
+console.log("=== B. 古龍の縄張り（相手の場・相手のターン）とX01の競合：選ばせずに、古龍の縄張りのトラッシュ行きが優先する ===")
+for (const interactive of [true, false]) {
+    const s = game("b-" + interactive, interactive, "p2")
     putNexus(s, "p2", NAWABARI) // 縄張りの持ち主はp2、p2のターン
     const x01 = put(s, "p1", X01, 1)
     const ally = put(s, "p1", VAN, 3)
     const reserve = s.players.p1.reserve
     destroySpirit(s, "p1", ally.instanceId, "destroy")
-    const pc = s.pendingChoice as { pid: PlayerId; kind: string; options?: string[]; candidates?: string[] } | null
-    assert(pc?.pid === "p2", "行き先の選択はターンプレイヤー（p2）に聞かれる")
-    answer(s, "p2", "トラッシュ", undefined)
-    assert(s.players.p1.trashCores === 3, "トラッシュを選んだのでp1のトラッシュのコアは+3")
+    assert(s.pendingChoice === null, `行き先の選択は出ない（${interactive ? "対話" : "非対話"}）`)
+    assert(s.players.p1.trashCores === 3, "コア3個はp1のトラッシュへ置かれる")
     assert(x01.cores === 1 && s.players.p1.reserve === reserve, "X01のコアもリザーブも増えない")
-}
-{
-    const s = game("b2", true, "p2")
-    putNexus(s, "p2", NAWABARI)
-    const x01 = put(s, "p1", X01, 1)
-    const ally = put(s, "p1", VAN, 3)
-    const reserve = s.players.p1.reserve
-    destroySpirit(s, "p1", ally.instanceId, "destroy")
-    answer(s, "p2", getCard(X01).name, undefined)
-    assert(x01.cores === 4, "X01を選んだのでX01のコアは+3（1→4）")
-    assert(s.players.p1.trashCores === 0 && s.players.p1.reserve === reserve, "トラッシュもリザーブも増えない")
 }
 
 console.log("=== C. 非対話では選択は出ず、先に場に出たX01へ置かれる ===")
