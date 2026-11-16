@@ -42,6 +42,16 @@
 - 対戦開始の処理（デッキ指定の解決・先攻決め・最初のターン開始）は `server/src/matchSetup.ts` に出し、サーバーと Worker の両方が使う
 - サーバーの `startAi` は残す（Worker を起動できないブラウザの退避先・E2E）。件数の記録は `POST /api/ai-start` で続ける
 
+### 進行中：#571 破壊されたスピリットのコアの行き先が矛盾したら、後から発揮した効果へ置く（2026-11-16 確定。`fix/destroyed-cores-later-effect-wins`）
+
+公式回答（2026-11-15 今関取得）＋ 2026-11-16 ユーザー確認：
+1. 常時効果（ジエンド・ドラゴニス＝自身に置く）と、後から有効になった効果（`battleOpponentDestroyedCoresTo` が張る一時の `destroyedCoresTo`）が矛盾したら、選ばせずに後者へ置く。
+2. ヘッジボルグ（`battleLoserCoresToVoid`）は、コアをジエンドに置かずに直接ボイドへ置く。
+3. ジエンドが2体（常時どうし・同じ「自身に置く」）は、今のまま持ち主が選ぶ。
+4. 後から有効になった効果どうしは、最後に発揮したものへ。同時なら選ぶ（解決順をターンプレイヤーが選ぶので、順番は必ず付く）。
+- 実装：`removal.ts` の破壊の確定でコアの行き先を決める所。一時の `destroyedCoresTo`（変数 `redirect`）が有効なら、`destroyedCoresToSelfCandidates` を見ない（`selfDests` を空にする）。一時のエントリが複数あれば最後のもの（`find` でなく末尾）。
+- 常時どうしの矛盾（ジエンド vs 古龍の縄張り＝`destroyedCoresToTrash`）は、どちらが後かを記録していないので、今のままターンプレイヤーが選ぶ（part783 の B。未決）。
+
 ### 進行中：待機状態の作り替え（2026-11-15。確認の答えは [PENDING_STATE.md](./docs/design/PENDING_STATE.md) §3 の C1〜C4）
 
 C1〜C4（同時破壊を1本の列に・対象に取れるのは同じ出来事の待機だけ・戻す待機の順番・待機の変化）は実装済み（PENDING_STATE §3、TIMING_CHART §1.5・§1.6）。破壊待機の間だけ使う控え（破壊の発生源・「残る」を見ない印・破壊後バースト用の値）は `waiting` の中に移した（読むのは `destroyContextOf`・`destroyBurstInfoOf`）。残りは段取り5（合体中のブレイヴだけの待機）・6（『消滅時』）で、どちらも挙動が変わるので実装前に確認する。
