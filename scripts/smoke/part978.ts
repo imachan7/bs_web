@@ -472,6 +472,18 @@ scenario({
     expect: [...COMB("b", "h", 5000), "自分.h.BP: 5000 → 11000", "自分.n.疲労: false → true"],
 })
 
+// 合体中は Lv1 のスピリット状態の e1 が働かず、合体時の e2 のぶんだけ +1000（1回）
+scenario({
+    name: "galaxy-combined-attack-chain-plus1000-once",
+    start: { interactive: true, me: { spirits: [{ card: BIG, label: "h" }, { card: GALAXY, label: "b" }, { card: MINOTA, label: "m" }] } },
+    steps(t) {
+        combine(t)
+        t.act("me", { type: "nextPhase" })
+        assert(effectiveBp(t.state, t.me, t.inst("m")) === 4000, "合体中のギャラクシーソードは、【連鎖】持ちのミノタ・コルスに +1000 だけ（e1 は働かない）")
+    },
+    expect: [...COMB("b", "h", 5000), "自分.h.BP: 5000 → 11000", "自分.m.BP: 3000 → 4000"],
+})
+
 console.log("=== X13-14 ボンバーハンマー ===")
 const bomberAttack = (t: ScenarioCtx) => {
     combine(t)

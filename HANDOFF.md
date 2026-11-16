@@ -28,29 +28,12 @@
 3. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 4. 小さい残り：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
-### 進行中：収録漏れ49種の取り込み（#546・#566。`feat/import-missing-cards`）
+### 収録漏れ49種の取り込み（#546・#566。PR #604 を Ready にした。マージ待ち）
 
-- 範囲は欠けが確定した49種だけ（BS01「混沌の守護神」15・BSC05 21・X13 7・X013/X016・EX024〜026・BS11-076）。EX 番号だけの欠け4種（EX003＝P006 など）と、存在未確認の EX・年次番号プロモは入れない（2026-11-16 ユーザー確認）
-- 元データは `data/staging/BS01-chaos.json`・`BSC05.json`・`PROMO-missing.json`・`BS11.json`（BS11-076）。⚠️ `fetch_wiki_cards.py` のキャッシュは弾 ID だけがキーなので、同じ --set で別の --refer を取るときは `--no-cache`
-- 調査書 `docs/design/MISSING_CARDS_SURVEY.md`（§6 が見直しと確認の答え Q1〜Q6。全部 OK）。49種は `effects: []` で本番データに移した（STARTER 41・X13 7・BS11 1。末尾に追記）
-- 分担（新部品を持つカードは部品の担当がカードごと書く。データ役はそれ以外の37枚だけ）：
-  - データ役：既存の器だけのカード（BSC05-006 は globalConstraint coresProtected side:both battle:participants＋whileSelfAttacking）
-  - A：`canDirectAttack.mandatory?: true`（X13-13）／effectCounter `ownFieldSpiritColors`・AuraCondition `{anyOf: AuraCondition[]}`・`{opponentSpiritMatches: TargetFilter}`（X13-16）
-  - B：`moveCards.from` に配列 `("hand"|"trash")[]`（X013）／`burstAltEventFromOpponentSummon.alsoOn?`（既定＝従来の自分のライフ減少後。X016）／`placeCores.chooser?: "opponent"`＋`optional?: true`（X13-15）
-  - C（確定 11-16）：①action `atEndStep {action}`＝このターンのエンドステップに、エンドステップの誘発と同じ列で1回解決（記録は atTurnEnd と同じ GameState.turnEndActions に印つき。BS01-124）②`destroyBlockerAtBattleEnd` を `destroyOpponentAtBattleEnd {opponentRole:"blocker"|"attacker"|"either", ownCost?, opponentLevel?, opponentFilter?}` に改名・一般化（BS23-042 を移行。BS01-111 Lv2 は either＋赤）③reviveOnDestroy の `cost.returnSelfToHand`（発生源が同時に破壊待機でも払える＝Q2814）と `revived:{keepState:true}`（stayOnFieldRevived で待機を解くだけ。BSC05-011）
-  - B は新部品なしで済んだ（X013＝BS15-034 と同じ destroyedMinBp＋summon alsoFrom trash、X13-15＝chooseActionMode chooser:opponent＋removeCores side）
-  - D（確定 11-16）：①`magicTargetRedirect` に `redirectTo?: "self" | "ownTargetChosen"`（省略＝self）と `sourceTypes?: ("spirit"|"magic")[]` を足す。ownTargetChosen＝相手が対象を選び終えた後・解決前に、持ち主が元の対象に含まれる自分のスピリットから1体選び対象をそれだけにする（バースト・持続・連鎖は除く Q23566〜68。BSC05-017）②destroy の `budget.atLeast`（合計コストの下限。しきい値は pay で破壊した自分のスピリットのコスト）＋`chooserIsTarget`。相手は1体ずつ選び、届いたらコスト1以上は選べない・最低1体・コスト0は任意（Q24867〜70）。払えるかは COST_MODEL の完全解決の判定で決まる（相手の合計がしきい値未満・相手0体なら払えない＝Q24868。BS11-076）
-  - E：ImmuneSource `"burst"`＋TargetFilter `sameColorAsLastTarget`（X13-17）
-  - 払ったものを後続へ渡す（確定 11-16）：pay は払った自分のスピリットの**その時点の**コスト（合体中はブレイヴ込みの合計）と色を、then の action に値として書き込んでから解決する（記録 lastMoved を後で読まない＝原則3）。トークン `"paidCost"`／`"paidColors"` を budget.atLeast（BS11-076）と CardPick の上限コスト・色（X13-17。Q18941：合体コスト12なら12以下、ブレイヴが場に残っても）で使う
-- part978 で見つかった穴の直し（確定 11-16 夜）：
-  - F1 サンダーブランチ：期間つき `bpAs` を instance 記録だけでなく rule 記録（すべて）からも写す（continuous.ts の写しを timedContentsOn の照合ループへ移す）。TargetFilter に `anyOf?: TargetFilter[]`（どれか1つに合えばよい。子は normalizeFilter を通らないので self 相対の軸は書けない）。BSC05-028 は「合体していない、または【転召】を持たない」＝`anyOf:[{uncombined},{keywordExclude:tensho}]`
-  - F2 ジャスティスソード：destroy の budget 経路（destroyWithinBudget・budgetToggleDestroy・destroyAtLeastCost）が drawPerDestroyed／millPerDestroyed を見ていない。まとめた破壊を destroyTargetList(ctx, targets, action) に通す
-  - F4 条件つきバースト（確定 11-16 夜）：`destroyedMinBp` を発動の判定（burst.ts の `continue`）から外し、`DeclaredBurst.destroyedBp`（eventInfo.destroyedBp を値で載せる）を applyDeclaredBurst で見て、未満なら action を noop（不発・トラッシュ）。ケイの「条件を無視して発動」経路は破壊の出来事が無いので不発。part974 の X013・BS15-034 の場面を「発動して不発」に直す（BURST.md に1行）
-  - F3 エレキトリック（ユーザー確認待ち）：コストで破壊したスピリットのコアを、破壊待機のまま・破壊時効果より先にライフへ（Q26091）、0個なら消滅で破壊時効果なし（Q26092）。いまは破壊時効果と確定が pay の中で先に済み、then が空振りする
-- 残り：
-  1. 古の魔王城の【連鎖】除外（Q23568）：136件に印を付ける移行をするかユーザー確認待ち
-  2. 統合検証の定型＋coverage:check・part197 の発火基準・gaps:update、card-notes、PR 本文（maxCostAsLast・コスト合計が合体込みになった既存カードへの影響を書く）
-  3. 確認済み（11-16 夜）：オーバーレックスは宣言時・ダイヤモンドの月 Lv1 はバトル中だけ（どちらも今のまま）。魔王城の【連鎖】は別の PR で136件を移行し、#604 では card-notes に未対応と書く。エレキトリックも card-notes（効果の途中の破壊の一般則は別の PR）
+- 設計の経緯は `docs/design/MISSING_CARDS_SURVEY.md` §6 と PR #604 の本文。残したもの（どちらも 2026-11-16 ユーザー決定で別の PR）：
+  1. **効果の途中の破壊の一般則**：「効果の解決中に誘発した破壊時効果は、その効果を解決し終えてから」。いまは `destroySpirit`・`destroyTargetsBatch` がその場で列を解決しトラッシュまで済ませる（RULES_BATSPI_WIKI 93行目の ✅ は言い過ぎ）。エレキトリック（Q26091・Q26092）の場面は part978 の `DESTROY_AFTER_EFFECT` で外してある。**設計を示してから着手**
+  2. **【連鎖】の部分の印**：【連鎖】を持つ効果136件（if 1つ112・2つ19・なし5）に印を付け、古の魔王城（Q23568）の付け替えから外す。part976 の `CHAIN_MARKED` で外してある
+  - 片付いたら card-notes の BSC05-027・BSC05-017 を消す
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 

@@ -311,9 +311,13 @@ export function validateSummon(
               (altSummon !== null ? summonSurcharge(state, pid, card) : payOff !== undefined ? summonCostWithPayOff(state, pid, cardId, payOff, exReductionSymbols) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
           )
     // kind:"summonNeedsCost"：肩代わり（ネクサスの疲労）は払ったものとして数えるが、軽減で0になるコスト・無償化は払ったことにならない
-    if (card.effects.some((e) => e.kind === "summonNeedsCost")) {
+    const needsCost = card.effects.find((e) => e.kind === "summonNeedsCost")
+    if (needsCost) {
         const printedPaid = altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)
-        if (sokuFree || printedPaid <= 0) return "1コスト以上支払わなければ召喚できません"
+        if (sokuFree || printedPaid <= 0) {
+            noteCoverage(needsCost, "summonNeedsCost")
+            return "1コスト以上支払わなければ召喚できません"
+        }
     }
     const extraPlan = summonExtraDiscardPlan(state, pid, handIndex, card, extraDiscardHandIndices, discardHandIndices)
     if ("error" in extraPlan) return extraPlan.error
