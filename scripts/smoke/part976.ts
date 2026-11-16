@@ -48,10 +48,9 @@ for (const [lv, cores] of [["Lv1", 0], ["Lv2", 1]] as const) {
         start: { turn: "opp", interactive: true, me: { nexuses: [{ card: CASTLE, cores }], spirits: [{ card: WHITE, label: "A" }, { card: RED, label: "B" }] },
             opp: { hand: [TWIN] } },
         steps(t) {
-            const [a, b] = [t.id("A"), t.id("B")]
+            const b = t.id("B")
             t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash" })
-            t.act("opp", { type: "resolveChoice", instanceId: a })
-            t.act("opp", { type: "resolveChoice", instanceId: b })
+            // 相手の候補がちょうど2体なので対象選択は出ない。魔王城の持ち主への「付け替えますか」だけに答える（見送りは skip）
             t.act("me", { type: "resolveChoice", instanceId: b })
         },
         expect: ["自分.B.場所: フィールド → なし", "自分.リザーブ: 10 → 11", "自分.トラッシュ: なし → ロクケラトプス", "相手.手札: ツインフレイム → なし",
@@ -62,10 +61,7 @@ scenario({
     name: "castle-自分が使った効果では発揮されない（相手の2体が両方破壊される）",
     start: { interactive: true, me: { nexuses: [{ card: CASTLE, cores: 1 }], hand: [TWIN] }, opp: { spirits: [{ card: WHITE, label: "A" }, { card: RED, label: "B" }] } },
     steps(t) {
-        const [a, b] = [t.id("A"), t.id("B")]
-        t.act("me", { type: "castMagic", handIndex: 0, timing: "flash" })
-        t.act("me", { type: "resolveChoice", instanceId: a })
-        t.act("me", { type: "resolveChoice", instanceId: b })
+        t.act("me", { type: "castMagic", handIndex: 0, timing: "flash" }) // 候補が相手の2体だけなので選択は出ず、魔王城の付け替えも出ない
     },
     expect: ["相手.A.場所: フィールド → なし", "相手.B.場所: フィールド → なし", "相手.リザーブ: 10 → 12",
         "相手.トラッシュ: なし → バーサーカー・ガン、ロクケラトプス", "自分.手札: ツインフレイム → なし", "自分.トラッシュ: なし → ツインフレイム",
@@ -225,8 +221,8 @@ scenario({
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
     },
-    expect: ["自分.M.疲労: false → true", "自分.M.BP: 3000 → 7000", "自分.ブレイヴ.場所: フィールド → 合体", "自分.ブレイヴ.コア: 2 → 0", "自分.リザーブ: 10 → 12",
-        "自分.手札: なし → ロクケラトプス", "自分.デッキ枚数: 40 → 39", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+    expect: ["自分.M.疲労: false → true", "自分.M.BP: 3000 → 8000", "自分.M.Lv: 1 → 2", "自分.M.コア: 1 → 3", "自分.ブレイヴ.場所: フィールド → 合体", "自分.ブレイヴ.コア: 2 → 0", "自分.ブレイヴ.BP: 4000 → なし",
+        "自分.手札: なし → ロクケラトプス", "自分.デッキ枚数: 40 → 39", "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"],
 })
 scenario({
     name: "castle-Lv2-合体していないスピリットが疲労してもドローしない",
@@ -256,15 +252,12 @@ scenario({
 })
 scenario({
     name: "castle-相手の【連鎖】の部分では1体に絞れず、自分の2体とも疲労する",
-    start: { interactive: true, me: { nexuses: [{ card: CASTLE, cores: 1 }], spirits: [{ card: WHITE, label: "A" }, { card: RED, label: "B" }] },
+    start: { turn: "opp", interactive: true, me: { nexuses: [{ card: CASTLE, cores: 1 }], spirits: [{ card: WHITE, label: "A" }, { card: RED, label: "B" }] },
         opp: { hand: ["BS20-083"], spirits: [{ card: GREEN, label: "緑" }] } },
     steps(t) {
-        const [a, b] = [t.id("A"), t.id("B")]
         t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash" })
         const pc = t.state.pendingChoice
         if (pc && pc.kind === "option" && pc.options) t.act("opp", { type: "resolveChoice", option: pc.options.find((o) => o.includes("2体")) ?? pc.options[pc.options.length - 1] ?? "" })
-        t.act("opp", { type: "resolveChoice", instanceId: a })
-        t.act("opp", { type: "resolveChoice", instanceId: b })
     },
     expect: ["自分.A.疲労: false → true", "自分.B.疲労: false → true", "相手.手札: コールオブディープ → なし", "相手.トラッシュ: なし → コールオブディープ",
         "相手.リザーブ: 10 → 7", "相手.トラッシュのコア: 0 → 3"],
