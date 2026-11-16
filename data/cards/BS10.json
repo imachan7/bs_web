@@ -426,7 +426,8 @@
           "filter": {
             "combined": false
           },
-          "count": 1
+          "count": 1,
+          "target": "spread"
         },
         "optional": false
       }
@@ -2889,7 +2890,8 @@
           "count": 1,
           "countCounter": {
             "ownFamily": "星魂"
-          }
+          },
+          "target": "spread"
         }
       }
     ]

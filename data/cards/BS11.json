@@ -804,7 +804,8 @@
     "action": {
      "type": "removeCores",
      "to": "reserve",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     },
     "optional": false
    },
@@ -3297,7 +3298,8 @@
     "action": {
      "type": "removeCores",
      "count": 1,
-     "countCounter": "selfSymbols"
+     "countCounter": "selfSymbols",
+     "target": "spread"
     }
    }
   ],
@@ -4038,7 +4040,8 @@
       "spirit"
      ],
      "count": 1,
-     "chooser": "owner"
+     "chooser": "owner",
+     "target": "spread"
     }
    },
    {

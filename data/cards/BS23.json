@@ -982,7 +982,7 @@
       "spirit"
      ],
      "to": "reserve",
-     "target": "one",
+     "target": "spread",
      "count": 1
     }
    },
@@ -1413,7 +1413,7 @@
        "spirit"
       ],
       "to": "void",
-      "target": "one",
+      "target": "spread",
       "count": 1,
       "chooser": "owner"
      }
@@ -6409,7 +6409,7 @@
          "spirit"
         ],
         "to": "void",
-        "target": "one",
+        "target": "spread",
         "count": 1
        },
        "else": {
@@ -6419,7 +6419,7 @@
          "spirit"
         ],
         "to": "reserve",
-        "target": "one",
+        "target": "spread",
         "count": 1
        }
       },
@@ -7126,7 +7126,7 @@
       "nexus"
      ],
      "to": "reserve",
-     "target": "one",
+     "target": "spread",
      "count": 1
     }
    },
@@ -7748,7 +7748,7 @@
         "spirit"
        ],
        "to": "reserve",
-       "target": "one",
+       "target": "spread",
        "count": 1
       },
       {
