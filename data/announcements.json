@@ -2,6 +2,11 @@
  "version": 1,
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
+ {
+   "date": "2026-11-16",
+   "category": "fix",
+   "text": "破壊されたスピリットのコアの行き先を変える効果が重なったとき、後から発揮した効果が優先されるようにしました（滅龍帝ジエンド・ドラゴニスがいても、古龍の縄張りや、バトル中の「コアをボイド／トラッシュに置く」効果が優先されます）"
+  },
   {
    "date": "2026-11-16",
    "category": "fix",
