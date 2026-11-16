@@ -16,6 +16,7 @@ import type { GameState, PlayerId } from "./helpers"
 const RETURN = "BS13-077" // ブリーズライド（緑・魔法・コスト2）：トラッシュにあるとき、自分のエンドステップに手札へ戻る（maxCount 1）
 const ICE = "BS19-088" // 獣の氷窟（白・ネクサス）：Lv2。相手の効果で手札が増えたとき、任意で1枚ドロー
 const ORDER = "BS01-106" // 隠されたる賢者の樹（緑・ネクサス）：Lv2。自分のエンドステップの誘発を持つ（解決順の相手）
+const ARES = "BS10-008" // 火星神龍アレス・ドラグーン（赤・スピリット）：【合体時】Lv2。自分のターン終了時にアタックステップとエンドステップを1回ずつ行う
 const VANILLA = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）：デッキの中身を固定する
 
 console.log("=== 前提: カードの機械確認 ===")
@@ -108,6 +109,28 @@ console.log("=== D: 対話。エンドステップの別の誘発と並ぶと、
     assert(act(s, "p1", { type: "resolveChoice", option: opts[idx]! }) === null, "ブリーズライドを先に選ぶ")
     assert(s.players.p1.hand.includes(RETURN), "選んだブリーズライドが手札に戻る")
     assert(!s.players.p1.trashCards.includes(RETURN), "トラッシュからは消えている")
+}
+
+console.log("=== E: 追加のアタックステップとエンドステップで、エンドステップは1ターンに2回ある。各エンドステップで1枚ずつ戻る ===")
+{
+    const s = game("part963-E")
+    assert(getCard(ARES).name === "火星神龍アレス・ドラグーン", "ARESは火星神龍アレス・ドラグーン（効果の発生源）")
+    s.players.p1.trashCards.push(RETURN, RETURN)
+    const handBefore = s.players.p1.hand.filter((id) => id === RETURN).length
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    // アレスの「もう1回ずつ行う」が発揮された状況を直接立てる（発揮の経路そのものは別パートで確かめている）
+    s.extraAttackStepPending = true
+    assert(act(s, "p1", { type: "endTurn" }) === null, "1回目のターン終了が通る")
+    assert(s.turnPlayer === "p1" && s.phase === "attack", "追加のアタックステップへ戻る（ターンは p1 のまま）")
+    const handAfter1 = s.players.p1.hand.filter((id) => id === RETURN).length
+    assert(handAfter1 - handBefore === 1, `1回目のエンドステップで手札に1枚戻る（${handAfter1 - handBefore}枚）`)
+    assert(s.players.p1.trashCards.filter((id) => id === RETURN).length === 1, "1回目の後、トラッシュに1枚残る")
+
+    assert(act(s, "p1", { type: "endTurn" }) === null, "2回目のターン終了が通る")
+    assert(s.turnPlayer === "p2", "2回目のエンドステップの後にターンが p2 へ移る")
+    const handAfter2 = s.players.p1.hand.filter((id) => id === RETURN).length
+    assert(handAfter2 - handBefore === 2, `2回目のエンドステップでもう1枚戻り、手札は計2枚増える（${handAfter2 - handBefore}枚）`)
+    assert(s.players.p1.trashCards.filter((id) => id === RETURN).length === 0, "2回目の後、トラッシュは0枚")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part963）")
