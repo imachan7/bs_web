@@ -718,8 +718,9 @@ export function commitPendingDestruction(
     }
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、destroyedCoresToTrash が有効な間、またはバトル中に
     // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）。
-    // destroyedCoresToSelf（BS20-X01）の候補があるときは、コアは候補へ（複数・トラッシュ/ボイド行きとの衝突時は選択）
-    const redirectEntry = timedContentsFor(state, ownerPid).find((c) => c.type === "destroyedCoresTo")
+    // destroyedCoresToSelf（BS20-X01）の候補があるときは、コアは候補へ（複数・常時効果のトラッシュ行き（destroyedCoresGoToTrash）との衝突時は選択）
+    // 行き先を変える一時の効果が複数あれば、最後に発揮したものが優先（矛盾する効果は後から発揮した効果が優先。issue #571・公式回答）
+    const redirectEntry = timedContentsFor(state, ownerPid).filter((c) => c.type === "destroyedCoresTo").at(-1)
     // soleOnly：効果の持ち主側のバトル中のスピリットが同じ破壊バッチにいる（または既に場にいない）なら相打ちなので適用しない
     const winnerSurvives = (): boolean => {
         const b = state.battle
@@ -736,7 +737,8 @@ export function commitPendingDestruction(
         moveSoulCore(player, redirect === "trash" || destroyedCoresGoToTrash(state) ? { zone: "trash" } : { zone: "reserve" }, inst)
     }
     const baseDest: "reserve" | "trash" | "void" = redirect === "void" ? "void" : redirect === "trash" || destroyedCoresGoToTrash(state) ? "trash" : "reserve"
-    const selfDests = destroyedCoresToSelfCandidates(state, ownerPid)
+    // 一時の効果（redirect）は常時効果の「自身に置く」より後から発揮しているので、矛盾したら選ばせずに一時の効果へ置く（#571）
+    const selfDests = redirect !== undefined ? [] : destroyedCoresToSelfCandidates(state, ownerPid)
     if (selfDests.length > 0 && baseDest === "reserve" && (selfDests.length === 1 || !state.interactiveTargets)) {
         // 候補が1体（または非対話）でトラッシュ/ボイド行きとの衝突が無ければ、選ばずにその候補へ（非対話は先頭）
         const dest = selfDests[0]!
