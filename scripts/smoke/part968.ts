@@ -42,7 +42,7 @@ function game(seed: string, interactive: boolean): GameState {
     return s
 }
 
-type Pick = { borrow?: string; core?: string; directed?: string; option?: string; count?: string; onDirected?: (candidates: string[]) => void; onOption?: (options: string[]) => void }
+type Pick = { borrow?: string; core?: string; directed?: string; option?: string; count?: string; onCore?: () => void; onDirected?: (candidates: string[]) => void; onOption?: (options: string[]) => void }
 
 // 選択待ちを答え続ける。確認は「発動する」、借りる元は pick.borrow、見出しの選択は pick.option（無ければ「発動する」）、コア除去は pick.core、指定は pick.directed（無ければスキップ）
 function drive(s: GameState, pick: Pick): void {
@@ -64,7 +64,10 @@ function drive(s: GameState, pick: Pick): void {
             id = pick.directed
         }
         else if (pc.prompt.includes("借りる")) id = pick.borrow
-        else id = pick.core ?? pc.candidates[0]
+        else {
+            pick.onCore?.()
+            id = pick.core ?? pc.candidates[0]
+        }
         if (id !== undefined && !pc.candidates.includes(id)) id = undefined
         const err = act(s, pc.pid, id === undefined ? { type: "resolveChoice" } : { type: "resolveChoice", instanceId: id })
         assert(err === null, `選択への応答: ${err}`)
@@ -194,6 +197,37 @@ console.log("=== F3. 対照：2つ目の見出し（【分身】）を選ぶと�
     drive(s, { borrow: brave.instanceId, option: "このスピリットが持つ【分身】を発揮させる。" })
     assert(s.players.p1.field.spirits.some((x) => x.bunshinOf !== undefined), "【分身】が発揮されて分身ができる")
     assert(!lockedFor(s, "p2", "burst"), "バースト封じは掛からない")
+}
+
+console.log("=== G. 指定の条件は指定を立てる時点で判定する：コア除去の解決中に自分の赤シンボルが無くなると、指定は出ない ===")
+{
+    const s = game("p968-g", true)
+    const b = board(s, "BS13-008", "BS20-058")
+    const borrowed = s.players.p1.field.spirits.find((x) => x.cardId === "BS20-058")!
+    // 相手が1体だと コア除去の対象が自動で決まって選択が出ないので、コア3の相手を1体足す（対象を選ばせる）
+    s.players.p2.field.spirits.push(createInstance("BS01-001", s.turn, 3))
+    attackWith(s, b.host)
+    let removed = false
+    let directedAsked = false
+    drive(s, {
+        borrow: borrowed.instanceId,
+        core: b.oppA.instanceId,
+        // 借用の発揮は組み終わったあと（赤シンボルはまだある）。コア除去の対象を選ぶ間に赤を無くす
+        onCore: () => {
+            resolveAction(s, "p1", b.host, { type: "timedEffect", content: [{ type: "colorless" }], duration: "battle", target: "self" })
+            refreshLevelAsOverrides(s)
+            removed = true
+        },
+        // 指定の選択が出たら記録する（drive は答えずに飛ばすので、記録しないと出たことが見えない）
+        onDirected: () => {
+            directedAsked = true
+        },
+    })
+    assert(removed, "コア除去の選択の時に赤を無くした（前提）")
+    assert(countSymbols(s.players.p1, ["red"]) === 0, "赤シンボルが無い（前提）")
+    assert(b.oppA.cores === 1, "コア除去は起きる")
+    assert(!directedAsked, "指定の選択は出ない")
+    assert(s.battle?.directedTargetInstanceId === undefined, "指定先は立たない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part968）")
