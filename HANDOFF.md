@@ -37,7 +37,8 @@
   - データ役：既存の器だけのカード（BSC05-006 は globalConstraint coresProtected side:both battle:participants＋whileSelfAttacking）
   - A：`canDirectAttack.mandatory?: true`（X13-13）／effectCounter `ownFieldSpiritColors`・AuraCondition `{anyOf: AuraCondition[]}`・`{opponentSpiritMatches: TargetFilter}`（X13-16）
   - B：`moveCards.from` に配列 `("hand"|"trash")[]`（X013）／`burstAltEventFromOpponentSummon.alsoOn?`（既定＝従来の自分のライフ減少後。X016）／`placeCores.chooser?: "opponent"`＋`optional?: true`（X13-15）
-  - C：エンドステップの誘発の列で1回解決する遅延（BS01-124）／`destroyBlockerAtBattleEnd` の一般化（BS01-111）／reviveOnDestroy の cost「発生源を手札に戻す」＋revived「待機を解くだけ」（BSC05-011）
+  - C（確定 11-16）：①action `atEndStep {action}`＝このターンのエンドステップに、エンドステップの誘発と同じ列で1回解決（記録は atTurnEnd と同じ GameState.turnEndActions に印つき。BS01-124）②`destroyBlockerAtBattleEnd` を `destroyOpponentAtBattleEnd {opponentRole:"blocker"|"attacker"|"either", ownCost?, opponentLevel?, opponentFilter?}` に改名・一般化（BS23-042 を移行。BS01-111 Lv2 は either＋赤）③reviveOnDestroy の `cost.returnSelfToHand`（発生源が同時に破壊待機でも払える＝Q2814）と `revived:{keepState:true}`（stayOnFieldRevived で待機を解くだけ。BSC05-011）
+  - B は新部品なしで済んだ（X013＝BS15-034 と同じ destroyedMinBp＋summon alsoFrom trash、X13-15＝chooseActionMode chooser:opponent＋removeCores side）
   - D：古の魔王城の対象付け替え（BSC05-017）／destroy の合計コスト下限＋相手が選ぶ（BS11-076）
   - E：ImmuneSource `"burst"`＋TargetFilter `sameColorAsLastTarget`（X13-17）
 
