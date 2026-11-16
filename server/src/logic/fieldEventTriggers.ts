@@ -49,6 +49,12 @@ export interface FieldEventExtraItem {
     first?: true
 }
 
+// 個体の疲労状態が g.rested と一致するか（解決する時点で見る。見つからなければ一致しない）
+export function restStateHolds(state: GameState, g: { instanceId: string; rested: boolean }): boolean {
+    const inst = findInstanceAnywhere(state, g.instanceId)
+    return inst != null && (inst.isRested === true) === g.rested
+}
+
 // 同時破壊につき1回の項目（groupOnce）が、この同時破壊で既に解決されたか
 export function groupOnceUsed(state: GameState, key: string | undefined): boolean {
     return key !== undefined && state.destroyGroup?.used.includes(key) === true
@@ -601,10 +607,12 @@ export function fireFieldEventTriggers(
             : eventInfo?.pendingDestructionOf
     // 「疲労したとき」は、解決する時点で主語のスピリットが疲労状態でなくなっていれば発揮しない（同じ列で先に回復を解決したとき。
     // 公式Q230「参照先がその状態でなくなったら『〜したとき』効果は発揮されない」。2026-11-14 ユーザー確認。#537）
-    const restedGuard =
-        (event === "anySpiritExhausted" || event === "ownSpiritExhausted" || event === "opponentSpiritExhaustedByOwnSpiritEffect") && selfOverride !== undefined
-            ? selfOverride.inst.instanceId
-            : undefined
+    // 『回復したとき』も対称に、回復状態でなくなっていれば発揮しない（2026-11-15 ユーザー裁定。#567）
+    const restGuard: { instanceId: string; rested: boolean } | undefined =
+        selfOverride === undefined ? undefined
+        : event === "anySpiritExhausted" || event === "ownSpiritExhausted" || event === "opponentSpiritExhaustedByOwnSpiritEffect" ? { instanceId: selfOverride.inst.instanceId, rested: true }
+        : event === "ownSpiritRefreshed" || event === "anySpiritRefreshed" ? { instanceId: selfOverride.inst.instanceId, rested: false }
+        : undefined
     // 「手札に戻るとき／戻ったとき」は、解決する時点で主語のスピリットが戻す待機でなくなっていれば発揮しない
     // （同じ列で先に解決した効果に破壊されて、待機が変わった。PENDING_STATE §3 P6・C4）
     const returnGuard =
@@ -629,7 +637,7 @@ export function fireFieldEventTriggers(
             groupOnceUsed(state, groupOnceOf(e)) ||
             (e.extra === undefined && !isVirtualSource(e.inst) && !extraSources?.some((x) => x.instanceId === e.inst.instanceId) && !isStillOnField(state, pid, e.inst.instanceId)) ||
             (e.extra === undefined && destroyGuard !== undefined && !isTrashWaiting(findInstanceAnywhere(state, destroyGuard))) ||
-            (e.extra === undefined && restedGuard !== undefined && findInstanceAnywhere(state, restedGuard)?.isRested !== true) ||
+            (e.extra === undefined && restGuard !== undefined && !restStateHolds(state, restGuard)) ||
             (e.extra === undefined && returnGuard !== undefined && !isReturnWaiting(findInstanceAnywhere(state, returnGuard))) ||
             (e.extra === undefined && !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id })),
         resolve: (e) => withWaitingEvent(state, waitingEventFor(related || e.extra !== undefined, subjectOf(e), state.waitingEvent), () => {
@@ -696,7 +704,7 @@ export function fireFieldEventTriggers(
                 ...(claimsAtResolve(e) ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
                 ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
                 ...(e.groupOnce !== undefined ? { groupOnce: e.groupOnce } : {}),
-                ...(restedGuard !== undefined ? { requiresRestedOf: restedGuard } : {}),
+                ...(restGuard !== undefined ? { requiresRestStateOf: restGuard } : {}),
                 ...(returnGuard !== undefined ? { requiresReturnWaitingOf: returnGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),

@@ -401,7 +401,7 @@ export type ResumeFrame =
           // 積み忘れで実バグ4件を出して作られたものなので穴を開けず、消化時に無効化する
           requiresPendingDestructionOf?: string
           groupOnce?: string // 同時破壊につき1回の項目（destroyGroup.used の鍵）。解決する時点で消費し、使用済みなら空振りする
-          requiresRestedOf?: string // 「疲労したとき」の続き。解決する時点でこの個体が回復していれば空振りさせる（公式Q230。#537）
+          requiresRestStateOf?: { instanceId: string; rested: boolean } // 『疲労したとき』『回復したとき』の続き。解決する時点でこの個体の疲労状態が rested と違えば空振りさせる（公式Q230。#537・#567）
           requiresReturnWaitingOf?: string // 「手札に戻るとき／戻ったとき」の続き。解決する時点でこのカードが戻す待機でなければ空振りさせる（破壊されて待機が変わった。PENDING_STATE §3 C4）
           // 名前スコープの「ターンに1回」（onceScope:"name"）の効果。消化時に枠を取り、取れなければ何もしない
           onceClaim?: { instanceId: string; effectId: string }
