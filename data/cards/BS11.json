@@ -5854,5 +5854,27 @@
     "whileCombined": true
    }
   ]
+ },
+ {
+  "cardId": "BS11-076",
+  "name": "シェアリングペイン",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分のスピリット1体を破壊することで、相手は、コスト合計がその破壊したスピリットのコスト以上になるように、相手のスピリットを好きなだけ破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": []
  }
 ]

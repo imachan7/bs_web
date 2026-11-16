@@ -32,7 +32,14 @@
 
 - 範囲は欠けが確定した49種だけ（BS01「混沌の守護神」15・BSC05 21・X13 7・X013/X016・EX024〜026・BS11-076）。EX 番号だけの欠け4種（EX003＝P006 など）と、存在未確認の EX・年次番号プロモは入れない（2026-11-16 ユーザー確認）
 - 元データは `data/staging/BS01-chaos.json`・`BSC05.json`・`PROMO-missing.json`・`BS11.json`（BS11-076）。⚠️ `fetch_wiki_cards.py` のキャッシュは弾 ID だけがキーなので、同じ --set で別の --refer を取るときは `--no-cache`
-- 次の一手：調査役（Sonnet）が効果ごとに既存の器／新しい部品・解釈が割れる点・主役の公式Q&Aを表にする → `docs/design/MISSING_CARDS_SURVEY.md`（形は STARTER_SURVEY_white.md §1〜§3＋§4 解釈・§5 Q&A）→ 確認 → 実装。11-16 調査済み。§6 がメインループの見直しで、解釈の確認をユーザーに出した（答えは §6 に書き足してから実装へ）
+- 調査書 `docs/design/MISSING_CARDS_SURVEY.md`（§6 が見直しと確認の答え Q1〜Q6。全部 OK）。49種は `effects: []` で本番データに移した（STARTER 41・X13 7・BS11 1。末尾に追記）
+- 分担（新部品を持つカードは部品の担当がカードごと書く。データ役はそれ以外の37枚だけ）：
+  - データ役：既存の器だけのカード（BSC05-006 は globalConstraint coresProtected side:both battle:participants＋whileSelfAttacking）
+  - A：`canDirectAttack.mandatory?: true`（X13-13）／effectCounter `ownFieldSpiritColors`・AuraCondition `{anyOf: AuraCondition[]}`・`{opponentSpiritMatches: TargetFilter}`（X13-16）
+  - B：`moveCards.from` に配列 `("hand"|"trash")[]`（X013）／`burstAltEventFromOpponentSummon.alsoOn?`（既定＝従来の自分のライフ減少後。X016）／`placeCores.chooser?: "opponent"`＋`optional?: true`（X13-15）
+  - C：エンドステップの誘発の列で1回解決する遅延（BS01-124）／`destroyBlockerAtBattleEnd` の一般化（BS01-111）／reviveOnDestroy の cost「発生源を手札に戻す」＋revived「待機を解くだけ」（BSC05-011）
+  - D：古の魔王城の対象付け替え（BSC05-017）／destroy の合計コスト下限＋相手が選ぶ（BS11-076）
+  - E：ImmuneSource `"burst"`＋TargetFilter `sameColorAsLastTarget`（X13-17）
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
