@@ -20,6 +20,7 @@ import {
     attachBrave,
     bothSidesPids,
     destroyCombinedBrave,
+    destroyCombinedBraves,
     detachBraveByEffect,
     detachBraveByOwnerChoice,
     returnCombinedBraveToHand,
@@ -1063,12 +1064,15 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
     }
     // allHosts（BS11-016 邪眼皇ゼナス＝「合体スピリットすべてのブレイヴ1つずつ」）
     if (action.allHosts) {
+        // 1つの効果で破壊するので同時破壊（PENDING_STATE §3 C8）
+        const targets: { host: CardInstance; brave: CardInstance }[] = []
         for (const host of [...hosts]) {
             const brave = affectableBraves(ctx, opp, host, "destroy", scope)[0]
             const passed = brave ? gateBraveTargets(ctx, opp, host, [brave], "destroy", scope, action) : []
-            if (passed?.[0]) destroyCombinedBrave(state, opp, host, passed[0], destroyContext)
             if (state.pendingChoice || state.winner) return
+            if (passed?.[0]) targets.push({ host, brave: passed[0] })
         }
+        destroyCombinedBraves(state, opp, targets, destroyContext)
         return
     }
     // 対象指定（選択の再開）→ そのホストのブレイヴを壊す。手札を払って受けない確認から戻るときはブレイヴの id が来ることもある

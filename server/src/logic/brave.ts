@@ -1,10 +1,11 @@
 // ブレイヴの合体・分離と、ホストが場を離れるときにブレイヴを残すかの確認（docs/design/BRAVE.md §2.3・§6・§12.5）
 
 import { coreRemovalAllowed } from "./coreGate"
-import type { CardInstance, DestroyContext, GameState, PaySource, PlayerId } from "../type"
+import type { CardInstance, DestroyContext, GameState, PaySource, PlayerId, ResumeFrame } from "../type"
+import type { CollectedTrigger } from "./blockDeclared"
 import type { BraveLeaveDest } from "../types/gameState"
 import { notifyHandGained } from "./fieldEventTriggers"
-import { getCard, log, instMinLevelCores, opponentOf, suspend } from "./GameState"
+import { getCard, log, instMinLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
 import { fireTrigger } from "./triggers"
@@ -133,39 +134,101 @@ function braveProtectedFromOpponent(state: GameState, ownerPid: PlayerId, brave:
 }
 
 // 合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
-// **ホストは無傷で場に残る。** 合体中のブレイヴはコア0なので、リザーブへ戻るコアは無い。
-// 『破壊時』はブレイヴ側のものだけ発火する（ホストは破壊されていないため）。
-//
+// **スピリットは無傷で場に残る。** 合体中のブレイヴはコア0なので、リザーブへ戻るコアは無い。
 // ⚠️ 合体中のブレイヴは field.spirits にいないので destroySpirit では届かない（専用の経路）
-export function destroyCombinedBrave(
-    state: GameState,
-    ownerPid: PlayerId,
-    host: CardInstance,
-    brave: CardInstance,
-    context?: DestroyContext,
-): void {
-    if (combinedBraveIndestructibleFor(state, ownerPid, host) || braveProtectedFromOpponent(state, ownerPid, brave, context)) {
-        log(state, `${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」は破壊されない。`)
-        return
-    }
+export function destroyCombinedBrave(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance, context?: DestroyContext): void {
+    destroyCombinedBraves(state, ownerPid, [{ host, brave }], context)
+}
+
+type BraveDestroyFrame = Extract<ResumeFrame, { kind: "braveDestroy" }>
+
+// 1つの効果で破壊されるブレイヴは同時破壊（1つでも同じ手順。PENDING_STATE §3 C6〜C8。2026-11-16 ユーザー確認）。
+// ブレイヴは破壊待機で combinedBraves に残り、誘発の列を解決し終えてからトラッシュへ行く。
+// 待機に入った時点でスピリットとの参照と合体の印を切るので、スピリットへは何も与えない（P8）。
+// 【合体時】『このスピリットの破壊時』は発揮しない（スピリットは破壊されていない。C5）。
+// 発揮するのはブレイヴ自身の『破壊時』だけ（プールに該当カードが無く、テストは無い）。
+// 選択待ちで止まったら braveDestroy フレームに続きを預けて返る
+export function destroyCombinedBraves(state: GameState, ownerPid: PlayerId, targets: { host: CardInstance; brave: CardInstance }[], context?: DestroyContext): void {
     const player = state.players[ownerPid]
-    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
-    if (host.braveRefs.length === 0) delete host.braveRefs
-    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
-    if (at !== -1) player.field.combinedBraves.splice(at, 1)
-    const name = getCard(brave.cardId).name
-    // ブレイヴだけの破壊では、【合体時】『このスピリットの破壊時』は発揮しない（スピリットは破壊されていない。
-    // PENDING_STATE §1 例1・§3 C5。2026-11-16 ユーザー確認）。合体の印を消して【合体時】のエントリを外す。
-    // 発揮するのはブレイヴ自身の『破壊時』だけ（プールに該当カードが無く、テストは無い）
-    delete brave.braveCombined
-    player.trashCards.push(brave.cardId)
+    const passed = targets.filter(({ host, brave }) => {
+        if (!combinedBraveIndestructibleFor(state, ownerPid, host) && !braveProtectedFromOpponent(state, ownerPid, brave, context)) return true
+        log(state, `${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」は破壊されない。`)
+        return false
+    })
+    const first = passed[0]
+    if (!first) return
+    const event = passed.length === 1 ? first.brave.instanceId : crypto.randomUUID()
+    for (const { host, brave } of passed) {
+        host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+        if (host.braveRefs.length === 0) delete host.braveRefs
+        delete brave.braveCombined
+        brave.waiting = { kind: "destroy", event }
+        const name = getCard(brave.cardId).name
+        log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${name}」は破壊された。`)
+        emitEvent(state, { type: "destroy", pid: ownerPid, cardName: name })
+    }
     refreshLevelAsOverrides(state)
-    log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${name}」は破壊された。`)
-    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: name })
-    fireTrigger(state, ownerPid, brave, "onDestroy")
-    // 「自分の合体スピリットのブレイヴだけが破壊されたとき」（BS19-093）。ブレイヴはすでにトラッシュへ置かれている
-    fireFieldEventTriggers(state, ownerPid, "ownBraveOnlyDestroyed", { pid: ownerPid, inst: brave }, instColors(brave))
-    void context
+    resumeBraveDestroy(state, { kind: "braveDestroy", ownerPid, event, phase: "triggers" })
+}
+
+// 「自分の合体スピリットのブレイヴだけが破壊されたとき」をいま発揮できる発生源が、持ち主の側にあるか
+function hasBraveOnlyDestroyedSource(state: GameState, ownerPid: PlayerId): boolean {
+    return effectSources(state, ownerPid).some((source) =>
+        getCard(source.cardId).effects.some((e) => e.kind === "fieldEvent" && e.event === "ownBraveOnlyDestroyed" && entryActive(state, ownerPid, source, e, currentLevel(source).level)),
+    )
+}
+
+export function resumeBraveDestroy(state: GameState, frame: BraveDestroyFrame): void {
+    const { ownerPid, event } = frame
+    const player = state.players[ownerPid]
+    const waiting = (): CardInstance[] => player.field.combinedBraves.filter((b) => b.waiting?.kind === "destroy" && b.waiting.event === event)
+    if (frame.phase === "triggers") {
+        const braves = waiting()
+        // 「ブレイヴだけが破壊されたとき、そのブレイヴを〜」は同時破壊につき1回で、「そのブレイヴ」は持ち主が1つ選ぶ（C8）。
+        // 復活で戻すスピリットを選ぶのと同じく、列の前に選ぶ。選んだ番号は順番の選択と同じ受け皿（triggerOrderPick）で受け取る
+        let subject = braves[0]
+        if (braves.length >= 2 && hasBraveOnlyDestroyedSource(state, ownerPid)) {
+            const pick = state.triggerOrderPick
+            if (pick !== undefined) {
+                delete state.triggerOrderPick
+                subject = braves[pick] ?? subject
+            } else if (state.interactiveTargets) {
+                suspend(state, {
+                    pid: ownerPid,
+                    kind: "option",
+                    prompt: "ブレイヴだけが破壊されたときの効果は、どのブレイヴについて発揮しますか？",
+                    candidates: [],
+                    options: braves.map((b, i) => `${i + 1}：${getCard(b.cardId).name}`),
+                    optional: false,
+                    triggerOrder: { count: braves.length },
+                    action: { type: "noop" },
+                    selfInstanceId: null,
+                })
+                pushResumeFrames(state, [frame])
+                return
+            }
+        }
+        const items: CollectedTrigger[] = []
+        for (const b of braves) fireTrigger(state, ownerPid, b, "onDestroy", undefined, undefined, undefined, undefined, undefined, undefined, items)
+        if (subject) fireFieldEventTriggers(state, ownerPid, "ownBraveOnlyDestroyed", { pid: ownerPid, inst: subject }, instColors(subject), undefined, undefined, undefined, undefined, undefined, undefined, undefined, items)
+        resolveInOrder(state, items, {
+            skip: (i) => i.skip?.() === true,
+            resolve: (i) => i.run(),
+            frame: (i) => i.frame,
+            askOrder: { pid: state.turnPlayer, label: (i) => i.label, key: (i) => i.key },
+        })
+        if (state.pendingChoice && !state.winner) {
+            pushResumeFrames(state, [{ ...frame, phase: "commit" }])
+            return
+        }
+    }
+    // 待機が解かれたブレイヴ（手札に戻ったなど）は、解いた側が combinedBraves から抜いている
+    for (const b of waiting()) {
+        player.field.combinedBraves.splice(player.field.combinedBraves.indexOf(b), 1)
+        delete b.waiting
+        player.trashCards.push(b.cardId)
+    }
+    refreshLevelAsOverrides(state)
 }
 
 // 合体中のブレイヴ**だけ**を手札へ戻す（destroyCombinedBrave のバウンス版。

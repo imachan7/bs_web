@@ -798,6 +798,9 @@ function returnDestroyedSelfToHand(ctx: ActionCtx): void {
                 player.reserve += self.cores
                 detachBravesOnLeave(state, owner, self, false, "hand") // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1。残さないなら手札へ §6.3.2）
             }
+            // 破壊待機の、合体していたブレイヴ（ブレイヴだけの破壊。brave.ts の destroyCombinedBraves）
+            const braveIdx = player.field.combinedBraves.findIndex((b) => b.instanceId === self.instanceId)
+            if (braveIdx >= 0) player.field.combinedBraves.splice(braveIdx, 1)
             delete self.waiting
             player.hand.push(self.cardId)
             log(state, `${getCard(self.cardId).name}は手札に戻った。`)
