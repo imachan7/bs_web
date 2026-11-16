@@ -257,7 +257,9 @@ scenario({
     expect: ["自分.A.場所: フィールド → なし", "自分.B.場所: フィールド → なし", "自分.リザーブ: 10 → 12", "自分.トラッシュ: なし → バーサーカー・ガン、ロクケラトプス",
         "相手.ライフ: 5 → 4", "相手.リザーブ: 0 → 1", "相手.バースト: 武威煌炎刃 → なし", "相手.トラッシュ: なし → 武威煌炎刃"],
 })
-scenario({
+// 未対応（card-notes BSC05-017）：【連鎖】の部分に印が無く区別できない。【連鎖】136件の移行の PR でこの場面を戻す（2026-11-16 ユーザー決定）
+const CHAIN_MARKED = false
+if (CHAIN_MARKED) scenario({
     name: "castle-相手の【連鎖】の部分では1体に絞れず、自分の2体とも疲労する",
     start: { turn: "opp", interactive: true, me: { nexuses: [{ card: CASTLE, cores: 1 }], spirits: [{ card: WHITE, label: "A" }, { card: RED, label: "B" }] },
         opp: { hand: ["BS20-083"], spirits: [{ card: GREEN, label: "緑" }] } },

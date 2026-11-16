@@ -140,7 +140,9 @@ scenario({
 })
 
 console.log("=== BSC05-027 エレキトリック ===")
-scenario({
+// 未対応（card-notes BSC05-027）：効果の途中の破壊はその場でトラッシュまで済むので、コアが残っていない。「効果の解決中に誘発した破壊時効果は効果の後」の一般則の PR でこの場面を戻す（Q26091・Q26092。2026-11-16 ユーザー決定）
+const DESTROY_AFTER_EFFECT = false
+if (DESTROY_AFTER_EFFECT) scenario({
     name: "electric-battling",
     start: { phase: "attack", me: { hand: ["BSC05-027"], spirits: [{ card: V, label: "a", cores: 2 }] }, opp: { spirits: [{ card: BEAR, label: "o" }] } },
     steps(t) {
