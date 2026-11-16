@@ -397,6 +397,25 @@ export function onHandBurstEffectClick(handIndex: number): void {
     rerender()
 }
 
+// ブレイヴの召喚方法（スピリット状態／合体）を選ばせる。メインとフラッシュの神速で共有する
+function openBraveSummonSelect(handIndex: number, cardId: string): void {
+    if (!view) return
+    ui.targeting = null
+    ui.awakenTarget = null
+    ui.paying = null
+    ui.directedAttack = null
+    ui.summonLevelSelect = null
+    ui.battleSwapSummon = null
+    ui.altSummonSelect = null
+    ui.exReductionSelect = null
+    ui.braveSummonSelect = {
+        handIndex,
+        cardId,
+        candidateIds: braveCombineCandidates(view, view.you, cardId),
+    }
+    rerender()
+}
+
 export function onHandClick(handIndex: number): void {
     if (!view) return
     // 選択待ち中は通常の手札操作（召喚等）をすべて抑止する。自分宛のkind:"card"・cardZone:"hand"
@@ -428,20 +447,7 @@ export function onHandClick(handIndex: number): void {
         // ブレイヴは「スピリット状態で召喚」と「合体した状態で召喚」を毎回選ばせる
         // （2026-08-28 ユーザー指示。合体先が無くても選択は出す＝何が起きるか分かるように）
         if (card.type === "brave") {
-            ui.targeting = null
-            ui.awakenTarget = null
-            ui.paying = null
-            ui.directedAttack = null
-            ui.summonLevelSelect = null
-            ui.battleSwapSummon = null
-            ui.altSummonSelect = null
-            ui.exReductionSelect = null
-            ui.braveSummonSelect = {
-                handIndex,
-                cardId,
-                candidateIds: braveCombineCandidates(view, view.you, cardId),
-            }
-            rerender()
+            openBraveSummonSelect(handIndex, cardId)
             return
         }
         if (card.type === "spirit") {
@@ -470,8 +476,8 @@ export function onHandClick(handIndex: number): void {
     }
 
     // 神速召喚または入れ替え召喚（フラッシュで手札のスピリットを使用）
-    if (card.type === "spirit" && inFlash) {
-        const swapOpt = canBattleSwapSummon(view, view.you, handIndex)
+    if ((card.type === "spirit" || card.type === "brave") && inFlash) {
+        const swapOpt = card.type === "spirit" ? canBattleSwapSummon(view, view.you, handIndex) : null
         const tempSoku = (view.players[view.you].tempHandKeywordGrants ?? []).some(
             (g) => g.cardId === cardId && g.keyword === "soku",
         )
@@ -484,6 +490,11 @@ export function onHandClick(handIndex: number): void {
             return
         }
 
+        // ブレイヴの神速も、メインと同じく「スピリット状態／合体」を選ばせる
+        if (canSoku && card.type === "brave") {
+            openBraveSummonSelect(handIndex, cardId)
+            return
+        }
         if (canSoku) {
             tryPlay(handIndex, card, undefined)
             return
