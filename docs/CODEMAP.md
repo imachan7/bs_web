@@ -786,6 +786,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/fieldEventTriggers.ts
 
 - `FieldEventExtraItem`（型）：フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
+- `restStateHolds`（fn）：個体の疲労状態が g.rested と一致するか（解決する時点で見る。見つからなければ一致しない）
 - `groupOnceUsed`（fn）：同時破壊につき1回の項目（groupOnce）が、この同時破壊で既に解決されたか
 - `claimGroupOnce`（fn）
 - `fireFieldEventTriggers`（fn）

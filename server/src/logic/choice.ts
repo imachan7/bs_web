@@ -8,7 +8,7 @@ import { activateBurstCard, applyDeclaredBursts, declareBurst } from "./keywords
 import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameAction, GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setWaitingEvent } from "./GameState"
-import { claimGroupOnce, groupOnceUsed, notifyHandGained } from "./fieldEventTriggers"
+import { claimGroupOnce, groupOnceUsed, notifyHandGained, restStateHolds } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit, applyCoreDestination, flushCoreDestinations } from "./removal"
@@ -894,7 +894,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             if (target == null || !isTrashWaiting(target)) continue
         }
         if (groupOnceUsed(state, frame.groupOnce)) continue
-        if (frame.requiresRestedOf !== undefined && findInstanceAnywhere(state, frame.requiresRestedOf)?.isRested !== true) continue
+        if (frame.requiresRestStateOf !== undefined && !restStateHolds(state, frame.requiresRestStateOf)) continue
         if (frame.requiresReturnWaitingOf !== undefined && !isReturnWaiting(findInstanceAnywhere(state, frame.requiresReturnWaitingOf))) continue
         if (frame.levelRecheck !== undefined && !levelStillMet(state, frame.levelRecheck)) continue
         if (frame.onceClaim !== undefined) {
