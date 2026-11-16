@@ -32,6 +32,8 @@
 
 - 設計は [DERIVED_AFTER_EFFECT.md](./docs/design/DERIVED_AFTER_EFFECT.md) §8（ユーザー確認つき：待機の3種だけ・1本の列・破壊→消滅の切り替えも入れる）。要点：`resolveAction` の一番外側が `effectId` を発行 → 効果の中で待機に入ったカードに `waiting.effectId` → 出口 `settleDerived` で全員ぶんを1本の列・確定・バースト。「この効果発揮後」は区切りの action `settleDerived` を36枚に挟む
 - 分担：期待値役 part979（規則から場面を書く）／実装役（Sonnet。エンジン）／データ役（36枚に区切りを挟む）。part978 の `DESTROY_AFTER_EFFECT` を true に戻し、card-notes の BSC05-027 を消す
+- 次の PR（2026-11-17 ユーザー決定）：対象の候補を自前で `field.spirits.filter(...)` で作るハンドラ（timedEffect.ts だけで7か所ほか）を、`targeting.ts` の共通の入口に寄せ、待機中のカード（PENDING_STATE C2 `canBeTargeted`）を一律に外す。この PR ではネクサス破壊と「Lv◯として扱う」の2か所だけ直した
+- 残した限界：区切り `settleDerived` の列が選択待ちで止まると「破壊した数」を元の効果の記録へ書き戻さない／戻す待機の `rank` は同じ効果で order 付きの戻しが2回あると衝突／`GameState.holdDerivedFor`（複数エントリのマジック）は state の一時フィールドのまま（原則3。別作業）
 - 次：【連鎖】136件の印（古の魔王城 Q23568。part976 の `CHAIN_MARKED`）を別の PR で
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
