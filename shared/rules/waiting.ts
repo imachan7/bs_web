@@ -60,6 +60,17 @@ export function canBeTargeted(board: { waitingEvent?: string }, inst: MaybeInst)
     return !isWaiting(inst) || (board.waitingEvent !== undefined && inst?.waiting?.event === board.waitingEvent)
 }
 
+// 破壊の待機が持つ、その破壊の発生源などの控え（待機でなければ無い）
+export function destroyContextOf(inst: MaybeInst) {
+    return inst?.waiting?.kind === "destroy" ? inst.waiting.context : undefined
+}
+
+// 破壊・消滅の待機が持つ、破壊後バースト用の控え
+export function destroyBurstInfoOf(inst: MaybeInst) {
+    const w = inst?.waiting
+    return w?.kind === "destroy" || w?.kind === "vanish" ? w.burstInfo : undefined
+}
+
 // 誘発の入口が立てる値。related＝場を離れることに関係する誘発か。subject＝その誘発が見ているカード（破壊されたスピリットなど）。
 // 主語が待機中ならその出来事。待機中でなければ外側の値のまま（勝敗の誘発は主語の勝者が待機していないので、敗者の出来事を外側が渡す）
 export function waitingEventFor(related: boolean, subject: MaybeInst, outer: string | undefined): string | undefined {

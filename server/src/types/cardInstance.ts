@@ -68,17 +68,6 @@ export interface CardInstance {
     // この間もカードはフィールドに存在し、コアも乗ったまま。読むときは shared/rules/waiting.ts の関数を通す（直接読まない）
     waiting?: WaitingState
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
-    // 破壊待機状態の間だけ持つ、その破壊のコンテキストと確認の出し方（destroySpiritが記録し、
-    // commitPendingDestruction が「フィールドに残る」の判定に使う。cards.jsonには書かない内部専用）。
-    // 「フィールドに残る」は破壊待機からトラッシュへ置かれる**代わり**に働くので、
-    // 判定はトラッシュ行きの確定地点まで持ち越す必要がある（TIMING_CHART.md「『フィールドに残る／戻る』と『破壊時』」）
-    pendingDestroyContext?: DestroyContext
-    pendingDestroyAllowSuspend?: true
-    skipReviveOnCommit?: true // 消滅（維持コア割れ）・skipRevive 指定の破壊では「フィールドに残る」を見ない印
-    // 破壊待機状態の間だけ持つ、破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）用の控え。
-    // destroySpiritが破壊直前に計算した値をここに残し、commitPendingDestructionが読んでpendingBurstDestroyQueueへ積む
-    // （破壊後バーストはトラッシュ行き確定の後に発火するため、確定前の値をここで持ち越す。BS16バッチ0）
-    pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number; sourceType?: CardType }
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     timedLevel?: number // 期間つき効果の「Lv◯として扱う」の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
@@ -178,7 +167,12 @@ export interface CardInstance {
 // byOpponent：vanish は相手の効果で消滅した（byOpponentVanishOnly が読む）、return は相手の効果で戻される
 export type WaitingState =
     // 待機の出来事の id。同時に待機に入ったカードで共通（同時破壊は destroyGroup.id）。対象に取れるかの判定に使う（PENDING_STATE §3 C2）
-    | { kind: "destroy"; event: string }
-    | { kind: "vanish"; event: string; byOpponent?: true }
+    // context：その破壊の発生源など（「フィールドに残る」の判定と、破壊時効果の条件が読む）。
+    // skipRevive：「フィールドに残る」を見ない（復活を断った後の破壊）。
+    // burstInfo：破壊後バースト用に、破壊直前（まだ場にいてコアも乗っている時点）で確定させた値。トラッシュ行きの確定で読む
+    | { kind: "destroy"; event: string; context?: DestroyContext; skipRevive?: true; burstInfo?: DestroyBurstInfo }
+    | { kind: "vanish"; event: string; byOpponent?: true; burstInfo?: DestroyBurstInfo }
     // resolving＝誘発の列を始めた（flushBounces が付ける）。列が選択待ちで止まっている間に flushBounces がもう一度呼ばれても、列を始め直さない
     | { kind: "return"; event: string; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true; resolving?: true }
+
+export type DestroyBurstInfo = { byOpponentEffect: boolean; bp: number; sourceType?: CardType }

@@ -22,7 +22,7 @@ import {
     getCard,
     log, opponentOf, pushResumeFrames, withWaitingEvent
 } from "./GameState"
-import { canFireWhileWaiting, isLeaveRelatedTrigger, waitingEventFor, frameWaitingEvent } from "../../../shared/rules/waiting"
+import { canFireWhileWaiting, destroyContextOf, isLeaveRelatedTrigger, waitingEventFor, frameWaitingEvent } from "../../../shared/rules/waiting"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
 import type { KeywordInfo } from "../../../shared/rules"
@@ -398,7 +398,7 @@ export function fireTrigger(
                 // BS13-014闇騎士アグラヴェイン：その召喚が【不死】によるものだったときのみ発火
                 if (byFushi !== true) return false
             } else if ("selfDestroyedByOwnEffect" in effect.condition) {
-                const dc = selfInstance.pendingDestroyContext
+                const dc = destroyContextOf(selfInstance)
                 const want = effect.condition.selfDestroyedByOwnEffect.sourceFamily
                 const fams = dc?.sourceCardId !== undefined ? getCard(dc.sourceCardId).family : []
                 if (dc === undefined || dc.battle !== undefined || dc.sourcePid !== owner || !(Array.isArray(want) ? want : [want]).some((f) => fams.includes(f))) return false

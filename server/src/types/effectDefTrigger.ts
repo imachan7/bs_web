@@ -59,7 +59,7 @@ export type EffectDefTrigger =
               | { requirePrevAttackerCombined: true } // ターン開始でリセット
               | { ownLifeAtMost: number } // 自分のライフ
               | { selfSummonedByFushi: true } // onSummon 限定
-              | { selfDestroyedByOwnEffect: { sourceFamily: string | string[] } } // onDestroy 限定。sourceFamily＝発生源カードが静的に持つ系統（配列＝OR）。バトルは含まない。pendingDestroyContext を読む
+              | { selfDestroyedByOwnEffect: { sourceFamily: string | string[] } } // onDestroy 限定。sourceFamily＝発生源カードが静的に持つ系統（配列＝OR）。バトルは含まない。waiting.context を読む
               | { selfDestroyedByOpponent: true } // onDestroy 限定。バトルのBP比較も含む
               | { ownNexusNameKindsAtLeast: { nameContains: string; count: number } } // 枚数でなく異なるカード名の種類数
               | { ownBurstSet: boolean } // false 指定時はセットしていない間だけ
