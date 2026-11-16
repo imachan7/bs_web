@@ -74,6 +74,8 @@ export interface TargetFilter {
     maxLv1BpOfSelf?: true // self（sameCostAsSelfと同じ意味＝fieldEventではイベント対象。召喚されたスピリット等）の**カードのLv1BP**（実効BPでなく印刷値。levels配列のlevel:1のbp）以下。normalizeFilter が maxBp 軸へ解決する。self がいなければ対象なし（BS10-080炎の結晶石Lv2＝「そのスピリットのLv1BP以下の相手のスピリット」）
     sameCostAsLast?: true // 直前に動いたカード（logic/record.ts）の先頭と同じコスト。記録が空なら対象なし
     maxCostAsLast?: true // 直前に動いたカードの先頭のコスト以下（sameCostAsLast の以下版）。記録が空なら対象なし
+    maxCostAsPaid?: true // 払ったスピリットの合計コスト以下（pay が払う個体の値へ置き換えてから読む。bindPaidValues）。CardPick 側も同名で読む（activateBurstIgnoringCondition の filter）
+    sameColorAsPaid?: true // 払ったスピリットの色（合体中はブレイヴ込み）を1色でも共有する（pay が置き換える。CardPick 側も同名で読む）
     maxCostAsEventTarget?: true // イベント対象のコスト以下（sameCostAsEventTarget の以下版）
     sameCostAsEventTarget?: true // **イベント対象**（ctx.targetInstanceId）と同じコスト（normalizeFilter が cost 軸へ解決する。対象が見つからなければ対象なし）。
     // イベント対象は誘発ごとに違う（onBlocked＝ブロッカー、onBlock＝アタックしている相手）
@@ -81,6 +83,7 @@ export interface TargetFilter {
     hasUnblockableEffectOrActive?: true // BS15共通器：カード自身の効果文に「ブロックされない」（kind:"constraint" constraint:"unblockableBy"）を持てば**条件の成否を問わず**対象。加えて、unblockableOnlyと同じく他の効果で**今まさに**ブロックされなくなっているスピリットも対象（両方のOR。BS15-051虚海獣エメヒドラルLv2：「『ブロックされない』効果を持つ相手のスピリット1体」＝2026-09-18ユーザー確認G）
     keywords?: Keyword[] // 指定したキーワードの**いずれか**を持つもの（keyword の複数版。OR。BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）
     keywordExclude?: Keyword // 指定キーワードを**持たない**もの（一時付与・継続付与も考慮。keyword の否定。BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
+    anyOf?: TargetFilter[] // どれか1つに合えばよい（OR）。子は normalizeFilter を通らないので self 相対・記録参照の軸は書けない（BSC05-028「合体していない、または【転召】を持たない」）
     attackingOnly?: true // 現在のバトルのアタッカー（board.battle.attackerInstanceId）だけ。バトルが無ければ対象なし（「アタックしている自分のスピリット」。BS07桜の妖精オウカ）
     bunshin?: true // 分身スピリット（bunshinOf を持つ個体）だけ。BS22
     hasTrigger?: TriggerEvent // 指定トリガーの誘発効果を現在のレベルで静的に持つものだけ（instHasTriggerEffectで判定。継続付与は見ない。BS08プテラディア捕獲部隊＝『召喚時』効果持ち）

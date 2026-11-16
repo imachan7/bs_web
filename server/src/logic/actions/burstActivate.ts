@@ -4,6 +4,7 @@ import { getCard, log } from "../GameState"
 import { requestActivationConfirm } from "../targeting"
 import { activateBurstCard } from "../keywords/burst"
 import { matchesPick } from "./revealAction"
+import type { GameState } from "../../type"
 
 const activateBurstIgnoringConditionHandler: ActionHandler<"activateBurstIgnoringCondition"> = (ctx, action) => {
     const { state, owner, self, sourceName } = ctx
@@ -23,6 +24,7 @@ const activateBurstIgnoringConditionHandler: ActionHandler<"activateBurstIgnorin
         return
     }
     const cardId = state.players[owner].burst
+    // 払ったスピリットとの関係（maxCostAsPaid・sameColorAsPaid）は pay が値に置き換え済み
     if (cardId === null || !getCard(cardId).effects.some((e) => e.kind === "burst") || !matchesPick(cardId, action.filter)) {
         log(state, `${sourceName}：発動できるバーストがなかった。`)
         return

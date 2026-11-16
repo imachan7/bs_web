@@ -83,7 +83,7 @@ export type EffectDefTrigger =
           subjectSide?: "own" | "opponent" // fieldEvent の同名軸と同じ意味
           byOpponentEffectOnly?: true // ownSpiritDestroyed 限定
           destroyedColorFilter?: Color // ownSpiritDestroyed 限定
-          destroyedMinBp?: number // ownSpiritDestroyed 限定
+          destroyedMinBp?: number // ownSpiritDestroyed 限定。発動の条件ではなく効果の条件（満たさなければ発動して不発）
           condition?:
               | { ownLifeAtMost: number } // 自分のライフ
               | { ownNexusAtLeast: number } // 自分のフィールドのネクサス数
@@ -349,10 +349,11 @@ export type EffectDefTrigger =
               byBattleKillerMinBp?: number // byBattleKillerMaxBp の対
           }
           phaseTurn?: { phase?: Phase; turn: "own" | "opponent" | "both" } // 発動できるステップ条件
-          revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { handOrDeckTop: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // handOrDeckTop＝toHand と同じく場に残らず（コアはリザーブへ）、行き先を持ち主が手札かデッキの上から選ぶ（非対話は手札。選択は handleAction の末尾で出す＝pendingReviveDestinations。braveStay も toHand と同じ）。toBurst の Q3469（解決中は発動不可）は未実装（簡略化）
+          revived: { rested: boolean } | { keepState: true } | { toHand: true; braveStay?: "rested" | "refreshed" } | { handOrDeckTop: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // keepState＝破壊時の疲労・回復の状態のまま場に残す（BSC05-011 Lv3「同じ状態で」。待機を解くのは stayOnFieldRevived）。handOrDeckTop＝toHand と同じく場に残らず（コアはリザーブへ）、行き先を持ち主が手札かデッキの上から選ぶ（非対話は手札。選択は handleAction の末尾で出す＝pendingReviveDestinations。braveStay も toHand と同じ）。toBurst の Q3469（解決中は発動不可）は未実装（簡略化）
           then?: EffectAction // 復活が成立した後に解決するアクション（BS19-X05「フィールドに残り、1枚ドローする」）
           // false＝回復／true＝疲労。toHand＝場に残らず手札へ（コアはリザーブへ）。braveStay 指定時は合体していたブレイヴを確認なしで指定状態のまま残す。省略時は detachBravesOnLeave へ
           cost?: {
+              returnSelfToHand?: true // 発生源自身を手札に戻すことがコスト。発生源が破壊待機中（同時破壊）でも払える（Q2814）。同時に破壊された2体目以降は1回しか払えない（groupOnce）
               exhaustSelf?: true // 疲労済みなら支払えず不発
               sourceCoresToTrash?: number // 足りなければ支払い不可＝不発
               keepOneCoreRestToTrash?: boolean // 自身のコアを1個だけ残し、残りをトラッシュへ

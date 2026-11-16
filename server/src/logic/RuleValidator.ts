@@ -29,7 +29,7 @@ import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, ac
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { canDiscardHand, costExhaustLocked, coreIntakeRefused, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
-import { blockDestroyCandidates, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
+import { blockDestroyCandidates, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter, mandatoryDirectAttackTargetIds } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
@@ -311,9 +311,13 @@ export function validateSummon(
               (altSummon !== null ? summonSurcharge(state, pid, card) : payOff !== undefined ? summonCostWithPayOff(state, pid, cardId, payOff, exReductionSymbols) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
           )
     // kind:"summonNeedsCost"：肩代わり（ネクサスの疲労）は払ったものとして数えるが、軽減で0になるコスト・無償化は払ったことにならない
-    if (card.effects.some((e) => e.kind === "summonNeedsCost")) {
+    const needsCost = card.effects.find((e) => e.kind === "summonNeedsCost")
+    if (needsCost) {
         const printedPaid = altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)
-        if (sokuFree || printedPaid <= 0) return "1コスト以上支払わなければ召喚できません"
+        if (sokuFree || printedPaid <= 0) {
+            noteCoverage(needsCost, "summonNeedsCost")
+            return "1コスト以上支払わなければ召喚できません"
+        }
     }
     const extraPlan = summonExtraDiscardPlan(state, pid, handIndex, card, extraDiscardHandIndices, discardHandIndices)
     if ("error" in extraPlan) return extraPlan.error
@@ -1270,6 +1274,11 @@ export function validateAttack(
     if (forcedTargets.length > 0) {
         if (targetSpiritInstanceId === undefined) return "相手の効果により、相手のスピリットを指定してアタックしなければなりません"
         if (!forcedTargets.includes(targetSpiritInstanceId)) return "相手の効果により、指定されたスピリットしか指定できません"
+    }
+
+    // 必ず指定アタック（X13-13）：指定できる相手のスピリットがいるのに、指定せずアタックするのは拒否する
+    if (targetSpiritInstanceId === undefined && mandatoryDirectAttackTargetIds(state, pid, inst).length > 0) {
+        return "相手のスピリットを指定してアタックしなければなりません"
     }
 
     if (targetSpiritInstanceId !== undefined) {

@@ -1196,12 +1196,20 @@ export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[
 // 記録を出した側（ownerPid）が要る判定のために、当たった記録そのものを記録順で返す
 // resist：相手の「すべて」の記録を、この個体の【装甲】などで防げるなら外す（バキュームシンボル。2026-11-12）。
 // 耐性の判定の内側（付与された【装甲】を読む timedKeywords）は false で呼ぶ（回り続けないため）
-export function timedRecordsOn(board: Board, inst: CardInstance, resist = true): Board["timedEffects"] {
+// pick：当たり判定（matchesTarget）より前に記録を絞る。キーワードを読む経路（timedKeywords）が
+// 当たり判定の中で自分を呼び直して無限に回るのを、キーワードを含まない記録について止める（BSC05-028）
+export function timedRecordsOn(
+    board: Board,
+    inst: CardInstance,
+    resist = true,
+    pick?: (r: Board["timedEffects"][number]) => boolean,
+): Board["timedEffects"] {
     const p1 = board.players.p1.field
     const pid: PlayerId = p1.spirits.includes(inst) || p1.nexuses.includes(inst) ? "p1" : "p2"
     // 「〜のスピリットすべて」の記録はスピリットにだけ当たる（ネクサスは1体指定の記録でだけ受ける）
     const isSpirit = board.players[pid].field.spirits.includes(inst)
     return board.timedEffects.filter((r) => {
+        if (pick && !pick(r)) return false
         const t = r.target
         return t.kind === "instance"
             ? t.instanceId === inst.instanceId
@@ -1217,7 +1225,9 @@ export function timedRecordsOn(board: Board, inst: CardInstance, resist = true):
 
 // この個体に期間つき効果で与えられたキーワード（colors＝【装甲】の色）
 export function timedKeywords(board: Board, inst: CardInstance): { keyword: Keyword; colors?: Color[] }[] {
-    return timedRecordsOn(board, inst, false).flatMap((r) => r.content).flatMap((c) => (c.type === "keyword" ? [c] : []))
+    return timedRecordsOn(board, inst, false, (r) => r.content.some((c) => c.type === "keyword"))
+        .flatMap((r) => r.content)
+        .flatMap((c) => (c.type === "keyword" ? [c] : []))
 }
 
 // このプレイヤーに掛かっている期間つき効果の内容

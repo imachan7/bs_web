@@ -12,6 +12,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `blockExhaustSpiritRequired`（fn）：このアタッカーをブロックするのに、ブロックするスピリット以外の回復状態のスピリット1体を疲労させる必要があるか（制約 blockExhaustSpirit）
 - `canBlock`（fn）
 - `matchesDirectedAttackFilter`（fn）：指定アタック（canDirectAttack）の対象条件に、指定された相手スピリットが合致するか。
+- `mandatoryDirectAttackTargetIds`（fn）：必ず指定アタック（canDirectAttack.mandatory。X13-13）の指定先候補：指定できる相手のスピリット。mandatory でなければ空。
 
 ## shared/board.ts
 
@@ -274,6 +275,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instColors`（fn）：状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
 - `colorlessWhenAttacking`（fn）：inst（pid のスピリット）が、継続の kind:"colorlessGrant"（期間の指定なしの「色を無いものとして扱う」）で
 - `opponentFieldColorCount`（fn）：持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く）。
+- `fieldColorCount`（fn）：指定した陣営（side）のフィールドの色の種類数（重複除く）。自分側は side に持ち主を渡す（X13-16 バースト条件：自分のスピリットの色が2色以上）
 - `ownFieldOnlyColor`（fn）：自分のフィールド（スピリット+ネクサス）のカードがすべて指定色1色だけか。
 - `ownTeamAtLeast`（fn）：自分フィールドに指定チーム（CardData.team）所属のスピリットがcount体以上いるか。
 - `ownAllHaveTeam`（fn）：自分のフィールドのスピリット/ネクサスが1体以上あり、そのすべてが指定チーム（CardData.team）に所属するか。
@@ -533,8 +535,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/bounce.ts
 
+- `ownSideBounceCandidates`（fn）：side:"own"（return の to:"hand"／"deckTop" の自分側対象）の候補列挙。ハンドラ本体とpayの判定表
 - `returnToHandCandidateCountForPay`（fn）：ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
 - `returnToDeckTopCandidateCountForPay`（fn）：pay の判定表（return の to:"deckTop"／"deckBottom"）が使う候補数
+- `returnWaitingSpiritToHand`（fn）：破壊待機中の発生源を手札に戻す（reviveOnDestroy の cost.returnSelfToHand。同時破壊の発生源。Q2814）。
 
 ## server/src/logic/actions/combinedAttackRepeat.ts
 
@@ -1017,6 +1021,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isOncePerBattleUsed`（fn）：〔バトル1回〕（kind:"activated" の oncePerBattle）。上のターン単位の枠とは別にバトル単位で数え、
 - `markOncePerBattleUsed`（fn）
 - `revertOncePerBattleUsed`（fn）
+
+## server/src/logic/ownTargetChoice.ts
+
+- `ownTargetRedirect`（fn）：選び終えた対象（ids）に、持ち主の付け替えを挟む。そのまま進めるなら ids、確認を出したら null（呼び出し側は中断する）。
 
 ## server/src/logic/pickTargets.ts
 

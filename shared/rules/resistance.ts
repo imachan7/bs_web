@@ -56,6 +56,7 @@ export interface EffectAttempt {
     actorPid: PlayerId // この効果を行っている側。targetOwnerPid と同じなら「自分の効果」＝相手限定の耐性は効かない
     sourceType?: CardType
     sourceColors?: Color[] // 装甲の判定に必要。**渡さないと装甲を判定できない**（不明時は防がない側に倒す）
+    burst?: true // バースト効果の解決中（against:"burst"の一時耐性が読む。発生源の種別とは別の軸）。サーバーの resistanceAgainst が currentEffectSource から入れる
     // 「候補を数えているだけで、まだ適用しない」問い合わせ。**候補列挙（pickEnemy* / pickAnySide*）だけが立てる。**
     //
     // コストを払って防ぐ耐性（kind:"targetNegateByHandDiscard"。BS08竜騎集う円卓Lv2）のためにある。
@@ -126,6 +127,9 @@ export function boardResistanceAgainst(
     }
     if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(board, target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
+    }
+    if (attempt.burst === true && activeConstraints(board, targetOwnerPid, target, false).some((c) => c.type === "immuneToOpponentEffects" && (Array.isArray(c.against) ? c.against.includes("burst") : c.against === "burst"))) {
+        return { category: "fullImmune", label: "相手のバースト効果を受けない" }
     }
     if (hasFullEffectImmunity(board, targetOwnerPid, target, attempt.sourceType)) {
         return { category: "fullImmune", label: "相手の効果を受けない" }

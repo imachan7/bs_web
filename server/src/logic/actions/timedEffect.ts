@@ -1186,9 +1186,20 @@ const atTurnEndHandler: ActionHandler<"atTurnEnd"> = (ctx, action) => {
     log(state, `${sourceName}：このターン終了時に効果を発揮する。`)
 }
 
+// atEndStep：atTurnEnd と同じく記録だけ。印を付けておき、エンドステップの列で解決する（stepTriggers.collectAtEndStepActions）
+const atEndStepHandler: ActionHandler<"atEndStep"> = (ctx, action) => {
+    const { state, owner, sourceName, sourceCardId } = ctx
+    state.turnEndActions = [
+        ...(state.turnEndActions ?? []),
+        { ownerPid: owner, action: action.action, atEndStep: true, ...(sourceCardId !== undefined ? { sourceCardId } : {}) },
+    ]
+    log(state, `${sourceName}：このターンのエンドステップに効果を発揮する。`)
+}
+
 const handlers = {
     timedEffect: timedEffectHandler,
     atTurnEnd: atTurnEndHandler,
+    atEndStep: atEndStepHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

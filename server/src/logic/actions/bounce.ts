@@ -20,7 +20,7 @@ type HandReturn = Extract<EffectAction, { type: "return"; to: "hand" }>
 
 // side:"own"（return の to:"hand"／"deckTop" の自分側対象）の候補列挙。ハンドラ本体とpayの判定表
 // （CHECKERS）の両方から呼び、判定と実際の対象がずれないようにする
-function ownSideBounceCandidates(
+export function ownSideBounceCandidates(
     state: GameState,
     owner: PlayerId,
     selfInstanceId: string | undefined,
@@ -774,6 +774,12 @@ const returnToBurstHandler: ActionHandler<"returnToBurst"> = (ctx, action) => {
     markBounce(state, owner, picked, "burst", sourceName)
     flushBounces(state)
     recordMoved(state, [picked.cardId])
+}
+
+// 破壊待機中の発生源を手札に戻す（reviveOnDestroy の cost.returnSelfToHand。同時破壊の発生源。Q2814）。
+// 待機中は markBounce が no-op になるので、通常の戻す経路（returnSpiritToHand）ではなくこちらで移す
+export function returnWaitingSpiritToHand(state: GameState, owner: PlayerId, self: CardInstance, sourceName: string): void {
+    returnDestroyedSelfToHand({ state, owner, self, sourceName } as ActionCtx)
 }
 
 // 破壊時の誘発で「このスピリットを手札に戻す」。破壊待機中かトラッシュにいる個体が対象で、耐性は見ない

@@ -20,7 +20,8 @@ import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevel
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
 import { revertDestroyGroupUsage } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
-import { destroySpirit, destroyNexus } from "./removal"
+import { destroySpirit, destroyNexus, returnSpiritToHand } from "./removal"
+import { returnWaitingSpiritToHand } from "./actions/bounce"
 import { matchesTarget } from "../../../shared/rules/targetFilter"
 import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
 import { unpayableLine } from "./actions/pay"
@@ -868,6 +869,13 @@ function tryReviveOnDestroy(
         effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
         source?: CardInstance,
     ): boolean | "pending" => {
+        // 「このスピリットを手札に戻すことで」（BSC05-011 Lv3）。発生源が破壊待機中（同時破壊）なら待機中の経路で戻す
+        if (effect.cost?.returnSelfToHand) {
+            if (!source || !player.field.spirits.some((s) => s.instanceId === source.instanceId)) return false
+            if (isTrashWaiting(source)) returnWaitingSpiritToHand(state, ownerPid, source, getCard(source.cardId).name)
+            else returnSpiritToHand(state, ownerPid, source, getCard(source.cardId).name)
+            return !player.field.spirits.some((s) => s.instanceId === source.instanceId)
+        }
         // 発生源自身を疲労させる（BS17-069）。COST_MODEL.mdのexhaustSelfと同じく既疲労なら不発
         if (effect.cost?.exhaustSelf) {
             if (!source || source.isRested) return false
@@ -1127,6 +1135,7 @@ function tryReviveOnDestroy(
         const cost = effect.cost
         if (!cost) return null
         if (cost.exhaustSelf) return !source || source.isRested ? "疲労させられない" : null
+        if (cost.returnSelfToHand) return !source || !player.field.spirits.some((s) => s.instanceId === source.instanceId) ? "手札に戻せない" : null
         if ((cost.millSelfCount !== undefined || cost.millSelfOneMatching) && millAllowed(state, { pid: ownerPid, count: cost.millSelfCount ?? 1, actorPid: ownerPid, sourceType: costSourceType(source) }) < (cost.millSelfCount ?? 1)) return "デッキを破棄できない"
         if (cost.millSelfCount !== undefined) return player.deck.length < cost.millSelfCount ? "デッキが足りない" : null
         if (cost.sourceCoresToTrash !== undefined) return !source || source.cores < cost.sourceCoresToTrash ? "コアが足りない" : null
@@ -1223,12 +1232,12 @@ function tryReviveOnDestroy(
                 detachBravesOnLeave(state, ownerPid, inst, false, "toHand" in revived ? "hand" : "trash")
             }
         } else {
-            stayOnFieldRevived(state, ownerPid, inst, revived.rested)
+            stayOnFieldRevived(state, ownerPid, inst, "keepState" in revived ? inst.isRested === true : revived.rested)
         }
     }
 
     const revivedLabel = (revived: Revived): string =>
-        "toBurst" in revived ? "バーストとしてセットされた" : "toHand" in revived || "handOrDeckTop" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
+        "toBurst" in revived ? "バーストとしてセットされた" : "toHand" in revived || "handOrDeckTop" in revived ? "手札に戻った" : "keepState" in revived ? "破壊時の状態のまま自分のフィールドに戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
 
     // 持ち主のフィールド（スピリット）に指定カード名を持つ個体が1体以上いるか
     // （BS05プリンセス・スノーホワイト：自分のフィールドに[ドワッフー・セブン]がいるとき）

@@ -25,7 +25,7 @@ export type GlobalConstraintDef =
     | { type: "noDeckMill"; side?: "both" | "own"; by?: "any" | "opponent"; whileSourceDeployedTurnOnly?: true } // デッキが破棄されない。side は発生源から見た陣営（既定 both、own＝持ち主だけ）。by:"opponent" は相手の効果による破棄だけ止め、既定の any は自分の効果・コスト支払いも止める。ステップ限定はエントリの phase（判定は deckMillBlockedByRule）。mill・【粉砕】は0枚、デッキ破棄コストは払えない扱い。オープンしてからトラッシュへ置く処理は止めない（2026-10-23 ユーザー確認）。whileSourceDeployedTurnOnly は発生源が場に出たターンだけ（BS08-064）
     | { type: "noHandDiscardByEffect" } // 両陣営とも、効果では手札を破棄できない（canDiscardHand の関門で止める＝「手札を破棄することで」のコストも払えなくなる。破棄する効果自体は発揮するが1枚も破棄されない）
     | { type: "noHandGainByEffect" } // 両陣営とも、効果（draw／returnToHand によるスピリットの手札戻し）では手札が増えない（ドロー・バウンス自体が発揮されない＝バウンスされるはずのスピリットは場に残る。ドロー枚数を増やす継続効果自体は止めない）
-    | { type: "burstAltEventFromOpponentSummon" } // 発生源の持ち主だけ：バースト条件が opponentSummonEffectResolved のバーストは ownLifeDamaged でも発動できる（triggers.ts のバースト走査が通常の event 一致に加えてこの読み替えを見る）
+    | { type: "burstAltEventFromOpponentSummon"; alsoOn?: "ownLifeDamaged" | "ownSpiritDestroyed" } // 発生源の持ち主だけ：バースト条件が opponentSummonEffectResolved のバーストは alsoOn の事象でも発動できる（省略は ownLifeDamaged。ownSpiritDestroyed のときは「相手による」の判定を通す）
     | CantRefreshDef
     | { type: "refreshOnlyOneUncombined" } // 両陣営とも、リフレッシュステップで合体していないスピリットは1体しか回復できない（どれかはそのステップのプレイヤーが選ぶ）
     | { type: "opponentBraveConditionMinCost"; minCost: number } // 発生源の持ち主から見た相手のブレイヴ/ブレイヴカードの合体条件に「コストminCost以上」を足す（元の条件と両方。判定は shared/rules/constraints.ts の braveExtraMinCostFor。満たさなくなった合体は logic/braveConditionGate.ts が分離。BS21-X06）

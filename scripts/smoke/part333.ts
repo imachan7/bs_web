@@ -205,18 +205,19 @@ console.log("=== BS15-034 ミブロック・ジーナス：白しかない間ネ
     const jinas = createInstance("BS15-034", s.turn, minLevelCores(getCard("BS15-034")))
     s.players.p1.field.spirits.push(jinas)
     refreshLevelAsOverrides(s)
-    // バースト条件：破壊されたスピリットのBPが5000未満なら不発
+    // 効果の条件：破壊されたスピリットのBPが5000未満なら、発動はするが効果は不発（カードはトラッシュへ。2026-11-16 ユーザー確認）
     s.players.p1.burst = "BS15-034"
     const weak = createInstance("BS01-001", s.turn, 1) // BP1000
     s.players.p1.field.spirits.push(weak)
     refreshLevelAsOverrides(s)
     destroySpirit(s, "p1", weak.instanceId, "destroy", { sourcePid: "p2", sourceType: "spirit" })
-    assert(s.players.p1.burst === "BS15-034", "BP5000未満の破壊ではバースト不発")
+    assert(s.players.p1.burst === null && s.players.p1.trashCards.includes("BS15-034"), "BP5000未満の破壊ではバーストを発動して不発（トラッシュへ）")
+    s.players.p1.burst = "BS15-034"
     const strong = createInstance("BS01-016", s.turn, 1) // BP5000
     s.players.p1.field.spirits.push(strong)
     refreshLevelAsOverrides(s)
     destroySpirit(s, "p1", strong.instanceId, "destroy", { sourcePid: "p2", sourceType: "spirit" })
-    assert(s.players.p1.burst === null, "BP5000以上の破壊ではバースト条件成立し発動した")
+    assert(s.players.p1.burst === null, "BP5000以上の破壊ではバーストを発動した")
 }
 
 console.log("=== BS15-035 軍神機メガ・テュール：相手が1色指定し、それ以外の色を持つ相手のスピリットを手札に戻す ===")

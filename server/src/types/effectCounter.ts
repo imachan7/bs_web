@@ -78,6 +78,7 @@ export type EffectCounter =
     | { enemyCost: { max?: number; min?: number } } // 持ち主から見た相手フィールドの、コスト条件を満たすスピリット数（instMatchesCostFilterで判定＝付与コストも見る。BS07バジリザード：コスト3以下の相手1体につき）
     | "opponentFieldColors" // 持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く。多色は複数色、合体中ブレイヴの色も数える。shared/rules.opponentFieldColorCount。BS15共通器）
     | "opponentFieldSpiritColors" // opponentFieldColorsのスピリット限定版（ネクサスを含めない。BS15共通器）
+    | "ownFieldSpiritColors" // 自分のフィールドのスピリットの色の種類数（重複除く。多色1体は色の数だけ数える。ネクサスは含めない。fieldColorCount を自分側で使う）
     | "lastBattleDestroyedBp" // 直前のバトルで破壊されたスピリットの破壊直前の実効BP（記録が無ければ0）
     | "lastBattleDestroyedCost" // 直前のバトルで破壊されたスピリットのコスト
     | "lastBattleBlockerTrashCost" // このバトルでブロックした相手のスピリット（スピリットカードのみ）のうち、

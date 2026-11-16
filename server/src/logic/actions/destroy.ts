@@ -851,7 +851,7 @@ function budgetToggleDestroy(
         return true
     }
     const names = chosen.map((id) => getCard(onField(id)!.cardId).name)
-    destroyTargetsBatch(state, owner, chosen.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
+    destroyTargetList(ctx, chosen.map((instanceId) => ({ pid: opp, instanceId })), action)
     log(state, `${sourceName}：${unitLabel}合計${budget}まで「${names.join("、")}」を破壊した。`)
     return true
 }
@@ -905,8 +905,59 @@ export function destroyWithinBudget(ctx: ActionCtx, action: DestroyAction): void
         log(state, `${sourceName}：破壊できる対象がいなかった。`)
         return
     }
-    destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
+    destroyTargetList(ctx, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), action)
     log(state, `${sourceName}：${unit}合計${budget}まで「${names.join("、")}」を破壊した。`)
+}
+
+// 「コスト合計がN以上になるように、相手のスピリットを好きなだけ破壊する」（BS11-076。budget.atLeast）。
+// 選ぶのは chooserIsTarget なら相手。届くまでは何を選んでもよく、届いた後はコスト0だけ任意で足せる（Q24869）。
+// 最低1体は選ぶ（しきい値0でも。Q24870）。選び終えてから同時に破壊する。
+function destroyAtLeastCost(ctx: ActionCtx, action: DestroyAction): void {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
+    const need = action.budget!.atLeast as number
+    const chooser = action.chooserIsTarget ? opp : owner
+    const onField = (id: string): CardInstance | undefined => state.players[opp].field.spirits.find((sp) => sp.instanceId === id)
+    const costOf = (id: string): number => instBaseCost(onField(id)!)
+    const reEntry = action.choosing === true
+    const chosen = (action.chosenIds ?? []).filter((id) => onField(id) !== undefined)
+    if (reEntry && targetInstanceId !== undefined && onField(targetInstanceId) !== undefined && !chosen.includes(targetInstanceId)) chosen.push(targetInstanceId)
+    const sum = chosen.reduce((s, id) => s + costOf(id), 0)
+    // 届くまで（または1体も選んでいない間）は何でも選べる。届いた後はコスト0だけ
+    const open = sum < need || chosen.length === 0
+    const finish = (): void => {
+        if (chosen.length === 0) {
+            log(state, `${sourceName}：破壊できる対象がいなかった。`)
+            return
+        }
+        const names = chosen.map((id) => getCard(onField(id)!.cardId).name)
+        destroyTargetList(ctx, chosen.map((instanceId) => ({ pid: opp, instanceId })), action)
+        log(state, `${sourceName}：コスト合計${need}以上になるように「${names.join("、")}」を破壊した。`)
+    }
+    // 「これで破壊する」（届いた後のスキップ）で戻ってきた
+    if (reEntry && targetInstanceId === undefined) return finish()
+    const pool = pickEnemyCandidates(state, opp, Infinity, (sp) => !chosen.includes(sp.instanceId) && (open || getCard(sp.cardId).cost === 0), srcColors, srcType)
+    if (pool.length === 0) return finish()
+    if (!state.interactiveTargets && !reEntry) {
+        // 非対話は安いものから、届くまで（最低1体）
+        for (const sp of [...pool].sort((a, b) => getCard(a.cardId).cost - getCard(b.cardId).cost)) {
+            if (chosen.length > 0 && chosen.reduce((s, id) => s + costOf(id), 0) >= need) break
+            chosen.push(sp.instanceId)
+        }
+        return finish()
+    }
+    suspend(state, {
+        pid: chooser,
+        kind: "target",
+        prompt: `${sourceName}：コスト合計${need}以上になるように破壊するスピリットを選んでください`,
+        candidates: pool.map((sp) => sp.instanceId),
+        ...(chosen.length > 0 ? { selectedIds: chosen } : {}),
+        counter: { label: "コスト合計", current: sum, max: need },
+        optional: !open,
+        ...(open ? {} : { resolveOnSkip: true, skipLabel: `これで破壊する（${chosen.length}体）` }),
+        action: { ...action, choosing: true as const, chosenIds: chosen },
+        selfInstanceId: self ? self.instanceId : null,
+        ...(chooser !== owner ? { actorPid: owner } : {}),
+    })
 }
 
 const destroySelfHandler = (ctx: ActionCtx): void => {
@@ -1299,6 +1350,7 @@ const destroyRecordedHandler: ActionHandler<"destroy"> = (ctx, action) => {
 // ネクサス・自分自身は lastMoved を書く経路が旧ハンドラごとに違うので、記録の包みの外で振り分ける
 const destroyEntryHandler: ActionHandler<"destroy"> = (ctx, action) => {
     if (action.target === "self") return destroySelfHandler(ctx)
+    if (action.budget?.atLeast !== undefined) return destroyAtLeastCost(ctx, action)
     if (action.budget) return destroyWithinBudget(ctx, action)
     if (action.nexus === "only") {
         const { count } = action

@@ -496,7 +496,8 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
         // atTurnEnd（BS16-068）：エンドステップの誘発の後・このターンの期間つき効果を消す前に、
         // 記録した順で解決する（発生源が場を離れていても解決する。Q22394〜Q22396）
         if (state.turnEndActions && state.turnEndActions.length > 0) {
-            const items = state.turnEndActions
+            // atEndStep の印つきはエンドステップの列で解決済み（stepTriggers）。ここでは扱わない
+            const items = state.turnEndActions.filter((r) => r.atEndStep !== true)
             state.turnEndActions = []
             resolveInOrder(state, items, {
                 resolve: (item) =>
