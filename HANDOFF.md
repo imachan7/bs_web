@@ -29,6 +29,12 @@
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
+### 進行中：#583 借りた指定アタック（2026-11-16 ユーザー確認①〜③。`fix/borrow-directed-attack`）
+
+- イリテバンが借りる単位は**カード1枚**：そのブレイヴの【合体時】『アタック時』のエントリ（triggered onAttack と constraint canDirectAttack。whileCombined）を効果文の順にすべて発揮する（スカルプレイン＝コア除去→連鎖の指定、ザグナ・オリックス＝指定→連鎖）。constraint の condition（連鎖の色）は解決時に判定
+- 指定は新アクション `directAttack { constraint: canDirectAttack の制約そのもの }`：アタック中・ブロック前・まだ指定していないときに、相手のスピリット1体を選んで `battle.directed`／`directedTargetInstanceId` を立てる（「できる」なので選ばなくてよい）。候補は `matchesDirectedAttackFilter`。確定は既存の `settleDirectedAttack`／`resolveDirectedBlock`
+- 対象6枚：BS20-058・BS23-057・BS18-056・BS19-068・SD17-X02・X009
+
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
 - 実測（直近30日）：Cloud Run の稼働 92.9 時間（無料枠は月約50時間）。対戦開始 1,626 件の 88% が AI戦。AI戦をサーバーから外せば、接続を張るのは対人戦だけになる
