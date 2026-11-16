@@ -690,6 +690,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `detachBraveByEffect`（fn）：効果によるブレイヴの分離（§12.5）。**コアは要らない**（「場を離れるときに残す」＝
 - `detachBraveByOwnerChoice`（fn）：相手の効果で分離させられるとき、**コアの移動はブレイヴの持ち主が行う**（BRAVE.md §12.5.1）。
 - `destroyCombinedBrave`（fn）：合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
+- `destroyCombinedBraves`（fn）：1つの効果で破壊されるブレイヴは同時破壊（1つでも同じ手順。PENDING_STATE §3 C6〜C8。2026-11-16 ユーザー確認）。
+- `resumeBraveDestroy`（fn）
 - `returnCombinedBraveToHand`（fn）：合体中のブレイヴ**だけ**を手札へ戻す（destroyCombinedBrave のバウンス版。
 - `returnCombinedBraveToDeckBottom`（fn）：合体中のブレイヴ**だけ**をデッキの一番下へ戻す（returnCombinedBraveToHand のデッキ下版。
 - `detachBraveVoluntary`（fn）：メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、// メインステップの任意分離（§6.4）。**効果による分離…

@@ -505,6 +505,14 @@ export type ResumeFrame =
           index: number
       }
     | {
+          // 合体中のブレイヴだけの破壊の続き。triggers＝「そのブレイヴ」を選んだ後に列を解決する／commit＝列を解決し終えた後、
+          // この出来事でまだ破壊待機のブレイヴをトラッシュへ置く
+          kind: "braveDestroy"
+          ownerPid: PlayerId
+          event: string // CardInstance.waiting.event
+          phase: "triggers" | "commit"
+      }
+    | {
           // 戻す待機の誘発の列が選択待ちで止まったときの続き。列を解決し終えたら、この出来事でまだ戻す待機のカードを移す
           kind: "returnMove"
           event: string // CardInstance.waiting.event

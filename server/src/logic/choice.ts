@@ -45,6 +45,7 @@ import {
 import { validatePaySources } from "./RuleValidator"
 import { doCastMagic } from "./magic/cast"
 import { setTargetRedirect } from "./magic/redirect"
+import { resumeBraveDestroy } from "./brave"
 import { tryBraveFreeSummon } from "./braveFreeSummon"
 import { doSummonFromTegamoto } from "./tegamotoSummon"
 import { applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
@@ -833,6 +834,10 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         }
         if (frame.kind === "destroyBatch") {
             resumeDestroyBatch(state, frame)
+            continue
+        }
+        if (frame.kind === "braveDestroy") {
+            resumeBraveDestroy(state, frame)
             continue
         }
         if (frame.kind === "destroyNexusCommit") {
