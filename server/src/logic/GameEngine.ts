@@ -1234,6 +1234,8 @@ function doAttack(
     }
     // アタッカーが場を離れてバトルが終わるときの＞７（【光芒】）で読むために実体参照を控える
     state.battleAttackerRef = inst
+    // 「アタックしている間は無色」（colorlessGrant）はアタック宣言の時点から立つ。アタック時の誘発を集める前に組み直す
+    refreshLevelAsOverrides(state)
     // コスト以下のアタックはリザーブのコア1個をトラッシュに置くことが要る。validateAttack で払えることは確認済みなので自動で払う（非対話・AIも同じ経路）
     const toll = attackTollTotal(state, pid, inst) - attackPayTollCount(state, pid, inst)
     if (toll > 0 && player.reserve >= toll) {

@@ -19,12 +19,13 @@ import {
     resistanceAgainst,
 } from "../EffectModules"
 import { coreRemovalAllowed } from "../coreGate"
-import { coreZoneChoiceId, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
+import { coreZoneChoiceId, coresToOpponentReserveGoToTrash, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { recordCores, recordEmptiedSpirits, recordLeftCost, recordMoved, lastEmptiedSpiritsOf } from "../record"
 import { canPayLife, lifeCostQuery, lifeLossAllowed, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import { kyokaBonus } from "../keywords/kyoka"
+import { isTrashWaiting } from "../../../../shared/rules/waiting"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
 type Zone = "spirit" | "nexus" | "reserve" | "trash" | "life"
@@ -34,10 +35,12 @@ type CountSpec = number | "all" | "toLowerLevel"
 // 【強化】（紫）でリザーブに置くコアが+1個になる条件。行き先がリザーブ（既定）で、スピリットから
 // 取る数値 count のときだけ（ライフのコア・行き先リザーブ以外・downTo／「1個残して残りすべて」は除く：Q759・Q761）。
 // from にライフが混ざる全体にも足さない（ライフのコアには効かないので、混在を個別に増やすのは複雑すぎる）
-export function removeCoresKyokaBonus(state: GameState, owner: PlayerId, action: RemoveCoresAction): number {
+export function removeCoresKyokaBonus(state: GameState, owner: PlayerId, action: RemoveCoresAction, srcType: CardType | undefined): number {
     if (action.kyokaSettled === true) return 0
     const from = action.from ?? ["spirit"]
     if ((action.to ?? "reserve") !== "reserve") return 0
+    // 行き先がリザーブからトラッシュに変わるなら+1しない（Q765）
+    if (action.side !== "own" && coresToOpponentReserveGoToTrash(state, opponentOf(owner), srcType)) return 0
     // ponytail: すべてのスピリットから取る除去は Q760（追加の1個は1体からだけ）の分け方が要る。該当カードが出たら足す
     if (action.target === "all") return 0
     if (action.side === "own") return 0 // 自分のスピリットのコアを置くのは「相手へのコアシュート」ではない
@@ -52,7 +55,7 @@ function resolvedCount(ctx: ActionCtx, action: RemoveCoresAction): CountSpec {
     if (action.count === "any") return 0 // removeCoresHandler が数を決めてから入れ直すので、ここには来ない
     if (typeof action.count !== "number") return action.count
     const base = action.countCounter === undefined ? action.count : countedAmount(ctx.state, ctx.owner, ctx.self, action.count, action.countCounter, ctx.srcType)
-    return base + removeCoresKyokaBonus(ctx.state, ctx.owner, action)
+    return base + removeCoresKyokaBonus(ctx.state, ctx.owner, action, ctx.srcType)
 }
 
 // 個体（スピリット／ネクサス）1体から取れる量。leaveAtLeast は個体上限、toLowerLevel は1つ下のLvのコア数まで
@@ -492,7 +495,10 @@ function pickAutoSource(state: GameState, candidates: RemoveSource[], hurting: b
         const inKind = candidates.filter((c) => c.kind === kind)
         if (inKind.length === 0) continue
         if (kind !== "spirit") return inKind[0]!
-        return inKind.reduce((best, c) =>
+        // 奪う側が選ぶときは、破壊待機中のスピリットから取っても相手の損にならないので、ほかに候補があれば選ばない（失う側が選ぶときは避けない。対話では選べる）
+        const live = inKind.filter((c) => !(c.inst && isTrashWaiting(c.inst)))
+        const pool = hurting && live.length > 0 ? live : inKind
+        return pool.reduce((best, c) =>
             hurting
                 ? (sourceCoresOf(state, c) < sourceCoresOf(state, best) ? c : best)
                 : (sourceCoresOf(state, c) > sourceCoresOf(state, best) ? c : best),

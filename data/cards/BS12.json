@@ -751,7 +751,8 @@
         "action": {
           "type": "removeCores",
           "to": "trash",
-          "count": 1
+          "count": 1,
+          "target": "spread"
         }
       }
     ]
@@ -807,7 +808,7 @@
           2,
           3
         ],
-        "action": {"type": "pay", "cost": {"type": "removeCores", "side": "own", "target": "self", "count": "any", "to": "trash"}, "then": {"type": "removeCores", "filter": {"symbolCount": 2, "combined": true}, "count": 1, "countCounter": "lastCores", "to": "trash"}}
+        "action": {"type": "pay", "cost": {"type": "removeCores", "side": "own", "target": "self", "count": "any", "to": "trash"}, "then": {"type": "removeCores", "filter": {"symbolCount": 2, "combined": true}, "count": 1, "countCounter": "lastCores", "to": "trash", "target": "spread"}}
       },
       {
         "id": "BS12-012-e2",
@@ -4471,7 +4472,8 @@
         },
         "action": {
           "type": "removeCores",
-          "count": 1
+          "count": 1,
+          "target": "spread"
         }
       }
     ]
@@ -5922,7 +5924,8 @@
         },
         "action": {
           "type": "removeCores",
-          "count": 1
+          "count": 1,
+          "target": "spread"
         }
       },
       {

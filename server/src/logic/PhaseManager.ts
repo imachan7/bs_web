@@ -1,12 +1,9 @@
 // ターン進行・フェーズ遷移の制御
-import { takeFromTrash } from "./zones/trash"
-import { trashCardEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
-import { handGainDenial } from "./handGate"
 import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
-import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshBlockedByRule, refreshRestrictionsFor } from "../../../shared/rules"
+import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, matchesTarget, refreshBlockedByRule, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, coreStepToLifeActive, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 const SECOND_MAIN_STEP = false
@@ -454,30 +451,6 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
         for (const pid of ["p1", "p2"] as const) {
             for (const inst of [...state.players[pid].field.spirits]) {
                 if (inst.returnToDeckBottomAtEndStep) returnSpiritToDeckBottom(state, pid, inst)
-            }
-        }
-
-        // トラッシュのカードが持ち主の『自分のエンドステップ』に自動で手札へ戻る（kind:"trashReturnAtEndStep"）。
-        // **持ち主のエンドステップだけ**（＝state.turnPlayer側のトラッシュのみ）。BS13-015冥総裁ハーゲン
-        // maxCount指定時は「ターンに1回」等、そのcardIdにつき戻る枚数を上限で絞る（BS13-077ブリーズライド：1枚まで）
-        {
-            const p = state.players[state.turnPlayer]
-            const trashReturnMaxCount = (cardId: string): number => {
-                const e = getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep")
-                return e && e.kind === "trashReturnAtEndStep" ? (e.maxCount ?? Infinity) : Infinity
-            }
-            const returnedCounts = new Map<string, number>()
-            for (let i = p.trashCards.length - 1; i >= 0; i--) {
-                const cardId = p.trashCards[i]
-                if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || trashCardEffectsDisabled(state, cardId)) continue
-                const already = returnedCounts.get(cardId) ?? 0
-                if (already >= trashReturnMaxCount(cardId)) continue
-                if (handGainDenial(state, { pid: state.turnPlayer, from: "trash", cause: "effect" })) continue
-                noteCoverage(getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
-                if (takeFromTrash(state, state.turnPlayer, i, "effect") === null) continue
-                p.hand.push(cardId)
-                returnedCounts.set(cardId, already + 1)
-                log(state, `${p.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
             }
         }
 
