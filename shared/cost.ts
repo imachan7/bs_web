@@ -487,7 +487,7 @@ export function ownFieldSymbolColors(board: Board, pid: PlayerId, symbolAs?: { f
         // countSymbols と同じ規則で数える（同じ symbolsOf を通す。#508）:
         // 待機状態も数える／色とシンボルを無いものとして扱う個体は飛ばす／固定・合体ブレイヴ・追加・失うを反映する／
         // 「◯色としても扱う」で得た色は、そのシンボルの色としても数える（元の色も残る）
-        if (inst.colorlessThisBattle) continue
+        if (inst.colorless) continue
         const symbols = instanceSymbolColors(inst)
         if (symbols.length === 0) continue
         for (const sym of symbols) colors.add(sym)

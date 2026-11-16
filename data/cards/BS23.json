@@ -7768,23 +7768,11 @@
    },
    {
     "id": "BS23-X08-e3",
-    "kind": "triggered",
+    "kind": "colorlessGrant",
+    "levels": [1],
+    "whileAttacking": true,
     "whileCombined": true,
-    "trigger": "onAttack",
-    "levels": [
-     1
-    ],
-    "optional": false,
-    "action": {
-     "type": "timedEffect",
-     "content": [
-      {
-       "type": "colorless"
-      }
-     ],
-     "duration": "battle",
-     "target": "self"
-    }
+    "target": "self"
    }
   ]
  }

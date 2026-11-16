@@ -27,6 +27,7 @@ import {
     instHasTriggerEffect,
     instHasCost,
     instColors,
+    colorlessWhenAttacking,
     bravesOf,
     instIsCombined,
     instIsVanilla,
@@ -201,7 +202,7 @@ export function matchesDirectedAttackFilter(
             op: "other",
             scope: "targeted",
             sourceType: card(attacker.inst.cardId).type,
-            sourceColors: instColors(attacker.inst),
+            sourceColors: colorlessWhenAttacking(board, attacker.pid, attacker.inst) ? [] : instColors(attacker.inst),
         })
         if (resisted) return "このスピリットは効果を受けないため指定できません"
     }

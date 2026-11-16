@@ -39,14 +39,14 @@ console.log("=== S: 無色化（色とシンボルを無いものとして扱う
     assert(countSymbols(p1, ["purple"]) === 1, "付与前はシンボル1つとして軽減に数えられる")
 
     resolveAction(s, "p1", spirit, { type: "timedEffect", content: [{ type: "colorless" }], duration: "battle", target: "self" })
-    assert(spirit.colorlessThisBattle === true, "colorlessThisBattleが立った")
+    assert(spirit.colorless === true, "colorlessが立った")
     assert(!instHasColor(spirit, "purple"), "無色化後は紫を持たない")
     assert(instColors(spirit).length === 0, "無色化後はinstColorsが空配列")
     assert(countSymbols(p1, ["purple"]) === 0, "無色化後はそのスピリットのシンボルが紫の軽減に使えない（丸ごと飛ぶ）")
 
     s.battle = { attackerInstanceId: spirit.instanceId, blockerInstanceId: null, directed: false }
     clearBattle(s)
-    assert(spirit.colorlessThisBattle === undefined, "clearBattleでcolorlessThisBattleが戻る")
+    assert(spirit.colorless === undefined, "clearBattleでcolorlessが戻る")
     assert(instHasColor(spirit, "purple"), "バトル終了後は紫の色が戻る")
     assert(countSymbols(p1, ["purple"]) === 1, "バトル終了後はシンボルの軽減も戻る")
 }
