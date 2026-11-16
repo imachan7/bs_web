@@ -2,7 +2,6 @@
  "version": 1,
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
- {"date": "2026-11-16", "category": "fix", "text": "「回復したとき」の効果が、先に別の効果で再び疲労したスピリットにも発揮されていた不具合を直しました"},
  {
    "date": "2026-11-16",
    "category": "fix",
