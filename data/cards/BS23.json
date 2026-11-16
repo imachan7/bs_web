@@ -982,7 +982,7 @@
       "spirit"
      ],
      "to": "reserve",
-     "target": "one",
+     "target": "spread",
      "count": 1
     }
    },
@@ -1413,7 +1413,7 @@
        "spirit"
       ],
       "to": "void",
-      "target": "one",
+      "target": "spread",
       "count": 1,
       "chooser": "owner"
      }
@@ -6410,7 +6410,7 @@
          "spirit"
         ],
         "to": "void",
-        "target": "one",
+        "target": "spread",
         "count": 1
        },
        "else": {
@@ -6420,7 +6420,7 @@
          "spirit"
         ],
         "to": "reserve",
-        "target": "one",
+        "target": "spread",
         "count": 1
        }
       },
@@ -7127,7 +7127,7 @@
       "nexus"
      ],
      "to": "reserve",
-     "target": "one",
+     "target": "spread",
      "count": 1
     }
    },
@@ -7749,7 +7749,7 @@
         "spirit"
        ],
        "to": "reserve",
-       "target": "one",
+       "target": "spread",
        "count": 1
       },
       {
@@ -7769,23 +7769,11 @@
    },
    {
     "id": "BS23-X08-e3",
-    "kind": "triggered",
+    "kind": "colorlessGrant",
+    "levels": [1],
+    "whileAttacking": true,
     "whileCombined": true,
-    "trigger": "onAttack",
-    "levels": [
-     1
-    ],
-    "optional": false,
-    "action": {
-     "type": "timedEffect",
-     "content": [
-      {
-       "type": "colorless"
-      }
-     ],
-     "duration": "battle",
-     "target": "self"
-    }
+    "target": "self"
    }
   ]
  }

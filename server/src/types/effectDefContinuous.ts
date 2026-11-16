@@ -368,6 +368,15 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "colorlessGrant"
+          levels: number[] | null
+          whileAttacking: true // アタックしている間だけ。宣言前の指定アタックの判定にも効く（colorlessWhenAttacking）。期間の指定が無い「色を無いものとして扱う」
+          whileCombined?: true
+          target: "self" | "ownSpirits" // ownSpirits＝持ち主のスピリットのうち subjectFilter に合うもの
+          subjectFilter?: ResolvedTargetFilter // 「アタックしている◯◯のスピリット」の◯◯（fieldEvent の subjectFilter と同じ判定）
+      }
+    | {
+          id: string
           kind: "levelAs"
           levels: null
           whileCombined?: true

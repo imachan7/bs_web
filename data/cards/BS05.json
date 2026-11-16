@@ -4462,7 +4462,6 @@
     "id": "BS05-072-e1",
     "kind": "magic",
     "timing": "flash",
-    "mainForbidden": true,
     "action": {
      "type": "lendSelfThisTurn"
     }
@@ -4616,7 +4615,6 @@
     "id": "BS05-076-e1",
     "kind": "magic",
     "timing": "flash",
-    "mainForbidden": true,
     "action": {
      "type": "timedEffect",
      "duration": "turn",
@@ -5406,7 +5404,8 @@
     "action": {
      "type": "removeCores",
      "to": "void",
-     "count": 2
+     "count": 2,
+     "target": "spread"
     }
    }
   ]

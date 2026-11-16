@@ -1208,7 +1208,7 @@
         "spirit"
        ],
        "to": "trash",
-       "target": "one",
+       "target": "spread",
        "count": 1
       },
       {
@@ -4428,7 +4428,8 @@
     "whileCombined": true,
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     },
     "optional": false
    }

@@ -272,6 +272,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `cardHasColor`（fn）：カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
 - `instHasColor`（fn）：状態を考慮した色判定：master色 ‖ 一時付与された色（timedColors。アディショナルカラー） ‖
 - `instColors`（fn）：状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
+- `colorlessWhenAttacking`（fn）：inst（pid のスピリット）が、継続の kind:"colorlessGrant"（期間の指定なしの「色を無いものとして扱う」）で
 - `opponentFieldColorCount`（fn）：持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く）。
 - `ownFieldOnlyColor`（fn）：自分のフィールド（スピリット+ネクサス）のカードがすべて指定色1色だけか。
 - `ownTeamAtLeast`（fn）：自分フィールドに指定チーム（CardData.team）所属のスピリットがcount体以上いるか。
