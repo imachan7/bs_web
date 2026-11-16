@@ -5893,7 +5893,7 @@
       "chooserIsTarget": true,
       "budget": {
        "by": "cost",
-       "atLeast": "lastPaidCost"
+       "atLeast": "paidCost"
       }
      }
     }

@@ -1495,8 +1495,8 @@
       "type": "activateBurstIgnoringCondition",
       "from": "set",
       "filter": {
-       "maxCostAsLast": true,
-       "sameColorAsLast": true
+       "maxCostAsPaid": true,
+       "sameColorAsPaid": true
       }
      }
     }

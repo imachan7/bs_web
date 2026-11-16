@@ -912,17 +912,12 @@ export function destroyWithinBudget(ctx: ActionCtx, action: DestroyAction): void
 // 「コスト合計がN以上になるように、相手のスピリットを好きなだけ破壊する」（BS11-076。budget.atLeast）。
 // 選ぶのは chooserIsTarget なら相手。届くまでは何を選んでもよく、届いた後はコスト0だけ任意で足せる（Q24869）。
 // 最低1体は選ぶ（しきい値0でも。Q24870）。選び終えてから同時に破壊する。
-// lastPaidCost は最初の入りで数値に解く（maxCostAsLast と同じ。1体目の破壊で記録が書き換わるため）
 function destroyAtLeastCost(ctx: ActionCtx, action: DestroyAction): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
-    if (action.budget!.atLeast === "lastPaidCost") {
-        const moved = lastMovedOf(state)[0]
-        action = { ...action, budget: { ...action.budget!, atLeast: moved !== undefined ? getCard(moved).cost : 0 } }
-    }
     const need = action.budget!.atLeast as number
     const chooser = action.chooserIsTarget ? opp : owner
     const onField = (id: string): CardInstance | undefined => state.players[opp].field.spirits.find((sp) => sp.instanceId === id)
-    const costOf = (id: string): number => getCard(onField(id)!.cardId).cost
+    const costOf = (id: string): number => instBaseCost(onField(id)!)
     const reEntry = action.choosing === true
     const chosen = (action.chosenIds ?? []).filter((id) => onField(id) !== undefined)
     if (reEntry && targetInstanceId !== undefined && onField(targetInstanceId) !== undefined && !chosen.includes(targetInstanceId)) chosen.push(targetInstanceId)

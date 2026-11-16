@@ -20,7 +20,7 @@ type HandReturn = Extract<EffectAction, { type: "return"; to: "hand" }>
 
 // side:"own"（return の to:"hand"／"deckTop" の自分側対象）の候補列挙。ハンドラ本体とpayの判定表
 // （CHECKERS）の両方から呼び、判定と実際の対象がずれないようにする
-function ownSideBounceCandidates(
+export function ownSideBounceCandidates(
     state: GameState,
     owner: PlayerId,
     selfInstanceId: string | undefined,

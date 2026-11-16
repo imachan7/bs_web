@@ -20,9 +20,9 @@ import { suspend } from "../GameState"
 import { exhaustNexus, exhaustSpirit } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuSelfExhaustSources, kyoshuUsedOf } from "../keywords/kyoshu"
 import { lifeLossAllowed } from "../lifeGate"
-import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, bravesOf, refreshBlockedByRule } from "../../../../shared/rules"
-import { budgetDestroyHasTarget, destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
-import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
+import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instBaseCost, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, bravesOf, refreshBlockedByRule } from "../../../../shared/rules"
+import { budgetDestroyHasTarget, destroyCandidateCountForPay, destroyNexusCandidateCountForPay, ownSideDestroyCandidates, reviveLastDestroyedNexusBlockReason } from "./destroy"
+import { ownSideBounceCandidates, returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { removeCoresAchievableCountForPay, removeCoresKyokaBonus } from "./removeCores"
 import { kyokaBonus } from "../keywords/kyoka"
 import { availableFromSource, isLegacyPlaceCores, gainTo, placeCoresPoolCandidates } from "./placeCores"
@@ -96,12 +96,12 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return action.count === "any" || state.players[owner].hand.filter((id) => matchesPick(id, action.pick)).length >= action.count
     },
     // バースト条件を無視して発動：セット中のバーストが、filter の盤面に依らない軸（種類・名前など）に合うこと。
-    // 直前に動いたカードとの関係（maxCostAsLast・sameColorAsLast）は、払う前に cost を絞る narrowCostByLastRecord が見る
+    // 払ったスピリットとの関係（maxCostAsPaid・sameColorAsPaid）は、pay が払う個体を選んで値に置き換えてから見る（payHandler）
     activateBurstIgnoringCondition: (state, owner, _self, action) => {
         if (action.type !== "activateBurstIgnoringCondition" || action.from !== "set") return false
         const burstId = state.players[owner].burst
         if (burstId === null || !getCard(burstId).effects.some((e) => e.kind === "burst")) return false
-        const { maxCostAsLast: _mc, sameColorAsLast: _sc, ...rest } = action.filter ?? {}
+        const { maxCostAsPaid: _mc, sameColorAsPaid: _sc, ...rest } = action.filter ?? {}
         return matchesPick(burstId, rest)
     },
     lendSelfThisTurn: () => true,
@@ -462,29 +462,64 @@ function kyoshuSelfPayable(state: GameState, owner: PlayerId, action: Extract<Ef
     return action.limitByKeyword === "kyoshu" && action.cost.type === "exhaust" && action.cost.nexusOnly === true && kyoshuSelfExhaustSources(state, owner).length > 0
 }
 
+// then が払ったスピリットの値（合計コスト・色）を要るか（BS11-076 の budget.atLeast・X13-17-e3 の CardPick）
+function needsPaidSpirit(then: EffectAction): boolean {
+    return (then.type === "destroy" && then.budget?.atLeast === "paidCost") ||
+        (then.type === "activateBurstIgnoringCondition" && (then.filter?.maxCostAsPaid === true || then.filter?.sameColorAsPaid === true))
+}
+
+// 払うスピリットの値。合体中はブレイヴを含む合計コストと、ブレイヴの色を含む色（instBaseCost・instColors）
+function paidValuesOf(inst: CardInstance): { cost: number; colors: Color[] } {
+    return { cost: instBaseCost(inst), colors: instColors(inst) }
+}
+
+// 払ったスピリットの値を then に入れる。"paidCost"・maxCostAsPaid・sameColorAsPaid を数値・色へ置き換えるのはここだけ
+function bindPaidValues(then: EffectAction, paid: { cost: number; colors: Color[] }): EffectAction {
+    if (then.type === "destroy" && then.budget?.atLeast === "paidCost") return { ...then, budget: { ...then.budget, atLeast: paid.cost } }
+    if (then.type === "activateBurstIgnoringCondition" && then.filter !== undefined) {
+        const { maxCostAsPaid, sameColorAsPaid, ...rest } = then.filter
+        return {
+            ...then,
+            filter: {
+                ...rest,
+                ...(maxCostAsPaid === true ? { cost: { ...(typeof rest.cost === "object" ? rest.cost : {}), max: paid.cost } } : {}),
+                ...(sameColorAsPaid === true ? { color: paid.colors } : {}),
+            },
+        }
+    }
+    return then
+}
+
+// 払える個体（cost と同じ候補の出し方）のうち、then を値に置き換えたときに解決できるもの。
+// 相手のスピリット合計が N 以上でないと N 以上の破壊は届かない（Q24868。相手0体は払えない＝Q4）
+function paidSpiritCandidates(
+    state: GameState, owner: PlayerId, self: CardInstance | null, cost: EffectAction, then: EffectAction,
+    srcColors: Color[] | undefined, srcType: CardType | undefined,
+): CardInstance[] {
+    let pool: CardInstance[] = []
+    if (cost.type === "destroy" && cost.side === "own") pool = ownSideDestroyCandidates(state, owner, self?.instanceId, (cost.filter ?? {}) as unknown as ResolvedTargetFilter)
+    else if (cost.type === "return" && cost.to === "deckBottom" && cost.side === "own") pool = ownSideBounceCandidates(state, owner, self?.instanceId, (cost.filter ?? {}) as unknown as ResolvedTargetFilter, "deckTop")
+    const opp = state.players[opponentOf(owner)].field.spirits
+    const oppTotal = opp.reduce((t, sp) => t + instBaseCost(sp), 0)
+    return pool.filter((i) => {
+        const paid = paidValuesOf(i)
+        // 「届くまで」の破壊は予算の判定（destroy の CHECKER は「以内」として読む）を通さず、相手の合計で見る
+        if (then.type === "destroy" && then.budget?.atLeast === "paidCost") return opp.length > 0 && oppTotal >= paid.cost
+        return canPayResolve(state, owner, self, bindPaidValues(then, paid), srcColors, srcType)
+    })
+}
+
 // then が cost で動いたカードのコスト（sameCostAsLast／maxCostAsLast）を読むとき、cost で選べるカードを then が解決できるものに絞る
 // （COST_MODEL §1：両方が完全に解決できるときだけ。cost を払った後でないと記録が無いので、then の判定は記録なしでは通らない）。
 // 対応は then が相手のスピリットを destroy する形、cost が手札を見せる／自分のスピリットを破壊する形だけ
 function narrowCostByLastRecord(state: GameState, owner: PlayerId, self: CardInstance | null, action: Extract<EffectAction, { type: "pay" }>, cost: EffectAction): EffectAction | "none" | null {
     const then = action.then
-    // then がセット中のバーストの発動：発動できるバーストが無ければ払えない。cost の候補は、そのバーストのコスト以上・色を1色共有するものに絞る
-    // （then の maxCostAsLast／sameColorAsLast は cost で動いたカードとの関係。Q18939・Q18940）
-    if (then.type === "activateBurstIgnoringCondition" && (then.filter?.maxCostAsLast === true || then.filter?.sameColorAsLast === true)) {
-        const burstId = state.players[owner].burst
-        if (burstId === null || !getCard(burstId).effects.some((e) => e.kind === "burst")) return "none"
-        if (cost.type !== "return" || cost.to !== "deckBottom" || cost.side !== "own") return null
-        const b = getCard(burstId)
-        const { maxCostAsLast: _mc, sameColorAsLast: _sc, ...rest } = then.filter
-        if (!matchesPick(burstId, rest)) return "none"
-        const narrowedFilter = { ...cost.filter, ...(then.filter.maxCostAsLast === true ? { cost: { ...cost.filter?.cost, min: b.cost } } : {}), ...(then.filter.sameColorAsLast === true ? { color: b.colors } : {}) }
-        return { ...cost, filter: narrowedFilter }
-    }
     // 「コスト合計がN以上になるように破壊」の下限は、相手のスピリットのコスト合計で頭打ち（Q24868）。相手0体なら払えない（Q4）
-    if (then.type === "destroy" && then.budget?.atLeast !== undefined) {
+    if (then.type === "destroy" && typeof then.budget?.atLeast === "number") {
         if (cost.type !== "destroy" || cost.side !== "own") return null
         const oppSpirits = state.players[opponentOf(owner)].field.spirits
         if (oppSpirits.length === 0) return "none"
-        const sum = oppSpirits.reduce((s, sp) => s + getCard(sp.cardId).cost, 0)
+        const sum = oppSpirits.reduce((s, sp) => s + instBaseCost(sp), 0)
         return { ...cost, filter: { ...cost.filter, cost: { ...cost.filter?.cost, max: sum } } }
     }
     if (then.type !== "destroy" || then.side === "own" || then.filter === undefined) return null
@@ -493,7 +528,7 @@ function narrowCostByLastRecord(state: GameState, owner: PlayerId, self: CardIns
     const opp = opponentOf(owner)
     const costs = state.players[opp].field.spirits
         .filter((s) => matchesTarget(state, opp, s, then.filter as unknown as ResolvedTargetFilter, self?.instanceId))
-        .map((s) => getCard(s.cardId).cost)
+        .map((s) => instBaseCost(s))
     if (costs.length === 0) return "none"
     const axis = same ? { in: [...new Set(costs)] } : { min: Math.min(...costs) }
     if (cost.type === "revealHandCard") {
@@ -528,6 +563,11 @@ function judgePay(
     } else if (!kyoshuSelfPayable(state, owner, action)) {
         const costReason = unpayableReason(state, owner, self, c, srcColors, srcType)
         if (costReason !== null) return { cost: c, reason: costReason }
+    }
+    // then が払ったスピリットの値を要るとき：払える個体のうち then を解決できるものが1体でもいれば成立（値は解決時に入る）
+    if (needsPaidSpirit(action.then) && !skipThen) {
+        const ok = paidSpiritCandidates(state, owner, self, c, action.then, srcColors, srcType).length > 0
+        return { cost: c, reason: ok ? null : action.then.type === "activateBurstIgnoringCondition" ? "発動できるバーストがない" : "条件を満たすスピリットがいない" }
     }
     const thenReason = (): string | null => skipThen ? null : unpayableReason(state, owner, self, action.then, srcColors, srcType, eventTargetId)
     const capacity = anyCapacity(state, owner, self, c)
@@ -657,7 +697,8 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     // 「そのスピリット」＝イベント対象は then にだけ渡す（cost は自分の場から払うもの）。確認で止まると ctx から落ちるので行動に持たせる
     const kyoshuAlt = kyoshuSelfPayable(state, owner, action)
-    const eventTargetId = action.eventTargetId ?? (kyoshuAlt ? undefined : ctx.targetInstanceId)
+    const paidMode = needsPaidSpirit(action.then)
+    const eventTargetId = action.eventTargetId ?? (kyoshuAlt || paidMode ? undefined : ctx.targetInstanceId)
     const fizzle = (message: string): void => {
         log(state, message)
         state.effectFizzled = true
@@ -786,14 +827,34 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             tollCovered = true
         }
     }
+    // 払うスピリットの値を then に入れる（BS11-076・X13-17-e3）。払う個体は pay が先に選び、cost にはその個体を明示して渡す
+    let then = action.then
+    let paidId: string | undefined
+    if (paidMode) {
+        const cands = paidSpiritCandidates(state, owner, self, cost, action.then, srcColors, srcType)
+        const chosen = action.paidChoosing === true ? cands.find((i) => i.instanceId === ctx.targetInstanceId) : undefined
+        if (chosen === undefined && cands.length >= 2 && state.interactiveTargets) {
+            requestChoice(state, owner, `${sourceName}：コストとして支払うスピリットを選んでください`, cands.map((i) => i.instanceId), false, { ...action, confirmed: true, paidChoosing: true }, self)
+            return
+        }
+        const paid = chosen ?? cands[0]
+        if (paid === undefined) {
+            fizzle(unpaidLine("条件を満たすスピリットがいない"))
+            return
+        }
+        paidId = paid.instanceId
+        then = bindPaidValues(action.then, paidValuesOf(paid))
+    }
     if (action.tax && state.burstTaxUnpaid) state.burstTaxUnpaid--
     // コストを払って then に進む直前で「ターンに1回」の枠を取る（断った場合はここへ来ない＝消費しない）
     if (action.oncePerTurn === true && self && payOnceKey !== undefined) markOnceUsed(state, owner, self, { id: payOnceKey }, "triggeredUsedTurn")
     const scope = newRecordScope()
-    resolveInOrder(state, tollCovered ? [action.then] : [cost, action.then], {
+    // then には「そのスピリット」（イベント対象）、cost には払うと決めた個体を明示する
+    const targetOf = (a: EffectAction): string | undefined => (a === then ? eventTargetId : a === cost ? paidId : undefined)
+    resolveInOrder(state, tollCovered ? [then] : [cost, then], {
         resolve: (a) => {
             state.recordScope = scope
-            const target = a === action.then ? eventTargetId : undefined
+            const target = targetOf(a)
             ctx.resolve(a, { ...(target !== undefined ? { targetInstanceId: target } : {}) })
         },
         frame: (a) => ({
@@ -802,7 +863,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             action: a,
             actorPid: owner,
             recordScope: scope,
-            ...(a === action.then && eventTargetId !== undefined ? { targetInstanceId: eventTargetId } : {}),
+            ...(targetOf(a) !== undefined ? { targetInstanceId: targetOf(a)! } : {}),
             ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
             ...(srcType !== undefined ? { sourceType: srcType } : {}),
         }),

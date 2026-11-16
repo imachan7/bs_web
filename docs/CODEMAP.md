@@ -535,6 +535,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/bounce.ts
 
+- `ownSideBounceCandidates`（fn）：side:"own"（return の to:"hand"／"deckTop" の自分側対象）の候補列挙。ハンドラ本体とpayの判定表
 - `returnToHandCandidateCountForPay`（fn）：ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
 - `returnToDeckTopCandidateCountForPay`（fn）：pay の判定表（return の to:"deckTop"／"deckBottom"）が使う候補数
 - `returnWaitingSpiritToHand`（fn）：破壊待機中の発生源を手札に戻す（reviveOnDestroy の cost.returnSelfToHand。同時破壊の発生源。Q2814）。
@@ -1020,6 +1021,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isOncePerBattleUsed`（fn）：〔バトル1回〕（kind:"activated" の oncePerBattle）。上のターン単位の枠とは別にバトル単位で数え、
 - `markOncePerBattleUsed`（fn）
 - `revertOncePerBattleUsed`（fn）
+
+## server/src/logic/ownTargetChoice.ts
+
+- `ownTargetRedirect`（fn）：選び終えた対象（ids）に、持ち主の付け替えを挟む。そのまま進めるなら ids、確認を出したら null（呼び出し側は中断する）。
 
 ## server/src/logic/pickTargets.ts
 
