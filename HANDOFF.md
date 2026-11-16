@@ -28,12 +28,11 @@
 3. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 4. 小さい残り：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
-### 収録漏れ49種の取り込み（#546・#566。PR #604 を Ready にした。マージ待ち）
+### 進行中：効果の途中の待機は効果の後に解決する（2026-11-17 確定。`fix/destroy-triggers-after-effect`）
 
-- 設計の経緯は `docs/design/MISSING_CARDS_SURVEY.md` §6 と PR #604 の本文。残したもの（どちらも 2026-11-16 ユーザー決定で別の PR）：
-  1. **効果の途中の破壊の一般則**：「効果の解決中に誘発した破壊時効果は、その効果を解決し終えてから」。いまは `destroySpirit`・`destroyTargetsBatch` がその場で列を解決しトラッシュまで済ませる（RULES_BATSPI_WIKI 93行目の ✅ は言い過ぎ）。エレキトリック（Q26091・Q26092）の場面は part978 の `DESTROY_AFTER_EFFECT` で外してある。**設計を示してから着手**
-  2. **【連鎖】の部分の印**：【連鎖】を持つ効果136件（if 1つ112・2つ19・なし5）に印を付け、古の魔王城（Q23568）の付け替えから外す。part976 の `CHAIN_MARKED` で外してある
-  - 片付いたら card-notes の BSC05-027・BSC05-017 を消す
+- 設計は [DERIVED_AFTER_EFFECT.md](./docs/design/DERIVED_AFTER_EFFECT.md) §8（ユーザー確認つき：待機の3種だけ・1本の列・破壊→消滅の切り替えも入れる）。要点：`resolveAction` の一番外側が `effectId` を発行 → 効果の中で待機に入ったカードに `waiting.effectId` → 出口 `settleDerived` で全員ぶんを1本の列・確定・バースト。「この効果発揮後」は区切りの action `settleDerived` を36枚に挟む
+- 分担：期待値役 part979（規則から場面を書く）／実装役（Sonnet。エンジン）／データ役（36枚に区切りを挟む）。part978 の `DESTROY_AFTER_EFFECT` を true に戻し、card-notes の BSC05-027 を消す
+- 次：【連鎖】136件の印（古の魔王城 Q23568。part976 の `CHAIN_MARKED`）を別の PR で
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
