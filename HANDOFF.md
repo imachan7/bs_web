@@ -29,6 +29,13 @@
 4. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 5. 小さい残り：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
+### 進行中：#579/#582 期間の無い無色化をアタック中の継続効果に（2026-11-16 ユーザー確認。`fix/colorless-while-attacking`）
+
+- 読み：期間の指定が無い「このスピリットのアタック時、色を無いものとして扱う」は常時発揮（CONJUNCTION.md）。アタック宣言の時点から無色で、他のアタック時効果と順番を選ばせない。条件（Lv・合体・発生源）が外れたら色は戻る。期間つき（BS15-064「そのバトルの間」・BS21-014「このターンの間」）は今のまま
+- 器：継続 `kind:"colorlessGrant"`（`levels`・`whileAttacking: true`・`whileCombined?`・`target: "self" | "ownSpirits"`・`subjectFilter?`）。データ4件（BS13-011-e2・BS13-015-e3・BS13-052-e2・BS23-X08-e3）を置き換える
+- 判定は shared の述語 `colorlessWhenAttacking(board, pid, inst)`（この個体がアタックしたら無色か）1つ。`continuous.ts` の写しの作り直し（アタッカーにだけ立てる）と `shared/block.ts` の指定アタックの装甲判定（宣言前）の両方が呼ぶ。写しの名前は `colorlessThisBattle` → `colorless`
+- フレームに発生源の色が焼き付く件（#579 の原因）は別 PR で直す
+
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
 - 実測（直近30日）：Cloud Run の稼働 92.9 時間（無料枠は月約50時間）。対戦開始 1,626 件の 88% が AI戦。AI戦をサーバーから外せば、接続を張るのは対人戦だけになる
