@@ -3,7 +3,7 @@
 // 対象：BS10-020 大水蛇ハイドロゲン（星魂の数ぶん）／BS23-X08 ライトニング・シオン（召喚時・強化の+1）
 //       BS19-102 パープルヘイズ（「1体の」なので従来どおり1体から）
 // spread の各候補からは1個ずつ選ぶ。選択は interactiveTargets で止めて resolveChoice で答える。
-import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 const HYDROGEN = "BS10-020" // 大水蛇ハイドロゲン（紫・スピリット・星魂）
@@ -115,6 +115,18 @@ console.log("=== D：「1体の」と書いてあるパープルヘイズは従�
     assert(a.cores === 1, "選んだ1体から2個（基本1＋強化1）取られる")
     assert(b.cores === 2, "もう1体は無傷")
     assert(s.players.p2.reserve === 2, "取り除いた2個は相手のリザーブへ")
+}
+
+console.log("=== E：相手が自分のコアを失う（相手が選ぶ・非対話）。破壊待機中のスピリットからも取れる ===")
+{
+    const s = game("p962-E")
+    s.interactiveTargets = false
+    const waitingOne = put(s, "p2", OPP_A, 3)
+    waitingOne.waiting = { kind: "destroy", event: "ev" }
+    const normal = put(s, "p2", OPP_B, 1)
+    resolveAction(s, "p1", null, { type: "removeCores", side: "opponent", from: ["spirit"], count: 1, chooser: "owner", target: "spread" } as Parameters<typeof resolveAction>[3])
+    assert(waitingOne.cores === 2, "コアの多い破壊待機中のスピリットから1個取られる（失う側は避けない）")
+    assert(normal.cores === 1, "通常のスピリットは減らない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part962）")

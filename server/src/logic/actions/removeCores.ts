@@ -493,9 +493,9 @@ function pickAutoSource(state: GameState, candidates: RemoveSource[], hurting: b
         const inKind = candidates.filter((c) => c.kind === kind)
         if (inKind.length === 0) continue
         if (kind !== "spirit") return inKind[0]!
-        // 破壊待機中のスピリットから取っても損にならないので、ほかに候補があれば自動選択では選ばない（対話では選べる）
+        // 奪う側が選ぶときは、破壊待機中のスピリットから取っても相手の損にならないので、ほかに候補があれば選ばない（失う側が選ぶときは避けない。対話では選べる）
         const live = inKind.filter((c) => !(c.inst && isTrashWaiting(c.inst)))
-        const pool = live.length > 0 ? live : inKind
+        const pool = hurting && live.length > 0 ? live : inKind
         return pool.reduce((best, c) =>
             hurting
                 ? (sourceCoresOf(state, c) < sourceCoresOf(state, best) ? c : best)
