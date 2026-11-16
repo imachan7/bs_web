@@ -71,7 +71,7 @@ function closeFlash(s: GameState): void {
     }
 }
 
-console.log("=== ブロック宣言前のフラッシュでアタッカーが破壊されたら、バトルは終了する ===")
+console.log("=== ブロック宣言前のフラッシュでアタッカーが破壊されたら、フラッシュが閉じた時点でバトルは終了する ===")
 {
     const s = setup()
     const attacker = s.players.p1.field.spirits[0]!
@@ -81,7 +81,12 @@ console.log("=== ブロック宣言前のフラッシュでアタッカーが破
     handleAction(s, "p2", { type: "castMagic", handIndex: 0, targetInstanceId: attacker.instanceId })
     answerChoices(s, attacker.instanceId)
     assert(s.players.p1.field.spirits.length === 0, "アタッカーが場を離れた")
-    assert(s.battle === null, "アタッカーが場を離れた時点でバトルが終了している")
+    assert(s.battle !== null, "場を離れた直後もバトルは続く（フラッシュ①は行う）")
+    assert(s.isFlashTiming === true, "フラッシュタイミングが続いている")
+
+    // 双方がパスしてフラッシュ①が閉じる
+    closeFlash(s)
+    assert(s.battle === null, "双方がパスしたらバトルが終了している")
 
     // 終了しているので、防御側は何も選ばされない
     const blocker = s.players.p2.field.spirits[0]!
