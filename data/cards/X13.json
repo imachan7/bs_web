@@ -606,7 +606,63 @@
    }
   ],
   "braveConditionText": "コスト5以上",
-  "effects": [],
+  "effects": [
+    {
+      "id": "X13-07-e1",
+      "kind": "triggered",
+      "trigger": "onSummon",
+      "levels": [
+        1
+      ],
+      "optional": false,
+      "action": {
+        "type": "destroy",
+        "count": "any",
+        "budget": {
+          "by": "bp",
+          "amount": 5000
+        },
+        "drawPerDestroyed": 1
+      }
+    },
+    {
+      "id": "X13-07-e2",
+      "kind": "aura",
+      "levels": [
+        1
+      ],
+      "aura": {
+        "type": "bp",
+        "target": "ownAll",
+        "amount": 1000,
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "filter": {
+          "keyword": "kyoka"
+        }
+      }
+    },
+    {
+      "id": "X13-07-e3",
+      "kind": "aura",
+      "levels": null,
+      "whileCombined": true,
+      "aura": {
+        "type": "bp",
+        "target": "ownAll",
+        "amount": 1000,
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "filter": {
+          "keyword": "kyoka"
+        }
+      }
+    }
+  ],
   "braveCondition": {
    "minCost": 5
   }
@@ -649,7 +705,75 @@
    }
   ],
   "braveConditionText": "コスト5以上",
-  "effects": [],
+  "effects": [
+    {
+      "id": "X13-08-e1",
+      "kind": "aura",
+      "levels": [
+        1
+      ],
+      "aura": {
+        "type": "bp",
+        "target": "ownAll",
+        "amount": 1000,
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "filter": {
+          "keyword": "rensa"
+        }
+      }
+    },
+    {
+      "id": "X13-08-e2",
+      "kind": "aura",
+      "levels": null,
+      "whileCombined": true,
+      "aura": {
+        "type": "bp",
+        "target": "ownAll",
+        "amount": 1000,
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "filter": {
+          "keyword": "rensa"
+        }
+      }
+    },
+    {
+      "id": "X13-08-e3",
+      "kind": "keyword",
+      "keyword": "kyoshu",
+      "count": 1,
+      "levels": null,
+      "whileCombined": true
+    },
+    {
+      "id": "X13-08-e4",
+      "kind": "triggered",
+      "trigger": "onAttack",
+      "levels": null,
+      "whileCombined": true,
+      "optional": false,
+      "action": {
+        "type": "pay",
+        "cost": {
+          "type": "exhaust",
+          "side": "own",
+          "nexusOnly": true,
+          "count": 1
+        },
+        "then": {
+          "type": "refresh",
+          "target": "self"
+        },
+        "limitByKeyword": "kyoshu"
+      }
+    }
+  ],
   "braveCondition": {
    "minCost": 5
   }
@@ -987,7 +1111,29 @@
    }
   ],
   "braveConditionText": "コスト4以上",
-  "effects": [],
+  "effects": [
+    {
+      "id": "X13-14-e1",
+      "kind": "triggered",
+      "trigger": "onAttack",
+      "levels": null,
+      "whileCombined": true,
+      "optional": false,
+      "action": {
+        "type": "pay",
+        "cost": {
+          "type": "destroy",
+          "side": "own",
+          "count": 1,
+          "suppressOnDestroy": true
+        },
+        "then": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    }
+  ],
   "braveCondition": {
    "minCost": 4
   }
