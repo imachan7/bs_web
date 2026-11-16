@@ -83,7 +83,7 @@ export type EffectDefTrigger =
           subjectSide?: "own" | "opponent" // fieldEvent の同名軸と同じ意味
           byOpponentEffectOnly?: true // ownSpiritDestroyed 限定
           destroyedColorFilter?: Color // ownSpiritDestroyed 限定
-          destroyedMinBp?: number // ownSpiritDestroyed 限定
+          destroyedMinBp?: number // ownSpiritDestroyed 限定。発動の条件ではなく効果の条件（満たさなければ発動して不発）
           condition?:
               | { ownLifeAtMost: number } // 自分のライフ
               | { ownNexusAtLeast: number } // 自分のフィールドのネクサス数

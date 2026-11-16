@@ -30,6 +30,7 @@ export type DeclaredBurst = {
     eventColors?: Color[]
     lifeDamagerId?: string
     members?: { colors: Color[]; cost: number; families: string[] }[]
+    destroyedBp?: number // 破壊後バーストの出来事で破壊されたスピリットの BP（同時破壊は最大値）。destroyedMinBp を適用時に見るため値で運ぶ
 }
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに

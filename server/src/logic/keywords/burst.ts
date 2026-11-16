@@ -364,7 +364,7 @@ export function fireBurstOnEvent(
         // byOpponentEffectOnly / destroyedColorFilter：fieldEvent の同名軸と同じ判定（event: "ownSpiritDestroyed" 限定）
         if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
         if (effect.destroyedColorFilter !== undefined && !(eventColors ?? []).includes(effect.destroyedColorFilter)) continue
-        if (effect.destroyedMinBp !== undefined && (eventInfo?.destroyedBp ?? 0) < effect.destroyedMinBp) continue
+        // destroyedMinBp は発動の条件ではなく効果の条件。満たさなくても発動はでき、適用の時点で不発になる（applyDeclaredBurst）
         // 効果の条件（condition）・発揮できない・税は、適用の時点で判定する（applyDeclaredBursts）
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
@@ -386,6 +386,7 @@ export function fireBurstOnEvent(
             ...(eventColors && eventColors.length > 0 ? { eventColors } : {}),
             ...(lifeDamagerId !== undefined ? { lifeDamagerId } : {}),
             ...(eventInfo?.members !== undefined ? { members: eventInfo.members } : {}),
+            ...(eventInfo?.destroyedBp !== undefined ? { destroyedBp: eventInfo.destroyedBp } : {}),
         }
         noteCoverage(effect, "burst")
         // 発動（宣言）は常に任意。実対戦では確認を出し、非対話（テスト）では自動で宣言する
@@ -457,7 +458,9 @@ function applyDeclaredBurst(state: GameState, d: DeclaredBurst): void {
     // 宣言から適用までに効果の条件を満たさなくなっても、発動は取り消されない。action の解決だけを飛ばす
     // （「このスピリットカードを召喚する」等も発揮せず、finishBurstActivation の既定どおりトラッシュへ置かれる）
     const blocked = burstEffectBlocked(state, d.pid, d.cardId)
-    const baseAction: EffectAction = burstConditionMet(state, d.pid, effect.condition, d.members) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+    // destroyedMinBp：破壊の出来事の BP が足りなければ不発（トラッシュへ。発動自体は取り消されない）
+    const minBpMet = effect.destroyedMinBp === undefined || (d.destroyedBp ?? 0) >= effect.destroyedMinBp
+    const baseAction: EffectAction = burstConditionMet(state, d.pid, effect.condition, d.members) && !blocked && minBpMet ? markPayConfirmed(effect.action) : { type: "noop" }
     const actionToRun = withEffectTax(state, d.pid, "burst", d.cardId, baseAction)
     const before = fieldInstanceIdsOf(state, d.pid)
     // EffectCounter "burstEventCost"・条件 {burstDestroyedColor} などが読む出来事の情報。別の宣言の値と混ざらないよう、適用の直前に立てる
@@ -506,7 +509,8 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
     payBurstActivationFee(state, owner, cardId)
     announceBurstActivation(state, owner, cardId)
     const blocked = burstEffectBlocked(state, owner, cardId)
-    const baseAction: EffectAction = (ignoreCondition || burstConditionMet(state, owner, effect.condition)) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+    // destroyedMinBp は破壊の出来事が無い経路（ignoreCondition・reveal）では満たせないので不発。バースト条件を無視しても効果の条件は残る
+    const baseAction: EffectAction = (ignoreCondition || burstConditionMet(state, owner, effect.condition)) && !blocked && effect.destroyedMinBp === undefined ? markPayConfirmed(effect.action) : { type: "noop" }
     const actionToRun = withEffectTax(state, owner, "burst", cardId, baseAction)
     const before = fieldInstanceIdsOf(state, owner)
     if (ignoreCondition) {
