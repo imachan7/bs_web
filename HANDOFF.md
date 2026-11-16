@@ -41,6 +41,7 @@
   - B は新部品なしで済んだ（X013＝BS15-034 と同じ destroyedMinBp＋summon alsoFrom trash、X13-15＝chooseActionMode chooser:opponent＋removeCores side）
   - D（確定 11-16）：①`magicTargetRedirect` に `redirectTo?: "self" | "ownTargetChosen"`（省略＝self）と `sourceTypes?: ("spirit"|"magic")[]` を足す。ownTargetChosen＝相手が対象を選び終えた後・解決前に、持ち主が元の対象に含まれる自分のスピリットから1体選び対象をそれだけにする（バースト・持続・連鎖は除く Q23566〜68。BSC05-017）②destroy の `budget.atLeast`（合計コストの下限。しきい値は pay で破壊した自分のスピリットのコスト）＋`chooserIsTarget`。相手は1体ずつ選び、届いたらコスト1以上は選べない・最低1体・コスト0は任意（Q24867〜70）。払えるかは COST_MODEL の完全解決の判定で決まる（相手の合計がしきい値未満・相手0体なら払えない＝Q24868。BS11-076）
   - E：ImmuneSource `"burst"`＋TargetFilter `sameColorAsLastTarget`（X13-17）
+  - 払ったものを後続へ渡す（確定 11-16）：pay は払った自分のスピリットの**その時点の**コスト（合体中はブレイヴ込みの合計）と色を、then の action に値として書き込んでから解決する（記録 lastMoved を後で読まない＝原則3）。トークン `"paidCost"`／`"paidColors"` を budget.atLeast（BS11-076）と CardPick の上限コスト・色（X13-17。Q18941：合体コスト12なら12以下、ブレイヴが場に残っても）で使う
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
