@@ -203,3 +203,5 @@ requestChoice(
 
 - [COST_MODEL.md](./COST_MODEL.md) — コストの一般則（何を犠牲にするかも選ばせる）
 - [INTERRUPTION_POINTS.md](./INTERRUPTION_POINTS.md) — 選択を挟める層と3つのパターン
+
+- **相手に選ばせる選択は、`requestChoice` の `chooserPid` で渡す**（2026-11-16。#559）。第2引数に選ぶ側を渡して後から `pendingChoice.actorPid` を書く形は、候補が1体で選択待ちを立てないときに実行者が選ぶ側へ入れ替わる（デッドリィバランスでオーシンの「相手の効果で破壊されたとき」が処理されなかった。smoke part959）。
