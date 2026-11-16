@@ -74,6 +74,7 @@ export interface TargetFilter {
     maxLv1BpOfSelf?: true // self（sameCostAsSelfと同じ意味＝fieldEventではイベント対象。召喚されたスピリット等）の**カードのLv1BP**（実効BPでなく印刷値。levels配列のlevel:1のbp）以下。normalizeFilter が maxBp 軸へ解決する。self がいなければ対象なし（BS10-080炎の結晶石Lv2＝「そのスピリットのLv1BP以下の相手のスピリット」）
     sameCostAsLast?: true // 直前に動いたカード（logic/record.ts）の先頭と同じコスト。記録が空なら対象なし
     maxCostAsLast?: true // 直前に動いたカードの先頭のコスト以下（sameCostAsLast の以下版）。記録が空なら対象なし
+    sameColorAsLast?: true // 直前に動いたカードの先頭と色を1色でも共有する（多色はどれか1色でも一致すればよい。Q5）。記録が空なら対象なし。CardPick 側も同名で読む（activateBurstIgnoringCondition の filter）
     maxCostAsEventTarget?: true // イベント対象のコスト以下（sameCostAsEventTarget の以下版）
     sameCostAsEventTarget?: true // **イベント対象**（ctx.targetInstanceId）と同じコスト（normalizeFilter が cost 軸へ解決する。対象が見つからなければ対象なし）。
     // イベント対象は誘発ごとに違う（onBlocked＝ブロッカー、onBlock＝アタックしている相手）

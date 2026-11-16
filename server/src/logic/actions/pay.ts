@@ -66,7 +66,7 @@ export const PAYABLE_TYPES = [
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
     "peekOpponentHand", "revealHandCard", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst", "repeatBurstEffect",
-    "discardUnder", "endAttackStepAfterBattle", "destroyBrave",
+    "discardUnder", "endAttackStepAfterBattle", "destroyBrave", "activateBurstIgnoringCondition",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
@@ -94,6 +94,15 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     toTegamoto: (state, owner, _self, action) => {
         if (action.type !== "toTegamoto") return false
         return action.count === "any" || state.players[owner].hand.filter((id) => matchesPick(id, action.pick)).length >= action.count
+    },
+    // バースト条件を無視して発動：セット中のバーストが、filter の盤面に依らない軸（種類・名前など）に合うこと。
+    // 直前に動いたカードとの関係（maxCostAsLast・sameColorAsLast）は、払う前に cost を絞る narrowCostByLastRecord が見る
+    activateBurstIgnoringCondition: (state, owner, _self, action) => {
+        if (action.type !== "activateBurstIgnoringCondition" || action.from !== "set") return false
+        const burstId = state.players[owner].burst
+        if (burstId === null || !getCard(burstId).effects.some((e) => e.kind === "burst")) return false
+        const { maxCostAsLast: _mc, sameColorAsLast: _sc, ...rest } = action.filter ?? {}
+        return matchesPick(burstId, rest)
     },
     lendSelfThisTurn: () => true,
     // 「このバトルが終了したとき、アタックステップを終了する」は予約するだけなので、いつでも成立する（SD10-015）
@@ -458,6 +467,18 @@ function kyoshuSelfPayable(state: GameState, owner: PlayerId, action: Extract<Ef
 // 対応は then が相手のスピリットを destroy する形、cost が手札を見せる／自分のスピリットを破壊する形だけ
 function narrowCostByLastRecord(state: GameState, owner: PlayerId, self: CardInstance | null, action: Extract<EffectAction, { type: "pay" }>, cost: EffectAction): EffectAction | "none" | null {
     const then = action.then
+    // then がセット中のバーストの発動：発動できるバーストが無ければ払えない。cost の候補は、そのバーストのコスト以上・色を1色共有するものに絞る
+    // （then の maxCostAsLast／sameColorAsLast は cost で動いたカードとの関係。Q18939・Q18940）
+    if (then.type === "activateBurstIgnoringCondition" && (then.filter?.maxCostAsLast === true || then.filter?.sameColorAsLast === true)) {
+        const burstId = state.players[owner].burst
+        if (burstId === null || !getCard(burstId).effects.some((e) => e.kind === "burst")) return "none"
+        if (cost.type !== "return" || cost.to !== "deckBottom" || cost.side !== "own") return null
+        const b = getCard(burstId)
+        const { maxCostAsLast: _mc, sameColorAsLast: _sc, ...rest } = then.filter
+        if (!matchesPick(burstId, rest)) return "none"
+        const narrowedFilter = { ...cost.filter, ...(then.filter.maxCostAsLast === true ? { cost: { ...cost.filter?.cost, min: b.cost } } : {}), ...(then.filter.sameColorAsLast === true ? { color: b.colors } : {}) }
+        return { ...cost, filter: narrowedFilter }
+    }
     // 「コスト合計がN以上になるように破壊」の下限は、相手のスピリットのコスト合計で頭打ち（Q24868）。相手0体なら払えない（Q4）
     if (then.type === "destroy" && then.budget?.atLeast !== undefined) {
         if (cost.type !== "destroy" || cost.side !== "own") return null
@@ -495,7 +516,7 @@ function judgePay(
     let c: EffectAction = action.cost.type === "destroy" && action.cost.nexus === "only" ? { ...action.cost, asCost: true } : action.cost
     const narrowed = narrowCostByLastRecord(state, owner, self, action, c)
     if (narrowed !== null) {
-        if (narrowed === "none") return { cost: c, reason: "破壊する相手のスピリットがいない" }
+        if (narrowed === "none") return { cost: c, reason: action.then.type === "activateBurstIgnoringCondition" ? "発動できるバーストがない" : "破壊する相手のスピリットがいない" }
         c = narrowed
         skipThen = true
     }

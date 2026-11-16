@@ -48,7 +48,7 @@ export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
 // ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
 // 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
 export type CardType = "spirit" | "nexus" | "magic" | "brave"
-export type ImmuneSource = "spirit" | "brave" | "magic" | "nexus" // immuneToOpponentEffects/immune の against が絞る発生源種別
+export type ImmuneSource = "spirit" | "brave" | "magic" | "nexus" | "burst" // immuneToOpponentEffects/immune の against が絞る発生源種別
 
 // **効果の発生源の種別は CardType をそのまま流す**（sourceType / srcType）。
 // ⚠️ ブレイヴを "spirit" に丸めないこと（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。

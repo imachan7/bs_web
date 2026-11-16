@@ -1449,6 +1449,58 @@
   "rarity": "X",
   "limited": false,
   "effect": "このスピリットカードは、1コスト以上支払わなければ召喚できない。\nLv1･Lv2･Lv3『お互いのアタックステップ』\n自分のスピリットすべては相手のバースト効果を受けない。\nLv3『自分のエンドステップ』\n自分のスピリット1体をデッキの下に戻すことで、戻したスピリットのコスト以下で同じ色の自分のバーストを、バースト条件を無視して発動する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "X13-17-e1",
+    "kind": "summonNeedsCost",
+    "levels": null
+   },
+   {
+    "id": "X13-17-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "constraint": {
+     "type": "immuneToOpponentEffects",
+     "against": "burst"
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
+    }
+   },
+   {
+    "id": "X13-17-e3",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     3
+    ],
+    "oncePerTurn": true,
+    "optional": true,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "return",
+      "to": "deckBottom",
+      "side": "own",
+      "count": 1
+     },
+     "then": {
+      "type": "activateBurstIgnoringCondition",
+      "from": "set",
+      "filter": {
+       "maxCostAsLast": true,
+       "sameColorAsLast": true
+      }
+     }
+    }
+   }
+  ]
  }
 ]

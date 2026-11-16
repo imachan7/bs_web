@@ -4,6 +4,23 @@ import { getCard, log } from "../GameState"
 import { requestActivationConfirm } from "../targeting"
 import { activateBurstCard } from "../keywords/burst"
 import { matchesPick } from "./revealAction"
+import { lastMovedOf } from "../record"
+import type { CardPick, GameState } from "../../type"
+
+// 直前に動いたカード（lastMoved の先頭）との関係を具体値に解く。maxCostAsLast＝そのコスト以下、sameColorAsLast＝その色を1色でも共有。
+// 記録が空なら対象なし（null）。destroy の maxCostAsLast と同じく、ハンドラの入りで1回だけ解く
+function pickAgainstLast(state: GameState, filter: CardPick | undefined): CardPick | null | undefined {
+    if (filter?.maxCostAsLast !== true && filter?.sameColorAsLast !== true) return filter
+    const first = lastMovedOf(state)[0]
+    if (first === undefined) return null
+    const { maxCostAsLast, sameColorAsLast, ...rest } = filter
+    const last = getCard(first)
+    return {
+        ...rest,
+        ...(maxCostAsLast ? { cost: { ...(typeof rest.cost === "object" ? rest.cost : {}), max: last.cost } } : {}),
+        ...(sameColorAsLast ? { color: last.colors } : {}),
+    }
+}
 
 const activateBurstIgnoringConditionHandler: ActionHandler<"activateBurstIgnoringCondition"> = (ctx, action) => {
     const { state, owner, self, sourceName } = ctx
@@ -23,7 +40,8 @@ const activateBurstIgnoringConditionHandler: ActionHandler<"activateBurstIgnorin
         return
     }
     const cardId = state.players[owner].burst
-    if (cardId === null || !getCard(cardId).effects.some((e) => e.kind === "burst") || !matchesPick(cardId, action.filter)) {
+    const pick = pickAgainstLast(state, action.filter)
+    if (cardId === null || !getCard(cardId).effects.some((e) => e.kind === "burst") || pick === null || !matchesPick(cardId, pick)) {
         log(state, `${sourceName}：発動できるバーストがなかった。`)
         return
     }
