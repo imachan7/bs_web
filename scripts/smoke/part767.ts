@@ -13,7 +13,7 @@ console.log("=== 前提: カードの機械確認 ===")
     assert(getCard(BELL).name === "デュアルキャノン・ベル" && getCard(BELL).cost === 4, "BELLはコスト4")
 }
 
-console.log("=== 1. 前の手で体数が減り Lv3 扱いになったスピリットは、次の手の BP 条件から外れる ===")
+console.log("=== 1. 前の手で破壊待機に入った体は、次の手の体数・Lv 条件でも場に数える ===")
 {
     const s = createGame("part767", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
     runTurnStart(s)
@@ -32,8 +32,9 @@ console.log("=== 1. 前の手で体数が減り Lv3 扱いになったスピリ�
         ],
     })
     assert(!s.players.p2.field.spirits.includes(roku), "手1でコスト1のロクケラトプスが破壊される")
-    assert(s.players.p2.field.spirits.includes(tyrano), "手1の後はLv3（BP6000）なので、手2で破壊されない")
-    assert(effectiveBp(s, "p2", tyrano) === 6000, "ティラノイドはBP6000")
+    // 破壊待機のロクケラトプスは効果の続きでも場に数える（2026-11-17 ユーザー確認。DERIVED_AFTER_EFFECT §8-8）ので、手2の時点でもLv1（BP2000）
+    assert(!s.players.p2.field.spirits.includes(tyrano), "手1の後も3体と数えるのでLv1（BP2000）のまま、手2で破壊される")
+    assert(s.players.p2.field.spirits.includes(bell), "デュアルキャノン・ベル（BP3000）は手2の範囲外")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part767）")

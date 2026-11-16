@@ -216,7 +216,7 @@ console.log("=== 5. 1つの効果で2回に分けて破壊（ゼニス・ドラ�
     const r = runner(s)
     r.go("p1", { type: "summon", handIndex: 0 })
     // 「コアの数」「破壊対象」「手札を1枚破棄することで」には既定の答え。順番を聞かれたらそこで止める
-    const pc = r.until((c) => /順/.test(c.prompt))
+    const pc = r.until((c) => /どれから解決/.test(c.prompt))
     assert(pc !== null, `2体ぶんの『破壊時』の解決順をターンプレイヤー（自分）が聞かれる（経過: ${r.trace.join(" / ")}）`)
     if (pc) {
         assert(pc.pid === "p1", "順番を決めるのはターンプレイヤー")

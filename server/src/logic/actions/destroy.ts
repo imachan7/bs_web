@@ -1,6 +1,6 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import { destroyContextOf, isTrashWaiting } from "../../../../shared/rules/waiting"
+import { canBeTargeted, destroyContextOf, isTrashWaiting } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { coreRemovalAllowed } from "../coreGate"
 import { kyokaBonus } from "../keywords/kyoka"
@@ -118,6 +118,7 @@ export function destroyNexusCandidateCountForPay(
     const opp = opponentOf(owner)
     const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : action.anySide ? [owner, opp] : action.side === "own" ? [owner] : [opp]
     const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
+        canBeTargeted(state, n) &&
         (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
         matchesTarget(state, pid, n, (action.filter ?? {}) as unknown as ResolvedTargetFilter) &&
         !costDenied(state, owner, pid, n, action, srcType)
@@ -556,6 +557,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
             return
         }
         const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
+            canBeTargeted(state, n) &&
             (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
             matchesTarget(state, pid, n, filter, self?.instanceId) &&
             !costDenied(state, owner, pid, n, action, srcType)

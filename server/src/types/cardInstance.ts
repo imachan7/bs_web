@@ -173,7 +173,8 @@ export type WaitingState =
     | { kind: "destroy"; event: string; context?: DestroyContext; skipRevive?: true; burstInfo?: DestroyBurstInfo; effectId?: string; derived?: DerivedDestroy; nexus?: DerivedNexusDestroy }
     | { kind: "vanish"; event: string; byOpponent?: true; burstInfo?: DestroyBurstInfo; effectId?: string; derived?: DerivedDestroy }
     // resolving＝誘発の列を始めた（flushBounces が付ける）。列が選択待ちで止まっている間に flushBounces がもう一度呼ばれても、列を始め直さない
-    | { kind: "return"; event: string; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true; resolving?: true }
+    // rank：効果の中で控えた「移す順番」（好きな順にデッキへ戻す）。出口で流すときに order へ戻す
+    | { kind: "return"; event: string; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true; resolving?: true; rank?: number }
 
 // 効果の中で待機に入った破壊・消滅が、効果の出口（derivedSettle）で列を集めるために持つ控え。effectId は出口で集めたら消す
 export type DerivedDestroy = {

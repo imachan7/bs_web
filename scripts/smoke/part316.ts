@@ -359,11 +359,14 @@ console.log("=== BS14-X04 氷の覇王ミブロック・バラガン：バース
         "自分のスピリットが両方とも候補に出る（コスト最大を勝手に選ばない）",
     )
     assert(act(s4, "p1", { type: "resolveChoice", instanceId: own4b.instanceId }) === null, "コストの小さい方を選べる")
-    assert(
-        !s4.players.p1.field.spirits.some((sp) => sp.instanceId === own4b.instanceId),
-        "選んだ自分のスピリットが手札へ戻る",
-    )
     assert(s4.pendingChoice !== null, "続けて、戻す相手のスピリットも対戦者が選ぶ")
+    assert(
+        s4.players.p1.field.spirits.some((sp) => sp.instanceId === own4b.instanceId),
+        "コストに戻す自分のスピリットは、効果が終わるまで待機のまま場にいる",
+    )
+    act(s4, "p1", { type: "resolveChoice", instanceId: s4.pendingChoice!.candidates[0]! })
+    if (s4.pendingChoice) act(s4, "p1", { type: "resolveChoice", instanceId: s4.pendingChoice.candidates[0] ?? "" })
+    assert(s4.pendingChoice === null && !s4.players.p1.field.spirits.some((sp) => sp.instanceId === own4b.instanceId), "効果が終わって、選んだ自分のスピリットが手札へ戻る")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part316）")

@@ -3791,6 +3791,9 @@
        "count": 2
       },
       {
+       "type": "settleDerived"
+      },
+      {
        "type": "summon",
        "from": "burst"
       }
@@ -3874,6 +3877,9 @@
       {
        "type": "refresh",
        "count": 1
+      },
+      {
+       "type": "settleDerived"
       },
       {
        "type": "summon",
@@ -3973,6 +3979,9 @@
        "duration": "turn",
        "all": true,
        "side": "own"
+      },
+      {
+       "type": "settleDerived"
       },
       {
        "type": "summon",
@@ -5769,6 +5778,9 @@
        "filter": {
         "maxBp": 6000
        }
+      },
+      {
+       "type": "settleDerived"
       },
       {
        "type": "summon",

@@ -1443,6 +1443,17 @@ const bounceSourceNames = new Map<string, string>()
 // order（instanceId の列）を渡すと**その順に移す**。プレイヤーが決めた順番がデッキの並びに出る効果（好きな順番でデッキの下に戻す）で使う。
 // 列に無いものはフィールドの並び順で、そのあとに続く
 export function flushBounces(state: GameState, order?: string[]): void {
+    // 効果の中では流さない。効果の出口（derivedSettle）が全部の待機をまとめて1本の列にする（DERIVED_AFTER_EFFECT §8）。
+    // 移す順番は待機に控えておく
+    if (state.currentEffectSource?.effectId !== undefined) {
+        order?.forEach((id, i) => {
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                const w = state.players[pid].field.spirits.find((s) => s.instanceId === id)?.waiting
+                if (w?.kind === "return") w.rank = i
+            }
+        })
+        return
+    }
     const fresh: { pid: PlayerId; inst: CardInstance }[] = []
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of state.players[pid].field.spirits) {
@@ -1450,6 +1461,8 @@ export function flushBounces(state: GameState, order?: string[]): void {
         }
     }
     if (fresh.length === 0) return
+    const ranked = fresh.filter((m) => m.inst.waiting?.kind === "return" && m.inst.waiting.rank !== undefined).sort((a, b) => (a.inst.waiting as { rank: number }).rank - (b.inst.waiting as { rank: number }).rank)
+    if (order === undefined && ranked.length > 0) order = ranked.map((m) => m.inst.instanceId)
     // 1回でまとめて戻すカードは同じ出来事（互いの誘発から対象に取れる。C2）
     const event = crypto.randomUUID()
     for (const { inst } of fresh) {

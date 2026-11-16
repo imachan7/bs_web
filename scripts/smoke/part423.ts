@@ -74,10 +74,11 @@ console.log("=== バラガン：戻した自分のスピリットのコストま
     resolveAction(s, "p1", src, actionOf(BARAGAN, "BS14-X04-e3"))
     answerPayConfirm(s, "p1")
     act(s, "p1", { type: "resolveChoice", instanceId: payer.instanceId })
-    assert(!s.players.p1.field.spirits.includes(payer), "コストに自分のコスト1を戻した")
+    assert(s.players.p1.field.spirits.includes(payer), "コストに戻す自分のスピリットは、効果が終わるまで待機のまま場にいる")
     // 「好きなだけ」なので候補が1体でも選ばせる（0体でやめられる。2026-11-06 BS20-X04 の取り込みで直した）
     act(s, "p1", { type: "resolveChoice", instanceId: cheap.instanceId })
     assert(!s.players.p2.field.spirits.includes(cheap) && s.players.p2.field.spirits.includes(pricey), "予算1なのでコスト1だけ戻る")
+    assert(!s.players.p1.field.spirits.includes(payer), "コストに自分のコスト1を戻した（効果が終わって手札へ）")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part423）")

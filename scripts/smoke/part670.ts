@@ -63,9 +63,11 @@ function drive(s: GameState, want: string[], opts: { mode?: string; cardIndex?: 
         } else if (pc.kind === "card") {
             err = act(s, pc.pid, { type: "resolveChoice", cardIndex: opts.cardIndex ?? 0 })
         } else if (pc.kind === "target") {
-            const pick = want.find((w) => cands.includes(w)) ?? cands[0]
-            if (pick !== undefined) want.splice(want.indexOf(pick), 1)
-            err = act(s, pc.pid, { type: "resolveChoice", instanceId: pick ?? "" })
+            // 好きなだけ選ぶトグル選択は、挙げた id を選び終えたら「これで破壊する」で確定する（確定するまで効果は終わらない）
+            const want1 = want.find((w) => cands.includes(w))
+            const pick = pc.resolveOnSkip === true && want1 === undefined ? undefined : want1 ?? cands[0]
+            if (pick !== undefined && want.includes(pick)) want.splice(want.indexOf(pick), 1)
+            err = act(s, pc.pid, pick === undefined ? { type: "resolveChoice" } : { type: "resolveChoice", instanceId: pick })
         } else throw new Error(`未対応の選択待ち: ${JSON.stringify(pc).slice(0, 300)}`)
         assert(err === null, `選択への応答が通る（${pc.kind}／${err ?? ""}）`)
     }
@@ -141,9 +143,9 @@ function armsImpact(seed: string, pickCost4: boolean) {
     assert(gone(a.s, "p1", a.c4.instanceId) && !gone(a.s, "p1", a.c2.instanceId), "選んだコスト4が壊れる")
     assert(gone(b.s, "p1", b.c2.instanceId) && !gone(b.s, "p1", b.c4.instanceId), "選んだコスト2が壊れる")
     const killedB = [b.atk, ...b.extra].filter((x) => gone(b.s, "p2", x.instanceId)).length
-    assert(killedB <= 2, "コスト2を壊したなら、相手のコスト1スピリットは合計コスト2＝2体までしか壊せない")
+    assert(killedB === 2, "コスト2を壊したなら、相手のコスト1スピリットは合計コスト2＝2体までしか壊せない")
     const killedA = [a.atk, ...a.extra].filter((x) => gone(a.s, "p2", x.instanceId)).length
-    assert(killedA <= 3 && killedA >= killedB, "コスト4を壊したときの予算は4（相手のコスト1スピリット3体を壊せる）")
+    assert(killedA === 3, "コスト4を壊したときの予算は4（相手のコスト1スピリット3体を壊せる）")
 }
 {
     const s = game("ai-noblock")

@@ -10876,6 +10876,9 @@
             "from": "burst"
           },
           {
+            "type": "settleDerived"
+          },
+          {
             "type": "summon",
             "from": "hand",
             "count": 1,

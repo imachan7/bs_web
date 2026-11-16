@@ -6,7 +6,7 @@ import type { GameState, PlayerId, ResumeFrame } from "../type"
 import type { DestroyEntry } from "./removal"
 import { commitOrDefer, commitPendingDestruction, driveNexusDestruction, flushBounces, grantedFamilies, runDestroyQueue } from "./removal"
 import { resumeBraveDestroy } from "./brave"
-import { newRecordScope } from "./record"
+import { newRecordScope, recordDestroyedCount } from "./record"
 import { isTrashWaiting } from "../../../shared/rules/waiting"
 
 type DestroyBatchFrame = Extract<ResumeFrame, { kind: "destroyBatch" }>
@@ -38,12 +38,13 @@ export function settleAllDerived(state: GameState): void {
     if (!state.pendingChoice) flushBounces(state)
 }
 
-export function settleDerived(state: GameState, effectId: string): void {
+// 戻り値は、列を解決し終えて実際にトラッシュに置かれたスピリットの数（列が選択待ちで止まったときは 0。区切りの後の数え直しは未対応）
+export function settleDerived(state: GameState, effectId: string): number {
     // 列で解決される効果は元の効果とは別の効果。元の効果の記録（破壊した数・動かしたカード）に混ぜない
     const prevScope = state.recordScope
     state.recordScope = newRecordScope()
     try {
-        settleAll(state, effectId)
+        return settleAll(state, effectId)
     } finally {
         // 選択待ちで止まったときは suspend が枠を控えているので、ここで戻してよい
         if (prevScope !== undefined) state.recordScope = prevScope
@@ -51,17 +52,18 @@ export function settleDerived(state: GameState, effectId: string): void {
     }
 }
 
-function settleAll(state: GameState, effectId: string): void {
-    settleSpirits(state, effectId)
-    if (state.pendingChoice && !state.winner) return
+function settleAll(state: GameState, effectId: string): number {
+    const trashed = settleSpirits(state, effectId)
+    if (state.pendingChoice && !state.winner) return 0
     settleBraves(state, effectId)
-    if (state.pendingChoice && !state.winner) return
+    if (state.pendingChoice && !state.winner) return 0
     settleNexuses(state, effectId)
     // 戻す待機：入れ子の出口ごとではなく、効果の出口でまとめて流す
     if (!state.pendingChoice) flushBounces(state)
+    return state.pendingChoice ? 0 : trashed
 }
 
-function settleSpirits(state: GameState, effectId: string): void {
+function settleSpirits(state: GameState, effectId: string): number {
     const entries: DestroyEntry[] = []
     const pickMany: Record<string, string[]> = {}
     for (const pid of PIDS) {
@@ -86,10 +88,10 @@ function settleSpirits(state: GameState, effectId: string): void {
             delete w.derived
         }
     }
-    if (entries.length === 0) return
+    if (entries.length === 0) return 0
     if (state.winner) {
         for (const e of entries) commitPendingDestruction(state, e.pid, e.inst)
-        return
+        return 0
     }
     const familiesByPid: Partial<Record<PlayerId, string[]>> = {}
     for (const e of entries) familiesByPid[e.pid] = [...new Set([...(familiesByPid[e.pid] ?? []), ...grantedFamilies(state, e.pid, e.inst)])]
@@ -98,7 +100,7 @@ function settleSpirits(state: GameState, effectId: string): void {
     state.destroyGroup = { id: crypto.randomUUID(), memberIds: entries.map((e) => e.inst.instanceId), used: [], familiesByPid, ...(Object.keys(pickMany).length > 0 ? { pickMany } : {}) }
     for (const e of entries) commitOrDefer(state, e.pid, e.inst)
     const frame: DestroyBatchFrame = { kind: "destroyBatch", ownerPid: state.turnPlayer, targets: [], phase: "start", settle: true, ...(prevGroup ? { prevGroup } : {}) }
-    runDestroyQueue(state, frame, entries)
+    return runDestroyQueue(state, frame, entries)
 }
 
 // 合体中のブレイヴ：出来事（event）ごとに、いままでの braveDestroy の手順へ渡す
@@ -143,7 +145,9 @@ export const settleDerivedHandler: ActionHandler<"settleDerived"> = (ctx) => {
     const saved = state.currentEffectSource
     delete state.currentEffectSource
     try {
-        settleDerived(state, effectId)
+        // 区切りの後で「この効果で破壊した数」を読む札（Q25205）のために、トラッシュに置かれた数を元の効果の記録へ渡す
+        const trashed = settleDerived(state, effectId)
+        if (!state.pendingChoice) recordDestroyedCount(state, trashed)
     } finally {
         if (saved !== undefined) state.currentEffectSource = saved
     }

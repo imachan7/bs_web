@@ -10,6 +10,7 @@ import { bothSidesPids } from "../magic/redirect"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { lastMovedOf, lastTargetsOf } from "../record"
 import { kyokaBonus } from "../keywords/kyoka"
+import { canBeTargeted } from "../../../../shared/rules/waiting"
 
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 
@@ -416,6 +417,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         const levelOf = (s: CardInstance) => content.max ? maxLevelOf(s) : content.set!
         const pids: PlayerId[] = action.side === "own" ? [owner] : action.side === "both" ? [owner, opp] : [opp]
         const passes = (s: CardInstance, sPid: PlayerId) =>
+            canBeTargeted(state, s) &&
             resistanceAgainst(state, sPid, s, { ...attemptOf(ctx, "other", "targeted"), probing: true as const }) === null &&
             matchesTarget(state, sPid, s, filter, self?.instanceId) &&
             (!content.requireLevelExists || getCard(s.cardId).levels.some((l) => l.level === levelOf(s)))

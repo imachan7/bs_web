@@ -225,6 +225,9 @@
        }
       },
       {
+       "type": "settleDerived"
+      },
+      {
        "type": "summon",
        "from": "burst"
       }
@@ -5758,6 +5761,9 @@
        "type": "destroyBrave"
       },
       {
+       "type": "settleDerived"
+      },
+      {
        "type": "destroy",
        "count": 1,
        "filter": {
@@ -6252,6 +6258,9 @@
        "to": "life",
        "count": 1,
        "orReserve": true
+      },
+      {
+       "type": "settleDerived"
       },
       {
        "type": "summon",

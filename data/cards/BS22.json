@@ -5477,6 +5477,9 @@
        }
       },
       {
+       "type": "settleDerived"
+      },
+      {
        "type": "summon",
        "from": "hand",
        "count": 1,
@@ -5696,6 +5699,9 @@
       {
        "type": "exhaust",
        "count": 1
+      },
+      {
+       "type": "settleDerived"
       },
       {
        "type": "if",
