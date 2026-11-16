@@ -45,11 +45,12 @@
 - part978 で見つかった穴の直し（確定 11-16 夜）：
   - F1 サンダーブランチ：期間つき `bpAs` を instance 記録だけでなく rule 記録（すべて）からも写す（continuous.ts の写しを timedContentsOn の照合ループへ移す）。TargetFilter に `anyOf?: TargetFilter[]`（どれか1つに合えばよい。子は normalizeFilter を通らないので self 相対の軸は書けない）。BSC05-028 は「合体していない、または【転召】を持たない」＝`anyOf:[{uncombined},{keywordExclude:tensho}]`
   - F2 ジャスティスソード：destroy の budget 経路（destroyWithinBudget・budgetToggleDestroy・destroyAtLeastCost）が drawPerDestroyed／millPerDestroyed を見ていない。まとめた破壊を destroyTargetList(ctx, targets, action) に通す
+  - F4 条件つきバースト（確定 11-16 夜）：`destroyedMinBp` を発動の判定（burst.ts の `continue`）から外し、`DeclaredBurst.destroyedBp`（eventInfo.destroyedBp を値で載せる）を applyDeclaredBurst で見て、未満なら action を noop（不発・トラッシュ）。ケイの「条件を無視して発動」経路は破壊の出来事が無いので不発。part974 の X013・BS15-034 の場面を「発動して不発」に直す（BURST.md に1行）
   - F3 エレキトリック（ユーザー確認待ち）：コストで破壊したスピリットのコアを、破壊待機のまま・破壊時効果より先にライフへ（Q26091）、0個なら消滅で破壊時効果なし（Q26092）。いまは破壊時効果と確定が pay の中で先に済み、then が空振りする
 - 残り：
   1. 古の魔王城の【連鎖】除外（Q23568）：136件に印を付ける移行をするかユーザー確認待ち
   2. 統合検証の定型＋coverage:check・part197 の発火基準・gaps:update、card-notes、PR 本文（maxCostAsLast・コスト合計が合体込みになった既存カードへの影響を書く）
-  3. ユーザー確認待ち：オーバーレックスの指定は宣言時でよいか／条件つきバースト（BS15-034・X013）は条件未満なら発動できないでよいか／ダイヤモンドの月 Lv1 はバトル中だけでよいか
+  3. 確認済み（11-16 夜）：オーバーレックスは宣言時・ダイヤモンドの月 Lv1 はバトル中だけ（どちらも今のまま）。魔王城の【連鎖】は別の PR で136件を移行し、#604 では card-notes に未対応と書く。エレキトリックも card-notes（効果の途中の破壊の一般則は別の PR）
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
