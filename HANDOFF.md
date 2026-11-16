@@ -28,13 +28,12 @@
 3. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 4. 小さい残り：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定がリザーブだけ（COST_MODEL §12）／同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
-### 進行中：効果の途中の待機は効果の後に解決する（2026-11-17 確定。`fix/destroy-triggers-after-effect`）
+### 進行中：対象の候補から待機中のカードを一律に外す（2026-11-17 確定。`fix/candidates-skip-waiting`）
 
-- 設計は [DERIVED_AFTER_EFFECT.md](./docs/design/DERIVED_AFTER_EFFECT.md) §8（ユーザー確認つき：待機の3種だけ・1本の列・破壊→消滅の切り替えも入れる）。要点：`resolveAction` の一番外側が `effectId` を発行 → 効果の中で待機に入ったカードに `waiting.effectId` → 出口 `settleDerived` で全員ぶんを1本の列・確定・バースト。「この効果発揮後」は区切りの action `settleDerived` を36枚に挟む
-- 分担：期待値役 part979（規則から場面を書く）／実装役（Sonnet。エンジン）／データ役（36枚に区切りを挟む）。part978 の `DESTROY_AFTER_EFFECT` を true に戻し、card-notes の BSC05-027 を消す
-- 次の PR（2026-11-17 ユーザー決定）：対象の候補を自前で `field.spirits.filter(...)` で作るハンドラ（timedEffect.ts だけで7か所ほか）を、`targeting.ts` の共通の入口に寄せ、待機中のカード（PENDING_STATE C2 `canBeTargeted`）を一律に外す。この PR ではネクサス破壊と「Lv◯として扱う」の2か所だけ直した
-- 残した限界：区切り `settleDerived` の列が選択待ちで止まると「破壊した数」を元の効果の記録へ書き戻さない／戻す待機の `rank` は同じ効果で order 付きの戻しが2回あると衝突／`GameState.holdDerivedFor`（複数エントリのマジック）は state の一時フィールドのまま（原則3。別作業）
-- 次：【連鎖】136件の印（古の魔王城 Q23568。part976 の `CHAIN_MARKED`）を別の PR で
+- 背景：#606 で待機中のカードが効果の続きの間も場に残るようになり、各ハンドラが `field.spirits.filter(...)` で自前に作る候補に混ざる穴が踏みやすくなった（PENDING_STATE §3 C2：待機中のカードは、その待機を対象にできる効果以外を受けない）。`server/src/logic` に93か所・28ファイル
+- 設計：①`targeting.ts` に「対象に取れるスピリット（`canBeTargeted` ＋ 述語）」を返す関数を1つ足す ②93か所を「対象の候補」と「数える・条件」に分け、候補だけ寄せる（数えるものは待機中も数える＝#606 の決定のまま）③`requestChoice` でも待機中の候補を落とす安全網 ④検査スクリプト：`server/src/logic` の新しい `field.spirits.filter(` を落とし、既存の「数える」ものは理由つき一覧で許す（`scripts/check-file-size.ts` と同じ基準方式）
+- 次：【連鎖】136件の印（古の魔王城 Q23568。part976 の `CHAIN_MARKED`）
+- #606 で残した限界：区切りの列が選択待ちで止まると破壊数を書き戻さない／戻す待機の `rank` 衝突／`holdDerivedFor`・`resumeEffectId` が state 経由（原則3）／疲労・ドロー・召喚などの派生はまだその場で解決（別の PR）
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
