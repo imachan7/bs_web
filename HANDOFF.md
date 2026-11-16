@@ -32,7 +32,7 @@
 
 - 範囲は欠けが確定した49種だけ（BS01「混沌の守護神」15・BSC05 21・X13 7・X013/X016・EX024〜026・BS11-076）。EX 番号だけの欠け4種（EX003＝P006 など）と、存在未確認の EX・年次番号プロモは入れない（2026-11-16 ユーザー確認）
 - 元データは `data/staging/BS01-chaos.json`・`BSC05.json`・`PROMO-missing.json`・`BS11.json`（BS11-076）。⚠️ `fetch_wiki_cards.py` のキャッシュは弾 ID だけがキーなので、同じ --set で別の --refer を取るときは `--no-cache`
-- 次の一手：調査役（Sonnet）が効果ごとに既存の器／新しい部品・解釈が割れる点・主役の公式Q&Aを表にする → `docs/design/MISSING_CARDS_SURVEY.md`（形は STARTER_SURVEY_white.md §1〜§3＋§4 解釈・§5 Q&A）→ 確認 → 実装。11-16 夕方に調査役を出した
+- 次の一手：調査役（Sonnet）が効果ごとに既存の器／新しい部品・解釈が割れる点・主役の公式Q&Aを表にする → `docs/design/MISSING_CARDS_SURVEY.md`（形は STARTER_SURVEY_white.md §1〜§3＋§4 解釈・§5 Q&A）→ 確認 → 実装。11-16 調査済み。§6 がメインループの見直しで、解釈の確認をユーザーに出した（答えは §6 に書き足してから実装へ）
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
