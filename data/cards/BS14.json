@@ -6148,7 +6148,8 @@
     "event": "opponentSummonEffectResolved",
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     },
     "thenPay": "main"
    },
@@ -7217,7 +7218,8 @@
     "action": {
      "type": "removeCores",
      "to": "trash",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     },
     "alsoDrawIfDestroyedColor": "purple",
     "returnSelfToHandAfter": true

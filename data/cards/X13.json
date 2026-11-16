@@ -156,7 +156,8 @@
      "actions": [
       {
        "type": "removeCores",
-       "count": 1
+       "count": 1,
+       "target": "spread"
       },
       {
        "type": "draw",

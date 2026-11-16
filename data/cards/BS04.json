@@ -5602,7 +5602,8 @@
        ],
        "to": "trash",
        "count": 1,
-       "countCounter": "lastMoved"
+       "countCounter": "lastMoved",
+       "target": "spread"
       }
      ]
     }

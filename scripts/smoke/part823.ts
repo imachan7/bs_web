@@ -177,9 +177,11 @@ for (const [label, ownerPid, cores, expected] of [["自分の Lv3", "p1", 4, 2],
     const target = put(s, "p2", TARAN, 4)
     s.players.p1.hand = [VICTO]
     const reserve = s.players.p2.reserve
+    const oppCores = () => s.players.p2.field.spirits.reduce((n, x) => n + x.cores, 0)
+    const before = oppCores()
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, `${label}：ヴィクトローラーを召喚できる`)
     settle(s, [target.instanceId])
-    assert(target.cores === 4 - expected && s.players.p2.reserve === reserve + expected, `${label}：相手のスピリットから${expected}個のコアがリザーブへ`)
+    assert(oppCores() === before - expected && s.players.p2.reserve === reserve + expected, `${label}：相手のスピリットのどれかから合計${expected}個のコアがリザーブへ（実際${before}→${oppCores()}）`)
 }
 
 console.log("=== 016：『召喚時』効果を持つスピリットすべては手札/デッキに戻らない（持たないスピリットは戻る） ===")
