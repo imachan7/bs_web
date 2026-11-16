@@ -537,6 +537,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `returnToHandCandidateCountForPay`（fn）：ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
 - `returnToDeckTopCandidateCountForPay`（fn）：pay の判定表（return の to:"deckTop"／"deckBottom"）が使う候補数
+- `returnWaitingSpiritToHand`（fn）：破壊待機中の発生源を手札に戻す（reviveOnDestroy の cost.returnSelfToHand。同時破壊の発生源。Q2814）。
 
 ## server/src/logic/actions/combinedAttackRepeat.ts
 

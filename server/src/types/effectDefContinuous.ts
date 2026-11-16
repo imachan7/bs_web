@@ -108,11 +108,13 @@ export type EffectDefContinuous =
       }
     | {
           id: string
-          kind: "destroyBlockerAtBattleEnd" // 発生源の持ち主のスピリット（attackerCost のコスト）をブロックしていた、blockerLevel のスピリットを、バトル終了時に破壊する
+          kind: "destroyOpponentAtBattleEnd" // 発生源の持ち主のスピリットとバトルした相手のスピリットを、バトル終了時に破壊する
           // 判定はバトル解決時（BP比較の前）。予約した後に発生源が離れても破壊する（BS23-042。Q4551〜Q4553）
           levels: number[] | null
-          attackerCost: number
-          blockerLevel: number
+          opponentRole: "blocker" | "attacker" | "either" // 相手の立場。"blocker"＝自分がアタッカーで相手がブロッカー／"either"＝どちらでも（BS01-111 Lv2）
+          ownCost?: number // 発生源の持ち主の側のスピリットのコスト（省略時は問わない）
+          opponentLevel?: number // 相手のスピリットのレベル
+          opponentFilter?: ResolvedTargetFilter // 相手のスピリットの絞り込み
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
       }
     | {

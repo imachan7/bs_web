@@ -3461,7 +3461,7 @@
   "effects": [
    {
     "id": "BS23-042-e1",
-    "kind": "destroyBlockerAtBattleEnd",
+    "kind": "destroyOpponentAtBattleEnd",
     "levels": [
      1,
      2,
@@ -3471,8 +3471,9 @@
      "phase": "attack",
      "turn": "own"
     },
-    "attackerCost": 2,
-    "blockerLevel": 1
+    "opponentRole": "blocker",
+    "ownCost": 2,
+    "opponentLevel": 1
    },
    {
     "id": "BS23-042-e2",

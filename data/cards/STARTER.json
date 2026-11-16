@@ -9167,7 +9167,48 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\n相手の赤のスピリットにブロックされた、または相手のスピリットをブロックした自分のスピリットすべてをBP+1000する。\nLv2『お互いのアタックステップ』\n自分のスピリットをアタックかブロックした相手の赤のスピリットは、バトル終了時に破壊される。",
-  "effects": []
+  "effects": [
+    {
+      "id": "BS01-111-e1",
+      "kind": "aura",
+      "levels": [
+        1,
+        2
+      ],
+      "aura": {
+        "type": "bp",
+        "target": "ownAll",
+        "filter": {
+          "inBattle": true
+        },
+        "amount": 1000,
+        "condition": {
+          "battleOpponentMatches": {
+            "color": "red"
+          }
+        },
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "both"
+        }
+      }
+    },
+    {
+      "id": "BS01-111-e2",
+      "kind": "destroyOpponentAtBattleEnd",
+      "levels": [
+        2
+      ],
+      "opponentRole": "either",
+      "opponentFilter": {
+        "color": "red"
+      },
+      "phaseTurn": {
+        "phase": "attack",
+        "turn": "both"
+      }
+    }
+  ]
  },
  {
   "cardId": "BS01-124",
@@ -9188,7 +9229,42 @@
   "rarity": "U",
   "limited": true,
   "effect": "フラッシュ：\nスピリット1体の上にボイドからコア4個を置く。\nエンドステップに、自分のコア4個をボイドに置く。",
-  "effects": []
+  "effects": [
+    {
+      "id": "BS01-124-e1",
+      "kind": "magic",
+      "timing": "flash",
+      "action": {
+        "type": "sequence",
+        "actions": [
+          {
+            "type": "placeCores",
+            "from": "void",
+            "to": "spirit",
+            "target": "one",
+            "count": 4,
+            "anySide": true
+          },
+          {
+            "type": "atEndStep",
+            "action": {
+              "type": "removeCores",
+              "side": "own",
+              "from": [
+                "spirit",
+                "nexus",
+                "reserve",
+                "trash"
+              ],
+              "to": "void",
+              "target": "spread",
+              "count": 4
+            }
+          }
+        ]
+      }
+    }
+  ]
  },
  {
   "cardId": "BS01-145",
@@ -9741,7 +9817,41 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\n自分はデッキから1枚ドローする。\nLv3\nこのスピリット以外の自分のスピリットが破壊されたとき、このスピリットを手札に戻すことで、その破壊されたスピリットを同じ状態で自分のフィールドに戻す。",
-  "effects": []
+  "effects": [
+    {
+      "id": "BSC05-011-e1",
+      "kind": "triggered",
+      "trigger": "onDestroy",
+      "levels": [
+        1,
+        2,
+        3
+      ],
+      "action": {
+        "type": "draw",
+        "count": 1
+      }
+    },
+    {
+      "id": "BSC05-011-e2",
+      "kind": "reviveOnDestroy",
+      "levels": [
+        3
+      ],
+      "scope": "ownAll",
+      "filter": {
+        "excludeSelf": true
+      },
+      "when": {},
+      "revived": {
+        "keepState": true
+      },
+      "cost": {
+        "returnSelfToHand": true
+      },
+      "optional": true
+    }
+  ]
  },
  {
   "cardId": "BSC05-012",
