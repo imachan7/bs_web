@@ -72,7 +72,10 @@ withAttackEffect({ type: "sequence", actions: [{ type: "lifeCrush", count: 1 }, 
     assert(declared < drew, "宣言は、ライフが減った時点（ドローより前）")
     assert(drew < applied, "バースト効果の適用は、ドローの後")
     assert(!s.players.p2.burstSet && s.declaredBursts === undefined, "適用し終えたらバーストエリアは空で、控えも残らない")
-    assert(!s.players.p1.field.spirits.includes(actor) && s.battle === null, "バースト効果でアタッカーが手札に戻ったので、同じ操作の中でバトルが終了する")
+    assert(!s.players.p1.field.spirits.includes(actor) && s.battle !== null && s.isFlashTiming === true, "アタッカーは手札に戻ったが、まだバトルがありフラッシュタイミングが続く（フラッシュ①は行う）")
+    let guard = 0
+    while (s.isFlashTiming && s.battle && guard++ < 10) act(s, s.priorityPlayer, { type: "pass" })
+    assert(s.battle === null, "双方がパスしたらバトルが終わる")
 })
 
 console.log("=== 2. 同じ場面を対話で：発動の確認はライフが減った時点、適用はドローの後 ===")
