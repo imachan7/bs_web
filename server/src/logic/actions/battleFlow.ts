@@ -1,5 +1,6 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { targetableSpirits, targetableNexuses } from "../targeting"
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { finishSummonSequence } from "../summon"
 import { takeFromTrash, trashTakeableByEffect } from "../zones/trash"
@@ -285,7 +286,9 @@ const swapBattlerHandler: ActionHandler<"swapBattler"> = (ctx, action) => {
             log(state, `${sourceName}：バトル中のスピリットを${getCard(replacement.cardId).name}と入れ替えた。`)
             return
         }
-        const restedOwn = state.players[owner].field.spirits.filter(
+        const restedOwn = targetableSpirits(
+            state,
+            owner,
             (s) => s.isRested && s.instanceId !== currentBattlerId,
         )
         if (state.interactiveTargets) {
@@ -1062,7 +1065,7 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
     }
     const oppPlayer = state.players[opp]
     const scope = action.allHosts ? "area" : "targeted"
-    const hosts = oppPlayer.field.spirits.filter((sp) => affectableBraves(ctx, opp, sp, "destroy", scope).length > 0)
+    const hosts = targetableSpirits(state, opp, (sp) => affectableBraves(ctx, opp, sp, "destroy", scope).length > 0)
     if (hosts.length === 0) {
         log(state, `${sourceName}：ブレイヴを破壊できる相手の合体スピリットがいなかった。`)
         return
@@ -1402,7 +1405,9 @@ const directAttackHandler: ActionHandler<"directAttack"> = (ctx, action) => {
         return
     }
     const filter = directAttackFilterOf(action.constraint, mustBeAttackTargetIds(state, owner, self))
-    const candidates = state.players[opp].field.spirits.filter(
+    const candidates = targetableSpirits(
+        state,
+        opp,
         (t) => matchesDirectedAttackFilter(filter, t, state, opp, { pid: owner, inst: self }) === null,
     )
     if (candidates.length === 0) {
@@ -1447,12 +1452,12 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
         // 候補になる（ブレイヴ型も自然に含まれるので二重管理にはならない。BS13-X06巨人勇者ペルセウス：
         // 「相手のスピリット状態のブレイヴ1体か、相手の合体スピリットのブレイヴ1つを破壊する」＝types:["brave"]のみ）
         const spirits = types.includes("spirit")
-            ? oppPlayer.field.spirits
+            ? targetableSpirits(state, opp)
             : types.includes("brave")
-              ? oppPlayer.field.spirits.filter((sp) => getCard(sp.cardId).type === "brave")
+              ? targetableSpirits(state, opp, (sp) => getCard(sp.cardId).type === "brave")
               : []
         const braves = types.includes("brave") ? oppPlayer.field.combinedBraves : []
-        const nexuses = types.includes("nexus") ? oppPlayer.field.nexuses : []
+        const nexuses = types.includes("nexus") ? targetableNexuses(state, opp) : []
         let candidates: CardInstance[] = [...spirits, ...braves, ...nexuses]
         // maxBpFromSelf（BS12-003鎧竜人ガストン）：selfの実効BP以下のみ（ネクサスはBPが無いので対象外になる）
         if (action.maxBpFromSelf && self) {
@@ -1658,7 +1663,7 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
     if (targetInstanceId !== undefined) {
         host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId && (sp.braveRefs ?? []).length > 0)
     } else {
-        const hostCandidates = player.field.spirits.filter((sp) => (sp.braveRefs ?? []).length > 0)
+        const hostCandidates = targetableSpirits(state, owner, (sp) => (sp.braveRefs ?? []).length > 0)
         if (hostCandidates.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
             return

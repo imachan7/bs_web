@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log, suspend } from "../GameState"
 import { effectiveBp, matchesTarget } from "../../../../shared/rules"
-import { pickEnemyCandidates } from "../targeting"
+import { pickEnemyCandidates, targetableSpirits } from "../targeting"
 import { lastTargetsOf, recordTargets } from "../record"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
@@ -23,7 +23,7 @@ const designateHandler: ActionHandler<"designate"> = (ctx, action) => {
     }
     const matches = (s: Parameters<typeof matchesTarget>[2]): boolean => !chosen.includes(s.instanceId) && matchesTarget(state, pid, s, filter, self?.instanceId)
     // 相手のスピリットは装甲などの「指定されない」を通す（自分のスピリットには働かない）
-    const candidates = action.side === "opponent" ? pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType) : state.players[owner].field.spirits.filter(matches)
+    const candidates = action.side === "opponent" ? pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType) : targetableSpirits(state, owner, matches)
     const count = action.count ?? 1
     // 選択の解決（awaiting が付いているときだけ targetInstanceId を選ばれた個体として読む。素の targetInstanceId は誘発のイベント対象）
     if (action.awaiting) {

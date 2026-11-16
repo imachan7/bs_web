@@ -9,6 +9,16 @@ import { markPays, skipUnpayablePay } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
 import { effectiveBp } from "../../../shared/rules"
 
+// 対象の候補にするスピリット・ネクサス。待機中のカードは待機の出来事で誘発した効果の対象にだけなる（waiting.ts canBeTargeted）。
+// 数える・条件を見る用途には使わない（待機中も場にいるので数える）。候補を列挙するときは field.spirits.filter を直接書かずここを通す
+export function targetableSpirits(state: GameState, pid: PlayerId, pred: (s: CardInstance) => boolean = () => true): CardInstance[] {
+    return state.players[pid].field.spirits.filter((s) => canBeTargeted(state, s) && pred(s))
+}
+
+export function targetableNexuses(state: GameState, pid: PlayerId, pred: (n: CardInstance) => boolean = () => true): CardInstance[] {
+    return state.players[pid].field.nexuses.filter((n) => canBeTargeted(state, n) && pred(n))
+}
+
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
 // （pickEnemyByBp の自動選択・対象選択式の候補列挙の両方から使う共通フィルタ）。
 // 耐性は resistanceAgainst に一本化してある（**個別の述語をここに書き足さないこと**）。
@@ -36,10 +46,10 @@ export function pickEnemyCandidates(
         ...(sourceType !== undefined ? { sourceType } : {}),
         ...(sourceColors !== undefined ? { sourceColors } : {}),
     }
-    return state.players[targetPid].field.spirits.filter(
+    return targetableSpirits(
+        state,
+        targetPid,
         (s) =>
-            // 待機状態のカードは、場を離れることに関係する誘発で発揮した効果の対象にだけなる（PENDING_STATE.md §3 P5）
-            canBeTargeted(state, s) &&
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isResisted(state, targetPid, s, attempt) &&
             extraPredicate(s),
@@ -63,7 +73,7 @@ export function pickAnySideCandidates(
     return applyBothSidesRedirectToCandidates(state, sourceType, [
         ...pickEnemyCandidates(state, opp, Infinity, matches, sourceColors, sourceType, op),
         // 自分側も待機状態は同じ判定
-        ...state.players[owner].field.spirits.filter((s) => canBeTargeted(state, s) && matches(s)),
+        ...targetableSpirits(state, owner, matches),
     ])
 }
 
@@ -91,9 +101,7 @@ export function pickAnySideByBp(
     const ownCandidates =
         keepPid !== null && keepPid !== owner
             ? []
-            : state.players[owner].field.spirits.filter(
-                  (s) => canBeTargeted(state, s) && effectiveBp(state, owner, s) <= maxBp && matches(s),
-              )
+            : targetableSpirits(state, owner, (s) => effectiveBp(state, owner, s) <= maxBp && matches(s))
     const ownCandidate =
         ownCandidates.length > 0
             ? ownCandidates.reduce((best, s) =>
@@ -324,6 +332,10 @@ export function requestChoice(
         })
         return
     }
+    // 安全網：場の待機中のカードで対象にできないものは候補から落とす（手札・トラッシュの id は場にいないのでそのまま通る）
+    const onField = (id: string): CardInstance | undefined =>
+        [state.players.p1, state.players.p2].flatMap((p) => [...p.field.spirits, ...p.field.nexuses]).find((c) => c.instanceId === id)
+    candidates = candidates.filter((id) => canBeTargeted(state, onField(id)))
     if (candidates.length === 0) {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
         return

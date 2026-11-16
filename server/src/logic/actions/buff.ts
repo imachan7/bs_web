@@ -1,5 +1,6 @@
 // BP修正系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { targetableSpirits } from "../targeting"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
 import { getCard, log } from "../GameState"
@@ -30,7 +31,9 @@ import { kyokaBonus } from "../keywords/kyoka"
 // ターン終了時までBP+Nする（「このターン中、系統：「紅雲」を持つ自分のスピリットすべてをBP+1000する」）
 const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
-    const targets = state.players[owner].field.spirits.filter(
+    const targets = targetableSpirits(
+        state,
+        owner,
         (s) => (action.familyFilter === undefined || matchesFamilyFilter(state, owner, s, action.familyFilter)) && (action.teamFilter === undefined || (getCard(s.cardId).team ?? []).includes(action.teamFilter)),
     )
     if (targets.length === 0) {
@@ -53,7 +56,7 @@ const bpMinus: ActionHandler<"bpMinus"> = (ctx, action) => {
     if (filter === SELF_REQUIRED) return
     const amount = action.amount + (action.per ? countEffectCounter(state, owner, self, action.per.counter, srcType) * action.per.amount : 0) + kyokaBonus(state, owner, "bpMinus") * 1000
     if (action.all) {
-        const hit = state.players[opp].field.spirits.filter((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
+        const hit = targetableSpirits(state, opp, (s) => matchesTarget(state, opp, s, filter, self?.instanceId))
         for (const t of hit) {
             const resisted = resistanceAgainst(state, opp, t, attemptOf(ctx, "other", "area"))
             if (resisted) {

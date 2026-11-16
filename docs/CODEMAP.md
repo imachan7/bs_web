@@ -1235,6 +1235,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/targeting.ts
 
+- `targetableSpirits`（fn）：対象の候補にするスピリット・ネクサス。待機中のカードは待機の出来事で誘発した効果の対象にだけなる（waiting.ts canBeTargeted）。
+- `targetableNexuses`（fn）
 - `pickEnemyCandidates`（fn）：相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
 - `pickAnySideCandidates`（fn）：「自分か相手のスピリット1体」を対象にする効果（action.anySide）の候補列挙。
 - `pickAnySideByBp`（fn）：「自分か相手のスピリット1体」を対象にする効果（action.anySide）の自動選択（非対話時）で使う共通ロジック。

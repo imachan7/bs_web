@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import { canBeTargeted } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
-import { requestActivationConfirm } from "../targeting"
+import { requestActivationConfirm, targetableSpirits, targetableNexuses } from "../targeting"
 import { redirectMagicInUse } from "../magic/inUse"
 import { coreRemovalAllowed } from "../coreGate"
 import { handGainDenial } from "../handGate"
@@ -228,9 +228,7 @@ const grantKeywordThisTurnHandler: ActionHandler<"grantKeywordThisTurn"> = (ctx,
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
         return
     }
-    const candidates = state.players[owner].field.spirits.filter(
-        (s) => matchesTarget(state, owner, s, filter, self?.instanceId),
-    )
+    const candidates = targetableSpirits(state, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId))
     if (candidates.length === 0) {
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
         return
@@ -485,7 +483,7 @@ const treatOwnNexusesAsSpiritsThisTurnHandler: ActionHandler<"treatOwnNexusesAsS
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
     const minCores = action.minCores ?? 1
-    const targets = player.field.nexuses.filter((n) => n.cores >= minCores)
+    const targets = targetableNexuses(state, owner, (n) => n.cores >= minCores)
     if (targets.length === 0) {
         log(state, `${sourceName}：コアが${minCores}個以上置かれた自分のネクサスがなかった。`)
         return
@@ -520,7 +518,7 @@ const nexusAsSpiritThisStepHandler: ActionHandler<"nexusAsSpiritThisStep"> = (ct
     else {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return
-        const open = player.field.nexuses.filter((n) => matchesTarget(state, owner, n, filter, self?.instanceId))
+        const open = targetableNexuses(state, owner, (n) => matchesTarget(state, owner, n, filter, self?.instanceId))
         if (targetInstanceId) nexus = open.find((n) => n.instanceId === targetInstanceId)
         else if ((open.length > 1 || (action.upTo && open.length > 0)) && state.interactiveTargets) {
             const prompt = `${sourceName}：スピリットとして扱うネクサスを選んでください`

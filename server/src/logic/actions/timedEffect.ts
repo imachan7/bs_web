@@ -1,4 +1,5 @@
 // 継続効果を期間つきで置く（ACTION_VOCABULARY §3「期間つきの継続効果」）
+import { targetableSpirits } from "../targeting"
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, CardType, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log, suspend } from "../GameState"
@@ -124,7 +125,7 @@ function rulePid(ctx: Parameters<ActionHandler<"timedEffect">>[0], side: TimedEf
 }
 
 function pickOwnBpTarget(state: GameState, owner: PlayerId, filter: ResolvedTargetFilter, selfInstanceId?: string): CardInstance | null {
-    const mine = state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, selfInstanceId))
+    const mine = targetableSpirits(state, owner, (s) => matchesTarget(state, owner, s, filter, selfInstanceId))
     if (state.battle) {
         const battling = mine.find((s) => s.instanceId === state.battle?.attackerInstanceId || s.instanceId === state.battle?.blockerInstanceId)
         if (battling) return battling
@@ -158,7 +159,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
     // ponytail: 「まで」も常に N 体まで選ぶ（BP+ は減らす理由が無い）。途中で止めさせるなら skip 付きの選択にする
     if (action.side === "own" && typeof action.count === "number" && action.count > 1 && content.amountCounter === undefined) {
         const chosen = action.chosenIds ?? []
-        const candidates = state.players[owner].field.spirits.filter((s) => !chosen.includes(s.instanceId) && matchesTarget(state, owner, s, filter, self?.instanceId))
+        const candidates = targetableSpirits(state, owner, (s) => !chosen.includes(s.instanceId) && matchesTarget(state, owner, s, filter, self?.instanceId))
         if (targetInstanceId === undefined && tryInteractiveTargetChoice(state, owner, self, `${sourceName}：BPを増加するスピリットを選んでください（残り${action.count - chosen.length}体）`, candidates, action, null)) return
         const t = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : [...candidates].sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))[0]
         if (!t) {
@@ -193,7 +194,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
         target = candidates[0] ?? null
     } else if (action.side === "own" && state.interactiveTargets && !filter.lastTarget && !filter.lastBpBuffTarget) {
         // 自分のスピリットが2体以上なら選ばせる（移行で自動選択に落ちていた。2026-10-22 発見）
-        const candidates = state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+        const candidates = targetableSpirits(state, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId))
         if (tryInteractiveTargetChoice(state, owner, self, `${sourceName}：BPを増加するスピリットを選んでください`, candidates, action, null)) return
     }
     if (!target && targetInstanceId === undefined) {
@@ -421,7 +422,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
             resistanceAgainst(state, sPid, s, { ...attemptOf(ctx, "other", "targeted"), probing: true as const }) === null &&
             matchesTarget(state, sPid, s, filter, self?.instanceId) &&
             (!content.requireLevelExists || getCard(s.cardId).levels.some((l) => l.level === levelOf(s)))
-        const candidates = pids.flatMap((p) => state.players[p].field.spirits.filter((s) => passes(s, p)))
+        const candidates = pids.flatMap((p) => targetableSpirits(state, p, (s) => passes(s, p)))
         if (
             targetInstanceId === undefined &&
             tryInteractiveTargetChoice(state, owner, self, `${sourceName}：${content.max ? "最高Lv" : `Lv${content.set}`}として扱うスピリットを選んでください`, candidates, action, null)
@@ -583,7 +584,7 @@ function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
         if (!self) return
         target = self
     } else {
-        const candidates = state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+        const candidates = targetableSpirits(state, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId))
         if (candidates.length === 0) {
             log(state, `${sourceName}：条件に合う自分のスピリットがいなかった。`)
             return
@@ -683,7 +684,7 @@ function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
     }
     const candidates = enemy
         ? pickEnemyCandidates(state, ctx.opp, Infinity, (s) => matchesTarget(state, ctx.opp, s, filter, self?.instanceId), ctx.srcColors, ctx.srcType)
-        : state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+        : targetableSpirits(state, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId))
     if (candidates.length === 0) {
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
         return
@@ -774,7 +775,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
         // count 体に1体ずつ（選んだ個体は chosenIds で除く）
         const total = typeof action.count === "number" ? action.count : 1
         const chosen = action.chosenIds ?? []
-        const candidates = state.players[owner].field.spirits.filter((s) => !chosen.includes(s.instanceId) && matchesTarget(state, owner, s, filter, self?.instanceId))
+        const candidates = targetableSpirits(state, owner, (s) => !chosen.includes(s.instanceId) && matchesTarget(state, owner, s, filter, self?.instanceId))
         if (targetInstanceId === undefined && tryInteractiveTargetChoice(state, owner, self, `${sourceName}：シンボルを追加するスピリットを選んでください`, candidates, action, null)) return
         const target = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : candidates[0]
         if (!target) {

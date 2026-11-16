@@ -1,5 +1,6 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { targetableSpirits, targetableNexuses } from "../targeting"
 import { canBeTargeted, destroyContextOf, isTrashWaiting } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { coreRemovalAllowed } from "../coreGate"
@@ -69,7 +70,7 @@ export function ownSideDestroyCandidates(
     selfInstanceId: string | undefined,
     filter: ResolvedTargetFilter,
 ): CardInstance[] {
-    return state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, selfInstanceId))
+    return targetableSpirits(state, owner, (s) => matchesTarget(state, owner, s, filter, selfInstanceId))
 }
 
 // ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
@@ -989,7 +990,7 @@ const destroySelfHandler = (ctx: ActionCtx): void => {
 const returnOwnNexusToDeckBottomHandler: ActionHandler<"returnOwnNexusToDeckBottom"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     const filter = normalizeFilter(ctx, action)
-    const candidates = filter === SELF_REQUIRED ? [] : state.players[owner].field.nexuses.filter((n) => matchesTarget(state, owner, n, filter, self?.instanceId))
+    const candidates = filter === SELF_REQUIRED ? [] : targetableNexuses(state, owner, (n) => matchesTarget(state, owner, n, filter, self?.instanceId))
     const chosen = candidates.find((n) => n.instanceId === targetInstanceId)
     if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
         requestChoice(state, owner, `${sourceName}：デッキの下に戻す自分のネクサスを選んでください`, candidates.map((n) => n.instanceId), false, action, self)
@@ -1094,12 +1095,12 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
         (action.keywordExclude === undefined || !spiritHasKeyword(state, pid, s, action.keywordExclude)) &&
         resistanceAgainst(state, pid, s, destroyAttempt) === null
     const allSpiritIds = (): string[] => [
-        ...state.players.p1.field.spirits.filter((s) => eligible("p1", s)).map((s) => s.instanceId),
-        ...state.players.p2.field.spirits.filter((s) => eligible("p2", s)).map((s) => s.instanceId),
+        ...targetableSpirits(state, "p1", (s) => eligible("p1", s)).map((s) => s.instanceId),
+        ...targetableSpirits(state, "p2", (s) => eligible("p2", s)).map((s) => s.instanceId),
     ]
     // eachOwn：「お互い、それぞれのスピリット1体を破壊」（BS01-125）。各自は自分のフィールドからだけ選ぶ。
     // 選べるスピリットが無い側は "" にして飛ばす
-    const ownIds = (pid: PlayerId): string[] => state.players[pid].field.spirits.filter((s) => eligible(pid, s)).map((s) => s.instanceId)
+    const ownIds = (pid: PlayerId): string[] => targetableSpirits(state, pid, (s) => eligible(pid, s)).map((s) => s.instanceId)
     const candidatesFor = (pid: PlayerId): string[] => (action.eachOwn ? ownIds(pid) : allSpiritIds())
 
     let chosenOwn = action.chosenOwn
@@ -1143,7 +1144,7 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
         // 非対話時：各プレイヤーが「相手フィールドの実効BP最大」を自動選択する
         // （プレイヤー選択の決定的簡略化。pickEnemyByBpと同じ考え方。相手フィールドが空なら自分フィールドから選ぶ）
         const pickMaxBp = (fromPid: PlayerId, viewerPid: PlayerId): string | undefined => {
-            const spirits = state.players[fromPid].field.spirits.filter((s) => eligible(fromPid, s))
+            const spirits = targetableSpirits(state, fromPid, (s) => eligible(fromPid, s))
             if (spirits.length === 0) return undefined
             return spirits.reduce((best, s) =>
                 effectiveBp(state, fromPid, s) > effectiveBp(state, fromPid, best) ? s : best,
@@ -1151,7 +1152,7 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
         }
         // eachOwn は自分のスピリットを差し出すので、各自の実効BP最小を選ぶ（決定的簡略化）
         const pickMinBp = (pid: PlayerId): string | undefined => {
-            const spirits = state.players[pid].field.spirits.filter((s) => eligible(pid, s))
+            const spirits = targetableSpirits(state, pid, (s) => eligible(pid, s))
             if (spirits.length === 0) return undefined
             return spirits.reduce((best, s) => (effectiveBp(state, pid, s) < effectiveBp(state, pid, best) ? s : best)).instanceId
         }
@@ -1229,7 +1230,7 @@ const mutualKeepChoiceHandler: ActionHandler<"mutualKeepChoice"> = (ctx, action)
     } else {
         // 非対話時：各自が自分のフィールドの実効BP最大を自動選択（決定的簡略化）
         const pickMaxBp = (pid: PlayerId): string | undefined => {
-            const spirits = state.players[pid].field.spirits.filter((s) => !self || s.instanceId !== self.instanceId)
+            const spirits = targetableSpirits(state, pid, (s) => !self || s.instanceId !== self.instanceId)
             if (spirits.length === 0) return undefined
             return spirits.reduce((best, s) =>
                 effectiveBp(state, pid, s) > effectiveBp(state, pid, best) ? s : best,
@@ -1414,7 +1415,7 @@ function destroyOwnSpiritsAny(ctx: ActionCtx, action: DestroyAction): void {
 function destroyOwnNexusesAny(ctx: ActionCtx, action: DestroyNexusAction): void {
     const { state, owner, sourceName, srcType } = ctx
     const scope = currentRecordScope(state)
-    const candidates = state.players[owner].field.nexuses.filter((n) => !costDenied(state, owner, owner, n, action, srcType)).map((n) => n.instanceId)
+    const candidates = targetableNexuses(state, owner, (n) => !costDenied(state, owner, owner, n, action, srcType)).map((n) => n.instanceId)
     const chosen = chooseOwnAny(ctx, action, candidates, "ネクサス")
     if (chosen === null) {
         recordMoved(state, [], scope)
