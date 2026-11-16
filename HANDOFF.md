@@ -39,7 +39,7 @@
   - B：`moveCards.from` に配列 `("hand"|"trash")[]`（X013）／`burstAltEventFromOpponentSummon.alsoOn?`（既定＝従来の自分のライフ減少後。X016）／`placeCores.chooser?: "opponent"`＋`optional?: true`（X13-15）
   - C（確定 11-16）：①action `atEndStep {action}`＝このターンのエンドステップに、エンドステップの誘発と同じ列で1回解決（記録は atTurnEnd と同じ GameState.turnEndActions に印つき。BS01-124）②`destroyBlockerAtBattleEnd` を `destroyOpponentAtBattleEnd {opponentRole:"blocker"|"attacker"|"either", ownCost?, opponentLevel?, opponentFilter?}` に改名・一般化（BS23-042 を移行。BS01-111 Lv2 は either＋赤）③reviveOnDestroy の `cost.returnSelfToHand`（発生源が同時に破壊待機でも払える＝Q2814）と `revived:{keepState:true}`（stayOnFieldRevived で待機を解くだけ。BSC05-011）
   - B は新部品なしで済んだ（X013＝BS15-034 と同じ destroyedMinBp＋summon alsoFrom trash、X13-15＝chooseActionMode chooser:opponent＋removeCores side）
-  - D：古の魔王城の対象付け替え（BSC05-017）／destroy の合計コスト下限＋相手が選ぶ（BS11-076）
+  - D（確定 11-16）：①`magicTargetRedirect` に `redirectTo?: "self" | "ownTargetChosen"`（省略＝self）と `sourceTypes?: ("spirit"|"magic")[]` を足す。ownTargetChosen＝相手が対象を選び終えた後・解決前に、持ち主が元の対象に含まれる自分のスピリットから1体選び対象をそれだけにする（バースト・持続・連鎖は除く Q23566〜68。BSC05-017）②destroy の `budget.atLeast`（合計コストの下限。しきい値は pay で破壊した自分のスピリットのコスト）＋`chooserIsTarget`。相手は1体ずつ選び、届いたらコスト1以上は選べない・最低1体・コスト0は任意（Q24867〜70）。払えるかは COST_MODEL の完全解決の判定で決まる（相手の合計がしきい値未満・相手0体なら払えない＝Q24868。BS11-076）
   - E：ImmuneSource `"burst"`＋TargetFilter `sameColorAsLastTarget`（X13-17）
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
