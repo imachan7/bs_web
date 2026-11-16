@@ -1070,17 +1070,19 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
             return
         }
         if (chosenOpp === undefined) {
+            // 選ぶのは相手、実行者は発生源の持ち主。候補が1体で選択待ちを立てないときも実行者を保つため chooserPid で渡す（#559）
             requestChoice(
                 state,
-                opp,
+                owner,
                 `${sourceName}：破壊するスピリットを選んでください`,
                 candidatesFor(opp),
                 false,
                 { ...action, awaiting: "opponent", chosenOwn },
                 self,
+                "target",
+                undefined,
+                opp,
             )
-            // 選ぶのは相手だが、実行者は発生源の持ち主のまま（destroyAllExceptChosenColorsと同じ）
-            if (state.pendingChoice) state.pendingChoice.actorPid = owner
             return
         }
     } else {
@@ -1155,17 +1157,19 @@ const mutualKeepChoiceHandler: ActionHandler<"mutualKeepChoice"> = (ctx, action)
             return
         }
         if (chosenOpp === undefined) {
+            // 選ぶのは相手、実行者は発生源の持ち主。候補が1体で選択待ちを立てないときも実行者を保つため chooserPid で渡す（#559）
             requestChoice(
                 state,
-                opp,
+                owner,
                 `${sourceName}：残す自分のスピリットを指定してください`,
                 candidatesOf(opp),
                 false,
                 { ...action, awaiting: "opponent", chosenOwn },
                 self,
+                "target",
+                undefined,
+                opp,
             )
-            // 選ぶのは相手だが、実行者は発生源の持ち主のまま（mutualDestroyChoiceと同じ）
-            if (state.pendingChoice) state.pendingChoice.actorPid = owner
             return
         }
     } else {
