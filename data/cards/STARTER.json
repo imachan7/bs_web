@@ -10164,7 +10164,38 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\n相手が、自分のスピリットを対象に含むスピリット/マジックの効果を使用したとき、その効果を受ける自分のスピリット1体を選び、対象をそのスピリット1体のみにできる。\nLv2『お互いのアタックステップ』\n自分の合体スピリットが疲労したとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BSC05-017-e1",
+    "kind": "magicTargetRedirect",
+    "levels": [
+     1,
+     2
+    ],
+    "redirectTo": "ownTargetChosen",
+    "sourceTypes": [
+     "spirit",
+     "magic"
+    ],
+    "optional": true
+   },
+   {
+    "id": "BSC05-017-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritExhausted",
+    "levels": [
+     2
+    ],
+    "subjectFilter": {
+     "combined": true
+    },
+    "phase": "attack",
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BSC05-018",

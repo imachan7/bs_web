@@ -458,6 +458,14 @@ function kyoshuSelfPayable(state: GameState, owner: PlayerId, action: Extract<Ef
 // 対応は then が相手のスピリットを destroy する形、cost が手札を見せる／自分のスピリットを破壊する形だけ
 function narrowCostByLastRecord(state: GameState, owner: PlayerId, self: CardInstance | null, action: Extract<EffectAction, { type: "pay" }>, cost: EffectAction): EffectAction | "none" | null {
     const then = action.then
+    // 「コスト合計がN以上になるように破壊」の下限は、相手のスピリットのコスト合計で頭打ち（Q24868）。相手0体なら払えない（Q4）
+    if (then.type === "destroy" && then.budget?.atLeast !== undefined) {
+        if (cost.type !== "destroy" || cost.side !== "own") return null
+        const oppSpirits = state.players[opponentOf(owner)].field.spirits
+        if (oppSpirits.length === 0) return "none"
+        const sum = oppSpirits.reduce((s, sp) => s + getCard(sp.cardId).cost, 0)
+        return { ...cost, filter: { ...cost.filter, cost: { ...cost.filter?.cost, max: sum } } }
+    }
     if (then.type !== "destroy" || then.side === "own" || then.filter === undefined) return null
     const same = then.filter.sameCostAsLast === true
     if (!same && then.filter.maxCostAsLast !== true) return null
