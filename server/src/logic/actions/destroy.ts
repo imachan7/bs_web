@@ -851,7 +851,7 @@ function budgetToggleDestroy(
         return true
     }
     const names = chosen.map((id) => getCard(onField(id)!.cardId).name)
-    destroyTargetsBatch(state, owner, chosen.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
+    destroyTargetList(ctx, chosen.map((instanceId) => ({ pid: opp, instanceId })), action)
     log(state, `${sourceName}：${unitLabel}合計${budget}まで「${names.join("、")}」を破壊した。`)
     return true
 }
@@ -905,7 +905,7 @@ export function destroyWithinBudget(ctx: ActionCtx, action: DestroyAction): void
         log(state, `${sourceName}：破壊できる対象がいなかった。`)
         return
     }
-    destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
+    destroyTargetList(ctx, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), action)
     log(state, `${sourceName}：${unit}合計${budget}まで「${names.join("、")}」を破壊した。`)
 }
 
@@ -930,7 +930,7 @@ function destroyAtLeastCost(ctx: ActionCtx, action: DestroyAction): void {
             return
         }
         const names = chosen.map((id) => getCard(onField(id)!.cardId).name)
-        destroyTargetsBatch(state, owner, chosen.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
+        destroyTargetList(ctx, chosen.map((instanceId) => ({ pid: opp, instanceId })), action)
         log(state, `${sourceName}：コスト合計${need}以上になるように「${names.join("、")}」を破壊した。`)
     }
     // 「これで破壊する」（届いた後のスキップ）で戻ってきた

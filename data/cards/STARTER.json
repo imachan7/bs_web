@@ -10558,8 +10558,10 @@
         "duration": "turn",
         "all": true,
         "filter": {
-          "uncombined": true,
-          "keywordExclude": "tensho"
+          "anyOf": [
+            { "uncombined": true },
+            { "keywordExclude": "tensho" }
+          ]
         }
       }
     }

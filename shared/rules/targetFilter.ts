@@ -133,6 +133,7 @@ export function matchesTarget(
     if (filter.refreshed !== undefined && inst.isRested === filter.refreshed) return false
     // BS11-X04：合体していないスピリットだけ（合体中のブレイヴ自身も「合体している」側）
     if (filter.uncombined === true && instIsCombined(inst)) return false
+    if (filter.anyOf !== undefined && !filter.anyOf.some((f) => matchesTarget(board, ownerPid, inst, f as unknown as ResolvedTargetFilter, selfInstanceId))) return false
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
     // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）。
     // 配列指定はいずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）

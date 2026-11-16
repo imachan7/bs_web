@@ -83,6 +83,7 @@ export interface TargetFilter {
     hasUnblockableEffectOrActive?: true // BS15共通器：カード自身の効果文に「ブロックされない」（kind:"constraint" constraint:"unblockableBy"）を持てば**条件の成否を問わず**対象。加えて、unblockableOnlyと同じく他の効果で**今まさに**ブロックされなくなっているスピリットも対象（両方のOR。BS15-051虚海獣エメヒドラルLv2：「『ブロックされない』効果を持つ相手のスピリット1体」＝2026-09-18ユーザー確認G）
     keywords?: Keyword[] // 指定したキーワードの**いずれか**を持つもの（keyword の複数版。OR。BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）
     keywordExclude?: Keyword // 指定キーワードを**持たない**もの（一時付与・継続付与も考慮。keyword の否定。BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
+    anyOf?: TargetFilter[] // どれか1つに合えばよい（OR）。子は normalizeFilter を通らないので self 相対・記録参照の軸は書けない（BSC05-028「合体していない、または【転召】を持たない」）
     attackingOnly?: true // 現在のバトルのアタッカー（board.battle.attackerInstanceId）だけ。バトルが無ければ対象なし（「アタックしている自分のスピリット」。BS07桜の妖精オウカ）
     bunshin?: true // 分身スピリット（bunshinOf を持つ個体）だけ。BS22
     hasTrigger?: TriggerEvent // 指定トリガーの誘発効果を現在のレベルで静的に持つものだけ（instHasTriggerEffectで判定。継続付与は見ない。BS08プテラディア捕獲部隊＝『召喚時』効果持ち）

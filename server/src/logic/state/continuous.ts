@@ -88,6 +88,8 @@ function applyTimedCopies(state: GameState): void {
         // 記録順に処理する＝後から掛けた Lv が勝つ
         for (const c of contents) {
             if (c.type === "color" && c.color !== undefined && !inst.timedColors.includes(c.color)) inst.timedColors.push(c.color)
+            // bpAs は「すべて」の記録からも写す（下の1体指定だけのループに置かない）
+            if (c.type === "bpAs") inst.battleBpAs = { levels: [...c.levels], amount: c.amount }
             if (c.type === "symbolAdd" && c.color) (inst.timedSymbolsAdded ??= []).push(...new Array<Color>(c.count ?? 1).fill(c.color))
             else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
             if (c.type === "effectsDisabled") inst.timedEffectsDisabled = true
@@ -109,7 +111,6 @@ function applyTimedCopies(state: GameState): void {
                 else inst.tempBpBuff += c.amount
             }
             // 記録を出した側（ownerPid）が意味を持つ内容はここで写す（timedContentsOn では誰が出したかが消えるため）
-            if (c.type === "bpAs") inst.battleBpAs = { levels: [...c.levels], amount: c.amount }
             if (c.type === "immune") grantImmune(inst, c)
             if (c.type === "untargetableByOpponentMagic") inst.untargetableByOpponentMagicTimed = true
             if (c.type === "countAs") inst.countAsThisTurn = { pid: r.ownerPid, count: c.count, ...(c.sourceTypes ? { sourceTypes: c.sourceTypes } : {}) }
