@@ -1449,7 +1449,8 @@
     "action": {
      "type": "removeCores",
      "to": "trash",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    }
   ]
@@ -1748,7 +1749,8 @@
     },
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    },
    {

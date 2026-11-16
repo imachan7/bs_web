@@ -809,7 +809,8 @@
     "action": {
      "type": "removeCores",
      "count": 1,
-     "leaveAtLeast": 1
+     "leaveAtLeast": 1,
+     "target": "spread"
     },
     "optional": false
    }
@@ -1076,7 +1077,8 @@
     ],
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     },
     "optional": false
    }
@@ -1405,7 +1407,8 @@
     },
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    },
    {
@@ -1420,7 +1423,8 @@
      "count": 1,
      "countCounter": {
       "ownKeyword": "jugeki"
-     }
+     },
+     "target": "spread"
     },
     "optional": false
    }
@@ -4643,7 +4647,8 @@
     },
     "action": {
      "type": "removeCores",
-     "count": 1
+     "count": 1,
+     "target": "spread"
     }
    }
   ]

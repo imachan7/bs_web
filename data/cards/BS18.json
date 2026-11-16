@@ -789,7 +789,8 @@
       ],
       "to": "trash",
       "count": 1,
-      "countCounter": "lastMoved"
+      "countCounter": "lastMoved",
+      "target": "spread"
      }
     }
    }
@@ -3898,7 +3899,8 @@
     "action": {
      "type": "removeCores",
      "count": 3,
-     "leaveAtLeast": 1
+     "leaveAtLeast": 1,
+     "target": "spread"
     }
    },
    {
