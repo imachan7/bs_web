@@ -674,7 +674,9 @@ const isReserveToll = (a: EffectAction): a is Extract<EffectAction, { type: "rem
 // pay.oncePerTurn の枠の键となる効果 idを、発生源カードの効果木からこの pay と同じ cost/then の節を探して得る
 function oncePayEffectId(cardId: string | undefined, action: Extract<EffectAction, { type: "pay" }>): string | undefined {
     if (cardId === undefined) return undefined
-    const shape = JSON.stringify({ cost: action.cost, then: action.then })
+    // 【連鎖】の節の印（markRensa が解決中に足す rensa）は形に入れない（データ側には無い）
+    const shapeOf = (cost: unknown, then: unknown) => JSON.stringify({ cost, then }, (k, x) => (k === "rensa" ? undefined : x))
+    const shape = shapeOf(action.cost, action.then)
     for (const effect of getCard(cardId).effects) {
         let hit = false
         const walk = (v: unknown): void => {
@@ -684,7 +686,7 @@ function oncePayEffectId(cardId: string | undefined, action: Extract<EffectActio
                 return
             }
             const o = v as Record<string, unknown>
-            if (o["type"] === "pay" && o["oncePerTurn"] === true && JSON.stringify({ cost: o["cost"], then: o["then"] }) === shape) {
+            if (o["type"] === "pay" && o["oncePerTurn"] === true && shapeOf(o["cost"], o["then"]) === shape) {
                 hit = true
                 return
             }

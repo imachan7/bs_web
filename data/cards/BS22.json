@@ -91,6 +91,7 @@
     "optional": false,
     "action": {
      "type": "if",
+     "rensa": true,
      "cond": {
       "count": {
        "ownColorSymbols": "green"
@@ -377,6 +378,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "green"
@@ -455,6 +457,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "green"
@@ -1012,6 +1015,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "blue"
@@ -1213,6 +1217,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "blue"
@@ -1875,6 +1880,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "yellow"
@@ -2350,6 +2356,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "purple"
@@ -2530,6 +2537,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "purple"
@@ -2827,6 +2835,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "red"
@@ -3127,6 +3136,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "red"
@@ -3814,6 +3824,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "white"
@@ -3922,6 +3933,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "green"
@@ -3944,6 +3956,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "white"
@@ -4580,6 +4593,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "yellow"
@@ -5547,6 +5561,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "green"
@@ -5602,6 +5617,7 @@
        },
        {
         "type": "if",
+        "rensa": true,
         "cond": {
          "count": {
           "ownColorSymbols": "blue"
@@ -5766,6 +5782,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "yellow"
@@ -5929,6 +5946,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "purple"
@@ -6057,6 +6075,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "red"
@@ -6134,6 +6153,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "white"
@@ -6257,6 +6277,7 @@
     "optional": false,
     "action": {
      "type": "if",
+     "rensa": true,
      "cond": {
       "count": {
        "ownColorSymbols": "green"
@@ -6546,6 +6567,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "purple"
@@ -6583,6 +6605,7 @@
        },
        {
         "type": "if",
+        "rensa": true,
         "cond": {
          "count": {
           "ownColorSymbols": "purple"
@@ -6627,6 +6650,7 @@
        },
        {
         "type": "if",
+        "rensa": true,
         "cond": {
          "count": {
           "ownColorSymbols": "purple"
@@ -6743,6 +6767,7 @@
       },
       {
        "type": "if",
+       "rensa": true,
        "cond": {
         "count": {
          "ownColorSymbols": "red"

@@ -892,7 +892,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/keywords/rensa.ts
 
 - `rensaConditionIgnored`（fn）
-- `isRensaClause`（fn）：【連鎖】の[色]の節（keyword:"rensa" のエントリの if）か。コンテキストに効果エントリが渡らないので、
+- `markRensa`（fn）：【連鎖】の節の中のアクションすべてに rensa を付ける。選択待ちで中断しても、再開用の action（{...action}）が印を運ぶ。
 - `fireRensaActivated`（fn）：節を解決し終えた直後（選択待ちから再開した後でも sequence の続きとして）呼ばれる
 
 ## server/src/logic/keywords/seimei.ts

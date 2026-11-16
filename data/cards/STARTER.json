@@ -3432,6 +3432,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "green"
@@ -3588,6 +3589,7 @@
         "optional": false,
         "action": {
           "type": "if",
+          "rensa": true,
           "cond": {
             "count": {
               "ownColorSymbols": "green"
@@ -3762,6 +3764,7 @@
         "optional": false,
         "action": {
           "type": "if",
+          "rensa": true,
           "cond": {
             "count": {
               "ownColorSymbols": "green"
@@ -3886,6 +3889,7 @@
           "actions": [
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "green"
@@ -4004,6 +4008,7 @@
         "optional": false,
         "action": {
           "type": "if",
+          "rensa": true,
           "cond": {
             "count": {
               "ownColorSymbols": "green"
@@ -4271,6 +4276,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "green"
@@ -4332,6 +4338,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "green"
@@ -4528,6 +4535,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "green"
@@ -4783,6 +4791,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "yellow"
@@ -4853,6 +4862,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "yellow"
@@ -4931,6 +4941,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "yellow"
@@ -5028,6 +5039,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "yellow"
@@ -5167,6 +5179,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "yellow"
@@ -5396,6 +5409,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "blue"
@@ -5484,6 +5498,7 @@
         "optional": false,
         "action": {
           "type": "if",
+          "rensa": true,
           "cond": {
             "count": {
               "ownColorSymbols": "blue"
@@ -5563,6 +5578,7 @@
         "optional": false,
         "action": {
           "type": "if",
+          "rensa": true,
           "cond": {
             "count": {
               "ownColorSymbols": "blue"
@@ -5820,6 +5836,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "blue"
@@ -7459,6 +7476,7 @@
         "optional": false,
         "action": {
           "type": "if",
+          "rensa": true,
           "cond": {
             "count": {
               "ownColorSymbols": "green"
@@ -7669,6 +7687,7 @@
         "optional": false,
         "action": {
           "type": "if",
+          "rensa": true,
           "cond": {
             "count": {
               "ownColorSymbols": "green"
@@ -7745,6 +7764,7 @@
         "optional": false,
         "action": {
           "type": "if",
+          "rensa": true,
           "cond": {
             "count": {
               "ownColorSymbols": "green"
@@ -8122,6 +8142,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "green"
@@ -8176,6 +8197,7 @@
             },
             {
               "type": "if",
+              "rensa": true,
               "cond": {
                 "count": {
                   "ownColorSymbols": "green"

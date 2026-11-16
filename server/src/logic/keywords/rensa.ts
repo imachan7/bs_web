@@ -21,16 +21,15 @@ export function rensaConditionIgnored(state: GameState, pid: PlayerId, self: Car
     return false
 }
 
-// 【連鎖】の[色]の節（keyword:"rensa" のエントリの if）か。コンテキストに効果エントリが渡らないので、
-// 発生源（合体中のブレイヴ込み）の rensa エントリの中に同じ if があるかを JSON の一致で見る
-export function isRensaClause(state: GameState, pid: PlayerId, self: CardInstance, clause: EffectAction): boolean {
-    const text = JSON.stringify(clause)
-    for (const source of [self, ...bravesOf(state.players[pid], self)]) {
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind === "triggered" && effect.keyword === "rensa" && JSON.stringify(effect.action).includes(text)) return true
-        }
-    }
-    return false
+// 【連鎖】の節の中のアクションすべてに rensa を付ける。選択待ちで中断しても、再開用の action（{...action}）が印を運ぶ。
+// 古の魔王城（Q23568）が、解決中の対象選択を【連鎖】の部分と見分けるのに読む
+export function markRensa(action: EffectAction): EffectAction {
+    const walk = (v: unknown): unknown =>
+        Array.isArray(v) ? v.map(walk)
+        : v !== null && typeof v === "object"
+            ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]).concat("type" in v ? [["rensa", true]] : []))
+            : v
+    return walk(action) as EffectAction
 }
 
 // 節を解決し終えた直後（選択待ちから再開した後でも sequence の続きとして）呼ばれる
