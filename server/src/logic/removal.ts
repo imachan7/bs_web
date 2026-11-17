@@ -1551,6 +1551,7 @@ export function moveReturned(state: GameState, event: string, order?: string[]):
                 // 呼び出し側が「バーストが未セット」を確認済み。セット通知（ownBurstSet）は移動を全部済ませたあと fireBounceTriggers で出す
                 player.burst = inst.cardId
                 player.burstSet = true
+                delete player.burstRevealedCardId
                 log(state, `${prefix}${player.name}はスピリットをバーストとしてセットした。`)
             } else {
                 const top = pb.to === "deckTop"

@@ -65,6 +65,8 @@ export interface PlayerState {
     // shared/board.ts の BoardPlayer が持つのはこちらだけ（burstはGameViewで相手はnullに隠されるため、
     // 共有ルール層＝クライアントからも呼ばれる判定にburstを使うと相手側の判定が常にfalseになってしまう）
     burstSet: boolean
+    // 発動を宣言したバーストの cardId（宣言した時点で公開される。場を離れるまで、相手の画面でも表向き）。新しいカードをセットしたら消す
+    burstRevealedCardId?: string
     burstSetThisTurn: boolean // このターンにセット済みか（ターン終了でリセット。setBurstFromHandはこの制限を受けない）
     // ソウルコア（26系）。公開情報（盤上で区別できる形で置かれるため両者に見える）。初期値はリザーブ
     soulCore: SoulCoreLocation | null

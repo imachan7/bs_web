@@ -746,15 +746,11 @@ function forView(inst: CardInstance, hideUnder: boolean): CardInstance {
     return rest
 }
 
-// 発動を宣言したバーストは公開される（BURST.md §1.4）。宣言済みの列・バースト効果の選択待ち・バースト効果を解決中のどれかなら、まだバーストエリアにあっても表向き
+// 発動を宣言したバーストは公開される（BURST.md §1.4）。宣言から場を離れるまで（効果の後の「コストを支払うことで」の確認の間も）表向き。
+// 宣言済みの列・選択待ちの印から求める形は、thenPay の確認の間に伏せた表示へ戻った（2026-11-17 ローカルで確認）
 function burstRevealedOf(state: GameState, pid: PlayerId): boolean {
-    const cardId = state.players[pid].burst
-    if (cardId === null) return false
-    if (state.declaredBursts?.some((d) => d.pid === pid && d.cardId === cardId)) return true
-    const pc = state.pendingChoice?.burst
-    if (pc && pc.pid === pid && pc.cardId === cardId) return true
-    const src = state.currentEffectSource
-    return src?.burst === true && src.pid === pid && src.cardId === cardId
+    const player = state.players[pid]
+    return player.burst !== null && player.burstRevealedCardId === player.burst
 }
 
 function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState, burstRevealed: boolean): PlayerView {

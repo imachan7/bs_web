@@ -1207,6 +1207,7 @@ function tryReviveOnDestroy(
             }
             player.burst = inst.cardId
             player.burstSet = true
+            delete player.burstRevealedCardId
         } else if ("toHand" in revived || "handOrDeckTop" in revived) {
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)

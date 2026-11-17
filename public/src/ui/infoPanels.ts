@@ -1,4 +1,5 @@
 // 情報欄・バースト欄・バトル欄の表示
+import { attachCardArt } from "../cardArt"
 import type { GameView, PlayerId } from "../../../server/src/type"
 import { effectiveBp, coreZoneChoiceId, canAwakenFromReserve, timedFlashLocked } from "../../../shared/rules"
 import { master, UiState, $ } from "../renderer"
@@ -132,6 +133,7 @@ export function renderBurst(id: string, view: GameView, pid: PlayerId, isMine: b
         name.className = "name"
         name.textContent = m.name
         el.appendChild(name)
+        attachCardArt(el, faceUp, m.name)
         zone.appendChild(el)
         return
     }
