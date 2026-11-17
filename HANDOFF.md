@@ -30,6 +30,7 @@
 
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 
+- **進行中 `fix/rensa-unmarked`（11-17 確定）**：①SD17-X01-e2（battleWon）の if に `rensa:true`（緑の【連鎖】を発揮したときの誘発 BS23-027-e3 が出ていない）②BS20-016・BS20-058 の `keyword:"rensa"` を本体の e1 から【連鎖】の部分の e2 へ移す ③`keyword:"rensa"` を持つ常在・付与エントリ（constraint・constraintGrant・symbolAddGrant）のシンボル条件は、合体中のブレイヴの【連鎖】の条件無視（SD11-X02 `rensaIgnoreCondition`）で満たした扱い。条件判定は shared の auraCondition 側なので、クライアントと同じ判定になる形で
 - 残り：印の無い【連鎖】5件（grant 2件 BS19-055-e4・BS19-066-e3／if の無い3件 BS20-016-e1・BS20-058-e1・SD17-X01-e1）。`markRensa` は節の中の type 付きオブジェクトすべてに印を付けるので、形で突き合わせる箇所があれば `oncePayEffectId` と同じく印を除く
 - 既知の限界：区切りの列が選択待ちで止まると破壊数を書き戻さない／戻す待機の `rank` 衝突／`holdDerivedFor`・`resumeEffectId`・`derivedItems` が state 経由（原則3の例外）／ネクサス・合体中のブレイヴの破壊だけの効果では派生が別の列／遅らせる出来事は `derivedSettle.ts` の `HELD_EVENTS`（fieldEvent を足したら入れるか決める）
 
