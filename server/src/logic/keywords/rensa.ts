@@ -1,3 +1,4 @@
+// 【連鎖】の節の印（markRensa）と、節を発揮したことの誘発（ownKeywordActivated）
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 

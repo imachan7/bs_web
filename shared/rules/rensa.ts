@@ -1,3 +1,4 @@
+// 【連鎖】の条件無視（SD11-X02【合体時】）。合体中のブレイヴが rensaIgnoreCondition を持てば、ホストの【連鎖】のシンボル条件を満たした扱い。サーバーとクライアントが同じ判定を使う
 import type { CardInstance, PlayerId } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
