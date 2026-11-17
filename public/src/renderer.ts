@@ -328,14 +328,15 @@ function magicEffectText(cardId: string, timing: "main" | "flash" | undefined): 
     return (next === -1 ? rest : rest.slice(0, next)).trim()
 }
 
-// バーストの効果文から、【バースト…】の行と、その直後の本文（次の見出し行の手前まで）だけを取り出す。見出しが無ければ効果文全体
+// バーストの効果文から、【バースト…】の行と、その直後の本文（次の見出し行の手前まで）だけを取り出す。見出しが無ければ効果文全体。
+// 本文にも「Lv1のスピリット」「【神速】/【暴風】を持つ」のような行があるので、見出しは「Lv1･Lv2『」「Lv2：フラッシュ」「【合体時】Lv2」の形だけを見る（2026-11-17 に全118枚で確かめた）
 function burstEffectText(cardId: string): string {
     const text = master(cardId).effect
     const lines = text.split("\n")
     const start = lines.findIndex(l => l.startsWith("【バースト"))
     if (start === -1) return text
     let end = start + 1
-    while (end < lines.length && !/^(Lv\d|【|『|メイン：|フラッシュ：)/.test(lines[end] ?? "")) end++
+    while (end < lines.length && !/^(Lv\d(･Lv\d)*($|『|：|【)|【[^】]*】($|Lv|『)|『|メイン：|フラッシュ：)/.test(lines[end] ?? "")) end++
     return lines.slice(start, end).join("\n")
 }
 
