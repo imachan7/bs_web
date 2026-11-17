@@ -256,8 +256,8 @@ scripts/smoke/ は 897 ファイル（part 889本）。当たり（grep のみ�
 
 範囲と順番：**1本目の PR** で疲労・回復・ドロー（手札に加わる `notifyHandGained` を含む）・コア配置（`fireCorePlacedFromDiff` もこの列へ）・コア除去・ライフ減少・デッキ破棄。**2本目の PR** で召喚（効果で召喚したスピリットの『召喚時』も効果の後。`fireSummonSequence` を前半と尾ごと1項目で持ち越す。§9.4）。
 
-1. **集める場所（案X）**：`state.derivedItems: { effectId; items: ResumeFrame[]; checks: EventBurstCheck[] }[]`。出来事の時点で、`state.currentEffectSource?.effectId` が立っていれば誘発を `collect` で集めて frame を積む（その時点の盤面で成否を決め、出口で集め直さない）。立っていなければ今のまま即時。読むのは `settleDerived` の1か所だけ。勝敗が決まったら捨てる。state 経由の受け渡しは `holdDerivedFor`・`resumeEffectId` に続く3つ目（既知の制限に書く）
-2. **1本の列**：出口で、待機の3種の列（`runDestroyQueue` の `destroyExtraItems`）に `derivedItems` の項目を足し、ターンプレイヤーが順番を決める。破壊が無い効果は `derivedItems` だけで `resolveInOrder`。列の後にイベントバースト（`checks`）
+1. **集める場所（案X）**：`state.derivedItems: { effectId; items: { key; label; frame }[] }[]`（key・label は順番の選択に使う）。出来事の時点で、`state.currentEffectSource?.effectId` が立っていれば誘発を `collect` で集めて frame を積む（その時点の盤面で成否を決め、出口で集め直さない）。立っていなければ今のまま即時。読むのは `settleDerived` の1か所だけ。勝敗が決まったら捨てる。state 経由の受け渡しは `holdDerivedFor`・`resumeEffectId` に続く3つ目（既知の制限に書く）
+2. **1本の列**：出口で、待機の3種の列（`runDestroyQueue` の `destroyExtraItems`）に `derivedItems` の項目を足し、ターンプレイヤーが順番を決める。破壊が無い効果は `derivedItems` だけで `resolveInOrder`。**イベントバーストの判定は遅らせない**（宣言は条件を満たした時点、適用は効果の後＝BURST.md §1.4。最初は一緒に遅らせて part953 が落ちた）
 3. **コストの派生**（「疲労させることで」「コアを取り除くことで」）も恩恵の後（RESUME_STACK §7②。11-17 から効果の中すべて）
 4. **数は出来事の時点で確定**（`eventCount`・`coresRemoved` などは frame に入れて運ぶ）。効果の続きは派生を解決する前の盤面を読む
 5. **効果の外**（アタック・ブロック宣言の疲労・リフレッシュステップ・ドローステップ・バトルのライフ減少）は今のまま即時
