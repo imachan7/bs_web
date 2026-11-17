@@ -1533,6 +1533,8 @@ button:active {
     .field-row .burst-zone { grid-area: burst; }
     .field-row .nexus-zone { grid-area: nexus; }
     .field-row > .spirit-zone { grid-area: spirits; }
+    /* 相手側は鏡写し：上からネクサス、その下にバースト＋スピリット（スピリットが中央寄り） */
+    #opponent-area .field-row { grid-template-areas: "nexus nexus" "burst spirits"; }
     .burst-zone .burst-slot,
     #opp-burst .burst-slot.burst-revealed { width: 64px; height: auto; aspect-ratio: 675 / 985; }
     .player-area {
