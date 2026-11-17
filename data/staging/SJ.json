@@ -1405,5 +1405,265 @@
   "rarity": "EX",
   "limited": false,
   "effect": "Lv1･Lv2『相手のターン』\n自分のバーストをセットしている間、系統：「覇皇」/「雄将」を持つ自分のスピリットすべてをBP+3000する。\nLv2『自分のエンドステップ』\n自分のバーストをセットしていないとき、自分の手札にあるバースト効果を持つカード1枚をセットできる。"
+ },
+ {
+  "cardId": "EX007",
+  "name": "月牙龍ストライクヴルム・シリウス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "white",
+   "white"
+  ],
+  "family": [
+   "神星",
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "EX",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、このスピリットのコスト以下の相手のスピリット1体を手札に戻す。"
+ },
+ {
+  "cardId": "EX008",
+  "name": "月影龍ストライクヴルム・ベテルギウス",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "神星",
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "EX",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n相手のスピリットが回復したとき、このスピリットは回復する。\n【合体時】Lv2･Lv3『このスピリットのブロック時』\n疲労状態の相手のスピリットすべてを手札に戻す。"
+ },
+ {
+  "cardId": "EX009",
+  "name": "月華龍ストライクヴルム・プロキオン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "white",
+   "white"
+  ],
+  "family": [
+   "神星",
+   "戯狩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "EX",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\n自分の手札1枚か、オープンしたマジックカード1枚を破棄することで、このスピリットは回復状態で自分のフィールドに残る。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nBPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個を自分のライフに置く。"
+ },
+ {
+  "cardId": "EX012",
+  "name": "天星龍アポロドラゴン・スピカ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "神星",
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "EX",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n回復状態の相手のスピリット1体を指定し、そのスピリットにアタックできる。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nコア1個の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "EX013",
+  "name": "堕天龍アポロドラゴン・アークトゥルス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "神星",
+   "夜族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "EX",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n疲労状態の相手のスピリット1体を指定し、そのスピリットにアタックできる。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n相手のスピリット1体のコアを、1個になるように相手のトラッシュに置く。"
+ },
+ {
+  "cardId": "EX014",
+  "name": "幻羅獅龍アポロドラゴン・デネボラ",
+  "type": "spirit",
+  "colors": [
+   "red",
+   "purple"
+  ],
+  "cost": 9,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "神星",
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 12000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "red",
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "EX",
+  "limited": false,
+  "effect": "【転召：コスト5以上/ボイド】\n召喚コスト支払い後、自分のコスト5以上のスピリット1体のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『自分のアタックステップ』\n自分のスピリットすべては、アタックするとき相手のスピリット1体を指定し、そのスピリットにアタックできる。\n【合体時】Lv3『このスピリットの合体アタック時』\nこのバトルの間、破壊された相手のスピリットすべてのコアすべてはボイドに置かれる。"
  }
 ]
