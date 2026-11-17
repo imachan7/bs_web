@@ -557,6 +557,13 @@ button:active {
 #opp-burst .burst-slot { transform: rotate(180deg); }
 #opp-burst .burst-revealed.burst-flip { animation: burst-flip-opp 0.5s ease-out; }
 @keyframes burst-flip-opp { from { transform: rotate(180deg) rotateY(90deg); } to { transform: rotate(180deg); } }
+/* 表向きのバーストの画像は欄いっぱいに収める（場・手札の .card-art の指定はバースト欄に当たらず、画像の元の大きさで出ていた） */
+.burst-slot.has-art > .card-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.burst-slot.has-art > .name { display: none; }
+/* バーストには場のカードの色の帯（.card::before）を出さない（2026-11-17 ユーザー指摘：伏せた自分のバーストの上に赤い線が出ていた） */
+.burst-slot.card::before { display: none; }
+/* 相手の表向きのバーストは、伏せていたときの裏面と同じ大きさ（.card の 100×140 にしない）。画面幅ごとの大きさは下の @media でも揃える */
+#opp-burst .burst-slot.burst-revealed { width: 46px; height: 56px; padding: 0; }
 .burst-hidden-icon {
     position: absolute;
     top: -6px;
@@ -1514,6 +1521,10 @@ button:active {
         height: 48px;
         font-size: 8px;
     }
+    #opp-burst .burst-slot.burst-revealed { width: 38px; height: 48px; }
+    /* スマホは上からスピリット、ネクサス（とバースト）の順。バーストは左端（2026-11-17 ユーザー指示） */
+    .field-row > .spirit-zone { order: -1; }
+    .nexus-row { justify-content: flex-start; align-self: stretch; }
     .player-area {
         padding: 8px 12px;
         gap: 8px;
@@ -1610,6 +1621,7 @@ button:active {
         height: 42px;
         font-size: 7px;
     }
+    #opp-burst .burst-slot.burst-revealed { width: 32px; height: 42px; }
     .burst-mine .name {
         max-width: 26px;
         font-size: 7px;
