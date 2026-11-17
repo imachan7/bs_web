@@ -171,7 +171,7 @@ export type GameEvent =
     | { seq: number; type: "lifeDamage"; pid: PlayerId; amount: number } // ライフのコアが減った（このpidが被弾した側）
     | { seq: number; type: "magic"; pid: PlayerId; cardName: string; cardId?: string; timing?: "main" | "flash" } // マジック使用。画面が使った効果の文面を出す
     | { seq: number; type: "reveal"; pid: PlayerId; cardIds: string[] } // デッキ・バーストのカードをオープンした（pid＝オープンしたカードの持ち主）
-    | { seq: number; type: "burst"; pid: PlayerId; cardName: string }
+    | { seq: number; type: "burst"; pid: PlayerId; cardName: string; cardId?: string }
     // バウンス／デッキ戻し。
     // pid は**カードの持ち主**（＝戻された側）。sourceName は戻した効果の発生源カード名（分かる場合のみ）
     | { seq: number; type: "returnToHand"; pid: PlayerId; cardName: string; sourceName?: string; instanceId?: string } // フィールドから手札へ戻った（スピリット／ネクサス）
