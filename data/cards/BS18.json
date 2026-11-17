@@ -5943,9 +5943,9 @@
      "color": "purple"
     },
     "action": {
-     "type": "battleOpponentDestroyedCoresTo",
-     "to": "trash",
-     "soleOnly": true
+     "type": "timedEffect",
+     "content": [{"type": "destroyedCoresTo", "to": "trash", "soleOnly": true}],
+     "duration": "battle"
     }
    }
   ]

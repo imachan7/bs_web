@@ -920,6 +920,20 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
     log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}の『${fromLabel}』効果は『${toLabel}』に発揮される。`)
 }
 
+// 「このバトルの間、破壊された相手のスピリットのコアは〜に置かれる」：プレイヤーに掛かる記録（既定は相手。読むのは removal.ts の確定処理）
+function placeDestroyedCoresTo(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, opp, sourceName } = ctx
+    if (action.duration === "battle" && !state.battle) {
+        log(state, `${sourceName}：バトル外のため不発。`)
+        return
+    }
+    const content = action.content.filter((c) => c.type === "destroyedCoresTo")
+    const pids: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [action.side === "own" ? owner : opp]
+    for (const pid of pids) recordFrom(ctx, { content, target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
+    const to = content[0]?.type === "destroyedCoresTo" && content[0].to === "void" ? "ボイド" : "トラッシュ"
+    log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間、" : ""}破壊された${pids.map((p) => state.players[p].name).join("と")}のスピリット上のコアは${to}に置かれる。`)
+}
+
 // 「次の相手のリフレッシュステップで、トラッシュのコアを◯個しか戻せない」：そのプレイヤーに掛かる記録
 function placeTrashCoreReturnCap(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, opp, sourceName } = ctx
@@ -983,6 +997,10 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     }
     if (action.content.some((c) => c.type === "braveBpBonusZero" || c.type === "braveCostZero")) {
         placeBraveZero(ctx, action)
+        return
+    }
+    if (action.content.some((c) => c.type === "destroyedCoresTo")) {
+        placeDestroyedCoresTo(ctx, action)
         return
     }
     if (action.content.some((c) => c.type === "trashCoreReturnCap")) {

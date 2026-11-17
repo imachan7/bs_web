@@ -32,6 +32,10 @@
 - サーバー：`playerView` に `burstRevealed: boolean` を足す（`buildView` が state から求めて渡す。真＝`state.declaredBursts` にその pid・cardId がある／`pendingChoice.burst` が一致／`currentEffectSource.burst` で pid・cardId が一致）。真なら相手にも `burst` の cardId を返す。新しい状態は足さない
 - 画面：伏せている間は裏面の画像（相手は画像だけ、自分は画像の上に名前）。`burstRevealed` なら表向き（色の枠＋名前、🔒なし）。発動のイベント（#620 で cardId つき）を受けたら、その陣営のバースト欄を表向きにめくる演出を約2.5秒出す（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）
 
+### 進行中：`battleOpponentDestroyedCoresTo` を `timedEffect` に寄せる（`refactor/timed-destroyed-cores-to`。11-17 ユーザー決定「それで進めて」）
+
+- `timedEffect` に `destroyedCoresTo` をプレイヤーに掛ける分岐 `placeDestroyedCoresTo`（既定は相手、`side:"own"/"both"`、期間 `battle` でバトル外なら不発）を足し、BS10-X01-e3・BS14-073-e3・BS18-X02-e2 を `{type:"timedEffect", content:[{type:"destroyedCoresTo", to, soleOnly?}], duration:"battle"}` に移して、専用の動詞（型・ハンドラ）を消す。挙動は変えない。SJ（`feat/sj-promo`）のデネボラ・デス・シザーはこの器に乗せる
+
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 
 - 残り：なし（印の無い【連鎖】は fix/rensa-unmarked で直した。BS19-055-e4・BS19-066-e3 は付与で対象を取らない）

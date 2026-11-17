@@ -4,7 +4,7 @@
 // 新設した機構:
 //   - TargetFilter.maxLv1BpOfSelf（server/src/logic/actions/filter.ts）：selfのカードのLv1BP以下
 //     （fieldEventではselfにイベント対象＝召喚されたスピリットが入る。実効BPでなく印刷値）
-//   - action:"battleOpponentDestroyedCoresTo"（server/src/logic/actions/battleFlow.ts）：
+//   - action:"timedEffect" の destroyedCoresTo（server/src/logic/actions/timedEffect.ts）：
 //     相手のプレイヤーに destroyedCoresTo を記録し、commitPendingDestruction（removal.ts）が
 //     このバトルが終わるまで相手のスピリットのコアをリザーブでなくボイドへ送る
 //   - EffectDef kind:"trashImmunity" + isTrashCardProtected（shared/rules.ts）：
