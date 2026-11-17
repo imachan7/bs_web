@@ -14,6 +14,7 @@ import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThi
 import { eventBurstsFrame, fireEventBursts } from "./keywords/burst"
 import type { CollectedTrigger } from "./blockDeclared"
 import { revertOncePerTurn, revertDestroyGroupUsage, fireTrigger, activationPrompt, confirmPromptIfOptional, isStillOnField } from "./triggers"
+import { derivedHoldId, holdDerived } from "./derivedSettle"
 
 // フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
 //   ownLifeDamaged: pid のライフが（相手によって）減らされたとき
@@ -724,30 +725,9 @@ export function fireFieldEventTriggers(
             key: (e) => (e.extra !== undefined ? e.extra.key : `${pid}:${e.inst.cardId}`),
         },
     }
-    if (collect !== undefined) {
-        const ask = handlers.askOrder
-        if (ask === undefined) return
-        for (const e of pool) {
-            collect.push({
-                key: ask.key(e),
-                label: ask.label(e),
-                frame: handlers.frame(e),
-                skip: () => handlers.skip?.(e) === true,
-                run: () => handlers.resolve(e),
-            })
-        }
-        return
-    }
-    resolveInOrder(state, pool, handlers)
-
-    // バースト（docs/design/BURST.md）：effectSources() には入れないため、上のフィールド発生源の
-    // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。上の解決で選択待ちが残っている間は割り込まない。
-    // skipBurst指定時（破壊待機中のownSpiritDestroyed走査）はここで判定しない（BS16バッチ0：呼び出し元が
-    // トラッシュ行き確定後にfireQueuedDestroyBursts経由でfireBurstOnEventを直接呼ぶ）
-    if (skipBurst) return
     // 【自分のライフ減少後】は原因を問わず減少1回につき1回、ownLifeLost の側で聞く。
     // 相手起因の本番経路は ownLifeDamaged を skipBurst で呼ぶ（同じ減少で2回聞かないため）
-    const check: EventBurstCheck =
+    const burstCheck = (): EventBurstCheck =>
         event === "ownLifeLost"
             ? { pid, event: "ownLifeDamaged", ...(eventInfo !== undefined ? { info: eventInfo } : {}) }
             : {
@@ -758,13 +738,39 @@ export function fireFieldEventTriggers(
                   ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
                   ...(eventInfo !== undefined ? { info: eventInfo } : {}),
               }
+    // 効果の中の出来事は、出来事の時点で誘発を集め、効果の出口でまとめて解決する（derivedSettle.ts）
+    const holdFor = collect === undefined && !skipBurst ? derivedHoldId(state, event) : undefined
+    const sink = collect ?? (holdFor !== undefined ? [] : undefined)
+    if (sink !== undefined) {
+        const ask = handlers.askOrder
+        if (ask === undefined) return
+        for (const e of pool) {
+            sink.push({
+                key: ask.key(e),
+                label: ask.label(e),
+                frame: handlers.frame(e),
+                skip: () => handlers.skip?.(e) === true,
+                run: () => handlers.resolve(e),
+            })
+        }
+        if (holdFor === undefined) return
+        holdDerived(state, holdFor, sink)
+    } else {
+        resolveInOrder(state, pool, handlers)
+    }
+
+    // バースト（docs/design/BURST.md）：effectSources() には入れないため、上のフィールド発生源の
+    // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。上の解決で選択待ちが残っている間は割り込まない。
+    // skipBurst指定時（破壊待機中のownSpiritDestroyed走査）はここで判定しない（BS16バッチ0：呼び出し元が
+    // トラッシュ行き確定後にfireQueuedDestroyBursts経由でfireBurstOnEventを直接呼ぶ）
+    if (skipBurst) return
     // 上の誘発が選択待ちを立てていたら、捨てずに後ろへ回し、誘発を解決し終えてから判定する
     // （#437 F2：以前はここで return してバーストの確認ごと消え、ライフ減少後のバーストが二度と聞かれなかった）
     if (state.pendingChoice) {
-        pushResumeFrames(state, [eventBurstsFrame(state, [check])])
+        pushResumeFrames(state, [eventBurstsFrame(state, [burstCheck()])])
         return
     }
-    fireEventBursts(state, [check])
+    fireEventBursts(state, [burstCheck()])
 }
 
 // フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：

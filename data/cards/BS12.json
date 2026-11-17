@@ -5429,10 +5429,18 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "placeCores",
-          "from": "void",
-          "to": "deckSide",
-          "count": 5
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "settleDerived"
+            },
+            {
+              "type": "placeCores",
+              "from": "void",
+              "to": "deckSide",
+              "count": 5
+            }
+          ]
         }
       },
       {

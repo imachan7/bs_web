@@ -736,6 +736,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/choice.ts
 
 - `doResolveChoice`（fn）：pendingChoice（効果解決中のプレイヤー選択）への応答を処理する。
+- `runActionFrame`（fn）：効果アクションのフレーム1つを、ガードを確かめてから解決する（再開スタックの消化と、derivedSettle の出口の列が使う）
 
 ## server/src/logic/coreGainCap.ts
 
@@ -776,6 +777,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `hasPendingFramesOfEffect`（fn）：この効果の続きがまだ再開スタックに残っているか（残っているあいだは効果が終わっていない）
 - `pendingEffectIds`（fn）：待機に effectId が残っているカードの id を全部（安全網。resolveAction を通らなかった経路の取りこぼしを拾う）
+- `derivedHoldId`（fn）：遅らせる出来事なら、それを起こした効果の id（効果の外なら undefined ＝その場で解決する）
+- `holdDerived`（fn）
 - `settleAllDerived`（fn）
 - `settleDerived`（fn）：戻り値は、列を解決し終えて実際にトラッシュに置かれたスピリットの数（列が選択待ちで止まったときは 0。区切りの後の数え直しは未対応）
 - `settleDerivedHandler`（const）
