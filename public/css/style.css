@@ -529,11 +529,11 @@ button:active {
 }
 
 /* 発動したバースト：表向き（宣言から場を離れるまで。相手にも見える） */
+/* 表向きは伏せていたときの色の枠を付けない（2026-11-17 ユーザー指摘：上に赤い線が残っていた） */
 .burst-slot.burst-revealed {
-    background: linear-gradient(#2a2e39, #2a2e39) padding-box,
-                linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
-    border: 2px solid transparent;
-    padding: 2px;
+    background: #2a2e39;
+    border: none;
+    padding: 0;
 }
 .burst-revealed .name {
     font-size: 8px;
