@@ -554,7 +554,7 @@ button:active {
     to { transform: rotateY(0); }
 }
 /* 相手のバーストは、伏せているときも表向きのときも相手側の向き（180度回転）。場のカード（[data-side="opp"]）と揃える */
-#opp-burst .burst-slot { transform: rotate(180deg); }
+#opp-burst .burst-slot:not(.burst-empty) { transform: rotate(180deg); } /* 空の欄の「バースト」の文字は回さない */
 #opp-burst .burst-revealed.burst-flip { animation: burst-flip-opp 0.5s ease-out; }
 @keyframes burst-flip-opp { from { transform: rotate(180deg) rotateY(90deg); } to { transform: rotate(180deg); } }
 /* 表向きのバーストの画像は欄いっぱいに収める（場・手札の .card-art の指定はバースト欄に当たらず、画像の元の大きさで出ていた） */
@@ -574,19 +574,31 @@ button:active {
 /* 手札のバーストセットボタン */
 .burst-set-badge {
     position: absolute;
-    bottom: 2px;
-    left: 2px;
-    right: 2px;
-    font-size: 9px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    border: 1px solid var(--accent, #6b7fd7);
-    background: rgba(107, 127, 215, 0.25);
+    /* 押せる範囲をカードの下側およそ3分の1まで広げる。細い帯だと少し外れてカードを押し、マジックとして使ってしまう（2026-11-17 ユーザー指摘） */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    min-height: 32%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 4px;
+    border-radius: 0 0 6px 6px;
+    /* カードの絵に埋もれないよう、半透明でなく不透明なバーストの赤にする（2026-11-17 ユーザー指摘：見づらい） */
+    border: 1px solid #ffb4a8;
+    background: #c8352b;
     color: #fff;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
     cursor: pointer;
 }
 .burst-set-badge.disabled {
-    opacity: 0.4;
+    background: #4a4f5c;
+    border-color: #6b7080;
+    color: #c9ccd4;
     cursor: not-allowed;
 }
 
