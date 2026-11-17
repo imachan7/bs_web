@@ -31,6 +31,7 @@
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 
 - 残り：印の無い【連鎖】5件（grant 2件 BS19-055-e4・BS19-066-e3／if の無い3件 BS20-016-e1・BS20-058-e1・SD17-X01-e1）。`markRensa` は節の中の type 付きオブジェクトすべてに印を付けるので、形で突き合わせる箇所があれば `oncePayEffectId` と同じく印を除く
+- **進行中 `fix/derived-settle-gaps`（11-17 確定）**：①区切り `settleDerived` の列が選択待ちで止まっても、再開して列を解決し終えた時点で「区切りでトラッシュに置かれた数」を元の効果の記録へ書く（数と書き先は frame の action に入れて運ぶ。state に置かない）②ネクサス・合体中のブレイヴの破壊の誘発も、スピリットの破壊・`derivedItems` と1本の列にする（ターンプレイヤーが順番を決める。確定はそれぞれの今の手順）
 - 既知の限界：区切りの列が選択待ちで止まると破壊数を書き戻さない／戻す待機の `rank` 衝突／`holdDerivedFor`・`resumeEffectId`・`derivedItems` が state 経由（原則3の例外）／ネクサス・合体中のブレイヴの破壊だけの効果では派生が別の列／遅らせる出来事は `derivedSettle.ts` の `HELD_EVENTS`（fieldEvent を足したら入れるか決める）
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
