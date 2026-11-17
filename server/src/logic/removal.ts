@@ -1048,12 +1048,17 @@ function startDestroyBatch(state: GameState, frame: DestroyBatchFrame): number {
 }
 
 // 待機に入った全員ぶんの誘発を1本の列で解決し、確定する。列が選択待ちで止まったら、確定は finish フレームに預ける
-export function runDestroyQueue(state: GameState, frame: DestroyBatchFrame, entries: DestroyEntry[]): number {
+// derived：同じ効果の中で起きた出来事の誘発（derivedSettle）。破壊の誘発と1本の列にして順番を決める
+export function runDestroyQueue(state: GameState, frame: DestroyBatchFrame, entries: DestroyEntry[], derived?: { items: CollectedTrigger[]; checks: EventBurstCheck[] }): number {
     // 非対話（順番を聞かない）の並びは、破壊誘発元の順。その中は単体の破壊と同じ
     const items: CollectedTrigger[] = []
     const oppBursts: EventBurstCheck[] = []
     for (const e of entries) {
         oppBursts.push(collectDestroyTriggers(state, e.pid, e.inst, e.byBattle, e.wasAttacker, e.bySpiritEffect, e.byOpponentEffect, e.sourceInstanceId, destroyExtraItems(state, e), e.context?.battleWinner, items))
+    }
+    if (derived) {
+        items.push(...derived.items)
+        oppBursts.push(...derived.checks)
     }
     // バーストの判定材料には、条件の時点（＝破壊された今）にセットされていたカードを控える。列の途中でセットされたバーストは発動できない（BURST.md §1.4）
     const finish: DestroyBatchFrame = { ...frame, phase: "finish", ...(oppBursts.length > 0 ? { oppBursts: eventBurstsFrame(state, oppBursts).checks } : {}) }

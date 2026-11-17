@@ -125,6 +125,7 @@ import { finishSummonEffect } from "./keywords/burst"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
 import type { CollectedTrigger } from "./blockDeclared"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
+import { derivedHoldId, holdDerived } from "./derivedSettle"
 export { resolveMagic } from "./magic/cast"
 export { findMagicNegateSource, applyMagicNegateChoice, declineMagicNegateChoice } from "./magic/negate"
 export { bothSidesPids, findBothSidesRedirectSource, bothSidesRedirectKeepPid, applyBothSidesRedirectToCandidates, BOTH_SIDES_REDIRECT_OPTIONS, applyMagicSideChoice, applyMagicRedirectChoice } from "./magic/redirect"
@@ -571,14 +572,17 @@ export function fireTrigger(
         ...frameWaitingEvent(related, selfInstance),
         ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
     })
-    if (collect !== undefined) {
+    // 効果の中の回復は、出来事の時点で誘発を集め、効果の出口でまとめて解決する（derivedSettle.ts）
+    const holdFor = collect === undefined ? derivedHoldId(state, event) : undefined
+    const sink = collect ?? (holdFor !== undefined ? [] : undefined)
+    if (sink !== undefined) {
         const label = `${state.players[owner].name}の${card.name}`
         const key = `${owner}:${selfInstance.cardId}`
         for (const entry of entries) {
             if (!matches(entry.effect, entry.src)) continue
             // 合体中のブレイヴのエントリは別のカードの効果なので、ホストと別に発揮順を聞く（#545）
             const brave = entry.src !== selfInstance
-            collect.push({
+            sink.push({
                 key: brave ? `${owner}:${entry.src.cardId}` : key,
                 label: brave ? `${state.players[owner].name}の${getCard(entry.src.cardId).name}` : label,
                 run: () => resolveEntry(entry),
@@ -587,13 +591,14 @@ export function fireTrigger(
             })
         }
         for (const a of grantedActions) {
-            collect.push({
+            sink.push({
                 key,
                 label,
                 run: () => withWaitingEvent(state, waitingEventFor(related, selfInstance, state.waitingEvent), () => resolveAction(state, owner, selfInstance, a, targetInstanceId)),
                 frame: grantedFrame(a),
             })
         }
+        if (holdFor !== undefined) holdDerived(state, holdFor, sink, [])
         return
     }
     for (let i = 0; i < entries.length; i++) {

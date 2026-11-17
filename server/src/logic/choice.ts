@@ -6,7 +6,7 @@ import { handGainDenial } from "./handGate"
 import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
 import { activateBurstCard, applyDeclaredBursts, declareBurst } from "./keywords/burst"
 import { resolveAttackDeclared } from "./attackDeclared"
-import type { GameAction, GameState, PaySource, PendingChoice, PlayerId } from "../type"
+import type { GameAction, GameState, PaySource, PendingChoice, PlayerId, ResumeFrame } from "../type"
 import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setWaitingEvent } from "./GameState"
 import { claimGroupOnce, groupOnceUsed, notifyHandGained, restStateHolds } from "./fieldEventTriggers"
 import { instColors } from "../../../shared/rules"
@@ -785,6 +785,71 @@ function finishChoiceResolution(state: GameState, pid: PlayerId): string | null 
     return null
 }
 
+// 効果アクションのフレーム1つを、ガードを確かめてから解決する（再開スタックの消化と、derivedSettle の出口の列が使う）
+export function runActionFrame(state: GameState, pid: PlayerId, frame: Extract<ResumeFrame, { kind: "action" }>): void {
+    // requiresPendingDestructionOf：破壊で誘発した効果の列の残り。途中で
+    // 「フィールドに残る／戻る」が解決してその破壊が無かったことになっていれば空振りさせる
+    // （docs/design/TIMING_CHART.md）。フレームは消さず、ここで無効化する
+    // 記録の枠：同じ効果の続きは自分の枠へ、持たないフレーム（別の効果）は新しい枠で（IF_UNIFY.md §6）
+    state.recordScope = frame.recordScope ?? newRecordScope()
+    // 欄が無い破壊の列の項目は、見張り先のカードの待機の出来事で誘発した効果
+    // （null＝「無し」と明示したフレームは、見張り先があっても無しのまま）
+    setWaitingEvent(state, frame.waitingEvent !== undefined ? frame.waitingEvent : frame.requiresPendingDestructionOf !== undefined ? findInstanceAnywhere(state, frame.requiresPendingDestructionOf)?.waiting?.event : undefined)
+    if (frame.requiresPendingDestructionOf !== undefined) {
+        const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
+        if (target == null || !isTrashWaiting(target)) return
+    }
+    if (groupOnceUsed(state, frame.groupOnce)) return
+    if (frame.requiresRestStateOf !== undefined && !restStateHolds(state, frame.requiresRestStateOf)) return
+    if (frame.requiresReturnWaitingOf !== undefined && !isReturnWaiting(findInstanceAnywhere(state, frame.requiresReturnWaitingOf))) return
+    if (frame.levelRecheck !== undefined && !levelStillMet(state, frame.levelRecheck)) return
+    if (frame.onceClaim !== undefined) {
+        const src = findInstanceAnywhere(state, frame.onceClaim.instanceId)
+        const eff = src && getCard(src.cardId).effects.find((x) => x.id === frame.onceClaim!.effectId)
+        const owner = src && ownerPidOfInstance(state, src)
+        const slot = eff?.kind === "step" ? "stepUsedTurn" : "triggeredUsedTurn"
+        if (!src || !eff || !owner || !claimOnce(state, owner, src, eff as { id: string; onceScope?: "name" }, slot)) return
+    }
+    // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
+    if (frame.logText !== undefined) log(state, frame.logText)
+    claimGroupOnce(state, frame.groupOnce)
+    const frameSelf = frame.selfInstanceId
+        ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
+        : null
+    // optional な誘発の残りは、解決ではなく**発動確認から**再開する
+    if (frame.confirmPrompt !== undefined) {
+        // 断ったら「同時破壊につき1回」の消費を戻す（次の破壊誘発元の項目で、もう一度確認できる）
+        requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf, frame.onceClaim ?? (frame.groupOnce !== undefined ? frame.levelRecheck : undefined))
+        return
+    }
+    // targetInstanceId / sourceColors / sourceType は fieldEvent 誘発の残りを再開するときだけ入る
+    const prevBurst = state.resumeBurst
+    if (frame.burst) state.resumeBurst = frame.burst
+    else delete state.resumeBurst
+    if (frame.effectId !== undefined) state.resumeEffectId = frame.effectId
+    else delete state.resumeEffectId
+    if (frame.redirectTarget) setTargetRedirect(state, frame.actorPid ?? pid, frame.targetInstanceId, frame.action)
+    // 発生源は個体が今も居るなら、その個体の今の色で判定する（#579。集めた時点の色は使わない）
+    const srcInst = frame.sourceInstanceId !== undefined ? findInstanceAnywhere(state, frame.sourceInstanceId) : undefined
+    const srcColors = srcInst ? instColors(srcInst) : frame.sourceColors
+    resolveAction(
+        state,
+        frame.actorPid ?? pid,
+        frameSelf,
+        frame.action,
+        frame.targetInstanceId,
+        srcColors,
+        frame.sourceType,
+        undefined,
+        undefined,
+        frame.sourceCardId,
+    )
+    delete state.resumeEffectId
+    if (frame.redirectTarget) delete state.magicRedirectTo
+    if (prevBurst) state.resumeBurst = prevBurst
+    else delete state.resumeBurst
+}
+
 // 再開スタック（中断された残りの処理）を先頭から1つずつ消化する。
 //
 // **中断が起きたら、その場で止めるだけでよい**（残りはスタックに載ったまま）。
@@ -884,67 +949,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             fireEventBursts(state, frame.checks)
             continue
         }
-        // requiresPendingDestructionOf：破壊で誘発した効果の列の残り。途中で
-        // 「フィールドに残る／戻る」が解決してその破壊が無かったことになっていれば空振りさせる
-        // （docs/design/TIMING_CHART.md）。フレームは消さず、ここで無効化する
-        // 記録の枠：同じ効果の続きは自分の枠へ、持たないフレーム（別の効果）は新しい枠で（IF_UNIFY.md §6）
-        state.recordScope = frame.recordScope ?? newRecordScope()
-        // 欄が無い破壊の列の項目は、見張り先のカードの待機の出来事で誘発した効果
-        // （null＝「無し」と明示したフレームは、見張り先があっても無しのまま）
-        setWaitingEvent(state, frame.waitingEvent !== undefined ? frame.waitingEvent : frame.requiresPendingDestructionOf !== undefined ? findInstanceAnywhere(state, frame.requiresPendingDestructionOf)?.waiting?.event : undefined)
-        if (frame.requiresPendingDestructionOf !== undefined) {
-            const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
-            if (target == null || !isTrashWaiting(target)) continue
-        }
-        if (groupOnceUsed(state, frame.groupOnce)) continue
-        if (frame.requiresRestStateOf !== undefined && !restStateHolds(state, frame.requiresRestStateOf)) continue
-        if (frame.requiresReturnWaitingOf !== undefined && !isReturnWaiting(findInstanceAnywhere(state, frame.requiresReturnWaitingOf))) continue
-        if (frame.levelRecheck !== undefined && !levelStillMet(state, frame.levelRecheck)) continue
-        if (frame.onceClaim !== undefined) {
-            const src = findInstanceAnywhere(state, frame.onceClaim.instanceId)
-            const eff = src && getCard(src.cardId).effects.find((x) => x.id === frame.onceClaim!.effectId)
-            const owner = src && ownerPidOfInstance(state, src)
-            const slot = eff?.kind === "step" ? "stepUsedTurn" : "triggeredUsedTurn"
-            if (!src || !eff || !owner || !claimOnce(state, owner, src, eff as { id: string; onceScope?: "name" }, slot)) continue
-        }
-        // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
-        if (frame.logText !== undefined) log(state, frame.logText)
-        claimGroupOnce(state, frame.groupOnce)
-        const frameSelf = frame.selfInstanceId
-            ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
-            : null
-        // optional な誘発の残りは、解決ではなく**発動確認から**再開する
-        if (frame.confirmPrompt !== undefined) {
-            // 断ったら「同時破壊につき1回」の消費を戻す（次の破壊誘発元の項目で、もう一度確認できる）
-            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf, frame.onceClaim ?? (frame.groupOnce !== undefined ? frame.levelRecheck : undefined))
-            continue
-        }
-        // targetInstanceId / sourceColors / sourceType は fieldEvent 誘発の残りを再開するときだけ入る
-        const prevBurst = state.resumeBurst
-        if (frame.burst) state.resumeBurst = frame.burst
-        else delete state.resumeBurst
-        if (frame.effectId !== undefined) state.resumeEffectId = frame.effectId
-        else delete state.resumeEffectId
-        if (frame.redirectTarget) setTargetRedirect(state, frame.actorPid ?? pid, frame.targetInstanceId, frame.action)
-        // 発生源は個体が今も居るなら、その個体の今の色で判定する（#579。集めた時点の色は使わない）
-        const srcInst = frame.sourceInstanceId !== undefined ? findInstanceAnywhere(state, frame.sourceInstanceId) : undefined
-        const srcColors = srcInst ? instColors(srcInst) : frame.sourceColors
-        resolveAction(
-            state,
-            frame.actorPid ?? pid,
-            frameSelf,
-            frame.action,
-            frame.targetInstanceId,
-            srcColors,
-            frame.sourceType,
-            undefined,
-            undefined,
-            frame.sourceCardId,
-        )
-        delete state.resumeEffectId
-        if (frame.redirectTarget) delete state.magicRedirectTo
-        if (prevBurst) state.resumeBurst = prevBurst
-        else delete state.resumeBurst
+        runActionFrame(state, pid, frame)
     }
     setWaitingEvent(state, undefined)
     return null
