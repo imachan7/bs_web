@@ -1059,7 +1059,6 @@
    {
     "id": "BS20-016-e1",
     "kind": "triggered",
-    "keyword": "rensa",
     "trigger": "onAttack",
     "levels": [
      1,
@@ -1076,6 +1075,7 @@
    {
     "id": "BS20-016-e2",
     "kind": "constraint",
+    "keyword": "rensa",
     "levels": [
      1,
      2,
@@ -4069,7 +4069,6 @@
    {
     "id": "BS20-058-e1",
     "kind": "triggered",
-    "keyword": "rensa",
     "trigger": "onAttack",
     "levels": null,
     "whileCombined": true,
@@ -4084,6 +4083,7 @@
    {
     "id": "BS20-058-e2",
     "kind": "constraint",
+    "keyword": "rensa",
     "levels": null,
     "whileCombined": true,
     "condition": {

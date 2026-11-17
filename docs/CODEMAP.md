@@ -302,6 +302,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lifeGuardBounds`（fn）：当たった lifeGuard 全部を畳んだ「減らせる量」の上限と、下回れない値
 - `noteLifeGuardTotal`（fn）：アタックで実際に減ったぶんを、記録してからの合計（total）の lifeGuard に足す。通常のアタック以外の減少で total を使うカードは無いので、呼ぶのはアタックの解決…
 
+## shared/rules/rensa.ts
+
+- `rensaIgnoresCondition`（fn）：【連鎖】の条件無視（SD11-X02【合体時】「このスピリットの【連鎖】は、条件を無視して発揮する」）。
+
 ## shared/rules/resistance.ts
 
 - `ResistanceCategory`（型）：耐性の分類。**分岐用ではなくログ・UI表示用**（呼び出し側は「防がれたかどうか」だけ見ればよい）
@@ -896,7 +900,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/keywords/rensa.ts
 
-- `rensaConditionIgnored`（fn）
 - `markRensa`（fn）：【連鎖】の節の中のアクションすべてに rensa を付ける。選択待ちで中断しても、再開用の action（{...action}）が印を運ぶ。
 - `fireRensaActivated`（fn）：節を解決し終えた直後（選択待ちから再開した後でも sequence の続きとして）呼ばれる
 

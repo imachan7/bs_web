@@ -23,6 +23,7 @@ import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
 import { hasKeyword, instColors, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
 import { entryActive } from "./effectStop"
+import { rensaIgnoresCondition } from "./rensa"
 import { continuousEffectReaches, hasUntargetableConstraint } from "./resistance"
 import { handSizeOf, instanceSymbolCount } from "./symbols"
 import { ownFieldSymbolColors } from "../cost"
@@ -76,7 +77,7 @@ export function activeConstraintsWithSource(
                         // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                         (e.whileOwnBurstSet !== true || board.players[pid].burstSet) &&
                         // BS15共通器：condition／phaseTurn（aura.condition／aura.phaseTurnと同じ判定式。BS15-060バンディット・アームズ）
-                        (e.condition === undefined || checkAuraCondition(board, pid, e.condition, inst)) &&
+                        (e.condition === undefined || (e.keyword === "rensa" && rensaIgnoresCondition(board, pid, inst)) || checkAuraCondition(board, pid, e.condition, inst)) &&
                         (e.phaseTurn === undefined ||
                             (board.phase === e.phaseTurn.phase &&
                                 (e.phaseTurn.turn === "both" ||
@@ -137,7 +138,7 @@ export function activeConstraintsWithSource(
             // 【合体時】：発生源自身が合体しているときだけ付与する（BRAVE.md §12.3。BS13-X006）
             if (effect.whileCombined === true && !instIsCombined(source)) continue
             if (!entryActive(board, pid, source, effect, sourceLevel)) continue
-            if (effect.condition !== undefined && !checkAuraCondition(board, pid, effect.condition)) continue
+            if (effect.condition !== undefined && !(effect.keyword === "rensa" && rensaIgnoresCondition(board, pid, source)) && !checkAuraCondition(board, pid, effect.condition)) continue
             if (effect.filter && !matchesTarget(board, pid, inst, effect.filter, source.instanceId)) continue
             // keywordFilter（【激突】など）だけ filter に移していない。matchesTarget はラベル系を現在Lvで見るため挙動が変わる
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
@@ -165,7 +166,7 @@ export function activeConstraintsWithSource(
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (effect.whileCombined === true && !instIsCombined(source)) continue
             if (!entryActive(board, oppPid, source, effect, sourceLevel)) continue
-            if (effect.condition !== undefined && !checkAuraCondition(board, oppPid, effect.condition)) continue
+            if (effect.condition !== undefined && !(effect.keyword === "rensa" && rensaIgnoresCondition(board, oppPid, source)) && !checkAuraCondition(board, oppPid, effect.condition)) continue
             if (effect.filter && !matchesTarget(board, pid, inst, effect.filter, source.instanceId)) continue
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
             if (effect.phaseTurn) {
