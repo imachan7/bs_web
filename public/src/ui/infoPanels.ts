@@ -93,7 +93,7 @@ export function renderInfo(
 }
 
 // 発動したバーストを表向きにめくって見せる演出（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）
-const burstFlash = new Map<PlayerId, { cardId: string; until: number }>()
+const burstFlash = new Map<PlayerId, { cardId: string; until: number; flipped?: true }>()
 const lastBurstArgs = new Map<string, [GameView, PlayerId, boolean]>()
 export function flashBurstReveal(pid: PlayerId, cardId: string): void {
     burstFlash.set(pid, { cardId, until: Date.now() + 2500 })
@@ -120,7 +120,11 @@ export function renderBurst(id: string, view: GameView, pid: PlayerId, isMine: b
         const m = master(faceUp)
         const el = document.createElement("div")
         el.className = "burst-slot card burst-revealed"
-        if (flashing) el.classList.add("burst-flip")
+        // めくる動きは最初の1回だけ（表示中に盤面が更新されるたびに描き直すので、毎回付けるとめくり直して見える）
+        if (flashing && !flash.flipped) {
+            el.classList.add("burst-flip")
+            flash.flipped = true
+        }
         el.dataset.cardId = faceUp
         el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
         el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
