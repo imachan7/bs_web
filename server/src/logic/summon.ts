@@ -10,7 +10,7 @@ import type { CardData, CardInstance, EffectAction, GameState, PaySource, Player
 import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { attachBrave } from "./brave"
 import { summonDenial } from "./summonGate"
-import { fireSummonTrigger } from "./triggers"
+import { fireSummonTrigger, hasGrantedSummonTrigger } from "./triggers"
 import { heldEffectId, holdDerived } from "./derivedSettle"
 import { eventBurstsFrame, fireEventBursts } from "./EffectModules"
 import type { CollectedTrigger } from "./blockDeclared"
@@ -153,8 +153,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     const hasOwnSummonTrigger = inst.noOnSummon !== true && [inst, ...bravesOf(player, inst)].some((src) =>
         getCard(src.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onSummon" && entryActive(state, pid, src, e, level)),
     )
-    // ponytail: 効果の中では付与された召喚時だけのカードも列に入れる。ほかの1件と並ぶと、誘発しない側のせいで順番を聞くことがある
-    if (hasOwnSummonTrigger || (holdId !== undefined && inst.noOnSummon !== true)) {
+    if (hasOwnSummonTrigger || (holdId !== undefined && inst.noOnSummon !== true && hasGrantedSummonTrigger(state, pid, inst))) {
         items.push({
             key: `${pid}:${inst.cardId}`,
             label: `${player.name}の${getCard(inst.cardId).name}`,

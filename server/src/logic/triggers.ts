@@ -194,6 +194,12 @@ export function fireSummonTrigger(
     }
 }
 
+// 付与された『召喚時』（継続付与・この個体への一時付与）があるか。効果の中の召喚で、誘発しない件を列に積まないための先読み
+export function hasGrantedSummonTrigger(state: GameState, owner: PlayerId, inst: CardInstance): boolean {
+    if (collectGrantedTriggerActions(state, owner, inst, "onSummon", undefined, undefined).length > 0) return true
+    return timedContentsOn(state, inst).some((g) => g.type === "grantTrigger" && firesAt(g, "onSummon", sideOf("onSummon", undefined), headingRewritesOn(state, owner, inst)))
+}
+
 // 「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
 export function revertOncePerTurn(state: GameState, inst: CardInstance, effectId: string): void {
     revertOnceUsed(state, inst, effectId, "triggeredUsedTurn")
