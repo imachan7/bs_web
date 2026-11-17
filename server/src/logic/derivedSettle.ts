@@ -35,7 +35,7 @@ export function pendingEffectIds(state: GameState): string[] {
 }
 
 // 効果の中で起きたら、出来事の時点で誘発を集めて効果の出口まで遅らせる出来事（待機を持たない出来事。DERIVED_AFTER_EFFECT §10）。
-// 召喚・破壊・戻すは別の経路なので入れない
+// 破壊・戻すは別の経路なので入れない。召喚は fireSummonSequence が自分の『召喚時』と一緒に積む
 const HELD_EVENTS = new Set<string>([
     "ownSpiritExhausted", "anySpiritExhausted", "ownNexusExhausted", "ownBofuExhausted", "opponentSpiritExhaustedByOwnSpiritEffect",
     "onRefreshed", "ownSpiritRefreshed", "anySpiritRefreshed",
@@ -44,11 +44,17 @@ const HELD_EVENTS = new Set<string>([
     "opponentSpiritCoresEmptied", "ownSpiritCoresRemovedByOpponent", "opponentSpiritCoresToReserve",
     "ownLifeLost", "ownChimeiMilled", "ownSpiritReducedLife",
     "opponentDeckMilled", "ownDeckMilled", "ownDeckMillPrevented",
+    "ownSpiritSummoned", "anySpiritSummoned", "anyBraveSummoned",
 ])
 
-// 遅らせる出来事なら、それを起こした効果の id（効果の外なら undefined ＝その場で解決する）
+// 効果の中なら、いま解決している効果の id（効果の外・勝敗決定後は undefined ＝その場で解決する）
+export function heldEffectId(state: GameState): string | undefined {
+    return state.winner ? undefined : state.currentEffectSource?.effectId
+}
+
+// 遅らせる出来事なら、それを起こした効果の id
 export function derivedHoldId(state: GameState, event: string): string | undefined {
-    return HELD_EVENTS.has(event) && !state.winner ? state.currentEffectSource?.effectId : undefined
+    return HELD_EVENTS.has(event) ? heldEffectId(state) : undefined
 }
 
 export function holdDerived(state: GameState, effectId: string, items: CollectedTrigger[]): void {

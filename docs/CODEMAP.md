@@ -777,7 +777,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `hasPendingFramesOfEffect`（fn）：この効果の続きがまだ再開スタックに残っているか（残っているあいだは効果が終わっていない）
 - `pendingEffectIds`（fn）：待機に effectId が残っているカードの id を全部（安全網。resolveAction を通らなかった経路の取りこぼしを拾う）
-- `derivedHoldId`（fn）：遅らせる出来事なら、それを起こした効果の id（効果の外なら undefined ＝その場で解決する）
+- `heldEffectId`（fn）：効果の中なら、いま解決している効果の id（効果の外・勝敗決定後は undefined ＝その場で解決する）
+- `derivedHoldId`（fn）：遅らせる出来事なら、それを起こした効果の id
 - `holdDerived`（fn）
 - `settleAllDerived`（fn）
 - `settleDerived`（fn）：戻り値は、列を解決し終えて実際にトラッシュに置かれたスピリットの数（列が選択待ちで止まったときは 0。区切りの後の数え直しは未対応）
@@ -1260,7 +1261,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/triggers.ts
 
 - `isTriggerSuppressed`（fn）：selfInstance が持つ、指定イベントの誘発効果を実行する。
+- `summonedByBurst`（fn）：バーストの効果による、owner 側の召喚か（burstSummonOnly の判定。BS17-044）
 - `fireSummonTrigger`（fn）：『このスピリットの召喚時』効果の発火。解決中だけ GameState.resolvingSummonTriggerPid を立て、
+- `hasGrantedSummonTrigger`（fn）：付与された『召喚時』（継続付与・この個体への一時付与）があるか。効果の中の召喚で、誘発しない件を列に積まないための先読み
 - `revertOncePerTurn`（fn）：「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
 - `revertDestroyGroupUsage`（fn）：同時破壊グループの「使った」印を戻す（「〜できる」を断った・コストが払えず不発だったとき）。
 - `fireTrigger`（fn）

@@ -262,3 +262,12 @@ scripts/smoke/ は 897 ファイル（part 889本）。当たり（grep のみ�
 4. **数は出来事の時点で確定**（`eventCount`・`coresRemoved` などは frame に入れて運ぶ）。効果の続きは派生を解決する前の盤面を読む
 5. **効果の外**（アタック・ブロック宣言の疲労・リフレッシュステップ・ドローステップ・バトルのライフ減少）は今のまま即時
 6. **区切り**：カシオペアシール（BS12-078）の「疲労させる。…この効果発揮後」に `settleDerived` を挟む。§9.5 の残り21枚は「マジックを使用したとき、その効果発揮後」（誘発の形）か、前に出来事が無いので入れない
+
+## 11. 確定した設計：召喚（2本目。2026-11-17。範囲はユーザー確認済み「それでいいよ」）
+
+効果で召喚したスピリットの『召喚時』と、ほかのカードの「召喚されたとき」も、元の効果を解決し終えてから #609 の列と1本で解決する（ドラグ・クリシュナー「召喚する。その後バーストをセットできる」はセットが先）。効果の外の召喚（手札からの通常召喚・【神速】・【烈神速】）と、出口の列の中の【不死】・復活の召喚はその場のまま。
+
+1. `fireSummonSequence`：効果の中（`currentEffectSource.effectId`）なら、集めた `items`（自分の『召喚時』＝`summonSequence triggerOnly` の frame、「召喚されたとき」の fieldEvent）を `resolveInOrder` せず `holdDerived` へ。**イベントバーストの判定はその場**（宣言は条件の時点。BURST.md §1.4）
+2. 後半（`finishSummonSequence`）：ブレイヴの「召喚されたとき」（`anyBraveSummoned`）は `HELD_EVENTS` に入れて自然に遅らせる。トラッシュから召喚・手札に戻る（`tryTrashSummonOnNameSummoned`・`returnTrashOnNameSummoned`）は誘発なので派生の1項目（`summonSequence` の tail を段2〜3に限る frame）として遅らせる。召喚されたスピリットが疲労する継続効果（`summonedExhaustGrant`）はその場
+3. `ownSpiritSummoned`・`anySpiritSummoned` も `HELD_EVENTS` に入れる（`fireSummonSequence` 以外から出る経路があっても効果の中なら遅らせる）
+4. 同時召喚（`summonBatch`）：効果の中では、全員を場に出した後の順番の確認を出さない（各体の誘発は出口の1本の列で順番を聞く）
