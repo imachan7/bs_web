@@ -5,6 +5,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { getCard, log, pushResumeFrames } from "../GameState"
 import { fireSummonTrigger, fireTrigger, requestChoice, resolveAction } from "../EffectModules"
+import { summonedByBurst } from "../triggers"
 import { requestCardChoice, targetableSpirits } from "../targeting"
 import { bravesOf, currentLevel, effectActiveAtLevel, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -167,7 +168,7 @@ const replayOpponentSummonEffectHandler: ActionHandler<"replayOpponentSummonEffe
         return
     }
     log(state, `${sourceName}：${getCard(inst.cardId).name}が${getCard(rec.cardId).name}の『召喚時』効果を発揮した。`)
-    fireTrigger(state, owner, inst, "onSummon", undefined, undefined, false, undefined, undefined, undefined, undefined, rec)
+    fireTrigger(state, owner, inst, "onSummon", undefined, undefined, false, undefined, undefined, undefined, undefined, rec, summonedByBurst(state, owner))
 }
 
 // 持ち主のスピリットではなくトラッシュのカードの効果なので、Lv は借りる側（発生源）の今のLvで見る（BS22 計画 §2-5）。
@@ -206,7 +207,7 @@ const borrowTrashSummonEffectHandler: ActionHandler<"borrowTrashSummonEffect"> =
         return
     }
     log(state, `${sourceName}：${getCard(cardId).name}の『召喚時』効果を、自分の効果として発揮する。`)
-    fireTrigger(state, owner, self, "onSummon", undefined, undefined, false, undefined, undefined, picked.ids, undefined, { cardId, level })
+    fireTrigger(state, owner, self, "onSummon", undefined, undefined, false, undefined, undefined, picked.ids, undefined, { cardId, level }, summonedByBurst(state, owner))
 }
 
 const handlers = {

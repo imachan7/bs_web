@@ -10,7 +10,7 @@ import type { CardData, CardInstance, EffectAction, GameState, PaySource, Player
 import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { attachBrave } from "./brave"
 import { summonDenial } from "./summonGate"
-import { fireSummonTrigger, hasGrantedSummonTrigger } from "./triggers"
+import { fireSummonTrigger, hasGrantedSummonTrigger, summonedByBurst } from "./triggers"
 import { heldEffectId, holdDerived } from "./derivedSettle"
 import { eventBurstsFrame, fireEventBursts } from "./EffectModules"
 import type { CollectedTrigger } from "./blockDeclared"
@@ -149,6 +149,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // 召喚時の効果を書いていないカード（付与された召喚時だけを持つ場合も含む）は列に入れずに先に呼ぶ。入れると、誘発しない1件のせいで解決順を聞いてしまう
     const items: CollectedTrigger[] = []
     const holdId = heldEffectId(state)
+    const byBurst = summonedByBurst(state, pid)
     const level = currentLevel(inst).level
     const hasOwnSummonTrigger = inst.noOnSummon !== true && [inst, ...bravesOf(player, inst)].some((src) =>
         getCard(src.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onSummon" && entryActive(state, pid, src, e, level)),
@@ -157,10 +158,10 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         items.push({
             key: `${pid}:${inst.cardId}`,
             label: `${player.name}の${getCard(inst.cardId).name}`,
-            frame: { kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", triggerOnly: true, ...(byFushi ? { byFushi: true } : {}) } },
-            run: () => fireSummonTrigger(state, pid, inst, byFushi),
+            frame: { kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", triggerOnly: true, ...(byFushi ? { byFushi: true } : {}), ...(byBurst ? { byBurst: true } : {}) } },
+            run: () => fireSummonTrigger(state, pid, inst, byFushi, undefined, byBurst),
         })
-    } else if (inst.noOnSummon !== true) fireSummonTrigger(state, pid, inst, byFushi)
+    } else if (inst.noOnSummon !== true) fireSummonTrigger(state, pid, inst, byFushi, undefined, byBurst)
     const checks: EventBurstCheck[] = []
     // ⚠️ こちらは **spirits だけ**でよい：下で発火させる fieldEvent は
     // 「自分の**スピリット**が召喚されたとき」（BS08海底に眠りし古代都市など）なので、

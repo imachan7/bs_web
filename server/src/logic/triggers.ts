@@ -167,6 +167,11 @@ export function isTriggerSuppressed(
     return false
 }
 
+// バーストの効果による、owner 側の召喚か（burstSummonOnly の判定。BS17-044）
+export function summonedByBurst(state: GameState, owner: PlayerId): boolean {
+    return state.currentEffectSource?.burst === true && state.currentEffectSource.pid === owner
+}
+
 // 『このスピリットの召喚時』効果の発火。解決中だけ GameState.resolvingSummonTriggerPid を立て、
 // 「相手のスピリットの召喚時効果を受けない」（BS05リトルナイト・ランスロットLv3）が isEffectBlocked で判定できるようにする。
 // 選択待ちで中断した場合はフラグを残し、handleAction の事後フックが選択の解決後にクリアする
@@ -177,6 +182,8 @@ export function fireSummonTrigger(
     byFushi = false,
     // 発揮する効果 id を絞る（fireEffect の「効果1つ」。付与された誘発は発揮しない）
     onlyEffectIds?: string[],
+    // 召喚の時点の値を運ぶ（効果の出口へ回すと、解決時にはバーストの効果の中ではない）
+    byBurst: boolean = summonedByBurst(state, owner),
 ): void {
     // globalConstraint "noSummonTriggerByCost"（BS08共鳴する音叉の塔）：コストが低いスピリットの
     // 『このスピリットの召喚時』効果は発揮されない
@@ -187,7 +194,7 @@ export function fireSummonTrigger(
     // 召喚時効果の中で別のスピリットが召喚されたら積み重ねる。選択待ちで止まったら、handleAction の事後フックが内側から順に閉じる
     ;(state.summonEffectSources ??= []).push({ pid: owner, instanceId: selfInstance.instanceId, cardId: selfInstance.cardId, level: currentLevel(selfInstance).level, cost: getCard(selfInstance.cardId).cost, colors: instColors(selfInstance) })
     state.resolvingSummonTriggerPid = owner
-    fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi, undefined, undefined, onlyEffectIds)
+    fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi, undefined, undefined, onlyEffectIds, undefined, undefined, byBurst)
     if (!state.pendingChoice) {
         delete state.resolvingSummonTriggerPid
         finishSummonEffect(state)
@@ -229,6 +236,7 @@ export function fireTrigger(
     onlyEffectIds?: string[], // fireSummonTrigger と同じ
     collect?: CollectedTrigger[], // 渡されたら解決せず、同時発揮の1件ずつとして積んで返る（blockDeclared.ts）
     asCard?: { cardId: string; level: number }, // 別カードの効果エントリを selfInstance が発揮したものとして解く（replayOpponentSummonEffect）。Lv は記録した値、ブレイヴと付与分は見ない
+    byBurst?: boolean, // onSummon限定：バーストの効果による召喚か（burstSummonOnly の判定）
 ): void {
     // 待機状態のカードは、場を離れることに関係する誘発しか発揮できない（PENDING_STATE.md §3 P4）
     if (!canFireWhileWaiting(selfInstance, event)) return
@@ -277,8 +285,8 @@ export function fireTrigger(
         }
         // 器BS16：fromHandOnly（trigger:"onDeploy"限定。BS16-062／BS16-064）
         if (effect.fromHandOnly && !fromHand) return false
-        // trigger:"onSummon"限定：バースト効果そのものが起こした召喚のみ（currentEffectSource.burst で見る）（BS17-044）
-        if (effect.burstSummonOnly && !(state.currentEffectSource?.burst && state.currentEffectSource.pid === owner)) return false
+        // trigger:"onSummon"限定：バースト効果そのものが起こした召喚のみ（BS17-044）
+        if (effect.burstSummonOnly && byBurst !== true) return false
         // turn（BS13-010スカルザードLv2＝『相手のターン』）：発生源の持ち主基準でown/opponentを絞る
         if (effect.turn === "own" && owner !== state.turnPlayer) return false
         if (effect.turn === "opponent" && owner === state.turnPlayer) return false

@@ -1035,7 +1035,7 @@ const summonSequenceHandler: ActionHandler<"summonSequence"> = (ctx, action) => 
     if (!self) return
     // triggerOnly：召喚時と「召喚されたとき」の列が止まったあと、召喚時だけを再開する
     if (action.tail) finishSummonSequence(state, owner, self, action.tail)
-    else if (action.triggerOnly) fireSummonTrigger(state, owner, self, action.byFushi === true)
+    else if (action.triggerOnly) fireSummonTrigger(state, owner, self, action.byFushi === true, undefined, action.byBurst === true)
     else fireSummonSequence(state, owner, self, action.byFushi === true)
 }
 

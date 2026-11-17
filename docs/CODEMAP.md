@@ -1261,6 +1261,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/triggers.ts
 
 - `isTriggerSuppressed`（fn）：selfInstance が持つ、指定イベントの誘発効果を実行する。
+- `summonedByBurst`（fn）：バーストの効果による、owner 側の召喚か（burstSummonOnly の判定。BS17-044）
 - `fireSummonTrigger`（fn）：『このスピリットの召喚時』効果の発火。解決中だけ GameState.resolvingSummonTriggerPid を立て、
 - `hasGrantedSummonTrigger`（fn）：付与された『召喚時』（継続付与・この個体への一時付与）があるか。効果の中の召喚で、誘発しない件を列に積まないための先読み
 - `revertOncePerTurn`（fn）：「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
