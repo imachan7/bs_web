@@ -174,6 +174,15 @@ export function destroyCombinedBraves(state: GameState, ownerPid: PlayerId, targ
     resumeBraveDestroy(state, { kind: "braveDestroy", ownerPid, event, phase: "triggers" })
 }
 
+// 合体中のブレイヴの破壊で誘発するものを items へ集める（効果の出口では他の破壊の列と1本にするため、集める部分だけ分けてある）
+// 「ブレイヴだけが破壊されたとき、そのブレイヴを〜」は同時破壊につき1回。主語には最初のブレイヴを渡し、
+// 「そのブレイヴ」が同時に破壊された全部を指すことは、戻す側（returnDestroyedSelfToHand）が同じ出来事の待機で見る（C8）
+export function collectBraveDestroyItems(state: GameState, ownerPid: PlayerId, braves: CardInstance[], items: CollectedTrigger[]): void {
+    const subject = braves[0]
+    for (const b of braves) fireTrigger(state, ownerPid, b, "onDestroy", undefined, undefined, undefined, undefined, undefined, undefined, items)
+    if (subject) fireFieldEventTriggers(state, ownerPid, "ownBraveOnlyDestroyed", { pid: ownerPid, inst: subject }, instColors(subject), undefined, undefined, undefined, undefined, undefined, undefined, undefined, items)
+}
+
 export function resumeBraveDestroy(state: GameState, frame: BraveDestroyFrame): void {
     const { ownerPid, event } = frame
     const player = state.players[ownerPid]
@@ -182,10 +191,8 @@ export function resumeBraveDestroy(state: GameState, frame: BraveDestroyFrame): 
         const braves = waiting()
         // 「ブレイヴだけが破壊されたとき、そのブレイヴを〜」は同時破壊につき1回。主語には最初のブレイヴを渡し、
         // 「そのブレイヴ」が同時に破壊された全部を指すことは、戻す側（returnDestroyedSelfToHand）が同じ出来事の待機で見る（C8）
-        const subject = braves[0]
         const items: CollectedTrigger[] = []
-        for (const b of braves) fireTrigger(state, ownerPid, b, "onDestroy", undefined, undefined, undefined, undefined, undefined, undefined, items)
-        if (subject) fireFieldEventTriggers(state, ownerPid, "ownBraveOnlyDestroyed", { pid: ownerPid, inst: subject }, instColors(subject), undefined, undefined, undefined, undefined, undefined, undefined, undefined, items)
+        collectBraveDestroyItems(state, ownerPid, braves, items)
         resolveInOrder(state, items, {
             skip: (i) => i.skip?.() === true,
             resolve: (i) => i.run(),
