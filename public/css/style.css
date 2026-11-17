@@ -529,11 +529,11 @@ button:active {
 }
 
 /* 発動したバースト：表向き（宣言から場を離れるまで。相手にも見える） */
+/* 表向きは伏せていたときの色の枠を付けない（2026-11-17 ユーザー指摘：上に赤い線が残っていた） */
 .burst-slot.burst-revealed {
-    background: linear-gradient(#2a2e39, #2a2e39) padding-box,
-                linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
-    border: 2px solid transparent;
-    padding: 2px;
+    background: #2a2e39;
+    border: none;
+    padding: 0;
 }
 .burst-revealed .name {
     font-size: 8px;
@@ -553,8 +553,8 @@ button:active {
     from { transform: rotateY(90deg); }
     to { transform: rotateY(0); }
 }
-/* 相手のバーストは相手側から見た向き（180度回転）で表向きにする（2026-11-17 ユーザー指示） */
-#opp-burst .burst-revealed { transform: rotate(180deg); }
+/* 相手のバーストは、伏せているときも表向きのときも相手側の向き（180度回転）。場のカード（[data-side="opp"]）と揃える */
+#opp-burst .burst-slot { transform: rotate(180deg); }
 #opp-burst .burst-revealed.burst-flip { animation: burst-flip-opp 0.5s ease-out; }
 @keyframes burst-flip-opp { from { transform: rotate(180deg) rotateY(90deg); } to { transform: rotate(180deg); } }
 .burst-hidden-icon {
@@ -2408,4 +2408,39 @@ body:has(#notice-banner:not(.hidden)) {
     0% { transform: scale(0.2); opacity: 1; }
     60% { opacity: 0.8; }
     100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* bs_web_standard e04e7c95（2026-10-16）から移した。こちらには入っていなかった（2026-11-17 ユーザー指摘） */
+/* ---- 相手のカードは相手の側を向ける ----
+   向きは持ち主（data-side）だけで決める。画像が読めたか（.has-art）には依存させない：
+   依存させると、画像が読めた瞬間に向きが変わって回転して見える。
+   疲労は自分と逆の左へ90度、重疲労は自分の逆さを反転するので正位置になる */
+.card[data-side="opp"] { transform: rotate(180deg); }
+.card[data-side="opp"].rested { transform: rotate(-90deg); }
+.card[data-side="opp"].rested.heavy-rested { transform: none; }
+.spirit-zone .card[data-side="opp"].has-art.rested { margin-left: 40px; margin-right: 18px; }
+.spirit-zone .card[data-side="opp"].has-art.rested.heavy-rested { margin-left: 0; margin-right: 0; }
+
+/* 画像なし（文字表示）は、並びを逆にして各要素を逆回転し、文字を正位置に戻す。疲労中は自分側と同じく回したまま */
+.card[data-side="opp"]:not(.has-art):not(.rested) { flex-direction: column-reverse; }
+.card[data-side="opp"]:not(.has-art):not(.rested) > *:not(.card-art),
+.card[data-side="opp"]:not(.has-art):not(.rested) > .card-overlay > * { transform: rotate(180deg); }
+
+/* 画像表示の能力値の枠（.card-overlay）は、自分のカードと同じくカードの文字欄（回した後は見た目の上半分）に置き、イラストに重ねない。
+   枠だけ逆回転して文字を正位置にし、文字は外側（見た目の上端）に寄せる（2026-11-17 ユーザー指摘：イラストと重なっていた） */
+.card[data-side="opp"].has-art > .card-overlay {
+    transform: rotate(180deg);
+    justify-content: flex-start;
+    background: linear-gradient(to top, transparent, rgba(10, 12, 18, 0.8) 35%);
+}
+.spirit-zone .card[data-side="opp"].has-art.rested > .card-overlay { top: 50%; bottom: auto; transform: translate(-50%, -50%) rotate(90deg); }
+.nexus-zone .card[data-side="opp"].has-art.rested > .card-overlay { top: 0; bottom: 50%; transform: rotate(90deg); }
+.card[data-side="opp"].has-art.rested.heavy-rested > .card-overlay {
+    top: 50%;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    transform: none;
 }
