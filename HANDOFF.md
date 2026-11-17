@@ -32,15 +32,10 @@
 - サーバー：`playerView` に `burstRevealed: boolean` を足す（`buildView` が state から求めて渡す。真＝`state.declaredBursts` にその pid・cardId がある／`pendingChoice.burst` が一致／`currentEffectSource.burst` で pid・cardId が一致）。真なら相手にも `burst` の cardId を返す。新しい状態は足さない
 - 画面：伏せている間は裏面の画像（相手は画像だけ、自分は画像の上に名前）。`burstRevealed` なら表向き（色の枠＋名前、🔒なし）。発動のイベント（#620 で cardId つき）を受けたら、その陣営のバースト欄を表向きにめくる演出を約2.5秒出す（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）
 
-### 進行中：SJ 番号のプロモ（最強ジャンプ付録）の取り込み（`feat/sj-promo`。11-17 開始）
+### SJ の取り込みの残り（`feat/sj-promo` の PR 済み。11-18）
 
-- 範囲：アルティメットの前まで＝SJ12・SJ13 の34枚（2026-11-17 ユーザー決定）＋未収録だった EX 番号9種（リミテッドパック2 EX007〜009・リミテッドパック3 EX012〜014・最強戦友パック EX018〜020。同日ユーザー追加）。計43枚。ほかの EX 番号は P 番号で収録済み。SJ14〜SJ19 の94枚（アルティメット21・ソウルコア23・未実装キーワード23・創界神1を含む）は対象外
-- データ：`data/staging/SJ.json`（プロモの一覧のキャッシュから `fetch_wiki_cards.py` の `parse_row` で抜いた。効果文なし6枚）。入れ先は `data/cards/SJ.json`
-- 構築済みデッキ「白銀の最強ロボデッキ」（最強ジャンプ2013年5月号付録。SJ13-10〜23 の14種＋BS10-089 月照す氷結湖×2・BS01-141×1・BS01-146×3・BS02-102×3・BS07-076×3、40枚）も、カードが入ったら `data/constants.ts` のレシピに足す（既存5種の id と名前は照合済み）
-- 手順：調査役（Sonnet）が `docs/design/SJ_PLAN.md` に節ごとの表・新しい部品の候補・確認すべき解釈を書く → ユーザー確認 → 期待値役 → 実装役 → データ役
-- **確定（11-17 ユーザー確認）**：新しい器は作らず、既存の器に欄を3つ足す。①期間つきの `destroyedCoresTo` に `byBattle?: true`（BPを比べた破壊だけ。removal.ts の確定で `destroyContextOf(inst)?.battle !== undefined` を見る）②期間つきの中身 `lifeDamageCoresTo { to: "trash"|"void" }`（プレイヤーに掛ける。`timedEffect` の `placeDestroyedCoresTo` と同じ分岐で置き、battleResolve.ts の `applyNormalLifeDamage` が守る側のプレイヤーの記録を見てライフのコアの行き先にする）③`reviveOnDestroy` の cost に `alsoFromTegamoto?: true`（`handDiscardOne` と併用。手札か手元から1枚、対話では持ち主が選ぶ）。デネボラ EX014＝`timedEffect [destroyedCoresTo void] battle`、デス・シザー SJ13-03＝`timedEffect [destroyedCoresTo trash byBattle, lifeDamageCoresTo trash] battle`（合体アタック時）、プロキオン EX009＝`reviveOnDestroy cost {handDiscardOne, alsoFromTegamoto}`。EX014 の「破壊された」は効果の破壊も含む（A）
-- ③の選ばせ方（11-18 メインループ決定）：手札の候補と手元のマジック（`tegamoto` のうち type magic）の両方があり対話なら、まず `kind:"option"` で「手札から1枚」／「手元の《名前》」を出し、手札を選んだら既存の手札選び（`suspendReviveCostPick` の cardIndices）へ。片方だけならそちらで既存どおり。非対話は手札の末尾、無ければ手元の末尾のマジック。払えるかの判定（`reviveCostReason`）も手元を数える
-- 分担：期待値役（Sonnet）part990〜994、器の実装役（Sonnet）part995〜997、その後データ役が 43枚を `data/cards/SJ.json` に書き期待値の part を変更禁止で通す
+- 一度も実行されていない16エントリ（coverage の基準に入れた）。場面テストを足して基準から消す：EX007-e2 EX008-e1 EX008-e2 EX012-e2 EX019-e1 SJ12-02-e1 SJ12-03-e3 SJ13-05-e1 SJ13-05-e2 SJ13-09-e1 SJ13-12-e1 SJ13-20-e1 SJ13-21-e1 SJ13-22-e1 SJ13-22-e2 SJ13-24-e2
+- 期待値役が書けなかった場面：EX014 の転召・EX014 のバトル中の効果破壊・SJ13-03 と【重装甲】・SJ13-02 で剣刃でないブレイヴ・単体召喚を選ぶ場面（scenario に手元・分身・合体状態を start に置く欄が無い）
 
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 
