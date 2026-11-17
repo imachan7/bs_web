@@ -1,7 +1,7 @@
 // サーバー通信、ユーザー操作の受付、状態購読
 import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
-import { installSecretCardArt } from "./cardArt"
+import { installSecretCardArt, preloadCardArt } from "./cardArt"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -333,6 +333,12 @@ function cancelWaiting(): void {
     hideWaiting()
 }
 
+// デッキの選択肢の値（構築済みのレシピ名か、カスタムデッキの印つきの名前）から、入っているカードの cardId
+function deckCardIdsOf(value: string): string[] {
+    const cards = value.startsWith(CUSTOM_DECK_PREFIX) ? customDecks.get(value.slice(CUSTOM_DECK_PREFIX.length)) : deckRecipes[value]?.cards
+    return Object.keys(cards ?? {})
+}
+
 function selectedDeck(): DeckChoice | null {
     const deck = (byId("deck-select") as HTMLSelectElement).value
     if (!deck.startsWith(CUSTOM_DECK_PREFIX)) return { deck }
@@ -350,6 +356,7 @@ function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement
     const name = (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
     const deck = selectedDeck()
     if (!deck) return
+    preloadCardArt(deckCardIdsOf((byId("deck-select") as HTMLSelectElement).value))
     cancelWaiting()
     joinMode = mode
     showWait(1)
@@ -518,6 +525,7 @@ async function init(): Promise<void> {
             (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
         const myDeck = (byId("ai-my-deck-select") as HTMLSelectElement).value
         const oppDeck = (byId("ai-opp-deck-select") as HTMLSelectElement).value
+        preloadCardArt([...deckCardIdsOf(myDeck), ...deckCardIdsOf(oppDeck)])
 
         // AI対戦のペイロードを組み立てる
         const payload: Record<string, unknown> = { name }
