@@ -2426,8 +2426,13 @@ body:has(#notice-banner:not(.hidden)) {
 .card[data-side="opp"]:not(.has-art):not(.rested) > *:not(.card-art),
 .card[data-side="opp"]:not(.has-art):not(.rested) > .card-overlay > * { transform: rotate(180deg); }
 
-/* 画像表示の能力値の枠（.card-overlay）は逆回転し、回転後のカードの下端に置く */
-.card[data-side="opp"].has-art > .card-overlay { top: 0; bottom: 50%; transform: rotate(180deg); }
+/* 画像表示の能力値の枠（.card-overlay）は、自分のカードと同じくカードの文字欄（回した後は見た目の上半分）に置き、イラストに重ねない。
+   枠だけ逆回転して文字を正位置にし、文字は外側（見た目の上端）に寄せる（2026-11-17 ユーザー指摘：イラストと重なっていた） */
+.card[data-side="opp"].has-art > .card-overlay {
+    transform: rotate(180deg);
+    justify-content: flex-start;
+    background: linear-gradient(to top, transparent, rgba(10, 12, 18, 0.8) 35%);
+}
 .spirit-zone .card[data-side="opp"].has-art.rested > .card-overlay { top: 50%; bottom: auto; transform: translate(-50%, -50%) rotate(90deg); }
 .nexus-zone .card[data-side="opp"].has-art.rested > .card-overlay { top: 0; bottom: 50%; transform: rotate(90deg); }
 .card[data-side="opp"].has-art.rested.heavy-rested > .card-overlay {
