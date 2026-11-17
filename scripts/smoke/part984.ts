@@ -2,12 +2,15 @@
 // SD11-X02 の「【連鎖】は条件を無視して発揮する」が keyword:"rensa" の常在・付与エントリの条件にも効く）
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides } from "./helpers"
 import type { GameAction, GameState, PlayerId } from "./helpers"
+import { countSymbols } from "../../shared/rules/symbols"
 import { activeConstraints } from "../../shared/rules"
 
 const SD17 = "SD17-X01" // 闇龍ダーク・ティラノザウラー（赤・コスト6・地竜。BS1000。緑の【連鎖】の部分=battleWon e2）
 const FORT = "BS23-027" // 要塞蟲フォートコーカサス（緑白。Lv2 e3：緑の【連鎖】が発揮したとき、アタック中のスピリットの効果で戻す）
 const SWORD = "SD11-X02" // 白夜の宝剣ミッドナイト・サン（白・ブレイヴ。【合体時】【連鎖】の条件を無視）
 const WYBORN = "BS20-016" // ワイボーン（紫・コスト5。e2【連鎖】：赤シンボルがあるとき直接アタック）
+const PERU = "BS19-055" // ペルーディア（黄。Lv2～ e4：白シンボルがあるとき【生命】持ちに【連鎖】の制約を付与）
+const MAZE = "BS19-066" // メイズ・ハイドラ（青。e3：赤シンボルがあるとき青シンボル+2）
 const VAN = "BS01-002" // ロクケラトプス（赤・バニラ）
 
 console.log("=== 前提: カードの機械確認 ===")
@@ -114,6 +117,45 @@ console.log("=== 3. SD11-X02 合体中: keyword:rensa の constraint はシン�
     assert(!direct(), "合体を解くと効かなくなる")
     s.players.p1.field.spirits.push(createInstance(VAN, s.turn, 1))
     assert(direct(), "対照: 赤シンボルがあれば合体なしでも直接アタックできる")
+}
+
+// SD11-X02 を合体させる／外す（合体の条件判定は通さず状態を直接組む）
+function combine(s: GameState, host: ReturnType<typeof createInstance>, on: boolean): void {
+    if (on) {
+        const brave = createInstance(SWORD, s.turn, 0)
+        s.players.p1.field.combinedBraves.push(brave)
+        host.braveRefs = [{ slot: "single", instanceId: brave.instanceId }]
+    } else {
+        host.braveRefs = []
+        s.players.p1.field.combinedBraves = []
+    }
+    refreshLevelAsOverrides(s)
+}
+
+console.log("=== 4. SD11-X02 合体中: keyword:rensa の constraintGrant（ペルーディア）も条件を無視して付与する ===")
+{
+    const s = build("rensa-4", [{ card: PERU, cores: 2 }], [])
+    const host = s.players.p1.field.spirits[0]!
+    const granted = () => activeConstraints(s, "p1", host).some((c) => c.type === "unblockableBy")
+    assert(!granted(), "白シンボルが無く合体もしていないので付与されない")
+    combine(s, host, true)
+    host.symbolsOverrideContinuous = ["yellow"] // 合体したブレイヴの白シンボルを数えさせない（条件の白シンボルを本当に満たさない状態にする）
+    assert(countSymbols(s.players.p1, ["white"]) === 0, "前提: 白シンボルは0")
+    assert(granted(), "合体中は条件を無視して付与される")
+    combine(s, host, false)
+    assert(!granted(), "合体を解くと付与されない")
+}
+
+console.log("=== 5. SD11-X02 合体中: keyword:rensa の symbolAddGrant（メイズ・ハイドラ）も条件を無視して青シンボルを足す ===")
+{
+    const s = build("rensa-5", [{ card: MAZE, cores: 1 }], [])
+    const host = s.players.p1.field.spirits[0]!
+    const added = () => (host.symbolsAddedContinuous ?? []).length
+    assert(added() === 0, "赤シンボルが無く合体もしていないので足されない")
+    combine(s, host, true)
+    assert(added() === 2, `合体中は条件を無視して青シンボルが2つ足される（${added()}）`)
+    combine(s, host, false)
+    assert(added() === 0, "合体を解くと足されない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part984）")
