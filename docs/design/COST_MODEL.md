@@ -292,7 +292,7 @@ BS14-084 永久凍土の王都は**原因を限定せず**「自分のライフ�
 
 - バーストの「その後コストを支払うことで、このカードのメイン/フラッシュ効果を発揮する」（`thenPay`）も同じ。リザーブだけで払えるかを見ていて、相手のターンに発揮できなかった（`server/src/logic/burstThenPay.ts`。smoke part890）
 - 手札から使う「相手のメインステップ終了時」（`usableAtOpponentMainEnd`。プロボケイション）も同じで、`magic/payThenResolve.ts` を通す（#513。smoke part932）。手元からの召喚・使用も手札と同じ支払い画面を通す（#512）
-- 未対応で残っているもの：`moveCards{dest:"cast", pay:"cost"}` の払えるかの判定は、まだリザーブだけを見ている
+- `moveCards{dest:"cast", pay:"cost"}` も同じ（smoke part986）
 
 ## 13. 効果による召喚・配置でも、置くコアの数（Lv）を選ぶ（2026-11-11 ユーザー決定）
 

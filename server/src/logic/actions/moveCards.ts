@@ -7,6 +7,8 @@ import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerI
 import { getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "../GameState"
 import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
+import { canPayMagicCost, payMagicCostThenResolve } from "../magic/payThenResolve"
+import { beginMagicUse } from "../magic/inUse"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { summonDenial } from "../summonGate"
 import { handImmuneFor, notifyHandGained, payCost, recordTimed, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
@@ -122,7 +124,7 @@ function affordable(state: GameState, pid: PlayerId, action: MoveCards, cardId: 
     const card = getCard(cardId)
     const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
     if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo, action.from === "hand") + summonVoidToll(state, card) : canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card), true)
-    if (action.dest === "cast") return action.pay === "cost" ? player.reserve >= effectiveCost(state, pid, card) : true
+    if (action.dest === "cast") return action.pay === "cost" ? canPayMagicCost(state, pid, effectiveCost(state, pid, card)) : true
     if (action.pay === "fieldCoresOnly") return fieldCoresSpendable(state, pid).reduce((sum, x) => sum + x.max, 0) >= effectiveCost(state, pid, card)
     return player.reserve >= minLevelCores(card)
 }
@@ -228,6 +230,18 @@ function castWithCost(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number):
         return false
     }
     const cost = effectiveCost(state, pid, card)
+    // 支払い元の指定が無いときは払い方を聞く（対話）／自動で払う。払う間、カードは使用中に置く（magic/inUse.ts）
+    if (!ctx.paySources) {
+        if (!canPayMagicCost(state, pid, cost)) {
+            log(state, `${sourceName}：${card.name}のコストを支払えないため発動しなかった。`)
+            return false
+        }
+        zone.splice(j, 1)
+        beginMagicUse(state, pid, cardId)
+        log(state, `${player.name}はトラッシュの${card.name}を手札にあるときと同様に使用する。（コスト${cost}）`)
+        payMagicCostThenResolve(state, pid, cardId, cost, { type: "useMagicCard", cardId, timing, paidCost: true, inUse: true })
+        return true
+    }
     const fromField = (ctx.paySources ?? []).reduce((sum, src) => {
         const inst = player.field.spirits.find((i) => i.instanceId === src.instanceId) ?? player.field.nexuses.find((i) => i.instanceId === src.instanceId)
         return sum + Math.min(Math.max(0, src.count), inst?.cores ?? 0)
@@ -291,7 +305,8 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
     const choosable = cands.filter(
         (j) =>
             (action.costBudget === undefined || getCard(zone[j]!).cost <= action.costBudget) &&
-            (action.dest !== "summon" || (action.pay !== "cost" ? canPayFreeSummonSurcharge(state, pid, getCard(zone[j]!), 0, true) : affordable(state, pid, action, zone[j]!, viaSoryo(action)))),
+            (action.dest !== "summon" || (action.pay !== "cost" ? canPayFreeSummonSurcharge(state, pid, getCard(zone[j]!), 0, true) : affordable(state, pid, action, zone[j]!, viaSoryo(action)))) &&
+            (!(action.dest === "cast" && action.pay === "cost") || affordable(state, pid, action, zone[j]!)),
     )
     if ((action.count !== "all" && action.count <= 0) || choosable.length === 0) {
         end()
