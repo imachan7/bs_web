@@ -55,7 +55,7 @@ export type PickedTargets = { ids: string[]; passed: string[]; failed: string[];
 
 // 召喚の後半（ブレイヴの召喚の誘発・トラッシュの同名召喚・同名で手札へ戻る・天使長ファニムの疲労）の続き。stage＝次に行う段。
 // paidCost＝コストを支払った召喚か（state.summoningPaid の写し。後半で読む前に state の印は消えるので、続きに持たせる。#437 F5）
-export type SummonTail = { stage: number; paidCost: boolean }
+export type SummonTail = { stage: number; paidCost: boolean; end?: number } // end＝この段の手前で止める（効果の後へ回した段2〜3だけを出口で解くフレーム。DERIVED_AFTER_EFFECT §11）
 
 export type EffectAction =
  | { type: "draw"; count: number; side?: "own" | "both"; fillTo?: number; costSkipCoreStep?: true; countCounter?: EffectCounter; countMax?: number; costSacrificeChosen?: true } // 自分がデッキから引く。countMaxはmill.countMaxと同義。side:"both"は自分→相手の順の両者、省略時は自分のみ。costSkipCoreStep＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）。fillTo＝手札がその枚数になるまで引く（count は見ない。0〜N の upTo とは別の意味）

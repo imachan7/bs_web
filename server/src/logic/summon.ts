@@ -11,6 +11,7 @@ import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, oppo
 import { attachBrave } from "./brave"
 import { summonDenial } from "./summonGate"
 import { fireSummonTrigger } from "./triggers"
+import { heldEffectId, holdDerived } from "./derivedSettle"
 import { eventBurstsFrame, fireEventBursts } from "./EffectModules"
 import type { CollectedTrigger } from "./blockDeclared"
 import type { EventBurstCheck, ResumeFrame, SummonTail } from "../type"
@@ -69,6 +70,14 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
     }
 }
 
+// 段2〜3の誘発元がトラッシュにあるか（無いのに列へ積むと、順番を聞く件数が増えるため）
+function hasTrashSummonTrigger(state: GameState, pid: PlayerId, summoned: CardInstance): boolean {
+    const name = getCard(summoned.cardId).name
+    return state.players[pid].trashCards.some((cardId) =>
+        getCard(cardId).effects.some((e) => (e.kind === "trashSummonOnNameSummoned" || e.kind === "trashReturnOnNameSummoned") && name.includes(e.nameIncludes)),
+    )
+}
+
 // トラッシュにあるカード自身の効果（kind:"trashReturnOnNameSummoned"）。条件を満たすカードはすべて手札に戻る
 function returnTrashOnNameSummoned(state: GameState, pid: PlayerId, summoned: CardInstance): void {
     const player = state.players[pid]
@@ -97,6 +106,14 @@ export function flushSummonBatch(state: GameState, pid: PlayerId): void {
     const ids = state.summonBatch
     delete state.summonBatch
     if (!ids || ids.length === 0) return
+    // 効果の中では順番を聞かず、各体の誘発をそのまま効果の出口の1本の列へ積む
+    if (heldEffectId(state) !== undefined) {
+        for (const id of ids) {
+            const inst = findInstanceAnywhere(state, id)
+            if (inst && isOnFieldAnyZone(state.players[pid], id)) fireSummonSequence(state, pid, inst)
+        }
+        return
+    }
     const cardIdOf = (id: string): string => findInstanceAnywhere(state, id)?.cardId ?? id
     resolveInOrder(state, ids, {
         skip: (id) => !isOnFieldAnyZone(state.players[pid], id),
@@ -131,11 +148,13 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // 召喚時と「召喚されたとき」は同時発揮の1つの列（TIMING_CHART §0-3。2026-11-05 ユーザー確認）。非対話では召喚時が先。
     // 召喚時の効果を書いていないカード（付与された召喚時だけを持つ場合も含む）は列に入れずに先に呼ぶ。入れると、誘発しない1件のせいで解決順を聞いてしまう
     const items: CollectedTrigger[] = []
+    const holdId = heldEffectId(state)
     const level = currentLevel(inst).level
     const hasOwnSummonTrigger = inst.noOnSummon !== true && [inst, ...bravesOf(player, inst)].some((src) =>
         getCard(src.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onSummon" && entryActive(state, pid, src, e, level)),
     )
-    if (hasOwnSummonTrigger) {
+    // ponytail: 効果の中では付与された召喚時だけのカードも列に入れる。ほかの1件と並ぶと、誘発しない側のせいで順番を聞くことがある
+    if (hasOwnSummonTrigger || (holdId !== undefined && inst.noOnSummon !== true)) {
         items.push({
             key: `${pid}:${inst.cardId}`,
             label: `${player.name}の${getCard(inst.cardId).name}`,
@@ -184,7 +203,8 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             checks.push({ pid: ev.pid, event: ev.event, subject: { pid, cardId: inst.cardId }, colors, info: summonedInfo })
         }
     }
-    resolveInOrder(state, items, {
+    if (holdId !== undefined) holdDerived(state, holdId, items)
+    else resolveInOrder(state, items, {
         skip: (i) => i.skip?.() === true,
         resolve: (i) => i.run(),
         frame: (i) => i.frame,
@@ -211,6 +231,8 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
 // 召喚の後半。段ごとに進め、選択待ちが立ったら続きの段を積んで止まる（以前は止まらずに走り、選択の上書き・順序の逆転が起きた。#437 F5）
 export function finishSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, tail: SummonTail): void {
     const player = state.players[pid]
+    // 効果の中なら、トラッシュからの召喚・手札に戻る段（2〜3）は誘発なので出口の列へ回す。出口で解くフレームは end を持つ
+    const holdId = tail.end === undefined ? heldEffectId(state) : undefined
     const stillOnField = (): boolean => player.field.spirits.some((s) => s.instanceId === inst.instanceId)
     const stages: (() => void)[] = [
         // 「anyBraveSummoned」（BS12-061剣の誕生地）：**両陣営**どちらかのブレイヴが召喚されたとき。
@@ -236,10 +258,22 @@ export function finishSummonSequence(state: GameState, pid: PlayerId, inst: Card
             if (stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid), inst)) exhaustSpirit(state, pid, inst, undefined, opponentOf(pid), "spirit")
         },
     ]
-    for (let i = tail.stage; i < stages.length; i++) {
+    const last = tail.end ?? stages.length
+    for (let i = tail.stage; i < last; i++) {
         if (state.winner) return
+        if (holdId !== undefined && (i === 2 || i === 3)) {
+            if (i === 2 && hasTrashSummonTrigger(state, pid, inst)) {
+                holdDerived(state, holdId, [{
+                    key: `${pid}:${inst.cardId}:trash`,
+                    label: `${getCard(inst.cardId).name}の召喚に対するトラッシュのカード`,
+                    frame: { kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", tail: { ...tail, stage: 2, end: 4 } } },
+                    run: () => {},
+                }])
+            }
+            continue
+        }
         stages[i]!()
-        if (state.pendingChoice && i + 1 < stages.length) {
+        if (state.pendingChoice && i + 1 < last) {
             pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", tail: { ...tail, stage: i + 1 } } }])
             return
         }
