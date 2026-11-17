@@ -28,7 +28,7 @@
 3. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 4. 小さい残り：同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
-### 進行中：#612＋バーストの表向き（`ui/burst-reveal`。11-17 確定）。#613 はこの後
+### 進行中：#613 タイミングアイコン（素材は本人提供 `public/imgs/timing/{burst,flash,main}.png`。フラッシュ＝黄の稲妻・メイン＝青・バースト＝赤。11-17）
 
 - 素材は本人提供：裏面 `public/imgs/card-back.jpg`（銀色）、タイミングアイコン `public/imgs/timing/{burst,flash,main}.png`（フラッシュ＝黄の稲妻・メイン＝青・バースト＝赤。#613 で使う）
 - サーバー：`playerView` に `burstRevealed: boolean` を足す（`buildView` が state から求めて渡す。真＝`state.declaredBursts` にその pid・cardId がある／`pendingChoice.burst` が一致／`currentEffectSource.burst` で pid・cardId が一致）。真なら相手にも `burst` の cardId を返す。新しい状態は足さない
