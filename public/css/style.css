@@ -979,6 +979,10 @@ button:active {
     filter: brightness(0.5) grayscale(30%);
     opacity: 0.6;
 }
+/* バーストセットのボタンが乗っているカードは、カードの中身だけを暗くしてボタンは明るいまま（2026-11-17 ユーザー指摘：使えないマジックと一緒にボタンまで暗くて見づらい）。
+   親に filter・opacity を掛けると子で打ち消せないので、掛ける先を子に移す */
+.card.unusable:has(> .burst-set-badge) { filter: none; opacity: 1; }
+.card.unusable:has(> .burst-set-badge) > *:not(.burst-set-badge) { filter: brightness(0.5) grayscale(30%); opacity: 0.6; }
 
 .card.targetable {
     box-shadow: 0 0 0 2px var(--danger), 0 0 12px rgba(239, 68, 68, 0.4);
