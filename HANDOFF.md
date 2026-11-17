@@ -39,6 +39,8 @@
 - 構築済みデッキ「白銀の最強ロボデッキ」（最強ジャンプ2013年5月号付録。SJ13-10〜23 の14種＋BS10-089 月照す氷結湖×2・BS01-141×1・BS01-146×3・BS02-102×3・BS07-076×3、40枚）も、カードが入ったら `data/constants.ts` のレシピに足す（既存5種の id と名前は照合済み）
 - 手順：調査役（Sonnet）が `docs/design/SJ_PLAN.md` に節ごとの表・新しい部品の候補・確認すべき解釈を書く → ユーザー確認 → 期待値役 → 実装役 → データ役
 - **確定（11-17 ユーザー確認）**：新しい器は作らず、既存の器に欄を3つ足す。①期間つきの `destroyedCoresTo` に `byBattle?: true`（BPを比べた破壊だけ。removal.ts の確定で `destroyContextOf(inst)?.battle !== undefined` を見る）②期間つきの中身 `lifeDamageCoresTo { to: "trash"|"void" }`（プレイヤーに掛ける。`timedEffect` の `placeDestroyedCoresTo` と同じ分岐で置き、battleResolve.ts の `applyNormalLifeDamage` が守る側のプレイヤーの記録を見てライフのコアの行き先にする）③`reviveOnDestroy` の cost に `alsoFromTegamoto?: true`（`handDiscardOne` と併用。手札か手元から1枚、対話では持ち主が選ぶ）。デネボラ EX014＝`timedEffect [destroyedCoresTo void] battle`、デス・シザー SJ13-03＝`timedEffect [destroyedCoresTo trash byBattle, lifeDamageCoresTo trash] battle`（合体アタック時）、プロキオン EX009＝`reviveOnDestroy cost {handDiscardOne, alsoFromTegamoto}`。EX014 の「破壊された」は効果の破壊も含む（A）
+- ③の選ばせ方（11-18 メインループ決定）：手札の候補と手元のマジック（`tegamoto` のうち type magic）の両方があり対話なら、まず `kind:"option"` で「手札から1枚」／「手元の《名前》」を出し、手札を選んだら既存の手札選び（`suspendReviveCostPick` の cardIndices）へ。片方だけならそちらで既存どおり。非対話は手札の末尾、無ければ手元の末尾のマジック。払えるかの判定（`reviveCostReason`）も手元を数える
+- 分担：期待値役（Sonnet）part990〜994、器の実装役（Sonnet）part995〜997、その後データ役が 43枚を `data/cards/SJ.json` に書き期待値の part を変更禁止で通す
 
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 
