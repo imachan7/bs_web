@@ -2224,6 +2224,7 @@ body:has(#notice-banner:not(.hidden)) {
 .event-detail.event-burst { border-color: #e0524a; }
 .event-detail.event-reveal { border-color: #4fb3d9; }
 .event-detail-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.timing-icon { width: 1.25em; height: 1.25em; vertical-align: -0.25em; margin-right: 4px; }
 .event-detail-body { font-size: 13px; line-height: 1.5; white-space: pre-wrap; color: var(--text-muted); }
 @keyframes event-detail-in {
     from { opacity: 0; transform: translateY(-6px); }

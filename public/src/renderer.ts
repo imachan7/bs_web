@@ -300,7 +300,7 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
             return `✨ ${ev.cardName} 召喚`
         case "destroy":
             return ev.vanish ? `💨 ${ev.cardName} 消滅` : `💥 ${ev.cardName} 破壊`
-        case "magic": return `📜 ${ev.cardName} 使用`
+        case "magic": return `${ev.cardName} 使用`
         case "burst": return null // 詳しい表示（showDetailBanner）で出す
         case "draw":
             // 自分のドローは手札の増加で分かるため表示しない。相手のドローのみ通知する
@@ -340,13 +340,23 @@ function burstEffectText(cardId: string): string {
     return lines.slice(start, end).join("\n")
 }
 
+// カードに印刷されているタイミングのアイコン（素材は本人提供。2026-11-17）
+function timingIcon(kind: "main" | "flash" | "burst"): HTMLImageElement {
+    const img = document.createElement("img")
+    img.className = "timing-icon"
+    img.src = `/imgs/timing/${kind}.png`
+    img.alt = kind === "main" ? "メイン" : kind === "flash" ? "フラッシュ" : "バースト"
+    return img
+}
+
 // 誰が何をしたかと中身を読める大きめの通知。相手の行動は長めに出し、押せば閉じる（2026-11-12 ユーザー要望：使ったマジック・オープンしたカードが分かりづらい）
-function showDetailBanner(layer: HTMLElement, kind: string, title: string, body: string, mine: boolean): void {
+function showDetailBanner(layer: HTMLElement, kind: string, title: string, body: string, mine: boolean, icon?: "main" | "flash" | "burst"): void {
     const banner = document.createElement("div")
     banner.className = `event-detail event-${kind}`
     const t = document.createElement("div")
     t.className = "event-detail-title"
     t.textContent = title
+    if (icon) t.prepend(timingIcon(icon))
     const b = document.createElement("div")
     b.className = "event-detail-body"
     b.textContent = body
@@ -365,8 +375,10 @@ function showLastMagic(ev: Extract<GameEvent, { type: "magic" | "burst" }>, view
     const text = document.createElement("span")
     const who = ev.pid === view.you ? "あなた" : "相手"
     text.textContent = ev.type === "burst"
-        ? `⚡ 直前のバースト：${who}の${ev.cardName}`
-        : `📜 直前のマジック：${who}の${ev.cardName}${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`
+        ? `直前のバースト：${who}の${ev.cardName}`
+        : `直前のマジック：${who}の${ev.cardName}${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`
+    if (ev.type === "burst") text.prepend(timingIcon("burst"))
+    else if (ev.timing) text.prepend(timingIcon(ev.timing))
     // カードと同じ効果のツールチップを出す（tooltip.ts の .tip-card）
     text.classList.add("tip-card")
     if (ev.cardId !== undefined) text.dataset.cardId = ev.cardId
@@ -545,13 +557,13 @@ function processNewEvents(view: GameView): Set<PlayerId> {
         const mine = ev.pid === view.you
         if (ev.type === "magic" && layer) {
             showLastMagic(ev, view)
-            showDetailBanner(layer, "magic", `📜 ${mine ? "あなた" : "相手"}が ${ev.cardName} を使用${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`, ev.cardId !== undefined ? magicEffectText(ev.cardId, ev.timing) : "", mine)
+            showDetailBanner(layer, "magic", `${mine ? "あなた" : "相手"}が ${ev.cardName} を使用${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`, ev.cardId !== undefined ? magicEffectText(ev.cardId, ev.timing) : "", mine, ev.timing)
             continue
         }
         if (ev.type === "burst" && layer) {
             if (ev.cardId !== undefined) flashBurstReveal(ev.pid, ev.cardId)
             showLastMagic(ev, view)
-            showDetailBanner(layer, "burst", `⚡ ${mine ? "あなた" : "相手"}の ${ev.cardName} バースト発動`, ev.cardId !== undefined ? burstEffectText(ev.cardId) : "", mine)
+            showDetailBanner(layer, "burst", `${mine ? "あなた" : "相手"}の ${ev.cardName} バースト発動`, ev.cardId !== undefined ? burstEffectText(ev.cardId) : "", mine, "burst")
             continue
         }
         if (ev.type === "reveal") {

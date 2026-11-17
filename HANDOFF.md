@@ -28,8 +28,6 @@
 3. **アルティメット：期待値役は使わない**（2026-11-12 ユーザー決定）。テストは**1枚ずつ、ユーザーが Claude に既存のコードを聞きながら書く**（ユーザーがコードを把握する勉強期間を兼ねる。進みは遅くてよい）。実装のバッチは Claude（サブ）がやる。**一番大事なのは、テストできちんとバグを見つけること**。設計は [ULTIMATE.md](./docs/design/ULTIMATE.md)
 4. 小さい残り：同名の【不死】が解決順の一覧で1行にまとまる（動きは正しい）
 
-### 進行中：#613 タイミングアイコン（素材は本人提供 `public/imgs/timing/{burst,flash,main}.png`。フラッシュ＝黄の稲妻・メイン＝青・バースト＝赤。11-17）
-
 - 素材は本人提供：裏面 `public/imgs/card-back.jpg`（銀色）、タイミングアイコン `public/imgs/timing/{burst,flash,main}.png`（フラッシュ＝黄の稲妻・メイン＝青・バースト＝赤。#613 で使う）
 - サーバー：`playerView` に `burstRevealed: boolean` を足す（`buildView` が state から求めて渡す。真＝`state.declaredBursts` にその pid・cardId がある／`pendingChoice.burst` が一致／`currentEffectSource.burst` で pid・cardId が一致）。真なら相手にも `burst` の cardId を返す。新しい状態は足さない
 - 画面：伏せている間は裏面の画像（相手は画像だけ、自分は画像の上に名前）。`burstRevealed` なら表向き（色の枠＋名前、🔒なし）。発動のイベント（#620 で cardId つき）を受けたら、その陣営のバースト欄を表向きにめくる演出を約2.5秒出す（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）
