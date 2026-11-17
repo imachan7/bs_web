@@ -146,3 +146,108 @@
 7. `pendingReviveConfirms`（「ことで」の「残る」を末尾で確認）は、効果の中の破壊では出口の列に入るので使わなくなる。効果の外の経路で残るなら残す
 8. **待機中のカードは効果の続きでも場に存在する**：「その後」の続きが数える「自分のスピリットの数」・Lv の条件に、破壊待機の体も入る（2026-11-17 ユーザー確認。part767・808 の期待値を改めた）。トラッシュに置かれた後を見るのは「この効果発揮後」だけ（CONJUNCTION.md:14）。烈光閃刃の「その後…メイン効果」でバーストが破壊したスピリットはまだトラッシュに無い（part976）
 9. **「この効果で破壊したスピリット1体につき」**：「この効果発揮後」の後で数えるもの（ジェネレートファイア）は、区切りで実際にトラッシュに置かれた数（Q25205）。区切りの無い「破壊し、1体につき〜」は従来どおり待機に入った数（RESUME_STACK §7）
+
+## 9. 待機を持たない出来事の派生（調査。2026-11-17）
+
+調査役の記録。コードは変えていない。行番号は 2026-11-17 時点（ブランチ feat/derived-other-triggers）。数は `data/cards/*.json` 2747枚を python で数えた。**推測は「推測」と書いた**。§8 の `settleDerived`（`derivedSettle.ts`）・`effectId`・区切り action の上に乗せる前提。
+
+### 9.1 出来事ごとの誘発の出し方
+
+効果の中から起こりうるかは、`resolveAction` の外（バトル・ステップ・ルール処理）でも同じ関数が呼ばれるかで分けた。「いま」はどれも、出来事ごとにその場で `fireFieldEventTriggers`／`fireTrigger` が列を作り `resolveInOrder`（GameState.ts:429）で解決している。
+
+| 出来事 | 誘発を出す関数:行 | 効果の中から | 効果の外からも | 注記 |
+| :-- | :-- | :-- | :-- | :-- |
+| 疲労 | `exhaustSpirit`（state/exhaust.ts:58、発火 :92/:103/:105）→`fireExhaustedTriggers`（:225） | 疲労させる action・【暴風】 | アタック・ブロック宣言（ブロックは `exhaustedEvents` を blockDeclared.ts:42 が収集して宣言の列に入れる） | ネクサスは `exhaustNexus`（:119） |
+| 回復 | `refreshSpirit`（:160、:186 `onRefreshed`・:187 `fireRefreshedSideEvents` :193） | 回復させる action（exhaustRefresh.ts:727-843 ほか） | リフレッシュステップ（PhaseManager.ts:207。陣営ごとに1回） | |
+| ドロー | `draw`（GameState.ts:607 `opponentDrew`・:610 `opponentDrewByEffect`・`notifyHandGained`＝fieldEventTriggers.ts:770 `opponentHandAdded`） | draw action | ドローステップ（`fromDrawStep`） | 手札に加わる全経路（回収・バウンスなど）が `notifyHandGained` を通る |
+| 召喚（召喚時＋「召喚されたとき」） | `fireSummonSequence`（summon.ts:112。召喚時と `ownSpiritSummoned`／`anySpiritSummoned` を1本の列にしている :133-195）→`finishSummonSequence`（:200。ブレイヴ召喚・トラッシュ召喚・疲労付与の尾） | summon action（revealAction.ts:246-274・summonRepeat.ts:100・control.ts:423・summon.ts:371/448）・バーストの召喚 | 手札から通常召喚（GameEngine.ts:493/538）・【不死】（revive.ts:543）・復活（:622） | **唯一の合流点**。呼び出し元12か所。`state.summonBatch`（:92-115）が「同時召喚を後回しにして `summonBatchFlush` でまとめて発揮」の先例 |
+| コア配置（ボイド→） | `fireCorePlacedFromDiff`（EffectModules.ts:1337 `opponentCorePlaced`・:1377 `coresGainedFromVoid`・:1379 `lifeCorePlaced`）。差分検出で、`resolveAction` の一番外側の出口（:1485）で発火 | **すでに出口で発火** | コアステップ等は対象外（効果限定） | 他に placeCores.ts:510 `ownSeimeiLifeCharged`・:512 `opponentLifeCoreFromVoid` は配置の場で即発火 |
+| コア除去 | removeCores.ts:122 `opponentSpiritCoresEmptied`・:798 `ownSpiritCoresRemovedByOpponent`、removal.ts:1708 `opponentSpiritCoresToReserve` | 除去 action | 維持コア割れ・手動のコア移動 | 0個になる体は消滅（§8 の消滅待機と同じ出口に入る） |
+| ライフ減少 | life.ts:23-24 `ownLifeLost`・`ownChimeiMilled`、mill.ts:58 `ownSpiritReducedLife`、revive.ts:1037/1076 | ライフ破壊・【地鳴】系 | バトル（battleResolve.ts:245-262・battleFlow.ts:365-374） | 【ライフ減少後】バーストが付随（burst.ts:41） |
+| デッキ破棄 | mill.ts:236 `opponentDeckMilled`・:242 `ownDeckMilled`・:155 `ownDeckMillPrevented`・:394、funsai.ts:123 | mill action・【粉砕】 | ブロック宣言の【粉砕】（blockDeclared.ts の `funsaiOnBlock`） | |
+| マジック使用 | magic/resolve.ts:278 `ownMagicUsed`／`opponentMagicUsed` | マジックの効果の**後**に発火済み | — | `finishMagicUseOrDefer`（magic/inUse.ts:16）が先例の出口 |
+| キーワード発揮 | GameEngine.ts:1690・rensa.ts:39・tensho.ts:174/183 `ownTensho` | 起動・転召の解決 | | 【連鎖】は §0 CONJUNCTION の節印あり（#608） |
+| ネクサス配置・バースト設置・合体・ブレイヴ召喚 | fieldEventTriggers.ts:784・removal.ts:1588-1589・brave.ts:58-59・summon.ts:221-225 | 効果で起こりうる | 通常の配置・合体など | 件数が少ない（fieldEvent を持つカード 1〜3枚ずつ） |
+
+### 9.2 既存の「集めて後で解決する」仕組み
+
+| 場所 | 何を集めるか | どう解決するか |
+| :-- | :-- | :-- |
+| `CollectedTrigger`（blockDeclared.ts:20）＝`{key, label, frame, run, skip?}` | `fireTrigger`（triggers.ts:223 の `collect`。:574-598）と `fireFieldEventTriggers`（fieldEventTriggers.ts:169。:727-740。`askOrder` が無いと集めない）が1件ずつ積む | 呼び出し側が同じ関数内で `resolveInOrder(items, {askOrder: ターンプレイヤー})`（blockDeclared.ts:104、attackDeclared.ts:41、battleOutcomeTriggers.ts:21、summon.ts:133-195、removal.ts:567/1053/1215/1472、brave.ts:186）。**集めたものを同じ関数の中で解決する形で、持ち越しはしていない** |
+| イベントバースト | `checks: EventBurstCheck[]` を並行して作り、列の後で `fireEventBursts`／選択待ちなら `eventBurstsFrame` を積む | 列の後（blockDeclared.ts:111-118、summon.ts:195-212） |
+| `summonBatch`（summon.ts:92-115） | 効果の同時召喚の個体 id を `state` に溜める | `summonBatchFlush` action で後からまとめて発揮 |
+
+流用できるか：
+- **frame（`ResumeFrame`）は直列化できる**ので、集めた項目を `state` や再開スタックに持ち越すのには使える。`levelRecheck`・`requiresPendingDestructionOf`・`confirmPrompt` など再開後に必要な情報は `entryFrame`（triggers.ts:551）がすでに詰めている。
+- **`run` と `skip` はクロージャで持ち越せない**。frame を再開スタックから解くとき（choice.ts の `kind:"action"` 再開）に同じ結果になるかは、blockDeclared の「中断した残りを `frame` で積む」経路が実績（#437 F3 で `entryFrame` に統一）。**出口で解くときは `run` を使わず `frame` を `resolveInOrder` の `resolve` で `resolveAction` へ渡す形に統一する必要がある**（推測：`resumeTriggerBatch` の解決フレーム経路が使えるはず。要確認）。
+- `fireFieldEventTriggers` の `collect` は誘発の集めだけで、**イベントバーストの判定（`checks`）は呼び出し側の責任**。出口の列にも `EventBurstCheck` を一緒に持ち越す必要がある。
+- 集める時点は**出来事の時点**にすべき（誘発の成否は出来事の時点の盤面で決まる。出口で再発火すると、効果の途中で場を離れた発生源の誘発が消える）。§8 の待機の3種は `waiting.derived` に素材を持たせ**出口で収集し直す**形なので、**集め方が逆**になる（待機はカードが場に残るので再収集で足りた）。
+
+### 9.3 列の運び方の案
+
+| 案 | 中身 | 長所 | 短所 |
+| :-- | :-- | :-- | :-- |
+| X `state.derivedItems: {effectId, items: ResumeFrame[], checks}[]`（効果 id ごと） | 出来事の時点で `collect` に集め、frame を `effectId` つきで `state` に積む。出口の `settleDerived` が §8 の待機の列と**同じ `resolveInOrder`**（`runDestroyQueue` の `destroyExtraItems` :1056 に足す）に入れる | 呼び出し元をほぼ変えず（`fireFieldEventTriggers`/`fireTrigger` の内側で分岐）、選択待ちの中断・再開をまたいで失われない（`state` にあるので）。`pendingEffectIds`（derivedSettle.ts:23）と同じ型。1本の列に破壊と混ぜられる | 原則3「state の一時フィールドに書いて後で読む」に**当たる**（`declaredBursts`・`pendingReviveConfirms` と同型）。`effectId` ごとに分けるので混ざらないが、書く側・消す側・読む側が増える。勝敗・中断で捨てる処理が要る |
+| Y 再開スタックの**最外層フレーム**として積む（`finishMagicUse` 型） | 出来事の時点で `{kind:"action", action:{type:"settleDerived", items:[…]}}` を、その効果の最外層（効果の続きより後）へ積む | action の引数に持たせるので原則3に合う。中断・再開で自然に運ばれる | **同期で続く効果（選択待ちなし）には積み先が無い**（再開スタックは `act()` の解決ループでしか消化されない。§3 案B の短所と同じ）。出口で結局明示的に流す必要があり、積む位置（`resumeInsertAt`）が出来事の発生時点で複数回変わる。同じ効果の2回目以降を**1本の列にまとめる**には、既存の `settleDerived` フレームへ追記するか、複数フレームを出口で束ねる処理が要る |
+| Z `ctx`（`ActionCtx`）に集め箱を持たせ、選択待ちで止まる瞬間だけ Y 型フレームに落とす | 同期の間は `ctx.derived`、`suspend` 時に最外層フレームへ変換 | 見えない経路を使わない | `ctx` を持たない呼び出し元（`exhaustSpirit` は ctx 無しで約10か所から呼ばれる。draw・refreshSpirit も同様）が多く、**2通りの経路**が並ぶ（原則1に反する）。変換点が `suspend` 全箇所になる |
+
+**推奨：X**（`state.derivedItems`）。理由：(1) 出来事を起こす関数（`exhaustSpirit`・`draw`・`fireSummonSequence` 等）は `ctx` を受け取っておらず、Z は呼び出し元の改修が桁違い。(2) Y は同期の効果を扱えず、結局 X 相当の出口処理が要る。(3) X の原則3違反は、**値を `effectId` で束ね、frame（直列化できる action）だけを持ち、読む場所を `settleDerived` の1か所に限る**ことで抑えられる（#606 の `waiting.derived` が同じ考え方で、待機を持たない出来事の受け皿が `state` になるだけ）。保守のしやすさ比較：X は「書く点（`fireX` の内側1か所）・読む点（`settleDerived` 1か所）」、Y は積む位置の規則が増える。
+- **#606 の破壊の列と1本にまとめられる**：`settleSpirits`（derivedSettle.ts:60）→`runDestroyQueue`（removal.ts:1051）の `items` に `derivedItems` の項目を足せば、ターンプレイヤーが全体の順番を決める（`resolveDestroyQueue` :977 の `askOrder`）。ただし `runDestroyQueue` は破壊の同時グループ（`destroyGroup`）の中で動くので、**破壊が無い効果は別の入口**（待機が無いとき `settleDerived` が `derivedItems` だけで `resolveInOrder` する）が要る。破壊と混ぜるときの `groupOnce` の鍵（出来事ごと）は触らない（推測）。
+
+### 9.4 召喚の扱い
+
+- **区別の仕方**：出来事の入口（`fireSummonSequence` summon.ts:112）で `state.currentEffectSource !== undefined`（＝`resolveAction` の中）なら派生、無ければその場。手札からの通常召喚（GameEngine.ts:493/538）は `resolveAction` の外なので今のまま即時（召喚の支払いで破壊が起きても、§8 の「効果の外はその場」と同じ）。【不死】（revive.ts:543）・復活（:622）は破壊待機の列の中の項目から呼ばれ、`settleDerived` が `currentEffectSource` を消して解決している間（derivedSettle.ts:123）に呼ばれるので**その効果の外＝その場**になる（推測：`applyReviveEntry` が `resolveAction` を通る経路で再び currentEffectSource が立つなら、その召喚の派生はその項目の出口で解決される。要テスト）。
+- **効果の召喚の派生を遅らせる範囲**：召喚時の列（召喚時＋「召喚されたとき」＋イベントバースト）は `fireSummonSequence` の前半。**尾（`finishSummonSequence`：トラッシュ召喚・疲労付与・ブレイヴ召喚の fieldEvent）も同じ出来事の派生**なので、前半と尾を**1つの項目（frame `{type:"summonSequence"}`）**として持ち越すのが素直。frame はすでにある（summon.ts:123 の `triggerOnly`、tail の再開）。
+- **持ち越すと壊れるもの**：`state.summoningBySoku`・`summoningFromHand`・`summoningPaid`（`fireSummonSequence` が読んで消す。:187-190）。これらは**手札からの召喚（効果の外）でしか立たない**ので、効果の召喚（持ち越す側）は常に false/未設定。ただし GameEngine.ts:904 `summoningFromHand = true` が効果の中の召喚（手札から召喚する action）でも立つかは未確認（推測：立つなら frame に値を持たせる必要がある）。
+- **`summonEffectSources`／`resolvingSummonTriggerPid`**（triggers.ts:186-191・GameEngine.ts:164-166）：召喚時効果を解決している間だけ立つ。出口で frame を解決するときに `fireSummonTrigger` が立てるので、**効果の最中には立たない**＝BS05 リトルナイト・ランスロットの「相手の召喚時効果を受けない」判定（EffectModules.ts:196）は出口の解決時に正しく読める。効果の最中に別の召喚時効果を解決する経路（いまの積み重ね）は、遅らせると**積み重ねが発生しなくなる**（入れ子ではなく列になる）。burst.ts:241-249 の `resolved` 印の読み手が変わらないか要確認。
+- `summonBatch`（同時召喚）との関係：`summonBatchFlush` が出口と別に走る。**出口へ一本化**するなら `summonBatch` は不要になる（推測）が、別 PR にしてよい。
+
+### 9.5 影響を受けるカードの規模
+
+「効果エントリの action 木を JSON の出現順に並べ、その出来事の後に別の action（`settleDerived`・`noop` 以外）が続く」ものを数えた。**続きが同じ文の続きかは数えていない上限**（「召喚する。その後バーストをセット」のように、続きが派生の結果と無関係なものも含む）。コストの疲労・コア除去（`pay` の cost）は別に数えた（コストの出来事は、恩恵の後に派生＝§7②と同じ扱いか、COST_MODEL を見て決める）。
+
+| 出来事 | 出来事を含む効果のあるカード | 続きあり（コスト以外） | コスト（`pay.cost`） | 続きなし（最後の手） | 代表 |
+| :-- | --: | --: | --: | --: | :-- |
+| 疲労 | 230 | 22 | 59 | 156 | BS10-104 トライアングルトラップ（3体疲労）・BS14-100 ストームアタック（疲労→その後回復）・BS14-X03 |
+| 回復 | 275 | 21 | 0 | 255 | BS01-142 ピュアエリクサー・BS06-103 キャバルリー・BS09-076 |
+| ドロー | 239 | 30 | 0 | 210 | BS01-132 ストームドロー（ドロー→破棄）・BS15-074 三札之術・BS10-098 |
+| 召喚 | 135 | 5 | 0 | 131 | BS17-005 ドラグ・クリシュナー・BS17-032 ヴァイキング・レイヴ・BS18-X01 |
+| コア配置 | 269 | 14 | 3 | 258 | BS01-124 イビルオーラ・BS13-058 シユウ・BS14-106 |
+| コア除去 | 196 | 20 | 34 | 160 | BS02-094・BS05-083・BS10-019 |
+| ライフ減少 | 38 | 1 | 0 | 37 | BS18-X03 蒼穹の覇王カーン・ウルフ |
+| ネクサス配置 | 24 | 1 | 0 | 23 | BS14-064 レボルシング・ゼヨン |
+
+- 5出来事（疲労・回復・ドロー・召喚・コア配置）の「続きあり（コスト以外）」の和集合は **91枚**、コスト疲労・コスト配置を含めると 149枚（重なりあり。他の行は別集計）。**続きの無いもの（約 90%）は遅らせても観測できない**（出口でも同じ結果）。
+- 出来事を**見張る側**の fieldEvent を持つカード：疲労 `ownSpiritExhausted` 15・`anySpiritExhausted` 7、回復 `anySpiritRefreshed` 4・`ownSpiritRefreshed` 1、ドロー `opponentDrew` 9・`opponentDrewByEffect` 2、召喚 `ownSpiritSummoned` 35・`anySpiritSummoned` 1、`coresGainedFromVoid` 4。**召喚時（`onSummon`）は442枚**で、効果の召喚の遅れは最も多くの札に波及する。
+- **「この効果発揮後」**：効果文に持つカードが36枚、`settleDerived` がデータにあるのが14枚（BS14-X01・BS15-004・BS15-083・BS15-X05・BS16-018・BS17-056/057/058・BS17-X01・BS18-X01・BS22-073/077・BS23-052・X013）。**区切りが未挿入の22枚**：BS07-X27・BS10-108・BS11-X05・BS12-058・BS12-078・BS13-042・BS13-046・BS13-067・BS13-071・BS13-081・BS17-038・BS17-039・BS17-042・BS17-066・BS17-070・BS17-X05・BS18-X05・BS19-053・BS19-076・BS22-009・P033・P076。破壊以外の派生（召喚後・ドロー後など）が前にあるものを含む。**今回の範囲に入れるなら、これらに区切りを入れる**（データ移行。コードは §8 で済み）。
+
+### 9.6 既存テストへの影響の見込み
+
+scripts/smoke/ は 897 ファイル（part 889本）。当たり（grep のみ・未実行）。
+
+| 当たりの付け方 | 件数 | 代表 |
+| :-- | --: | :-- |
+| 上の「続きあり」149枚の cardId を含む part | **204本**（カード単位で 143枚に当たりがある） | part6・31・34・68・69・74・104・106・115・128 ほか |
+| fieldEvent 名を含む part | 疲労 `ownSpiritExhausted` 4・`anySpiritExhausted` 3（part108・288・303・322・452）、召喚 `ownSpiritSummoned` 9（part112・183・184）・`anySpiritSummoned` 1（part648）、`opponentDrew` 6（part144・146・216）・`opponentDrewByEffect` 1（part316）、回復 `anySpiritRefreshed` 4（part317・452・648）、コア `coresGainedFromVoid` 1（part646）・`lifeCorePlaced` 1（part647）、`opponentHandAdded` 3（part31・353・635） | 見張る側のテストは**効果の途中で誘発の結果を見ている**可能性が高い（推測）。`part646/647` は「効果1回につき1回」を扱っており、出口との関係を要確認 |
+| 召喚時の列を扱う part | `onSummon` 言及 56本・「召喚時」言及 282本（重なりあり） | 召喚の出口化は数が最も大きい |
+
+204本のうち、**期待値が動くのは「続きが派生の結果を読む」か「派生が続きの前提を変える」形だけ**（推測。1割未満の見込みだが、数えていない）。
+
+### 9.7 ユーザーに確認すべき論点（私はこう解釈しました）
+
+公式 Q&A は ストームアタック（Q24956 のみ。回復できるかの質問）・ドラグ・クリシュナー（Q3759・Q3760）・ヴァイキング・レイヴ（Q3804・Q3805）のページを見たが、**派生の解決順に触れる Q&A は見つからなかった**。根拠は RULES_BATSPI_WIKI.md:93 と CONJUNCTION.md:10・:14 のみ（破壊以外は Q 番号なし）。
+
+1. **範囲：疲労・回復・ドロー・召喚・コア配置・除去・ライフ減少・デッキ破棄のすべてを遅らせる**（規則は出来事の種類で変わらない）。影響：続きあり約91枚＋コスト59＋34。**段階導入にするなら、召喚（`onSummon` 442枚に波及）を最後の1本にする**案。
+2. **効果で召喚したスピリットの『召喚時』は、元の効果を最後まで解決してから**（「この効果発揮後」だけが先に解決。CONJUNCTION.md:14）。影響：効果の召喚を含む札（summon action 135枚のうち続きありは5枚だが、召喚時効果を**見る側**は442枚）。ドラグ・クリシュナー「召喚する。その後バーストをセットできる」は、召喚時効果より**セットが先**になる。
+3. **コストの疲労・コア除去（「疲労させることで」59枚・「コアを取り除くことで」34枚）の派生は、恩恵（then）の後**（§7②の破壊と同じ）。違うなら（コスト払いの時点で即解決）、`pay` の中だけ別の扱い。
+4. **1本の列に全部まとめ、ターンプレイヤーが順番を決める**（§8 と同じ。破壊・疲労・召喚の派生を混ぜる）。同時発揮の「1回」は出来事ごと。
+5. **「〜したとき」を数える効果の扱い**：`eventCount`（ドローした枚数・置いたコア数）や `repeatPerCount` は、出来事の**時点**で数を確定して持ち越す（出口で数え直さない）。影響：`opponentDrew` 9・`coresGainedFromVoid` 4・`lifeCorePlaced` 2 ほか。
+6. **効果の続きは、派生が解決される前の盤面を読む**（例：ストームアタックで相手を疲労させた派生で自分のスピリットが回復しても、続きの「回復させる」の対象選びには影響しない）。破壊待機の体が場に残る扱い（§8-8）と同じ。
+7. **「この効果発揮後」が未挿入の22枚**に区切りを入れる範囲（今回含めるか、各出来事の PR で必要になったものから入れるか）。
+8. **効果の外の出来事（アタック宣言の疲労・ステップの回復・ドローステップ）は今のまま即時**。**バーストが起こす召喚・疲労は効果の中**（`resolveAction` を通る）なので派生の対象。バースト効果の出口の扱いは `finishBurstActivation` の `settle` 段（burst.ts）と二重にならないか要確認。
+
+### 9.8 実装時の注意（推測を含む）
+
+- 出来事の入口は集約済み（`exhaustSpirit`・`refreshSpirit`・`draw`／`notifyHandGained`・`fireSummonSequence`・`fireCorePlacedFromDiff`）。**入口ごとに「効果の中か」を `state.currentEffectSource?.effectId !== undefined` で見て集め先を変える**のが最小。`fireFieldEventTriggers`／`fireTrigger` の内側に1か所だけ書くか、入口に書くかは設計担当が決める（内側に書くと、バトル・ステップの collect との2通りの `collect` が混ざる）。
+- **イベントバーストの `checks`** を一緒に持ち越す必要がある（9.2）。持ち越さないと【ライフ減少後】・【召喚後】系の確認が効果の最中のままになり、列とバーストの順が合わない。
+- 勝敗確定・サドンデスのとき、`derivedItems` を捨てる処理が要る（`settleSpirits` の `state.winner` 分岐と同じ）。
