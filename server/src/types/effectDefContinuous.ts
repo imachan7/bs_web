@@ -22,6 +22,7 @@ export type EffectDefContinuous =
     | {
           id: string
           kind: "constraint"
+          keyword?: Keyword // 効果の見出しに付くキーワードのラベル（【連鎖】を含む継続効果＝Q774）
           levels: number[] | null
           whileCombined?: true
           separateEffect?: true // 『』の見出しの区切り（triggered と同じ。BS13-049イリテバンが借りる単位）

@@ -8365,6 +8365,7 @@
         ],
         "action": {
           "type": "if",
+          "rensa": true,
           "cond": {
             "count": {
               "ownColorSymbols": "green"
