@@ -1548,6 +1548,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `soulCoreWhereText`（fn）：[ソウルコア]の所在を info パネルの「魂: …」項目用の文字列にする（docs/design/SOULCORE.md 案A-outside。
 - `renderInfo`（fn）
+- `flashBurstReveal`（fn）
 - `renderBurst`（fn）：バーストエリア（docs/design/BURST.md）。セットされているか否かは公開情報（burstSet）だが、
 - `renderBattle`（fn）
 

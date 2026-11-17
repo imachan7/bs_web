@@ -34,7 +34,7 @@ import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui
 import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
 import { renderField } from "./ui/fieldCard"
 import { renderHand } from "./ui/hand"
-import { renderInfo, renderBurst, renderBattle } from "./ui/infoPanels"
+import { renderInfo, renderBurst, renderBattle, flashBurstReveal } from "./ui/infoPanels"
 export { activeConstraints, cantActByTimed, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
 // ---- カードマスターデータ（起動時に /api/cards から取得。実体は data/cards/BS0N.json） ----
@@ -549,6 +549,7 @@ function processNewEvents(view: GameView): Set<PlayerId> {
             continue
         }
         if (ev.type === "burst" && layer) {
+            if (ev.cardId !== undefined) flashBurstReveal(ev.pid, ev.cardId)
             showLastMagic(ev, view)
             showDetailBanner(layer, "burst", `⚡ ${mine ? "あなた" : "相手"}の ${ev.cardName} バースト発動`, ev.cardId !== undefined ? burstEffectText(ev.cardId) : "", mine)
             continue

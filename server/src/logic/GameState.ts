@@ -746,7 +746,18 @@ function forView(inst: CardInstance, hideUnder: boolean): CardInstance {
     return rest
 }
 
-function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState): PlayerView {
+// 発動を宣言したバーストは公開される（BURST.md §1.4）。宣言済みの列・バースト効果の選択待ち・バースト効果を解決中のどれかなら、まだバーストエリアにあっても表向き
+function burstRevealedOf(state: GameState, pid: PlayerId): boolean {
+    const cardId = state.players[pid].burst
+    if (cardId === null) return false
+    if (state.declaredBursts?.some((d) => d.pid === pid && d.cardId === cardId)) return true
+    const pc = state.pendingChoice?.burst
+    if (pc && pc.pid === pid && pc.cardId === cardId) return true
+    const src = state.currentEffectSource
+    return src?.burst === true && src.pid === pid && src.cardId === cardId
+}
+
+function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState, burstRevealed: boolean): PlayerView {
     return {
         id: player.id,
         name: player.name,
@@ -769,8 +780,9 @@ function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState)
         turnVirtualInstances: player.turnVirtualInstances.map((s) => ({ ...s })),
         battleVirtualInstances: player.battleVirtualInstances.map((s) => ({ ...s })),
         // バーストの内容は自分にだけ見せる（相手は常にnull＝伏せている）。セット済みか否かは公開情報
-        burst: isSelf ? player.burst : null,
+        burst: isSelf || burstRevealed ? player.burst : null,
         burstSet: player.burstSet,
+        burstRevealed,
         ...(player.onceByNameUsed ? { onceByNameUsed: player.onceByNameUsed } : {}),
         ...(player.onceByNameUsedCount ? { onceByNameUsedCount: player.onceByNameUsedCount } : {}),
         ...(player.payAssistUsedThisTurn ? { payAssistUsedThisTurn: player.payAssistUsedThisTurn } : {}),
@@ -825,8 +837,8 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         isFlashTiming: state.isFlashTiming,
         battle: state.battle ? { ...state.battle } : null,
         players: {
-            p1: playerView(state.players.p1, viewer === "p1", state.players.p2),
-            p2: playerView(state.players.p2, viewer === "p2", state.players.p1),
+            p1: playerView(state.players.p1, viewer === "p1", state.players.p2, burstRevealedOf(state, "p1")),
+            p2: playerView(state.players.p2, viewer === "p2", state.players.p1, burstRevealedOf(state, "p2")),
         },
         log: state.log.slice(-60),
         winner: state.winner,
