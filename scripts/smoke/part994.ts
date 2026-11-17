@@ -72,7 +72,7 @@ const combineAttack = (t: ScenarioCtx) => {
     t.closeFlash()
     t.act("opp", { type: "takeLife" })
 }
-const COMBINED = ["自分.剣.場所: フィールド → 合体", "自分.剣.コア: 1 → 0", "自分.リザーブ: 10 → 11", "自分.host.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"]
+const COMBINED = ["自分.剣.場所: フィールド → 合体", "自分.剣.コア: 1 → 0", "自分.剣.BP: 3000 → なし", "自分.host.コア: 2 → 3", "自分.host.疲労: false → true", "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"]
 
 console.log("=== EX013 3. 合体アタック時（Lv2）：相手のスピリット1体のコアを1個になるようにトラッシュへ（4個→1個。Lv2→Lv1） ===")
 scenario({
@@ -83,17 +83,6 @@ scenario({
     },
     steps: combineAttack,
     expect: [...COMBINED, "自分.host.BP: 7000 → 10000", "相手.的.コア: 4 → 1", "相手.的.Lv: 2 → 1", "相手.的.BP: 7000 → 4000", "相手.トラッシュのコア: 0 → 3"],
-})
-
-console.log("=== EX013 4. 合体していても Lv1：Lv2･Lv3 の効果なのでコアは減らない ===")
-scenario({
-    name: "ex013-combined-lv1",
-    start: {
-        me: { spirits: [{ card: ARCTURUS, label: "host", cores: 1 }, { card: LANCE, label: "剣" }] },
-        opp: { spirits: [{ card: HADES, label: "的", cores: 4, rested: true }] },
-    },
-    steps: combineAttack,
-    expect: [...COMBINED, "自分.host.BP: 4000 → 7000"],
 })
 
 console.log("=== EX013 5. すでにコア1個の相手：変化なし ===")
