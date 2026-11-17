@@ -361,7 +361,8 @@ export type EffectDefTrigger =
               oneCoreToTrash?: boolean // コア1個の個体でも支払う（2026-08-14確認。破壊待機中はコアが乗ったままなので成立し、待機解除の後に維持コア割れで消滅する）
               reserveOneToTrash?: boolean // 自分のリザーブのコア1個をトラッシュへ
               fieldOrReserveOneToTrash?: boolean // リザーブに無ければ自分のフィールドから（発生源自身を除く）
-              handDiscardOne?: boolean // 手札の末尾1枚を使う決定的簡略化。手札0枚なら不発
+              handDiscardOne?: boolean // 手札1枚を破棄。対話では持ち主が選ぶ（2026-11-05 ユーザー確認）、非対話は末尾。払えなければ不発
+              alsoFromTegamoto?: true // handDiscardOne の破棄元に手元のマジックも加える（手札か手元かは持ち主が選ぶ）。pickMany とは併用しない
               handDiscardCardType?: CardType // 手札を末尾からその種別に絞って探す
               millSelfOneMatching?: { color: Color; cardType: CardType; thenHandIfNameIncludes?: string } // 成立可否と独立に、thenHandIfNameIncludes に名前が一致すれば手札へ
               exhaustOwnFamilyOne?: FamilyFilter // 疲労させる1体。exhaustOwnOne の系統だけを書く省略形（データの書き換えはせず両方を読む）

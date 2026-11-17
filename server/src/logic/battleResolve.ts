@@ -10,7 +10,7 @@ import { destroyCombinedBrave } from "./brave"
 import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
 import type { EffectAttempt } from "../../../shared/rules"
-import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, noteLifeGuardTotal, bravesOf, effectiveBp } from "../../../shared/rules"
+import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsFor, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, noteLifeGuardTotal, bravesOf, effectiveBp } from "../../../shared/rules"
 import {
     activeConstraints,
     destroySpirit,
@@ -116,8 +116,9 @@ function applyNormalLifeDamage(state: GameState, attackerPid: PlayerId, attacker
     const bonus = activeConstraints(state, attackerPid, attacker).reduce((n, c) => n + (c.type === "lifeDamageBonus" && (!c.ifOwnEffectVanishedOpponentSpirit || state.oppSpiritRemovedByEffectThisTurn?.[attackerPid]?.includes("vanish")) && (!c.ifOwnTrashAtLeast || state.players[attackerPid].trashCards.filter((id) => matchesPick(id, c.ifOwnTrashAtLeast!.pick)).length >= c.ifOwnTrashAtLeast.count) ? c.amount : 0), 0)
     const damage = Math.min(instanceSymbolCount(attacker) + bonus, max)
     const dealt = Math.min(damage, defender.life)
-    const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
-    const toTrash = !toVoid && lifeDamageToTrashByOwnerSource(state, attackerPid, attacker)
+    const timedTo = timedContentsFor(state, defenderPid).flatMap((c) => (c.type === "lifeDamageCoresTo" ? [c.to] : [])).at(-1)
+    const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid") || timedTo === "void"
+    const toTrash = !toVoid && (timedTo === "trash" || lifeDamageToTrashByOwnerSource(state, attackerPid, attacker))
     defender.life -= dealt
     recordLifeLoss(state, defenderPid, dealt, attacker)
     noteLifeGuardTotal(state, { pid: defenderPid, amount: dealt, cause: "attack", actorPid: attackerPid, sourceInstance: attacker }, dealt)

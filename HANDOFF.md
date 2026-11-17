@@ -32,9 +32,10 @@
 - サーバー：`playerView` に `burstRevealed: boolean` を足す（`buildView` が state から求めて渡す。真＝`state.declaredBursts` にその pid・cardId がある／`pendingChoice.burst` が一致／`currentEffectSource.burst` で pid・cardId が一致）。真なら相手にも `burst` の cardId を返す。新しい状態は足さない
 - 画面：伏せている間は裏面の画像（相手は画像だけ、自分は画像の上に名前）。`burstRevealed` なら表向き（色の枠＋名前、🔒なし）。発動のイベント（#620 で cardId つき）を受けたら、その陣営のバースト欄を表向きにめくる演出を約2.5秒出す（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）
 
-### 進行中：`battleOpponentDestroyedCoresTo` を `timedEffect` に寄せる（`refactor/timed-destroyed-cores-to`。11-17 ユーザー決定「それで進めて」）
+### SJ の取り込みの残り（`feat/sj-promo` の PR 済み。11-18）
 
-- `timedEffect` に `destroyedCoresTo` をプレイヤーに掛ける分岐 `placeDestroyedCoresTo`（既定は相手、`side:"own"/"both"`、期間 `battle` でバトル外なら不発）を足し、BS10-X01-e3・BS14-073-e3・BS18-X02-e2 を `{type:"timedEffect", content:[{type:"destroyedCoresTo", to, soleOnly?}], duration:"battle"}` に移して、専用の動詞（型・ハンドラ）を消す。挙動は変えない。SJ（`feat/sj-promo`）のデネボラ・デス・シザーはこの器に乗せる
+- 一度も実行されていない16エントリ（coverage の基準に入れた）。場面テストを足して基準から消す：EX007-e2 EX008-e1 EX008-e2 EX012-e2 EX019-e1 SJ12-02-e1 SJ12-03-e3 SJ13-05-e1 SJ13-05-e2 SJ13-09-e1 SJ13-12-e1 SJ13-20-e1 SJ13-21-e1 SJ13-22-e1 SJ13-22-e2 SJ13-24-e2
+- 期待値役が書けなかった場面：EX014 の転召・EX014 のバトル中の効果破壊・SJ13-03 と【重装甲】・SJ13-02 で剣刃でないブレイヴ・単体召喚を選ぶ場面（scenario に手元・分身・合体状態を start に置く欄が無い）
 
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 

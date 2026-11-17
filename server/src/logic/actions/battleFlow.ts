@@ -88,7 +88,7 @@ import { effectiveCost } from "../RuleValidator"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { affectableBraves, gateBraveTargets } from "../braveTargetGate"
 import { countedAmount } from "../counted"
-import { lastTargetsOf } from "../record"
+import { lastTargetsOf, recordMoved } from "../record"
 
 const funsaiOnBlockHandler: ActionHandler<"funsaiOnBlock"> = (ctx) => {
     const { state, owner, self } = ctx
@@ -522,11 +522,15 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
             // thenDraw（X005R北斗七星龍ジーク・アポロドラゴン）：実際に召喚できたときだけ引く。
             // summonFreeFromHandIndexは不発時に手札を消費しないので、手札枚数の増減で成否を判定する
             const beforeHandLen = player.hand.length
-            if (action.costBudget !== undefined && player.hand[handIndex] !== undefined) budgetSpent += getCard(player.hand[handIndex]!).cost
+            const summonedCardId = player.hand[handIndex]
+            if (action.costBudget !== undefined && summonedCardId !== undefined) budgetSpent += getCard(summonedCardId).cost
             summonFreeFromHandIndex(state, owner, sourceName, handIndex, action.skipTensho, {
                 ...summonOpts,
                 ...(combineTargetInstanceId !== undefined ? { braveTargetInstanceId: combineTargetInstanceId } : {}),
             })
+            // 「この効果で〜が召喚されたとき」（SJ13-02）を後続の if cond.last で読めるようにする。
+            // コアの数の待ちで中断しても召喚は再開後に必ず成立するので、ここで記録する
+            if (summonedCardId !== undefined && (player.hand.length < beforeHandLen || state.pendingChoice)) recordMoved(state, [summonedCardId])
             if (state.pendingChoice && player.hand.length === beforeHandLen) {
                 // 置くコアの数の待ちで中断した。召喚は再開後に成立するので、続き（ドロー・次の1枚）を後ろに積む
                 const { combineHandIndex: _idx, ...rest } = action

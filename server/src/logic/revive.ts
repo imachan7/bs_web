@@ -159,6 +159,42 @@ function suspendReviveCostPick(
     return "pending"
 }
 
+// alsoFromTegamoto のコストで、破棄元（手札／手元のマジック名）を選ばせる。手元は同名を1つにまとめる
+function suspendReviveCostOption(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+    source: CardInstance | undefined,
+    context: DestroyContext | undefined,
+    hasHand: boolean,
+    tegamotoCardIds: string[],
+): "pending" {
+    const costOptions = [
+        ...(hasHand ? [{ label: "手札から1枚を破棄" }] : []),
+        ...tegamotoCardIds.map((cardId) => ({ label: `手元の《${getCard(cardId).name}》を破棄`, cardId })),
+    ]
+    suspend(state, {
+        pid: ownerPid,
+        kind: "option",
+        prompt: `${getCard((source ?? inst).cardId).name}：破棄するカードを選んでください`,
+        candidates: [],
+        options: costOptions.map((o) => o.label),
+        optional: false,
+        reviveCostPick: {
+            pid: ownerPid,
+            instanceId: inst.instanceId,
+            effectId: effect.id,
+            sourceInstanceId: source?.instanceId ?? inst.instanceId,
+            ...(context ? { context } : {}),
+            costOptions,
+        },
+        action: { type: "noop" },
+        selfInstanceId: inst.instanceId,
+    })
+    return "pending"
+}
+
 // この個体を今このコンテキストで破壊しようとしたとき、
 // 「破壊される代わりに復活させますか？」の確認が出るか（**副作用なし**）。
 // 同時破壊で解決順をターンプレイヤーに聞くかどうかの判定にだけ使う
@@ -650,6 +686,7 @@ export function applyReviveCostPick(
     entry: NonNullable<PendingChoice["reviveCostPick"]>,
     instanceId?: string,
     cardIndex?: number,
+    source?: { fromHand?: true; tegamotoCardId?: string },
 ): void {
     const player = state.players[entry.pid]
     const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
@@ -658,6 +695,7 @@ export function applyReviveCostPick(
         !tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId, skipConfirm: true }, undefined, undefined, undefined, {
             ...(instanceId !== undefined ? { instanceId } : {}),
             ...(cardIndex !== undefined ? { cardIndex } : {}),
+            ...source,
         })
     ) {
         log(state, `${getCard(inst.cardId).name}：条件を満たさないため発動しなかった。`)
@@ -756,7 +794,7 @@ function tryReviveOnDestroy(
     collect?: { effectId: string; sourceName: string; sourceInstanceId?: string; perDestroyed?: true; pickMany?: true }[],
     // reviveCostPick の選択で持ち主が選んだ対象（スピリット/ネクサスのinstanceId、手札のcardIndex）。
     // 指定時は applyCost がその候補を使う（候補外・既に使えなければ不発）
-    chosen?: { instanceId?: string; cardIndex?: number },
+    chosen?: { instanceId?: string; cardIndex?: number; fromHand?: true; tegamotoCardId?: string },
 ): boolean {
     const player = state.players[ownerPid]
     const level = currentLevel(inst).level
@@ -954,12 +992,39 @@ function tryReviveOnDestroy(
             return true
         }
         if (effect.cost?.handDiscardOne) {
-            // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない（コストとしての破棄も止まる。COST_MODEL.md §1）
-            if (!canDiscardHand(state, ownerPid)) return false
+            // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない（コストとしての破棄も止まる。COST_MODEL.md §1）。
+            // 止まるのは手札の破棄だけで、alsoFromTegamoto の手元の破棄は手札の破棄ではないので止めない
             const cardType = effect.cost.handDiscardCardType
-            const indices = player.hand
-                .map((id, i) => (cardType === undefined || getCard(id).type === cardType ? i : -1))
-                .filter((i) => i !== -1)
+            const indices = !canDiscardHand(state, ownerPid)
+                ? []
+                : player.hand
+                      .map((id, i) => (cardType === undefined || getCard(id).type === cardType ? i : -1))
+                      .filter((i) => i !== -1)
+            const tegamotoMagics = effect.cost.alsoFromTegamoto ? [...new Set(player.tegamoto.filter((id) => getCard(id).type === "magic"))] : []
+            const trashTegamoto = (cardId: string): void => {
+                player.tegamoto.splice(player.tegamoto.lastIndexOf(cardId), 1)
+                player.trashCards.push(cardId)
+                log(state, `${player.name}は手元の${getCard(cardId).name}を破棄した。`)
+            }
+            if (chosen?.tegamotoCardId !== undefined) {
+                if (!tegamotoMagics.includes(chosen.tegamotoCardId)) return false
+                trashTegamoto(chosen.tegamotoCardId)
+                return true
+            }
+            if (tegamotoMagics.length > 0 && chosen?.cardIndex === undefined && !chosen?.fromHand) {
+                if (indices.length === 0 && tegamotoMagics.length === 1) {
+                    trashTegamoto(tegamotoMagics[0]!)
+                    return true
+                }
+                if (!state.interactiveTargets) {
+                    if (indices.length === 0) {
+                        trashTegamoto(tegamotoMagics[tegamotoMagics.length - 1]!)
+                        return true
+                    }
+                } else {
+                    return suspendReviveCostOption(state, ownerPid, inst, effect, source, context, indices.length > 0, tegamotoMagics)
+                }
+            }
             if (indices.length === 0) return false
             // 破棄する1枚は持ち主が選ぶ（対話モードかつ候補2枚以上。2026-11-05 ユーザー確認）。
             // 候補1枚なら選ばせない。非対話は末尾（元の簡略化）
@@ -1147,6 +1212,7 @@ function tryReviveOnDestroy(
             return any ? null : "トラッシュへ置けるコアがない"
         }
         if (cost.handDiscardOne) {
+            if (cost.alsoFromTegamoto && player.tegamoto.some((id) => getCard(id).type === "magic")) return null
             if (!canDiscardHand(state, ownerPid)) return "手札を破棄できない"
             const type = cost.handDiscardCardType
             const has = type !== undefined ? player.hand.some((id) => getCard(id).type === type) : player.hand.length > 0
