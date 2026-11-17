@@ -598,7 +598,7 @@ export function fireTrigger(
                 frame: grantedFrame(a),
             })
         }
-        if (holdFor !== undefined) holdDerived(state, holdFor, sink, [])
+        if (holdFor !== undefined) holdDerived(state, holdFor, sink)
         return
     }
     for (let i = 0; i < entries.length; i++) {

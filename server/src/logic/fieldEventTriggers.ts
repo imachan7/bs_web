@@ -753,10 +753,11 @@ export function fireFieldEventTriggers(
                 run: () => handlers.resolve(e),
             })
         }
-        if (holdFor !== undefined) holdDerived(state, holdFor, sink, [burstCheck()])
-        return
+        if (holdFor === undefined) return
+        holdDerived(state, holdFor, sink)
+    } else {
+        resolveInOrder(state, pool, handlers)
     }
-    resolveInOrder(state, pool, handlers)
 
     // バースト（docs/design/BURST.md）：effectSources() には入れないため、上のフィールド発生源の
     // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。上の解決で選択待ちが残っている間は割り込まない。

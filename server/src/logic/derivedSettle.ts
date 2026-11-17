@@ -2,11 +2,10 @@
 // 効果の一番外側の出口（EffectModules.resolveAction）と、区切りの action settleDerived から呼ぶ。
 // 誘発の収集・列の解決・確定・破壊後バーストはここから始まる。効果の外の破壊（バトル・維持コア割れ・召喚の支払いなど）はここを通らない
 import type { ActionHandler } from "./actions/types"
-import type { EventBurstCheck, GameState, PlayerId, ResumeFrame } from "../type"
+import type { GameState, PlayerId, ResumeFrame } from "../type"
 import type { CollectedTrigger } from "./blockDeclared"
-import { pushResumeFrames, resolveInOrder, setWaitingEvent } from "./GameState"
+import { resolveInOrder, setWaitingEvent } from "./GameState"
 import { runActionFrame } from "./choice"
-import { eventBurstsFrame, fireEventBursts } from "./keywords/burst"
 import type { DestroyEntry } from "./removal"
 import { commitOrDefer, commitPendingDestruction, driveNexusDestruction, flushBounces, grantedFamilies, runDestroyQueue } from "./removal"
 import { resumeBraveDestroy } from "./brave"
@@ -52,21 +51,22 @@ export function derivedHoldId(state: GameState, event: string): string | undefin
     return HELD_EVENTS.has(event) && !state.winner ? state.currentEffectSource?.effectId : undefined
 }
 
-export function holdDerived(state: GameState, effectId: string, items: CollectedTrigger[], checks: EventBurstCheck[]): void {
-    const frames = items.flatMap((i) => (i.frame.kind === "action" ? [{ key: i.key, label: i.label, frame: i.frame }] : []))
-    if (frames.length === 0 && checks.length === 0) return
+export function holdDerived(state: GameState, effectId: string, items: CollectedTrigger[]): void {
+    const frames = items.map((i) => {
+        if (i.frame.kind !== "action") throw new Error(`派生の項目が action フレームでない: ${i.frame.kind}`)
+        return { key: i.key, label: i.label, frame: i.frame }
+    })
+    if (frames.length === 0) return
     const list = (state.derivedItems ??= [])
     const slot = list.find((d) => d.effectId === effectId)
-    if (slot) {
-        slot.items.push(...frames)
-        slot.checks.push(...checks)
-    } else list.push({ effectId, items: frames, checks: [...checks] })
+    if (slot) slot.items.push(...frames)
+    else list.push({ effectId, items: frames })
 }
 
-function takeDerived(state: GameState, effectId: string): { items: CollectedTrigger[]; checks: EventBurstCheck[] } {
+function takeDerived(state: GameState, effectId: string): { items: CollectedTrigger[] } {
     const list = state.derivedItems
     const i = list?.findIndex((d) => d.effectId === effectId) ?? -1
-    if (!list || i < 0) return { items: [], checks: [] }
+    if (!list || i < 0) return { items: [] }
     const [d] = list.splice(i, 1)
     if (list.length === 0) delete state.derivedItems
     const items: CollectedTrigger[] = d!.items.map((x) => ({
@@ -78,19 +78,16 @@ function takeDerived(state: GameState, effectId: string): { items: CollectedTrig
             setWaitingEvent(state, undefined)
         },
     }))
-    return { items, checks: d!.checks }
+    return { items }
 }
 
 // 破壊の列が無い効果の派生：派生だけで1本の列にして、列の後にイベントバースト
-function settleDerivedOnly(state: GameState, derived: { items: CollectedTrigger[]; checks: EventBurstCheck[] }): void {
+function settleDerivedOnly(state: GameState, derived: { items: CollectedTrigger[] }): void {
     resolveInOrder(state, derived.items, {
         resolve: (i) => i.run(),
         frame: (i) => i.frame,
         askOrder: { pid: state.turnPlayer, label: (i) => i.label, key: (i) => i.key },
     })
-    if (state.winner || derived.checks.length === 0) return
-    if (state.pendingChoice) pushResumeFrames(state, [eventBurstsFrame(state, derived.checks)])
-    else fireEventBursts(state, derived.checks)
 }
 
 export function settleAllDerived(state: GameState): void {
@@ -117,11 +114,11 @@ export function settleDerived(state: GameState, effectId: string): number {
 
 function settleAll(state: GameState, effectId: string): number {
     const derived = takeDerived(state, effectId)
-    if (state.winner) derived.items.length = derived.checks.length = 0
+    if (state.winner) derived.items.length = 0
     const trashed = settleSpirits(state, effectId, derived)
     if (state.pendingChoice && !state.winner) return 0
     // 破壊の列が無かった効果の派生は、ここで単独の列にする（列に入れたものは settleSpirits が空にしている）
-    if (derived.items.length > 0 || derived.checks.length > 0) settleDerivedOnly(state, derived)
+    if (derived.items.length > 0) settleDerivedOnly(state, derived)
     if (state.pendingChoice && !state.winner) return 0
     settleBraves(state, effectId)
     if (state.pendingChoice && !state.winner) return 0
@@ -131,7 +128,7 @@ function settleAll(state: GameState, effectId: string): number {
     return state.pendingChoice ? 0 : trashed
 }
 
-function settleSpirits(state: GameState, effectId: string, derived: { items: CollectedTrigger[]; checks: EventBurstCheck[] }): number {
+function settleSpirits(state: GameState, effectId: string, derived: { items: CollectedTrigger[] }): number {
     const entries: DestroyEntry[] = []
     const pickMany: Record<string, string[]> = {}
     for (const pid of PIDS) {
@@ -168,7 +165,7 @@ function settleSpirits(state: GameState, effectId: string, derived: { items: Col
     state.destroyGroup = { id: crypto.randomUUID(), memberIds: entries.map((e) => e.inst.instanceId), used: [], familiesByPid, ...(Object.keys(pickMany).length > 0 ? { pickMany } : {}) }
     for (const e of entries) commitOrDefer(state, e.pid, e.inst)
     const frame: DestroyBatchFrame = { kind: "destroyBatch", ownerPid: state.turnPlayer, targets: [], phase: "start", settle: true, ...(prevGroup ? { prevGroup } : {}) }
-    const joined = { items: derived.items.splice(0), checks: derived.checks.splice(0) }
+    const joined = { items: derived.items.splice(0) }
     return runDestroyQueue(state, frame, entries, joined)
 }
 

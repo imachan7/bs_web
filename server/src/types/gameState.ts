@@ -1,6 +1,6 @@
 // 対戦全体の状態 GameState（サーバーだけが持つ。クライアントへは GameView に写して渡す）
 import type { EffectAction } from "./effectAction"
-import type { DeclaredBurst, EventBurstCheck, PendingChoice, ResumeFrame } from "./choice"
+import type { DeclaredBurst, PendingChoice, ResumeFrame } from "./choice"
 import { PlayerId, Phase, Color, CardType, GameEvent, EndStepLock, DestroyContext, CardInstance, PlayerState, BattleState, TimedRecord } from "../type"
 
 // 合体スピリットが場を離れたとき、残さないブレイヴの行き先（合体していたスピリットと同じ領域）
@@ -95,7 +95,7 @@ export interface GameState {
     // この id の効果は、出口で派生を解決しない（複数エントリのマジックを1つの効果として最後に解決する。magic/resolve.ts が立てる）
     holdDerivedFor?: string
     // 効果の中で起きた疲労・回復・ドロー・コア増減・ライフ減少・デッキ破棄の誘発。出来事の時点で集め、効果の出口（derivedSettle.settleDerived）だけが読んで1本の列にする
-    derivedItems?: { effectId: string; items: { key: string; label: string; frame: Extract<ResumeFrame, { kind: "action" }> }[]; checks: EventBurstCheck[] }[]
+    derivedItems?: { effectId: string; items: { key: string; label: string; frame: Extract<ResumeFrame, { kind: "action" }> }[] }[]
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     lastOpponentSpiritDestroyedFamilies: string[] // 直近に発火した fieldEvent "opponentSpiritDestroyed" の対象（破壊された相手のスピリット）の系統。
