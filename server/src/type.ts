@@ -374,6 +374,7 @@ export interface PlayerView {
     battleVirtualInstances: CardInstance[] // 同上（lendSelfThisBattle で貸した「このバトルの間」の発生源）
     burst: string | null // 自分のみ。相手は必ず null（伏せているため内容は見えない。docs/design/BURST.md）
     burstSet: boolean // 両者に見える（伏せてあるか否かは公開情報）
+    burstRevealed: boolean // 発動を宣言してから場を離れるまでは公開（相手にも cardId を返す）
     onceByNameUsed?: Record<string, number>
     onceByNameUsedCount?: Record<string, { turn: number; count: number }>
     burstSetThisTurn: boolean // 両者に見える公開情報（このターンにセット済みか。クライアントがセットボタンのグレーアウトに使う）

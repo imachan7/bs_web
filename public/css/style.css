@@ -505,13 +505,13 @@ button:active {
 
 /* 相手のバースト：裏面のみ。カード名・効果は一切出さない */
 .burst-back {
-    background: linear-gradient(135deg, #3a3f4b, #20232c);
+    background: url('/imgs/card-back.jpg') center / cover no-repeat;
     border: 2px solid rgba(255, 255, 255, 0.25);
 }
 
-/* 自分のバースト：裏向きだが自分にはカード名が見える */
+/* 自分のバースト：裏向きだが自分にはカード名が見える（名前は裏面の上で読めるよう暗い帯に載せる） */
 .burst-mine {
-    background: linear-gradient(#2a2e39, #2a2e39) padding-box,
+    background: url('/imgs/card-back.jpg') center / cover no-repeat padding-box,
                 linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
     border: 2px solid transparent;
     padding: 2px;
@@ -522,6 +522,35 @@ button:active {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    background: rgba(0, 0, 0, 0.65);
+    border-radius: 3px;
+    padding: 0 2px;
+}
+
+/* 発動したバースト：表向き（宣言から場を離れるまで。相手にも見える） */
+.burst-revealed {
+    background: linear-gradient(#2a2e39, #2a2e39) padding-box,
+                linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
+    border: 2px solid transparent;
+    padding: 2px;
+}
+.burst-revealed .name {
+    font-size: 8px;
+    max-width: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: rgba(0, 0, 0, 0.65);
+    border-radius: 3px;
+    padding: 0 2px;
+}
+/* 伏せた裏面から表向きにめくる演出（renderBurst の flash 中だけ付く） */
+.burst-flip {
+    animation: burst-flip 0.5s ease-out;
+}
+@keyframes burst-flip {
+    from { transform: rotateY(90deg); }
+    to { transform: rotateY(0); }
 }
 .burst-hidden-icon {
     position: absolute;
