@@ -1,4 +1,5 @@
 // 継続効果を個体へ書き戻す再計算（refreshLevelAsOverrides）と、期間つき効果の記録
+import { rensaIgnoresCondition } from "../../../../shared/rules/rensa"
 import { noteCoverage, noteGrantSource } from "../../../../shared/coverage"
 import { countEffectCounter, fireFieldEventTriggers } from "../EffectModules"
 import type { CardInstance, Color, GameState, PlayerId, ResolvedTargetFilter, TimedRecord, PlayerRuleDef } from "../../type"
@@ -582,7 +583,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         const braves = bravesOf(player, source)
                         if (braves.length === 0 || !braves.some((b) => (getCard(b.cardId).symbol ?? []).length === 0)) continue
                     }
-                    if (effect.condition && "count" in effect.condition) {
+                    if (effect.condition && "count" in effect.condition && !(effect.keyword === "rensa" && rensaIgnoresCondition(state, pid, source))) {
                         const v = countEffectCounter(state, pid, source, effect.condition.count, undefined)
                         if (effect.condition.atLeast !== undefined && v < effect.condition.atLeast) continue
                         if (effect.condition.atMost !== undefined && v > effect.condition.atMost) continue
