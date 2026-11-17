@@ -1,6 +1,6 @@
 // smoke パート983（効果で召喚したスピリットの『召喚時』と「召喚されたとき」の誘発は、召喚した効果を解決し終えてから1本の列で解決する。
 // docs/design/DERIVED_AFTER_EFFECT.md §11。2026-11-17 ユーザー確認済みの規則）。期待値役が効果文と規則だけから書いた
-import { act, assert, takeLifeAndResolve, createGame, createInstance, getCard, refreshLevelAsOverrides } from "./helpers"
+import { act, assert, resolveAction, takeLifeAndResolve, createGame, createInstance, getCard, refreshLevelAsOverrides } from "./helpers"
 import type { GameAction, GameState, PlayerId } from "./helpers"
 
 const VAN = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）
@@ -8,6 +8,7 @@ const GENERATE = "BS22-073" // ジェネレートファイア（赤・コスト5
 const SKEL = "BS01-038" // スケル・バイパー（紫・コスト4・妖蛇。『召喚時』1枚ドロー）
 const MAHA5 = "P025" // マハーヴァスキ（紫・コスト5・妖蛇。『召喚時』1枚ドロー）
 const DRAGONAGA = "BS13-016" // 呪王ドラゴナーガ（紫・コスト7。Lv1～：系統「妖蛇」の自分のスピリットが召喚されたとき1枚ドロー）
+const MENASHI = "BS05-012" // メナシヘビ（紫・コスト3・妖蛇。効果なし）
 const KRISHNA = "BS17-005" // ドラグ・クリシュナー（赤・コスト5。バースト：相手の『召喚時』発揮後に召喚）
 const GRIP = "BS01-030" // グリプ・ハンズ（紫・コスト3。『召喚時』1枚ドロー）
 const ZIEG = "BS14-X01" // 龍の覇王ジーク・ヤマト・フリード（赤・コスト8。バースト：ライフ減少後、ライフ3以下ならBP15000以下を破壊。この効果発揮後、召喚）
@@ -149,6 +150,52 @@ console.log("=== 4. 龍の覇王ジーク・ヤマト・フリード: 破壊の�
     assert(takeLifeAndResolve(s, "p1") === null, "自分（p1）はライフで受ける")
     r.until(() => false)
     assert(s.players.p1.field.spirits.some((x) => x.cardId === ZIEG), `ライフ3以下で破壊の後、ジークが召喚された（ライフ ${s.players.p1.life}、経過: ${r.trace.join(" / ")}）`)
+}
+
+
+// 以下は実カードで観測できる札が無いため、テスト内で合成した効果（召喚→相手1体を疲労）を直接解決する
+const SEQ = { type: "sequence", actions: [{ type: "summon", from: "hand", count: 1 }, { type: "exhaust", count: 1 }] } as never
+function synth(seed: string, summon: string, mineSpirits: Unit[]) {
+    const { s } = build(seed, "me", "main", { hand: [summon], spirits: mineSpirits }, { spirits: [{ card: VAN, cores: 1 }, { card: GRIP, cores: 1 }] })
+    const r = runner(s)
+    resolveAction(s, "p1", null, SEQ)
+    return { s, r }
+}
+
+console.log("=== 1'. 合成（召喚→疲労）: 疲労の対象選択の時点で、召喚したスピリットの『召喚時』ドローはまだ起きていない ===")
+{
+    // 規則「召喚の派生（『召喚時』）は、召喚した効果を最後まで解決し終えてから」
+    const { s, r } = synth("synth-1", MAHA5, [])
+    const pc = r.until((c) => c.kind === "target" && c.pid === "p1")
+    assert(pc !== null, `疲労の対象選択が出る（経過: ${r.trace.join(" / ")}）`)
+    assert(s.players.p1.field.spirits.some((x) => x.cardId === MAHA5), "マハーヴァスキは召喚済み")
+    assert(s.players.p1.hand.length === 0, `対象選択の時点で『召喚時』のドローは未解決（手札 ${s.players.p1.hand.length}枚）`)
+    r.until(() => false)
+    assert(s.players.p1.hand.length === 1, "選択を解決した後にドローが起きる")
+}
+
+console.log("=== 2'. 合成（召喚→疲労）: 疲労の対象選択の時点で、呪王ドラゴナーガの『召喚されたとき』ドローはまだ起きていない ===")
+{
+    // 規則「ほかのカードの『スピリットが召喚されたとき』も、召喚した効果を解決し終えてから」
+    const { s, r } = synth("synth-2", MENASHI, [{ card: DRAGONAGA, cores: 1 }])
+    const pc = r.until((c) => c.kind === "target" && c.pid === "p1")
+    assert(pc !== null, `疲労の対象選択が出る（経過: ${r.trace.join(" / ")}）`)
+    assert(s.players.p1.hand.length === 0, `対象選択の時点でドラゴナーガのドローは未解決（手札 ${s.players.p1.hand.length}枚）`)
+    r.until(() => false)
+    assert(s.players.p1.hand.length === 1, "選択を解決した後にドローが起きる")
+}
+
+console.log("=== 3'. 合成（召喚→疲労）: 『召喚時』と『召喚されたとき』の2件は、疲労の選択の後に1本の列になり、順番がターンプレイヤーに出る ===")
+{
+    // 規則「派生は1本の列、2件以上ならターンプレイヤーが順番を決める」
+    const { s, r } = synth("synth-3", MAHA5, [{ card: DRAGONAGA, cores: 1 }])
+    const first = r.until((c) => c.kind === "target" && c.pid === "p1")
+    assert(first !== null && !/どれから/.test(first.prompt), `最初の選択待ちは疲労の対象（経過: ${r.trace.join(" / ")}）`)
+    assert(s.players.p1.hand.length === 0, "その時点でどちらのドローも未解決")
+    const pc = r.until((c) => /どれから/.test(c.prompt))
+    assert(pc !== null && pc.pid === "p1", "疲労の選択の後に、ターンプレイヤーが順番を決める")
+    r.until(() => false)
+    assert(s.players.p1.hand.length === 2, "2件のドローが解決される")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part983）")
