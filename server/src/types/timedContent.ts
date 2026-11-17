@@ -49,7 +49,8 @@ export type TimedContent =
     | { type: "lifeCap"; max: number } // このスピリットがこのターンに記録を出した側のライフを減らせるのは合計maxまで（アタック・効果の両方。lifeDealtThisTurn で判定。2026-10-11 ユーザー確認：26RBS03-079）
     | { type: "noLifeDamage"; includeEffects?: true } // このスピリットのアタックでは、記録を出した側のライフが減らない。includeEffects＝そのスピリットの**効果**によるライフ減少（lifeCrush 等）も減らない（BS19-106「アタック/効果によって」）
     | { type: "colorless" } // 色とシンボルを無いものとして扱う
-    | { type: "destroyedCoresTo"; to: "void" | "trash"; soleOnly?: true } // このプレイヤーのスピリットが破壊されたとき、コアをリザーブではなく to に置く（void＝ゲームから取り除く。【装甲】では防げない＝RULES_BATSPI_WIKI §6）
+    | { type: "destroyedCoresTo"; to: "void" | "trash"; soleOnly?: true; byBattle?: true } // このプレイヤーのスピリットが破壊されたとき、コアをリザーブではなく to に置く（void＝ゲームから取り除く。【装甲】では防げない＝RULES_BATSPI_WIKI §6）
+    | { type: "lifeDamageCoresTo"; to: "void" | "trash" } // このプレイヤーがアタックで受けるライフ減少のコアを、リザーブではなく to に置く（プレイヤーに掛ける。読むのは battleResolve の applyNormalLifeDamage。効果によるライフ減少には効かない）
     | { type: "trashCoreReturnCap"; max: number } // 次のリフレッシュステップで、トラッシュのコアを max 個までしかリザーブに戻せない（寿命 nextRefresh。重なったら小さい方）
     | { type: "blockCost"; cost: "reserveCoreToTrash" | "discardMagic" | "discardHand" | "destroyOwnSpirit"; count: number } // destroyOwnSpirit＝ブロックするスピリット以外の自分のスピリット1体を破壊（選ぶのはブロック側。いなければブロックできない。Q4429〜Q4432）。discardHand＝手札1枚を破棄（Q4615。手札が無い・破棄できないならブロックできない。ponytail: 破棄するカードは選ばせず先頭を自動で捨てる）
     | ({ type: "coresProtected"; battle: "blocker" } & Pick<CoresProtectedRule, "causes">) // このバトルのブロッカー上のコアを取り除けない（target.kind:"battle"。アタック時にはまだブロッカーが決まっていないため）

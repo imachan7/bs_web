@@ -286,6 +286,15 @@ function resolveChoiceInner(
     // 選んだ対象でコストを払って復活が確定する
     if (pending.reviveCostPick) {
         const entry = pending.reviveCostPick
+        if (entry.costOptions) {
+            const picked = entry.costOptions.find((o) => o.label === option)
+            if (!picked) return "選択できない候補です"
+            const { costOptions: _omit, ...rest } = entry
+            state.pendingChoice = null
+            applyReviveCostPick(state, rest, undefined, undefined, picked.cardId !== undefined ? { tegamotoCardId: picked.cardId } : { fromHand: true })
+            if (state.winner) return null
+            return finishChoiceResolution(state, pending.pid)
+        }
         if (pending.selectedCardIndices !== undefined) {
             const chosen = pending.selectedCardIndices
             if (cardIndex !== undefined) {

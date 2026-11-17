@@ -126,6 +126,7 @@ export interface PendingChoice {
         effectId: string
         sourceInstanceId: string
         context?: DestroyContext
+        costOptions?: { label: string; cardId?: string }[] // alsoFromTegamoto の破棄元選び（kind:"option"）。cardId なし＝手札から、あり＝手元のそのマジック
     }
     reviveDestination?: {
         // 復活で手札に入ったカードの行き先の選択（action は解決しない）。options は["手札に残す","デッキの上に置く"]

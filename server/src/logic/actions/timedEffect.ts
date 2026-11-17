@@ -927,11 +927,17 @@ function placeDestroyedCoresTo(ctx: Parameters<ActionHandler<"timedEffect">>[0],
         log(state, `${sourceName}：バトル外のため不発。`)
         return
     }
-    const content = action.content.filter((c) => c.type === "destroyedCoresTo")
+    const content = action.content.filter((c) => c.type === "destroyedCoresTo" || c.type === "lifeDamageCoresTo")
     const pids: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [action.side === "own" ? owner : opp]
     for (const pid of pids) recordFrom(ctx, { content, target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
-    const to = content[0]?.type === "destroyedCoresTo" && content[0].to === "void" ? "ボイド" : "トラッシュ"
-    log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間、" : ""}破壊された${pids.map((p) => state.players[p].name).join("と")}のスピリット上のコアは${to}に置かれる。`)
+    const names = pids.map((p) => state.players[p].name).join("と")
+    const when = action.duration === "battle" ? "このバトルの間、" : ""
+    for (const c of content) {
+        const to = c.to === "void" ? "ボイド" : "トラッシュ"
+        log(state, c.type === "destroyedCoresTo"
+            ? `${sourceName}：${when}破壊された${names}のスピリット上のコアは${to}に置かれる。`
+            : `${sourceName}：${when}${names}がライフで受けたコアは${to}に置かれる。`)
+    }
 }
 
 // 「次の相手のリフレッシュステップで、トラッシュのコアを◯個しか戻せない」：そのプレイヤーに掛かる記録
@@ -999,7 +1005,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         placeBraveZero(ctx, action)
         return
     }
-    if (action.content.some((c) => c.type === "destroyedCoresTo")) {
+    if (action.content.some((c) => c.type === "destroyedCoresTo" || c.type === "lifeDamageCoresTo")) {
         placeDestroyedCoresTo(ctx, action)
         return
     }
