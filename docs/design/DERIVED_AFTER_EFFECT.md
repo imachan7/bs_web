@@ -251,3 +251,14 @@ scripts/smoke/ は 897 ファイル（part 889本）。当たり（grep のみ�
 - 出来事の入口は集約済み（`exhaustSpirit`・`refreshSpirit`・`draw`／`notifyHandGained`・`fireSummonSequence`・`fireCorePlacedFromDiff`）。**入口ごとに「効果の中か」を `state.currentEffectSource?.effectId !== undefined` で見て集め先を変える**のが最小。`fireFieldEventTriggers`／`fireTrigger` の内側に1か所だけ書くか、入口に書くかは設計担当が決める（内側に書くと、バトル・ステップの collect との2通りの `collect` が混ざる）。
 - **イベントバーストの `checks`** を一緒に持ち越す必要がある（9.2）。持ち越さないと【ライフ減少後】・【召喚後】系の確認が効果の最中のままになり、列とバーストの順が合わない。
 - 勝敗確定・サドンデスのとき、`derivedItems` を捨てる処理が要る（`settleSpirits` の `state.winner` 分岐と同じ）。
+
+## 10. 確定した設計：待機を持たない出来事（2026-11-17。ユーザー確認「それでいいよ」）
+
+範囲と順番：**1本目の PR** で疲労・回復・ドロー（手札に加わる `notifyHandGained` を含む）・コア配置（`fireCorePlacedFromDiff` もこの列へ）・コア除去・ライフ減少・デッキ破棄。**2本目の PR** で召喚（効果で召喚したスピリットの『召喚時』も効果の後。`fireSummonSequence` を前半と尾ごと1項目で持ち越す。§9.4）。
+
+1. **集める場所（案X）**：`state.derivedItems: { effectId; items: ResumeFrame[]; checks: EventBurstCheck[] }[]`。出来事の時点で、`state.currentEffectSource?.effectId` が立っていれば誘発を `collect` で集めて frame を積む（その時点の盤面で成否を決め、出口で集め直さない）。立っていなければ今のまま即時。読むのは `settleDerived` の1か所だけ。勝敗が決まったら捨てる。state 経由の受け渡しは `holdDerivedFor`・`resumeEffectId` に続く3つ目（既知の制限に書く）
+2. **1本の列**：出口で、待機の3種の列（`runDestroyQueue` の `destroyExtraItems`）に `derivedItems` の項目を足し、ターンプレイヤーが順番を決める。破壊が無い効果は `derivedItems` だけで `resolveInOrder`。列の後にイベントバースト（`checks`）
+3. **コストの派生**（「疲労させることで」「コアを取り除くことで」）も恩恵の後（RESUME_STACK §7②。11-17 から効果の中すべて）
+4. **数は出来事の時点で確定**（`eventCount`・`coresRemoved` などは frame に入れて運ぶ）。効果の続きは派生を解決する前の盤面を読む
+5. **効果の外**（アタック・ブロック宣言の疲労・リフレッシュステップ・ドローステップ・バトルのライフ減少）は今のまま即時
+6. **区切り**：カシオペアシール（BS12-078）の「疲労させる。…この効果発揮後」に `settleDerived` を挟む。§9.5 の残り21枚は「マジックを使用したとき、その効果発揮後」（誘発の形）か、前に出来事が無いので入れない
