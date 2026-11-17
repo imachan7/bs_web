@@ -510,7 +510,8 @@ button:active {
 }
 
 /* 自分のバースト：裏向きだが自分にはカード名が見える（名前は裏面の上で読めるよう暗い帯に載せる） */
-.burst-mine {
+/* .card（797行）より後に効かせるため .burst-slot を重ねる。重ねないと .card の背景で裏面が消える */
+.burst-slot.burst-mine {
     background: url('/imgs/card-back.jpg') center / cover no-repeat padding-box,
                 linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
     border: 2px solid transparent;
@@ -528,7 +529,7 @@ button:active {
 }
 
 /* 発動したバースト：表向き（宣言から場を離れるまで。相手にも見える） */
-.burst-revealed {
+.burst-slot.burst-revealed {
     background: linear-gradient(#2a2e39, #2a2e39) padding-box,
                 linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
     border: 2px solid transparent;
@@ -552,6 +553,10 @@ button:active {
     from { transform: rotateY(90deg); }
     to { transform: rotateY(0); }
 }
+/* 相手のバーストは相手側から見た向き（180度回転）で表向きにする（2026-11-17 ユーザー指示） */
+#opp-burst .burst-revealed { transform: rotate(180deg); }
+#opp-burst .burst-revealed.burst-flip { animation: burst-flip-opp 0.5s ease-out; }
+@keyframes burst-flip-opp { from { transform: rotate(180deg) rotateY(90deg); } to { transform: rotate(180deg); } }
 .burst-hidden-icon {
     position: absolute;
     top: -6px;

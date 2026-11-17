@@ -46,13 +46,21 @@ console.log("=== 2. 発動を宣言したら相手にも cardId が見える ===
     assert(viewFor(s, "p2").players.p2.burst === BURST, "宣言後は自分視点にも cardId が見える")
 }
 
-console.log("=== 3. 発動の効果を解決中（currentEffectSource）も公開される ===")
+console.log("=== 3. 宣言の列から外れた後（効果の後の「コストを支払うことで」の確認の間）も、場を離れるまで公開。新しくセットしたら伏せる ===")
 {
     const s = game("burst-reveal-resolving")
     placeBurst(s, "p2", BURST)
-    s.currentEffectSource = { pid: "p2", cardId: BURST, burst: true }
+    declareBurst(s, { pid: "p2", cardId: BURST, event: "ownLifeDamaged" })
+    // 適用に入ると宣言の列からは外れる（applyDeclaredBursts と同じ）。カードはまだバーストエリアにある
+    s.declaredBursts = []
     const vOpp = viewFor(s, "p1")
-    assert(vOpp.players.p2.burstRevealed === true && vOpp.players.p2.burst === BURST, "バースト効果の解決中は相手にも見える")
+    assert(vOpp.players.p2.burstRevealed === true && vOpp.players.p2.burst === BURST, "宣言の列から外れても、エリアにある間は相手にも見える")
+    // 同じカードをもう一度伏せてセットし直したら、中身は見えない
+    s.players.p2.burst = null
+    s.players.p2.burstSet = false
+    placeBurst(s, "p2", BURST)
+    const vAfter = viewFor(s, "p1")
+    assert(vAfter.players.p2.burstRevealed === false && vAfter.players.p2.burst === null, "新しくセットしたら伏せる（同じカードでも）")
 }
 
 console.log("=== 4. トラッシュに置かれたら何も見えない ===")

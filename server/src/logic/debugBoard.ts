@@ -134,6 +134,7 @@ export function applyDebugBoard(state: GameState, board: DebugBoard): string | n
         if (spec.burst !== undefined) {
             p.burst = spec.burst
             p.burstSet = spec.burst !== null
+            delete p.burstRevealedCardId
         }
         if (spec.field !== undefined) {
             p.field.spirits = toInstances(spec.field.spirits, state.turn)

@@ -35,6 +35,7 @@ export function placeBurst(state: GameState, pid: PlayerId, cardId: string): voi
     }
     player.burst = cardId
     player.burstSet = true
+    delete player.burstRevealedCardId
     // ⚠️ バーストは非公開ゾーンなので、セットした時点ではカード名をログに出さない（相手にも自分の
     // 画面にも同じログが配信されるため。GameState.viewFor は log を両者に同じ内容で配る）
     log(state, `${player.name}はバーストをセットした。`)
@@ -46,6 +47,7 @@ export function placeBurst(state: GameState, pid: PlayerId, cardId: string): voi
 export function announceBurstActivation(state: GameState, pid: PlayerId, cardId: string): void {
     const name = getCard(cardId).name
     log(state, `${state.players[pid].name}はバースト（${name}）を発動した。`)
+    state.players[pid].burstRevealedCardId = cardId
     emitEvent(state, { type: "burst", pid, cardName: name, cardId })
 }
 
