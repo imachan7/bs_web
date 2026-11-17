@@ -1288,5 +1288,122 @@
   "rarity": "SJ",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個をこのスピリットに置く。"
+ },
+ {
+  "cardId": "EX018",
+  "name": "英雄犬ロード・ワン・ケンゴー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "white"
+  ],
+  "family": [
+   "雄将",
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "EX",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n系統：「覇皇」/「雄将」を持つ自分のスピリットすべてに“【激突】『このスピリットのアタック時』相手は可能ならば必ずブロックする”を与える。\nLv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "EX019",
+  "name": "英雄猿ロード・ドス・モンキ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "white",
+   "white"
+  ],
+  "family": [
+   "雄将",
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "EX",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のバーストをセットしている間、系統：「覇皇」/「雄将」を持つ自分のスピリットすべてをBP+3000する。\nLv2『自分のバースト発動後』\nBP5000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "EX020",
+  "name": "英雄鳥ロード・キジ・トリア",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "red"
+  ],
+  "family": [
+   "雄将",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "EX",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のターン』\n自分のバーストをセットしている間、系統：「覇皇」/「雄将」を持つ自分のスピリットすべてをBP+3000する。\nLv2『自分のエンドステップ』\n自分のバーストをセットしていないとき、自分の手札にあるバースト効果を持つカード1枚をセットできる。"
  }
 ]
