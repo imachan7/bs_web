@@ -477,6 +477,7 @@ export type ResumeFrame =
           // 完了時に state.destroyGroup へ書き戻す）
           prevGroup?: GameState["destroyGroup"]
           settle?: true // 効果の出口での列の解決（derivedSettle）。破壊した数は効果の中で数え済みなので、確定時に数え直さない
+          recordTo?: string // 区切りの action（settleDerived）からの列：確定した数を、この記録の枠（元の効果の枠）へ書く。列が選択待ちで止まっても再開後に書かれる
           deferBurst?: true // バトルの破壊。破壊後バーストはバトル解決の step 5 で発動する（#536）
           after?: {
               // 全体を破壊し終えたあとの処理（破壊できた数を使うもの）

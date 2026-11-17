@@ -701,6 +701,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `detachBraveByOwnerChoice`（fn）：相手の効果で分離させられるとき、**コアの移動はブレイヴの持ち主が行う**（BRAVE.md §12.5.1）。
 - `destroyCombinedBrave`（fn）：合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
 - `destroyCombinedBraves`（fn）：1つの効果で破壊されるブレイヴは同時破壊（1つでも同じ手順。PENDING_STATE §3 C6〜C8。2026-11-16 ユーザー確認）。
+- `collectBraveDestroyItems`（fn）：合体中のブレイヴの破壊で誘発するものを items へ集める（効果の出口では他の破壊の列と1本にするため、集める部分だけ分けてある）
 - `resumeBraveDestroy`（fn）
 - `returnCombinedBraveToHand`（fn）：合体中のブレイヴ**だけ**を手札へ戻す（destroyCombinedBrave のバウンス版。
 - `returnCombinedBraveToDeckBottom`（fn）：合体中のブレイヴ**だけ**をデッキの一番下へ戻す（returnCombinedBraveToHand のデッキ下版。
@@ -1098,6 +1099,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `restoreDestroyGroup`（fn）
 - `applyDestroyBatchAfter`（fn）：「この効果で破壊したスピリット1体につき」の後処理。
 - `destroyNexus`（fn）：ネクサスを破壊する。破壊耐性（nexusIndestructible）で不発なら false（呼び出し側はカウント・ドロー処理の可否を判定する）。
+- `collectNexusDestructionItems`（fn）：ネクサスの破壊で誘発するものを items へ集める（効果の出口では他の破壊の列と1本にするため、集める部分だけ分けてある）
 - `driveNexusDestruction`（fn）：ネクサスの破壊処理（＞６）。この破壊で誘発するものは**すべて1つの列**に並べ、ターンプレイヤーが1つずつ選んで解決する
 - `resumeDestroyNexusCommit`（fn）
 - `commitPendingNexusDestruction`（fn）

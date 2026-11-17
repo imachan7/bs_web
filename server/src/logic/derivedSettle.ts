@@ -4,12 +4,12 @@
 import type { ActionHandler } from "./actions/types"
 import type { GameState, PlayerId, ResumeFrame } from "../type"
 import type { CollectedTrigger } from "./blockDeclared"
-import { resolveInOrder, setWaitingEvent } from "./GameState"
+import { pushResumeFrames, resolveInOrder, setWaitingEvent } from "./GameState"
 import { runActionFrame } from "./choice"
 import type { DestroyEntry } from "./removal"
-import { commitOrDefer, commitPendingDestruction, driveNexusDestruction, flushBounces, grantedFamilies, runDestroyQueue } from "./removal"
-import { resumeBraveDestroy } from "./brave"
-import { newRecordScope, recordDestroyedCount } from "./record"
+import { collectNexusDestructionItems, commitOrDefer, commitPendingDestruction, driveNexusDestruction, flushBounces, grantedFamilies, resumeDestroyNexusCommit, runDestroyQueue } from "./removal"
+import { collectBraveDestroyItems, resumeBraveDestroy } from "./brave"
+import { currentRecordScope, newRecordScope, recordDestroyedCount } from "./record"
 import { isTrashWaiting } from "../../../shared/rules/waiting"
 
 type DestroyBatchFrame = Extract<ResumeFrame, { kind: "destroyBatch" }>
@@ -105,12 +105,13 @@ export function settleAllDerived(state: GameState): void {
 }
 
 // 戻り値は、列を解決し終えて実際にトラッシュに置かれたスピリットの数（列が選択待ちで止まったときは 0。区切りの後の数え直しは未対応）
-export function settleDerived(state: GameState, effectId: string): number {
+// recordTo：区切りの action から呼ぶとき、列で確定した数を書く元の効果の記録の枠
+export function settleDerived(state: GameState, effectId: string, recordTo?: string): number {
     // 列で解決される効果は元の効果とは別の効果。元の効果の記録（破壊した数・動かしたカード）に混ぜない
     const prevScope = state.recordScope
     state.recordScope = newRecordScope()
     try {
-        return settleAll(state, effectId)
+        return settleAll(state, effectId, recordTo)
     } finally {
         // 選択待ちで止まったときは suspend が枠を控えているので、ここで戻してよい
         if (prevScope !== undefined) state.recordScope = prevScope
@@ -118,31 +119,43 @@ export function settleDerived(state: GameState, effectId: string): number {
     }
 }
 
-function settleAll(state: GameState, effectId: string): number {
+function settleAll(state: GameState, effectId: string, recordTo?: string): number {
     const derived = takeDerived(state, effectId)
     if (state.winner) derived.items.length = 0
-    const trashed = settleSpirits(state, effectId, derived)
-    if (state.pendingChoice && !state.winner) return 0
-    // 破壊の列が無かった効果の派生は、ここで単独の列にする（列に入れたものは settleSpirits が空にしている）
-    if (derived.items.length > 0) settleDerivedOnly(state, derived)
-    if (state.pendingChoice && !state.winner) return 0
-    settleBraves(state, effectId)
-    if (state.pendingChoice && !state.winner) return 0
-    settleNexuses(state, effectId)
+    const entries = collectSpiritEntries(state, effectId)
+    if (state.winner) {
+        for (const e of entries.list) commitPendingDestruction(state, e.pid, e.inst)
+        settleBraves(state, effectId)
+        settleNexuses(state, effectId)
+        return 0
+    }
+    // スピリット・合体中のブレイヴ・ネクサスの破壊と派生を、1本の列で解決する（2026-11-17 ユーザー決定）。
+    // 確定（トラッシュに置く・「残る」の解除・破壊した側の続き・バースト）は列の後で、それぞれの今の手順のまま行う
+    const items: CollectedTrigger[] = [...derived.items.splice(0)]
+    const tail = collectBraveNexusItems(state, effectId, items)
+    let trashed = 0
+    if (entries.list.length === 0 && tail.length === 0) {
+        // 破壊が無い効果の派生は、単独の列にする
+        if (items.length > 0) settleDerivedOnly(state, { items })
+    } else {
+        trashed = settleQueue(state, entries, items, tail, recordTo)
+        // 選択待ちで止まったときは tail を再開スタックへ預け済み。止まらなければ settleQueue が流し終えている
+        if (state.pendingChoice && !state.winner) return 0
+    }
     // 戻す待機：入れ子の出口ごとではなく、効果の出口でまとめて流す
     if (!state.pendingChoice) flushBounces(state)
     return state.pendingChoice ? 0 : trashed
 }
 
-function settleSpirits(state: GameState, effectId: string, derived: { items: CollectedTrigger[] }): number {
-    const entries: DestroyEntry[] = []
+function collectSpiritEntries(state: GameState, effectId: string): { list: DestroyEntry[]; pickMany: Record<string, string[]> } {
+    const list: DestroyEntry[] = []
     const pickMany: Record<string, string[]> = {}
     for (const pid of PIDS) {
         for (const inst of state.players[pid].field.spirits) {
             const w = inst.waiting
             if ((w?.kind !== "destroy" && w?.kind !== "vanish") || w.effectId !== effectId || w.derived === undefined) continue
             const d = w.derived
-            entries.push({
+            list.push({
                 pid,
                 inst,
                 cause: w.kind === "vanish" ? "deplete" : "destroy",
@@ -159,22 +172,71 @@ function settleSpirits(state: GameState, effectId: string, derived: { items: Col
             delete w.derived
         }
     }
-    if (entries.length === 0) return 0
-    if (state.winner) {
-        for (const e of entries) commitPendingDestruction(state, e.pid, e.inst)
-        return 0
-    }
-    const familiesByPid: Partial<Record<PlayerId, string[]>> = {}
-    for (const e of entries) familiesByPid[e.pid] = [...new Set([...(familiesByPid[e.pid] ?? []), ...grantedFamilies(state, e.pid, e.inst)])]
-    const prevGroup = state.destroyGroup
-    // 全員ぶんを1つの同時破壊として1本の列に並べる。「1回」は待機の出来事ごと（groupOnce の鍵に出来事が入っている）
-    state.destroyGroup = { id: crypto.randomUUID(), memberIds: entries.map((e) => e.inst.instanceId), used: [], familiesByPid, ...(Object.keys(pickMany).length > 0 ? { pickMany } : {}) }
-    for (const e of entries) commitOrDefer(state, e.pid, e.inst)
-    const frame: DestroyBatchFrame = { kind: "destroyBatch", ownerPid: state.turnPlayer, targets: [], phase: "start", settle: true, ...(prevGroup ? { prevGroup } : {}) }
-    const joined = { items: derived.items.splice(0) }
-    return runDestroyQueue(state, frame, entries, joined)
+    return { list, pickMany }
 }
 
+// 合体中のブレイヴとネクサスの誘発を items へ集め、列の後に確定する手順（既存の再開フレーム）を返す。ブレイヴ→ネクサスの順
+function collectBraveNexusItems(state: GameState, effectId: string, items: CollectedTrigger[]): ResumeFrame[] {
+    const tail: ResumeFrame[] = []
+    for (const pid of PIDS) {
+        const events: string[] = []
+        for (const b of state.players[pid].field.combinedBraves) {
+            const w = b.waiting
+            if (w?.kind !== "destroy" || w.effectId !== effectId) continue
+            delete w.effectId
+            if (!events.includes(w.event)) events.push(w.event)
+        }
+        for (const event of events) {
+            const braves = state.players[pid].field.combinedBraves.filter((b) => b.waiting?.kind === "destroy" && b.waiting.event === event)
+            collectBraveDestroyItems(state, pid, braves, items)
+            tail.push({ kind: "braveDestroy", ownerPid: pid, event, phase: "commit" })
+        }
+    }
+    for (const pid of PIDS) {
+        for (const inst of [...state.players[pid].field.nexuses]) {
+            const w = inst.waiting
+            if (w?.kind !== "destroy" || w.effectId !== effectId || w.nexus === undefined) continue
+            const { byOpponentEffect, after } = w.nexus
+            delete w.effectId
+            delete w.nexus
+            if (!isTrashWaiting(inst)) continue
+            collectNexusDestructionItems(state, pid, inst, byOpponentEffect, items)
+            tail.push({ kind: "destroyNexusCommit", pid, instanceId: inst.instanceId, byOpponentEffect, ...(after ? { after } : {}) })
+        }
+    }
+    return tail
+}
+
+// 列の後の確定を順に行う。選択待ちが立っていたら、残りは再開スタックへ（先に積まれた列の続き・スピリットの確定より後ろに入る）
+function runTail(state: GameState, tail: ResumeFrame[]): void {
+    while (tail.length > 0) {
+        if (state.pendingChoice && !state.winner) {
+            pushResumeFrames(state, tail)
+            return
+        }
+        const f = tail.shift()!
+        if (f.kind === "braveDestroy") resumeBraveDestroy(state, f)
+        else if (f.kind === "destroyNexusCommit") resumeDestroyNexusCommit(state, f)
+    }
+}
+
+function settleQueue(state: GameState, collected: { list: DestroyEntry[]; pickMany: Record<string, string[]> }, items: CollectedTrigger[], tail: ResumeFrame[], recordTo?: string): number {
+    const entries = collected.list
+    const prevGroup = state.destroyGroup
+    if (entries.length > 0) {
+        const familiesByPid: Partial<Record<PlayerId, string[]>> = {}
+        for (const e of entries) familiesByPid[e.pid] = [...new Set([...(familiesByPid[e.pid] ?? []), ...grantedFamilies(state, e.pid, e.inst)])]
+        // 全員ぶんを1つの同時破壊として1本の列に並べる。「1回」は待機の出来事ごと（groupOnce の鍵に出来事が入っている）
+        state.destroyGroup = { id: crypto.randomUUID(), memberIds: entries.map((e) => e.inst.instanceId), used: [], familiesByPid, ...(Object.keys(collected.pickMany).length > 0 ? { pickMany: collected.pickMany } : {}) }
+        for (const e of entries) commitOrDefer(state, e.pid, e.inst)
+    }
+    const frame: DestroyBatchFrame = { kind: "destroyBatch", ownerPid: state.turnPlayer, targets: [], phase: "start", settle: true, ...(recordTo !== undefined ? { recordTo } : {}), ...(prevGroup ? { prevGroup } : {}) }
+    const trashed = runDestroyQueue(state, frame, entries, { items })
+    runTail(state, tail)
+    return trashed
+}
+
+// 勝敗決定後だけ使う、ブレイヴ・ネクサスの個別の破壊手順（通常は settleAll が1本の列にまとめる）
 // 合体中のブレイヴ：出来事（event）ごとに、いままでの braveDestroy の手順へ渡す
 function settleBraves(state: GameState, effectId: string): void {
     for (const pid of PIDS) {
@@ -193,7 +255,6 @@ function settleBraves(state: GameState, effectId: string): void {
 }
 
 // ネクサス：1体ずつ、いままでの手順（列→確定→破壊した側の続き→バースト）
-// ponytail: スピリットの列とは別の列。ネクサスとスピリットを同じ効果で同時に壊す札が出たら1本にまとめる
 function settleNexuses(state: GameState, effectId: string): void {
     for (const pid of PIDS) {
         for (const inst of [...state.players[pid].field.nexuses]) {
@@ -217,9 +278,11 @@ export const settleDerivedHandler: ActionHandler<"settleDerived"> = (ctx) => {
     const saved = state.currentEffectSource
     delete state.currentEffectSource
     try {
-        // 区切りの後で「この効果で破壊した数」を読む札（Q25205）のために、トラッシュに置かれた数を元の効果の記録へ渡す
-        const trashed = settleDerived(state, effectId)
-        if (!state.pendingChoice) recordDestroyedCount(state, trashed)
+        // 区切りの後で「この効果で破壊した数」を読む札（Q25205）のために、列で確定した数を元の効果の記録へ渡す。
+        // 列が選択待ちで止まったときも、再開して確定した時点で destroyBatch の recordTo が書く。破壊が無ければ 0 のまま
+        const scope = currentRecordScope(state)
+        recordDestroyedCount(state, 0, scope)
+        settleDerived(state, effectId, scope)
     } finally {
         if (saved !== undefined) state.currentEffectSource = saved
     }

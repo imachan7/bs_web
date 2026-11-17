@@ -31,7 +31,7 @@
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 
 - 残り：なし（印の無い【連鎖】は fix/rensa-unmarked で直した。BS19-055-e4・BS19-066-e3 は付与で対象を取らない）
-- 既知の限界：区切りの列が選択待ちで止まると破壊数を書き戻さない／戻す待機の `rank` 衝突／`holdDerivedFor`・`resumeEffectId`・`derivedItems` が state 経由（原則3の例外）／ネクサス・合体中のブレイヴの破壊だけの効果では派生が別の列／遅らせる出来事は `derivedSettle.ts` の `HELD_EVENTS`（fieldEvent を足したら入れるか決める）
+- 既知の限界：戻す待機の `rank` 衝突／`holdDerivedFor`・`resumeEffectId`・`derivedItems` が state 経由（原則3の例外）／遅らせる出来事は `derivedSettle.ts` の `HELD_EVENTS`（fieldEvent を足したら入れるか決める）
 
 ### 進行中：AI戦をブラウザの中で動かす（2026-11-13 確定。`feat/local-ai-battle`）
 
