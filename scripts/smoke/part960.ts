@@ -26,7 +26,7 @@ function put(s: GameState, pid: PlayerId, cardId: string, cores: number): CardIn
 }
 
 // 「このバトルの間、破壊された相手（アキラ）のスピリットのコアを to に置く」が発揮された後の状態。
-// この効果（battleOpponentDestroyedCoresTo）はバトル中にしか発揮しないので、発揮後の一時の効果を直接置く
+// この効果（timedEffect の destroyedCoresTo）はバトル中にしか発揮しないので、発揮後の一時の効果を直接置く
 function redirect(s: GameState, to: "void" | "trash"): void {
     s.timedEffects.push({ content: [{ type: "destroyedCoresTo", to }], target: { kind: "player", pid: "p1" }, until: "battle", ownerPid: "p2" } as GameState["timedEffects"][number])
 }

@@ -321,18 +321,6 @@ const swapBattlerHandler: ActionHandler<"swapBattler"> = (ctx, action) => {
         return
 }
 
-// 「直前バトルの1回きり」の battleLoserCoresToVoid と違い、このバトルが終わるまで続く。自分のスピリットには効かない
-const battleOpponentDestroyedCoresToHandler: ActionHandler<"battleOpponentDestroyedCoresTo"> = (ctx, action) => {
-    const { state, opp, sourceName } = ctx
-        if (!state.battle) {
-            log(state, `${sourceName}：バトル外のため不発。`)
-            return
-        }
-        recordTimed(state, { content: [{ type: "destroyedCoresTo", to: action.to, ...(action.soleOnly ? { soleOnly: true as const } : {}) }], target: { kind: "player", pid: opp }, until: "battle", ownerPid: ctx.owner })
-        log(state, `${sourceName}：このバトルの間、破壊された相手のスピリット上のコアは${action.to === "void" ? "ボイド" : "トラッシュ"}に置かれる。`)
-        return
-}
-
 const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 相手のライフのコアをリザーブへ（doTakeLife と同様の処理）。ライフ0以下で勝敗が決まる
@@ -1757,7 +1745,6 @@ const handlers = {
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,
-    battleOpponentDestroyedCoresTo: battleOpponentDestroyedCoresToHandler,
     lifeCrush: lifeCrushHandler,
     deployNexus: deployNexusHandler,
     destroyBrave: destroyBraveHandler,

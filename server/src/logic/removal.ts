@@ -743,7 +743,7 @@ export function commitPendingDestruction(
         }
     }
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、destroyedCoresToTrash が有効な間、またはバトル中に
-    // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）。
+    // 期間つきの destroyedCoresTo（timedEffect）がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）。
     // destroyedCoresToSelf（BS20-X01）の候補があるときは、コアは候補へ（2体以上なら持ち主が選ぶ）
     // 行き先を変える一時の効果が複数あれば、最後に発揮したものが優先（矛盾する効果は後から発揮した効果が優先。issue #571・公式回答）
     const redirectEntry = timedContentsFor(state, ownerPid).filter((c) => c.type === "destroyedCoresTo").at(-1)

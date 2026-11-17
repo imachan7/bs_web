@@ -4670,8 +4670,9 @@
     "turn": "own",
     "ownOnly": true,
     "action": {
-     "type": "battleOpponentDestroyedCoresTo",
-     "to": "trash"
+     "type": "timedEffect",
+     "content": [{"type": "destroyedCoresTo", "to": "trash"}],
+     "duration": "battle"
     }
    }
   ]

@@ -2300,8 +2300,9 @@
           4
         ],
         "action": {
-          "type": "battleOpponentDestroyedCoresTo",
-          "to": "void"
+          "type": "timedEffect",
+          "content": [{"type": "destroyedCoresTo", "to": "void"}],
+          "duration": "battle"
         },
         "optional": false
       }
