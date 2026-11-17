@@ -52,6 +52,19 @@ export function installSecretCardArt(notify: (message: string) => void): void {
 const artLoaded = new Set<string>()
 const artMissing = new Set<string>()
 
+// 対戦で使うデッキの画像を先に読んでおく（画面に出た時点で初めて読むと、出た瞬間に絵が無い・遅れて出る）。
+// 読めたものは artLoaded に入るので、attachCardArt が最初から .has-art を付ける
+export function preloadCardArt(cardIds: Iterable<string>): void {
+    for (const cardId of new Set(cardIds)) {
+        const url = cardImageUrl(cardId)
+        if (url === null || artLoaded.has(cardId) || artMissing.has(cardId)) continue
+        const img = new Image()
+        img.onload = () => artLoaded.add(cardId)
+        img.onerror = () => artMissing.add(cardId)
+        img.src = url
+    }
+}
+
 export function attachCardArt(el: HTMLElement, cardId: string, name: string): void {
     el.title = name
     const url = cardImageUrl(cardId)
