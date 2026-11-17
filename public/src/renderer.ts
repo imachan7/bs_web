@@ -301,7 +301,7 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
         case "destroy":
             return ev.vanish ? `💨 ${ev.cardName} 消滅` : `💥 ${ev.cardName} 破壊`
         case "magic": return `📜 ${ev.cardName} 使用`
-        case "burst": return `⚡ ${ev.cardName} バースト発動`
+        case "burst": return null // 詳しい表示（showDetailBanner）で出す
         case "draw":
             // 自分のドローは手札の増加で分かるため表示しない。相手のドローのみ通知する
             return ev.pid === you ? null : `🃏 相手が${ev.count}枚ドロー`
@@ -328,6 +328,18 @@ function magicEffectText(cardId: string, timing: "main" | "flash" | undefined): 
     return (next === -1 ? rest : rest.slice(0, next)).trim()
 }
 
+// バーストの効果文から、【バースト…】の行と、その直後の本文（次の見出し行の手前まで）だけを取り出す。見出しが無ければ効果文全体。
+// 本文にも「Lv1のスピリット」「【神速】/【暴風】を持つ」のような行があるので、見出しは「Lv1･Lv2『」「Lv2：フラッシュ」「【合体時】Lv2」の形だけを見る（2026-11-17 に全118枚で確かめた）
+function burstEffectText(cardId: string): string {
+    const text = master(cardId).effect
+    const lines = text.split("\n")
+    const start = lines.findIndex(l => l.startsWith("【バースト"))
+    if (start === -1) return text
+    let end = start + 1
+    while (end < lines.length && !/^(Lv\d(･Lv\d)*($|『|：|【)|【[^】]*】($|Lv|『)|『|メイン：|フラッシュ：)/.test(lines[end] ?? "")) end++
+    return lines.slice(start, end).join("\n")
+}
+
 // 誰が何をしたかと中身を読める大きめの通知。相手の行動は長めに出し、押せば閉じる（2026-11-12 ユーザー要望：使ったマジック・オープンしたカードが分かりづらい）
 function showDetailBanner(layer: HTMLElement, kind: string, title: string, body: string, mine: boolean): void {
     const banner = document.createElement("div")
@@ -345,13 +357,16 @@ function showDetailBanner(layer: HTMLElement, kind: string, title: string, body:
 }
 
 // 直前に使われたマジックを画面の隅に残す（次のマジックか、ターンが変わるまで。×で閉じられる。カーソルを合わせると効果文）
-function showLastMagic(ev: Extract<GameEvent, { type: "magic" }>, view: GameView): void {
+function showLastMagic(ev: Extract<GameEvent, { type: "magic" | "burst" }>, view: GameView): void {
     document.getElementById("last-magic")?.remove()
     const chip = document.createElement("div")
     chip.id = "last-magic"
     chip.dataset.turn = String(view.turn)
     const text = document.createElement("span")
-    text.textContent = `📜 直前のマジック：${ev.pid === view.you ? "あなた" : "相手"}の${ev.cardName}${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`
+    const who = ev.pid === view.you ? "あなた" : "相手"
+    text.textContent = ev.type === "burst"
+        ? `⚡ 直前のバースト：${who}の${ev.cardName}`
+        : `📜 直前のマジック：${who}の${ev.cardName}${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`
     // カードと同じ効果のツールチップを出す（tooltip.ts の .tip-card）
     text.classList.add("tip-card")
     if (ev.cardId !== undefined) text.dataset.cardId = ev.cardId
@@ -531,6 +546,11 @@ function processNewEvents(view: GameView): Set<PlayerId> {
         if (ev.type === "magic" && layer) {
             showLastMagic(ev, view)
             showDetailBanner(layer, "magic", `📜 ${mine ? "あなた" : "相手"}が ${ev.cardName} を使用${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`, ev.cardId !== undefined ? magicEffectText(ev.cardId, ev.timing) : "", mine)
+            continue
+        }
+        if (ev.type === "burst" && layer) {
+            showLastMagic(ev, view)
+            showDetailBanner(layer, "burst", `⚡ ${mine ? "あなた" : "相手"}の ${ev.cardName} バースト発動`, ev.cardId !== undefined ? burstEffectText(ev.cardId) : "", mine)
             continue
         }
         if (ev.type === "reveal") {

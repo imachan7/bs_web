@@ -2192,6 +2192,7 @@ body:has(#notice-banner:not(.hidden)) {
     animation: event-detail-in 200ms ease-out;
 }
 .event-detail.event-magic { border-color: #8e6cf0; }
+.event-detail.event-burst { border-color: #e0524a; }
 .event-detail.event-reveal { border-color: #4fb3d9; }
 .event-detail-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
 .event-detail-body { font-size: 13px; line-height: 1.5; white-space: pre-wrap; color: var(--text-muted); }

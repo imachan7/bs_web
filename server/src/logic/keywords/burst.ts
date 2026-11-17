@@ -46,7 +46,7 @@ export function placeBurst(state: GameState, pid: PlayerId, cardId: string): voi
 export function announceBurstActivation(state: GameState, pid: PlayerId, cardId: string): void {
     const name = getCard(cardId).name
     log(state, `${state.players[pid].name}はバースト（${name}）を発動した。`)
-    emitEvent(state, { type: "burst", pid, cardName: name })
+    emitEvent(state, { type: "burst", pid, cardName: name, cardId })
 }
 
 // バースト効果の解決から後を進める：thenPay（その後コストを支払うことで〜）→ カードをトラッシュへ → 「自分のバースト発動後」。
