@@ -897,10 +897,10 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
     const player = state.players[owner]
     const mine =
         content.from === "onBlock"
-            ? player.field.spirits.filter((s) =>
+            ? targetableSpirits(state, owner, (s) =>
                   [s, ...bravesOf(player, s)].some((src) => getCard(src.cardId).effects.some((e) => e.kind === "triggered" && printedSides(e).includes("block"))),
               )
-            : player.field.spirits
+            : targetableSpirits(state, owner)
     if (
         content.from === "onBlock" &&
         targetInstanceId === undefined &&
