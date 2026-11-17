@@ -1,7 +1,7 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import { targetableSpirits, targetableNexuses } from "../targeting"
-import { isTrashWaiting } from "../../../../shared/rules/waiting"
+import { canBeTargeted, isTrashWaiting } from "../../../../shared/rules/waiting"
 import { finishSummonSequence } from "../summon"
 import { takeFromTrash, trashTakeableByEffect } from "../zones/trash"
 import { flushSummonBatch } from "../summon"
@@ -1150,7 +1150,7 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
             log(state, `${sourceName}：合体先がいなかった。`)
             return
         }
-        const braves = braveCombineOntoSelfCandidates(state, owner, self)
+        const braves = braveCombineOntoSelfCandidates(state, owner, self).filter((b) => canBeTargeted(state, b))
         if (braves.length === 0) {
             log(state, `${sourceName}：合体できるスピリット状態のブレイヴがいなかった。`)
             return
@@ -1189,7 +1189,9 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
 
     // スピリット状態のブレイヴ（合体中のブレイヴは field.spirits にいない）。
     // 合体先の候補が1つも無いブレイヴは選ばせない
-    const braves = player.field.spirits.filter(
+    const braves = targetableSpirits(
+        state,
+        owner,
         (sp) =>
             getCard(sp.cardId).type === "brave" &&
             (sp.braveRefs ?? []).length === 0 &&
@@ -1214,7 +1216,8 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
     const brave = (targetInstanceId !== undefined ? braves.find((b) => b.instanceId === targetInstanceId) : undefined) ?? braves[0]!
     // スピリット状態のブレイヴは他のブレイヴの合体先にもなれる（BS13-049イリテバン）ので、
     // 候補には自分自身が混ざる。自分自身とは合体できないので外す
-    const hosts = braveCombineCandidates(state, owner, brave.cardId).filter((id) => id !== brave.instanceId)
+    const open = new Set(targetableSpirits(state, owner).map((s) => s.instanceId))
+    const hosts = braveCombineCandidates(state, owner, brave.cardId).filter((id) => id !== brave.instanceId && open.has(id))
     if (state.interactiveTargets && hosts.length >= 2) {
         requestChoice(
             state,
