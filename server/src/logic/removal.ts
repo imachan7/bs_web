@@ -1081,6 +1081,8 @@ function finishDestroyBatch(state: GameState, frame: DestroyBatchFrame): number 
         }
     }
     const destroyed = finishDestroyGroup(state, frame.context, frame.settle === true)
+    // 区切りの後の続きが読む数。再開スタックを経ても書き先を失わないよう frame で運ぶ（確定の直後＝後処理や続きより前）
+    if (frame.recordTo !== undefined) recordDestroyedCount(state, destroyed, frame.recordTo)
     restoreDestroyGroup(state, frame.prevGroup)
     // 後処理が選択待ちで止まったら、バーストは handleAction 末尾の fireQueuedDestroyBursts が解決後に拾う
     if (!state.winner) applyDestroyBatchAfter(state, frame.ownerPid, destroyed, frame.after)
@@ -1203,18 +1205,9 @@ function byOpponentEffectOf(context: DestroyContext | undefined, ownerPid: Playe
     )
 }
 
-// ネクサスの破壊処理（＞６）。この破壊で誘発するものは**すべて1つの列**に並べ、ターンプレイヤーが1つずつ選んで解決する
-// （スピリットと同じ。2026-11-14 ユーザー確認。#553。docs/design/TIMING_CHART.md §1.5）。
-// 「疲労させて残す」「フィールドに戻す」が先に解決して破壊待機が解除されたら、列の残りは発揮しない
-export function driveNexusDestruction(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    byOpponentEffect: boolean,
-    after?: { actorPid: PlayerId; action: EffectAction },
-): void {
+// ネクサスの破壊で誘発するものを items へ集める（効果の出口では他の破壊の列と1本にするため、集める部分だけ分けてある）
+export function collectNexusDestructionItems(state: GameState, ownerPid: PlayerId, inst: CardInstance, byOpponentEffect: boolean, items: CollectedTrigger[]): void {
     const guard = { pendingDestructionOf: inst.instanceId }
-    const items: CollectedTrigger[] = []
     // 破壊した/された側を問わず両陣営のフィールドから。バウンスはここを通らない
     fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed", undefined, undefined, undefined, undefined, guard, undefined, undefined, undefined, undefined, items)
     fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed", undefined, undefined, undefined, undefined, guard, undefined, undefined, undefined, undefined, items)
@@ -1234,6 +1227,20 @@ export function driveNexusDestruction(
     // 破壊されたネクサス自身は破壊待機状態でまだ場にいるので、そのネクサス自身が持つ形も走査に含まれる。
     // eventColors を渡さないと fieldEvent.colorFilter が常に外れる
     fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, instColors(inst), undefined, undefined, { byOpponentEffect, ...guard }, undefined, extraItems, undefined, undefined, items)
+}
+
+// ネクサスの破壊処理（＞６）。この破壊で誘発するものは**すべて1つの列**に並べ、ターンプレイヤーが1つずつ選んで解決する
+// （スピリットと同じ。2026-11-14 ユーザー確認。#553。docs/design/TIMING_CHART.md §1.5）。
+// 「疲労させて残す」「フィールドに戻す」が先に解決して破壊待機が解除されたら、列の残りは発揮しない
+export function driveNexusDestruction(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    byOpponentEffect: boolean,
+    after?: { actorPid: PlayerId; action: EffectAction },
+): void {
+    const items: CollectedTrigger[] = []
+    collectNexusDestructionItems(state, ownerPid, inst, byOpponentEffect, items)
     resolveInOrder(state, items, {
         skip: (i) => i.skip?.() === true,
         resolve: (i) => i.run(),
