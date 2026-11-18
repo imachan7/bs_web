@@ -25,6 +25,8 @@ Discord は全通信を `<client_id>.discordsays.com` のプロキシ経由に�
 | iframe 埋め込み可 | helmet 等を入れていないので `X-Frame-Options` 無し | ✅ そのまま |
 | HTTPS 必須 | `https://bs-web-battle.app`（[DEPLOY_CLOUDRUN.md](../ops/DEPLOY_CLOUDRUN.md)） | ✅ そのまま |
 
+カード画像はバケット（`storage.googleapis.com/bs-web-card-images`）から直接配る予定（HANDOFF。2026-11-18 合意）。Activity では Portal の URL Mapping にこのホストを足す。
+
 **この表を壊す変更に注意する。** 外部CDNからライブラリを読む・カード画像を外部ホストに置く・
 helmet を入れる、のどれかをやった時点で Activity 側が黙って壊れる。
 
