@@ -100,7 +100,9 @@ export function exhaustSpirit(
         state.enemyExhaustNotifiedPid !== causePid
     ) {
         state.enemyExhaustNotifiedPid = causePid
-        fireFieldEventTriggers(state, causePid, "opponentSpiritExhaustedByOwnSpiritEffect", { pid: ownerPid, inst }, undefined, undefined, undefined, { causeType })
+        // 「このスピリットの効果で疲労させたとき」（bySelfEffectOnly。P13-11）が原因の個体を見られるよう、解決中の効果の発生源を渡す
+        const causeInstanceId = state.currentEffectSource?.pid === causePid ? state.currentEffectSource.instanceId : undefined
+        fireFieldEventTriggers(state, causePid, "opponentSpiritExhaustedByOwnSpiritEffect", { pid: ownerPid, inst }, undefined, undefined, undefined, { causeType, ...(causeInstanceId !== undefined ? { sourceInstanceId: causeInstanceId } : {}) })
     }
     fireExhaustedTriggers(state, ownerPid, inst, causePid, causeType)
     return true

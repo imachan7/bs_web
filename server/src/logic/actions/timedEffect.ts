@@ -21,7 +21,7 @@ const bpUntil = (action: TimedEffect): "turn" | "battle" => (action.duration ===
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "ownAttackStepEffectsDisabled", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "alsoCost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "immune", "cantRefresh", "untargetableByOpponentMagic", "colorless"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "opponentMustBlock", "canBlockWhileRested", "suppressTrigger", "ownAttackStepEffectsDisabled", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "alsoCost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "immune", "cantRefresh", "untargetableByOpponentMagic", "colorless"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 // 効果の期間つき記録は、発生源（種別・色）を必ず持たせる。相手の「すべて」の記録を【装甲】などで防ぐ判定（timedRecordsOn）が読むため
@@ -378,7 +378,7 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
 
 // 1体にキーワードを与える。対象の決め方は旧 grantKeyword と同じ（指定が無ければバトル中の自分のスピリット優先）
 function placeKeyword(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
-    const { state, owner, sourceName, targetInstanceId } = ctx
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
     const content = action.content.find((c): c is Extract<Content, { type: "keyword" }> => c.type === "keyword")
     if (!content) return
     if (action.duration !== "turn") {
@@ -1036,6 +1036,12 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         }
         recordFrom(ctx, { content: action.content.filter((c) => c.type === "grantTrigger"), target: { kind: "rule", pid: owner, filter, ...(self ? { selfInstanceId: self.instanceId } : {}) }, until: "turn", ownerPid: owner })
         log(state, `${sourceName}：このターンの間、条件に合う自分のスピリットすべてに効果を付与した。`)
+        return
+    }
+    if (action.target === "self" && action.content.some((c) => c.type === "opponentMustBlock")) {
+        if (!self) return
+        pushInstanceRecord(state, owner, self, action.content.filter(isRecorded), action.duration)
+        log(state, `${sourceName}：このバトルの間、${getCard(self.cardId).name}のアタックに対し、相手は可能ならば必ずブロックする。`)
         return
     }
     if (!action.all && action.target !== "lastTargets" && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "immune" || (c.type === "colorless" && action.side === "own") || (c.type === "noBpCompareDestroy" && action.target !== "self"))) {

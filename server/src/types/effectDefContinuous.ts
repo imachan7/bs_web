@@ -190,7 +190,8 @@ export type EffectDefContinuous =
           whileOwnBurstSet?: true
           whileSelfAttacking?: true // アタック中窓。hasGlobalConstraintが見る
           constraint: GlobalConstraintDef // 持ち主を問わず効く。ただしownNexusIndestructibleは持ち主自身のみ
-          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color; allOwnNexusesHaveFamily?: string; ownNexusCountExactly?: number; ownFamilyCountAtLeast?: { family: FamilyFilter; count: number }; ownSpiritMatches?: ResolvedTargetFilter }
+          condition?: AuraCondition
+          keyword?: Keyword // 【連鎖】の継続効果（Q774）。condition を無視させる効果が rensa だけを見る
           phase?: Phase
           turn?: "own" | "opponent" | "both" // opponentCantAttackByCostのopponentは「相手のアタックステップ」
       }
@@ -228,6 +229,7 @@ export type EffectDefContinuous =
           id: string
           kind: "bpBuffSuppression" // BPを-する効果は対象外
           levels: number[] | null
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効。ブレイヴの召喚時に貸す P13-09 用
           phase?: Phase
           turn?: "own" | "opponent"
       }

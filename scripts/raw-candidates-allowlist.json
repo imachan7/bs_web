@@ -18,7 +18,6 @@
     "actions/placeCores.ts:takeFromSource": "コスト支払い・条件の判定（効果の対象ではない）（コアの取り元を機械的に決める）",
     "burstNegate.ts:findBurstNegate": "ルール処理（ブロック・攻撃・継続効果・誘発の走査）で、効果の対象選択ではない",
     "counted.ts:countForTarget": "数える・条件を見る（待機中も場にいるので数える）",
-    "destroyGate.ts:hasOwnNexusIndestructible": "ルール処理（ブロック・攻撃・継続効果・誘発の走査）で、効果の対象選択ではない",
     "forcedBlock.ts:resolveForcedBlock": "ルール処理（ブロック・攻撃・継続効果・誘発の走査）で、効果の対象選択ではない",
     "keywords/burst.ts:burstConditionMet": "数える・条件を見る（待機中も場にいるので数える）",
     "keywords/tensho.ts:tenshoCandidates": "コスト支払い・条件の判定（効果の対象ではない）（【転召】のコストになる個体）",

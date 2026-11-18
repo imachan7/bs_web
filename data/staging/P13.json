@@ -1,0 +1,1025 @@
+[
+ {
+  "cardId": "P13-01",
+  "name": "雷光龍ライト・ジークヴルム",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nBP4000以下の相手のスピリット1体を破壊する。\nLv2･Lv3\n【強化】を持つ自分のスピリットすべてに“【激突】『このスピリットのアタック時』相手は可能ならば必ずブロックする”を与える。\nLv3【強化】\n自分の「BP破壊効果」の上限を+1000する。"
+ },
+ {
+  "cardId": "P13-02",
+  "name": "ダーク・リブリーパー",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv2『このスピリットの破壊時』\n相手のスピリットのコア1個を相手のリザーブに置く。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：ターンに1回、このスピリットは回復状態でフィールドに残る。"
+ },
+ {
+  "cardId": "P13-03",
+  "name": "ダーク・ミツジャラシ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個を自分のスピリットに置く。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する)\n[青]：このターンの間、相手は、相手のフィールドにあるシンボルと同じ色のマジックカードしか使用できない。"
+ },
+ {
+  "cardId": "P13-04",
+  "name": "ダーク・スノパルド",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2\nBP4000以下のスピリットのアタックでは、お互いのライフは減らない。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：スピリットすべてのコアの数はLv1コストより少なくならない。"
+ },
+ {
+  "cardId": "P13-05",
+  "name": "光の天使エンジュ・ライト",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【強化】\n自分の「BP-効果」を-1000する。"
+ },
+ {
+  "cardId": "P13-06",
+  "name": "爆光巨人ライト・ダグラス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\nこのスピリットのLv1につき、相手のデッキを上から1枚破棄する。\nLv1･Lv2･Lv3\nこのスピリットの【粉砕】でバースト効果を持つカードが破棄されたとき、コスト5以下の相手のスピリット1体を破壊する。\nLv3【強化】\n自分の「相手のデッキ破棄効果」の枚数を+1枚する。"
+ },
+ {
+  "cardId": "P13-07",
+  "name": "電脳天使レーナ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットが相手によって破壊されたとき、自分はデッキから1枚ドローする。\nLv2･Lv3『このスピリットのアタック時』\nこのターンの間、相手のスピリット1体をBP-2000する。"
+ },
+ {
+  "cardId": "P13-08",
+  "name": "フレイムチャージ",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "P",
+  "limited": false,
+  "effect": "メイン：\n【強化】を持つ自分のスピリット1体につき、BP2000以下の相手のスピリット1体を破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。"
+ },
+ {
+  "cardId": "P13-09",
+  "name": "ハンマブレイク",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n自分のフィールドか、トラッシュのコア1個をボイドに置く。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する)\n[青]：このターンの間、相手のスピリット/ブレイヴ/ネクサス/マジックの「BPを+する」効果は発揮されない。\n合体条件：コスト4以上",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 6000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "P13-10",
+  "name": "レイ・パイソン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n疲労状態のコスト3以下の相手のスピリット1体を破壊することで、自分はデッキから1枚ドローする。\nLv2『このスピリットの破壊時』\n相手のスピリットのコア1個を相手のリザーブに置く。"
+ },
+ {
+  "cardId": "P13-11",
+  "name": "白鴉鳥ヤタグロス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n相手は、相手のスピリット1体を疲労させる。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットの効果で相手のスピリットを疲労させたとき、疲労させたスピリット1体につき、ボイドからコア1個をこのスピリットに置く。"
+ },
+ {
+  "cardId": "P13-12",
+  "name": "光機ミョルニール",
+  "type": "brave",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\nコスト4以下の相手のスピリットにブロックされたとき、自分の合体スピリット1体を回復させる。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "P13-13",
+  "name": "魔神獣コクタク",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\n自分の手札1枚を破棄することで、自分はデッキから1枚ドローする。\n【連鎖：条件《白シンボル》】\n(自分の白シンボルがあるとき、下の効果を続けて発揮する)\n[白]：コスト4以下の相手のスピリット1体を手札に戻す。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 2000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "P13-14",
+  "name": "ダーク・ケルベロード",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合",
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復できる。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：相手は可能ならば必ずブロックする。"
+ },
+ {
+  "cardId": "P13-15",
+  "name": "マジックスイーツ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "P",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、相手のスピリット1体をBP-1000する。\nこの効果でそのスピリットがターンで初めてBP0になったとき、自分のスピリット1体を回復させる。"
+ },
+ {
+  "cardId": "P13-16",
+  "name": "聖剣の大地",
+  "type": "nexus",
+  "colors": [
+   "red",
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red",
+   "white"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分の合体スピリットが相手によって破壊されたとき、その合体スピリットのブレイヴを残し、スピリットだけを手札に戻すことができる。\nLv2『自分のアタックステップ』\n自分の合体スピリットがアタックしたとき、BP4000以下の相手のスピリット1体を破壊する。\nこの効果は重複しない。"
+ },
+ {
+  "cardId": "P13-17",
+  "name": "封印されし神剣",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "C,P",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットのアタック時』\n自分はデッキから1枚ドローし、BP3000以下の相手のスピリット1体を破壊する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "P13-18",
+  "name": "遊びの楽園",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のスピリットすべてをBP+2000する。\nLv2『自分のアタックステップ』\n自分のスピリットのアタックによって相手のライフを減らしたとき、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "P13-19",
+  "name": "白銀の王者グランツ・ケーニッヒ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を手札に戻す。\nLv2\n系統：「武装」を持つ自分のスピリット1体につき、このスピリットをBP+1000する。"
+ },
+ {
+  "cardId": "P13-20",
+  "name": "ダーク・ブロントライデント",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n【連鎖】を持つ自分のスピリット1体につき、このスピリットをBP+1000する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BP7000以下の相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "P13-21",
+  "name": "アルビノ・サイクロワインダー",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『お互いのアタックステップ』\n自分の紫のスピリット1体につき、このスピリットをBP+1000する。\nLv2･Lv3『自分のアタックステップ』\n自分のスピリットの効果で相手のスピリットのコアが0個になったとき、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "P13-22",
+  "name": "ハクビシャモン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2【強化】\n自分の「相手への疲労効果」の体数を+1体する。\nLv1･Lv2\n【強化】を持つ自分のスピリット1体につき、このスピリットをBP+1000する。"
+ },
+ {
+  "cardId": "P13-23",
+  "name": "ダーク・ライオライダーVツイン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\nこのスピリットをBP+3000する。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：自分はデッキから1枚ドローする。\nLv2『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。"
+ },
+ {
+  "cardId": "P13-24",
+  "name": "キンギン・シーサーズ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるコスト2のスピリットカード1枚を、コストを支払わずに召喚できる。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：BP2000以下の相手のスピリット2体を破壊する。"
+ },
+ {
+  "cardId": "P13-25",
+  "name": "十二代目ゴドフリー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札/トラッシュにある【強化】を持つコスト3以下の青のスピリットカードを好きなだけ、コストを支払わずに召喚する。\nLv1･Lv2【強化】\n自分の「相手へのデッキ破棄効果」の枚数を+1枚する。"
+ },
+ {
+  "cardId": "P13-26",
+  "name": "バトスピ部へようこそ!",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n自分のスピリットが召喚されたとき、BP2000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\nアタックしている自分のスピリットすべてをBP+2000する。"
+ },
+ {
+  "cardId": "P13-27",
+  "name": "V龍",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "P13-28",
+  "name": "バトスピ部 奮闘中!!",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のスピリットすべてをBP+2000する。\nLv2『自分のアタックステップ』\n自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "P14-09",
+  "name": "ムゲンフレイム",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "P",
+  "limited": false,
+  "effect": "フラッシュ：\nBP3000以下の相手のスピリット1体を破壊する。\nカード名に「ムゲン」と入っている自分のスピリットがいるとき、さらに、BP3000以下の相手のスピリット1体を破壊する。"
+ }
+]

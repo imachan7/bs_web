@@ -120,6 +120,6 @@ export function resolveFunsai(
             if (card.effects.some((e) => e.kind === "burst")) bursts++
         }
         state.lastFunsai = { total: actual, spirits, nexuses, magics, costAtLeast4, bursts }
-        fireFieldEventTriggers(state, ownerPid, "ownFunsaiMilled", undefined, undefined, undefined, actual)
+        fireFieldEventTriggers(state, ownerPid, "ownFunsaiMilled", undefined, undefined, undefined, actual, { sourceInstanceId: spirit.instanceId })
     }
 }

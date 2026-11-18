@@ -45,6 +45,15 @@
 - 一度も実行されていない16エントリ（coverage の基準に入れた）。場面テストを足して基準から消す：EX007-e2 EX008-e1 EX008-e2 EX012-e2 EX019-e1 SJ12-02-e1 SJ12-03-e3 SJ13-05-e1 SJ13-05-e2 SJ13-09-e1 SJ13-12-e1 SJ13-20-e1 SJ13-21-e1 SJ13-22-e1 SJ13-22-e2 SJ13-24-e2
 - 期待値役が書けなかった場面：EX014 の転召・EX014 のバトル中の効果破壊・SJ13-03 と【重装甲】・SJ13-02 で剣刃でないブレイヴ・単体召喚を選ぶ場面（scenario に手元・分身・合体状態を start に置く欄が無い）
 
+### 進行中：P13 プロモ＋P14-09 の29枚（`feat/p13-promo`。11-18 開始。issue #631 の残り）
+
+- 範囲：P13-01〜28 と P14-09（2026-11-18 ユーザー了承「それで続けて良いよ」）。P14-01〜08・CP14-01 はアルティメットを参照するか自身がアルティメットなので外す。配布系66種は後回し
+- データ：`data/staging/P13.json`（プロモの一覧のキャッシュから parse_row で抜いた）。入れ先は `data/cards/P13.json`
+- 手順：調査役（Sonnet）が `docs/design/P13_PLAN.md` → ユーザー確認 → 期待値役 → 実装役 → データ役
+- **確定（11-18 ユーザー確認）**：新しい部品は作らない。①`globalConstraint.condition` を共通の `AuraCondition`（auraCondition.ts、判定は shared/rules/bp.ts）に寄せる（専用の6軸は AuraCondition へ移しデータも移行。P13-04 は `ownColorSymbolsAtLeast` をそのまま使う）②P13-09 は `lendSelfThisTurn` で既存の `bpBuffSuppression`（lentOnly）を貸す ③P13-15 は `lendSelfThisTurn` で `fieldEvent opponentSpiritBpReachedZero`（bySelfEffectOnly＝SJ13-06・BS20-X08 と同形）を貸す。P13-25 の「好きなだけ召喚」は同時（BS16-X05 と同形）
+- 分担：期待値役 part997〜1001、条件の統合（Sonnet）part1002、その後データ役
+- 残り：一度も実行されていない8エントリを coverage の基準に入れた（P13-05-e1 P13-06-e3 P13-07-e1 P13-21-e2 P13-22-e1 P13-23-e2 P13-25-e2 P13-26-e2）。場面テストを足して基準から消す。期待値役が書けなかった場面：P14-09 の「ムゲン」がいるとき（プールに該当なし）、P13-15 の効果の前から BP0 の場面
+
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 
 - 残り：なし（印の無い【連鎖】は fix/rensa-unmarked で直した。BS19-055-e4・BS19-066-e3 は付与で対象を取らない）
