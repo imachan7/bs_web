@@ -44,8 +44,7 @@
 - 手順：調査役（Sonnet）が `docs/design/P13_PLAN.md` → ユーザー確認 → 期待値役 → 実装役 → データ役
 - **確定（11-18 ユーザー確認）**：新しい部品は作らない。①`globalConstraint.condition` を共通の `AuraCondition`（auraCondition.ts、判定は shared/rules/bp.ts）に寄せる（専用の6軸は AuraCondition へ移しデータも移行。P13-04 は `ownColorSymbolsAtLeast` をそのまま使う）②P13-09 は `lendSelfThisTurn` で既存の `bpBuffSuppression`（lentOnly）を貸す ③P13-15 は `lendSelfThisTurn` で `fieldEvent opponentSpiritBpReachedZero`（bySelfEffectOnly＝SJ13-06・BS20-X08 と同形）を貸す。P13-25 の「好きなだけ召喚」は同時（BS16-X05 と同形）
 - 分担：期待値役 part997〜1001、条件の統合（Sonnet）part1002、その後データ役
-- **現状（11-18 週の上限で中断）**：29枚のデータ・条件の統合・データ役のエンジン修正（bpBuffSuppression.lentOnly、マジックの BP- の原因記録、placeKeyword の self/battle、コア下限中のソウルコア移動、funsai の selfOverride）までコミット済み。メインループの差分の見直しは未了
-- 残り：①part997 の2件（緑なしでヘビーバレルが維持コアを割って消滅する）と part998 の3件（Q26732：BP0 でも破壊されない）は期待値側の誤り。直すかユーザーに確認②P13-11 を gaps の基準に載せた件の承認③BS20-X02-e1 の連鎖赤（`mustBlock` target self）が効いていない疑い④全体の検証（smoke:quiet ほか）・画像の取得・PR
+- 残り：一度も実行されていない8エントリを coverage の基準に入れた（P13-05-e1 P13-06-e3 P13-07-e1 P13-21-e2 P13-22-e1 P13-23-e2 P13-25-e2 P13-26-e2）。場面テストを足して基準から消す。期待値役が書けなかった場面：P14-09 の「ムゲン」がいるとき（プールに該当なし）、P13-15 の効果の前から BP0 の場面
 
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 
