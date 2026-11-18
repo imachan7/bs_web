@@ -21,7 +21,7 @@ import { card } from "../cardDb"
 import { isEndStepLocked } from "./activation"
 import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { hasKeyword, instColors, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
+import { hasKeyword, instColors, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
 import { entryActive } from "./effectStop"
 import { rensaIgnoresCondition } from "./rensa"
 import { continuousEffectReaches, hasUntargetableConstraint } from "./resistance"
@@ -534,8 +534,6 @@ export function attackTotalOncePerTurnLimitApplies(board: Board, attackerPid: Pl
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "attackOncePerTurnTotalByCost") continue
                 const maxCost = effect.constraint.maxCost
                 if (!entryActive(board, pid, source, effect, level)) continue
-                const family = effect.condition?.allOwnNexusesHaveFamily
-                if (family !== undefined && !ownAllNexusesHaveFamily(board, pid, family)) continue
                 if (used <= maxCost && costs.some((c) => c <= maxCost)) return true
             }
         }
@@ -726,9 +724,6 @@ export function instCantAttackByCost(board: Board, inst: CardInstance): boolean 
                     (effect.turn === "own") !== (board.turnPlayer === pid)
                 )
                     continue
-                // condition.ownSpiritMatches：持ち主のフィールドにこの絞り込みに合うスピリットがいる間だけ有効
-                const matches = effect.condition?.ownSpiritMatches
-                if (matches !== undefined && !board.players[pid].field.spirits.some((s) => matchesTarget(board, pid, s, matches, source.instanceId))) continue
                 if (costsOfAttacker.some((cost) => constraint.costs.includes(cost))) {
                     noteCoverage(effect, "globalConstraint")
                     return true

@@ -3,7 +3,7 @@
 // 「破壊されない」は対象に取られることを防がない（Q1711・2026-10-30）。選択肢には出し、破壊の時点で止める。
 // コストの破壊だけは、全部払えるときだけ払えるので候補から外す（呼び出し側が cause:"cost" で聞く）
 import { entryActive } from "../../../shared/rules/effectStop"
-import { cardNameContains, hasGlobalConstraint, instHasColor, instIsVanilla, timedContentsOn } from "../../../shared/rules"
+import { cardNameContains, checkAuraCondition, hasGlobalConstraint, instHasColor, timedContentsOn } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import type { CardInstance, CardType, Color, DestroyContext, GameState, PlayerId } from "../type"
 import { currentLevel, getCard } from "./GameState"
@@ -54,21 +54,6 @@ function hasOwnNexusIndestructible(
                 ) {
                     continue
                 }
-            }
-            if (effect.condition?.ownVanillaSpiritsAtLeast !== undefined) {
-                const vanillaCount = player.field.spirits.filter((s) =>
-                    instIsVanilla(s),
-                ).length
-                if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
-            }
-            // 「自分のネクサスすべてが黄の間」（BS11-069 黄金の鐘楼）。発生源自身も数に入る
-            if (effect.condition?.allOwnNexusesHaveColor !== undefined) {
-                const color = effect.condition.allOwnNexusesHaveColor
-                if (!player.field.nexuses.every((n) => instHasColor(n, color))) continue
-            }
-            // 「自分のフィールドにネクサスが1つだけある間」（BS11-027 海戦機ニヨルドLv2）
-            if (effect.condition?.ownNexusCountExactly !== undefined) {
-                if (player.field.nexuses.length !== effect.condition.ownNexusCountExactly) continue
             }
             noteCoverage(effect, "globalConstraint")
             return true

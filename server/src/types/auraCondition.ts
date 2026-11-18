@@ -35,5 +35,10 @@ export type AuraCondition =
     | { ownColorSymbolsAtLeast: { color: Color; count: number } } // 自分のフィールドの指定色シンボルの合計がcount個以上（スピリット/ネクサス両方。countSymbols と同じ数え方。26RSD04-002「自分の白シンボルが3つ以上あるなら」）
     | { ownTrashAllColor: Color } // 自分のトラッシュのカードすべてがこの色を持つ間（多色は色のどれかが一致すれば可。**0枚は不成立**＝ownTrashOnlyColor と逆。26RBS02-X06「トラッシュのカードすべてが紫なら」）
     | { ownEffectVanishedOpponentSpirit: true } // このターンに自分の効果で相手のスピリットが消滅（破壊ではない。コア0で場を離れた）していた間（oppSpiritRemovedByEffectThisTurn の "vanish"。26RSD02-X02）
+    | { ownVanillaSpiritsAtLeast: number } // 自分のバニラスピリット（付与でバニラ扱いのものも含む）がN体以上
+    | { allOwnNexusesHaveColor: Color } // 自分のネクサスすべてがこの色（0個でも成立。発生源がネクサスなら自身も数える）
+    | { allOwnNexusesHaveFamily: string } // 自分のネクサスが1個以上あり、すべてがこの系統（0個は不成立）
+    | { ownNexusCountExactly: number } // 自分のネクサスがちょうどN個の間
+    | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 指定系統（配列＝OR）のスピリットがcount体以上（triggered 側の同名軸と同じ判定）
     | { ownNexusAtLeast: number } // 自分のネクサスがN個以上ある間（26RBS01-080「自分のネクサスがあるなら」）
     | { ownNexusColorAtLeast: { color: Color; count: number } }

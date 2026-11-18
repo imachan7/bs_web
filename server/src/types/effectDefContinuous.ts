@@ -190,7 +190,8 @@ export type EffectDefContinuous =
           whileOwnBurstSet?: true
           whileSelfAttacking?: true // アタック中窓。hasGlobalConstraintが見る
           constraint: GlobalConstraintDef // 持ち主を問わず効く。ただしownNexusIndestructibleは持ち主自身のみ
-          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color; allOwnNexusesHaveFamily?: string; ownNexusCountExactly?: number; ownFamilyCountAtLeast?: { family: FamilyFilter; count: number }; ownSpiritMatches?: ResolvedTargetFilter }
+          condition?: AuraCondition
+          keyword?: Keyword // 【連鎖】の継続効果（Q774）。condition を無視させる効果が rensa だけを見る
           phase?: Phase
           turn?: "own" | "opponent" | "both" // opponentCantAttackByCostのopponentは「相手のアタックステップ」
       }
