@@ -2,6 +2,9 @@
 import type { CardInstance, Phase, PlayerId } from "../../server/src/type"
 import type { Board } from "../board"
 import { effectActiveOn, instEffectsSuppressed, nexusEffectsDisabledFor, nexusEffectsStopped } from "./level"
+import type { AuraCondition } from "../../server/src/types/auraCondition"
+import { checkAuraCondition } from "./bp"
+import { rensaIgnoresCondition } from "./rensa"
 
 // effectActiveOn（Lv＋【合体時】）に、「持つ効果すべては発揮されない」個体でないこと、場のネクサスなら「個体ごと止められていない」「エントリ単位の停止（targetEffectLevels）に当たらない」を足す。
 // effectSources も同じ個体を外しているが、場を直接走査する呼び出し元（cost.ts の magicRestriction など）はここでしか止まらない
@@ -20,6 +23,8 @@ export function entryActive(
         turn?: "own" | "opponent" | "both"
         step?: string
         aura?: { phaseTurn?: { phase?: Phase; turn?: TurnSide } }
+        condition?: unknown
+        keyword?: string
     },
     level: number,
 ): boolean {
@@ -27,6 +32,9 @@ export function entryActive(
     if (effect.phaseTurn && !inActivePeriod(board, pid, effect.phaseTurn)) return false
     if (instEffectsSuppressed(source)) return false
     if (source.timedAttackStepEffectsDisabled && isOwnAttackStepEntry(effect)) return false
+    // globalConstraint の condition はここ1か所で見る（読み側ごとに見ていたため、見ない型では条件が素通りしていた。2026-11-18）。
+    // ほかの kind の condition は型が別（誘発の条件など）なので見ない
+    if (effect.kind === "globalConstraint" && effect.condition !== undefined && !(effect.keyword === "rensa" && rensaIgnoresCondition(board, pid, source)) && !checkAuraCondition(board, pid, effect.condition as AuraCondition, source)) return false
     if (!board.players[pid].field.nexuses.includes(source)) return true
     return !nexusEffectsStopped(board, pid, source) && !nexusEffectsDisabledFor(board, pid, source, effect)
 }

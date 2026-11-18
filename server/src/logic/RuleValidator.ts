@@ -1450,6 +1450,7 @@ function hasMustBlockAgainst(
     attackerPid: PlayerId,
     attacker: CardInstance,
 ): { blockerMaxBp?: number; source: CardInstance } | null {
+    if (timedContentsOn(state, attacker).some((c) => c.type === "opponentMustBlock")) return { source: attacker }
     // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果）も含めて走査する
     for (const inst of effectSources(state, attackerPid)) {
         const level = currentLevel(inst).level

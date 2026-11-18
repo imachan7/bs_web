@@ -6,8 +6,8 @@ import type { CardInstance, LifeGuardDef, PlayerId } from "../../server/src/type
 import type { Board } from "../board"
 import { card } from "../cardDb"
 import { entryActive } from "./effectStop"
-import { spiritHasFamily } from "./keywordState"
 import { currentLevel, effectSources } from "./level"
+import { checkAuraCondition } from "./bp"
 import { matchesTarget } from "./targetFilter"
 import { timedPlayerRules } from "./constraints"
 import type { LifeLossQuery } from "./constraints"
@@ -27,12 +27,6 @@ function guardsProtecting(board: Board, pid: PlayerId): { guard: LifeGuardDef; e
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && owner !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && owner === board.turnPlayer) continue
-                const fam = effect.condition?.ownFamilyCountAtLeast
-                if (fam !== undefined) {
-                    const wanted = Array.isArray(fam.family) ? fam.family : [fam.family]
-                    const count = board.players[owner].field.spirits.filter((s) => wanted.some((f) => spiritHasFamily(board, owner, s, f))).length
-                    if (count < fam.count) continue
-                }
                 found.push({ guard, effect })
             }
         }

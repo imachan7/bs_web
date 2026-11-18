@@ -15,7 +15,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { bofuCountFor, matchesFamilyFilter, spiritHasFamily, spiritHasKeywordOrLabel, targetArmorColorCount } from "./keywordState"
 import { entryActive } from "./effectStop"
-import { braveBpBonus, instColors, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast } from "./level"
+import { braveBpBonus, instColors, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllNexusesHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast } from "./level"
 import { countSymbols, handSizeOf, instanceSymbolCount } from "./symbols"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
@@ -319,6 +319,22 @@ export function checkAuraCondition(
     if ("ownEffectVanishedOpponentSpirit" in condition) {
         return board.oppSpiritRemovedByEffectThisTurn?.[sourcePid]?.includes("vanish") === true
     }
+    if ("ownVanillaSpiritsAtLeast" in condition) {
+        return player.field.spirits.filter((s) => instIsVanilla(s)).length >= condition.ownVanillaSpiritsAtLeast
+    }
+    if ("allOwnNexusesHaveColor" in condition) {
+        return player.field.nexuses.every((n) => instHasColor(n, condition.allOwnNexusesHaveColor))
+    }
+    if ("allOwnNexusesHaveFamily" in condition) {
+        return ownAllNexusesHaveFamily(board, sourcePid, condition.allOwnNexusesHaveFamily)
+    }
+    if ("ownNexusCountExactly" in condition) {
+        return player.field.nexuses.length === condition.ownNexusCountExactly
+    }
+    if ("ownFamilyCountAtLeast" in condition) {
+        const { family, count } = condition.ownFamilyCountAtLeast
+        return player.field.spirits.filter((s) => matchesFamilyFilter(board, sourcePid, s, family)).length >= count
+    }
     if ("ownNexusAtLeast" in condition) {
         return player.field.nexuses.length >= condition.ownNexusAtLeast
     }
@@ -467,6 +483,7 @@ export function isBpBuffSuppressed(board: Board, effectOwnerPid: PlayerId): bool
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "bpBuffSuppression") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!entryActive(board, sourcePid, source, effect, level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue

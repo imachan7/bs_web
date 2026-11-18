@@ -1687,9 +1687,9 @@ export function removeCores(
     // 含めない指定なら、取り除き上限は[ソウルコア]を差し引いた通常コア数
     const soulHere = soulCoreOnInstance(player, inst.instanceId)
     // 通常コアだけでは足りない（全部取るときを含む）なら、聞かずに[ソウルコア]も取る（SOULCORE.md §5）
-    const includeSoulUnit = soulHere && (includeSoul === true || count + bonus > allowed - 1)
+    const includeSoulUnit = soulHere && allowed > 0 && (includeSoul === true || count + bonus > allowed - 1)
     const soulUnits = includeSoulUnit ? 1 : 0
-    const capacity = allowed - (soulHere && !includeSoulUnit ? 1 : 0)
+    const capacity = Math.max(0, allowed - (soulHere && !includeSoulUnit ? 1 : 0))
     const removed = Math.min(count + bonus, capacity)
     inst.cores -= Math.max(0, removed - soulUnits)
     // coresToOpponentReserveGoToTrash：本来リザーブへ置かれるはずのコアを、発生源の持ち主から見た相手（＝ownerPid）のトラッシュへ振り替える
@@ -1743,9 +1743,9 @@ export function removeCoresToTrash(
     const soulHere = soulCoreOnInstance(player, inst.instanceId)
     const allowed = effectCoreCap(state, ownerPid, inst, actorPid, srcType)
     // 通常コアだけでは足りない（全部取るときを含む）なら、聞かずに[ソウルコア]も取る（SOULCORE.md §5）
-    const includeSoulUnit = soulHere && (includeSoul === true || count + bonus > allowed - 1)
+    const includeSoulUnit = soulHere && allowed > 0 && (includeSoul === true || count + bonus > allowed - 1)
     const soulUnits = includeSoulUnit ? 1 : 0
-    const capacity = allowed - (soulHere && !includeSoulUnit ? 1 : 0)
+    const capacity = Math.max(0, allowed - (soulHere && !includeSoulUnit ? 1 : 0))
     const removed = Math.min(count + bonus, capacity)
     inst.cores -= Math.max(0, removed - soulUnits)
     if (includeSoulUnit) moveSoulCore(player, { zone: "trash" })
