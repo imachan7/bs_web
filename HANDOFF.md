@@ -42,6 +42,8 @@
 - 範囲：P13-01〜28 と P14-09（2026-11-18 ユーザー了承「それで続けて良いよ」）。P14-01〜08・CP14-01 はアルティメットを参照するか自身がアルティメットなので外す。配布系66種は後回し
 - データ：`data/staging/P13.json`（プロモの一覧のキャッシュから parse_row で抜いた）。入れ先は `data/cards/P13.json`
 - 手順：調査役（Sonnet）が `docs/design/P13_PLAN.md` → ユーザー確認 → 期待値役 → 実装役 → データ役
+- **確定（11-18 ユーザー確認）**：新しい部品は作らない。①`globalConstraint.condition` を共通の `AuraCondition`（auraCondition.ts、判定は shared/rules/bp.ts）に寄せる（専用の6軸は AuraCondition へ移しデータも移行。P13-04 は `ownColorSymbolsAtLeast` をそのまま使う）②P13-09 は `lendSelfThisTurn` で既存の `bpBuffSuppression`（lentOnly）を貸す ③P13-15 は `lendSelfThisTurn` で `fieldEvent opponentSpiritBpReachedZero`（bySelfEffectOnly＝SJ13-06・BS20-X08 と同形）を貸す。P13-25 の「好きなだけ召喚」は同時（BS16-X05 と同形）
+- 分担：期待値役 part997〜1001、条件の統合（Sonnet）part1002、その後データ役
 
 ### 派生効果を効果の後に（#606・#609・召喚の PR で済み。設計は DERIVED_AFTER_EFFECT §8・§10・§11）
 
