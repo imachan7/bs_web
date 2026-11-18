@@ -483,6 +483,7 @@ export function isBpBuffSuppressed(board: Board, effectOwnerPid: PlayerId): bool
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "bpBuffSuppression") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!entryActive(board, sourcePid, source, effect, level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue

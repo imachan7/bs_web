@@ -168,8 +168,11 @@ export function recordPlayerRule(state: GameState, pid: PlayerId, rule: PlayerRu
 export function recordBp(state: GameState, ownerPid: PlayerId, inst: CardInstance, amount: number, until: "turn" | "battle"): void {
     recordTimed(state, { content: [{ type: "bp", amount }], target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid })
     // 「このスピリットの効果でBP0になったとき」の発生源判定用に、効果による下げの原因を残す
-    if (amount < 0 && state.currentEffectSource?.instanceId !== undefined) {
-        state.bpMinusSourceBy = { ...state.bpMinusSourceBy, [inst.instanceId]: state.currentEffectSource.instanceId }
+    // マジックには発生源の個体が無いので、lendSelfThisTurn で貸した仮想発生源を原因にする（P13-15「この効果で」）
+    const src = state.currentEffectSource
+    const causeId = src?.instanceId ?? (src?.type === "magic" && src.cardId !== undefined ? state.players[src.pid].turnVirtualInstances.find((v) => v.cardId === src.cardId)?.instanceId : undefined)
+    if (amount < 0 && causeId !== undefined) {
+        state.bpMinusSourceBy = { ...state.bpMinusSourceBy, [inst.instanceId]: causeId }
     }
     // 自分のスピリットがフラッシュ効果のBP+で増えた（相手のスピリットへの+は「自分の」にならないので対象外）
     if (state.flashEffect && amount > 0 && state.players[ownerPid].field.spirits.some((x) => x.instanceId === inst.instanceId)) {

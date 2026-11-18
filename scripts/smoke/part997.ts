@@ -117,7 +117,11 @@ function hammerThenOppBoost(seed: string, ownBlue: boolean) {
     s.players.p2.hand = [BOOST]
     const before = effectiveBp(s, "p2", target)
     handleAction(s, "p1", { type: "summon", handIndex: 0 })
-    handleAction(s, "p2", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: target.instanceId })
+    // 相手のフラッシュはアタック宣言後のタイミングで撃てる（メインステップ中は撃てない）
+    handleAction(s, "p1", { type: "nextPhase" })
+    handleAction(s, "p1", { type: "attack", instanceId: s.players.p1.field.spirits[0]!.instanceId })
+    const rejected = handleAction(s, "p2", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: target.instanceId })
+    assert(rejected === null, "相手のフラッシュのマジックが通る")
     for (let i = 0; i < 4 && s.pendingChoice === null; i++) handleAction(s, s.priorityPlayer, { type: "pass" })
     return { s, target, before }
 }

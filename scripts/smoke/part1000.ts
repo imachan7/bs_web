@@ -25,6 +25,7 @@ console.log("=== P13-02 ダーク・リブリーパー：Lv2の破壊時に相�
 // 相手のターン。相手のワイアーム（Lv2 BP6000）がアタックし、ダーク（BP5000）でブロックして破壊される
 const blockSteps = (t: Parameters<Parameters<typeof scenario>[0]["steps"]>[0]) => {
     t.act("opp", { type: "attack", instanceId: t.id("ワイアーム") })
+    t.closeFlash() // アタック宣言後のフラッシュを閉じてからブロックの宣言
     t.act("me", { type: "block", instanceId: t.id("ダーク・リブリーパー") })
     t.closeFlash()
 }
@@ -61,7 +62,7 @@ scenario({
     steps(t) {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("ダーク・ケルベロード") })
-        t.act("me", { type: "resolveChoice", option: "yes" })
+        t.act("me", { type: "resolveChoice", option: "発動する" })
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
     },
@@ -73,7 +74,7 @@ scenario({
     steps(t) {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("ダーク・ケルベロード") })
-        t.act("me", { type: "resolveChoice", option: "no" })
+        t.act("me", { type: "resolveChoice" })
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
     },
@@ -176,10 +177,11 @@ function combined(s: GameState, nexusCores: number, extraOpp: string[]) {
     const attacker = put(s, "p2", LANCE, 5) // Lv3 BP9000。合体スピリット（ホストLv1 4000＋ブレイヴ4000）を上回る
     assert(effectiveBp(s, "p2", attacker) >= effectiveBp(s, "p1", host), "相手のアタッカーが合体スピリットより強い")
     handleAction(s, "p2", { type: "attack", instanceId: attacker.instanceId })
+    while (s.isFlashTiming && s.battle) handleAction(s, s.priorityPlayer, { type: "pass" }) // フラッシュを閉じてからブロックを宣言する
     handleAction(s, "p1", { type: "block", instanceId: host.instanceId })
     for (let i = 0; i < 4 && s.pendingChoice === null; i++) handleAction(s, s.priorityPlayer, { type: "pass" })
     // 「できる」なので確認の選択待ちが出るはず。出ないなら自動で戻る実装になっている（質問欄）
-    if (s.pendingChoice !== null) handleAction(s, "p1", { type: "resolveChoice", option: "yes" })
+    if (s.pendingChoice !== null) handleAction(s, "p1", { type: "resolveChoice", option: "発動する" })
     assert(s.players.p1.hand.includes(HOST), "ホストのスピリットだけが手札に戻る")
     assert(s.players.p1.field.spirits.some((x) => x.instanceId === brave.instanceId), "ブレイヴはスピリット状態でフィールドに残る")
 }

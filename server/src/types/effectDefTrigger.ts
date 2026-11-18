@@ -242,7 +242,7 @@ export type EffectDefTrigger =
           byAttackOnly?: true // ownLifeDamaged 限定。「相手のスピリットのアタックによって」ライフが減ったときだけ。
           // 効果によるライフ減少（lifeCrush 等）では発火しない。アタックによる減少は targetInstanceId にアタッカーが渡ることで区別する
           duringSelfAttack?: true // 発生源自身（合体中のブレイヴならホスト）が今のバトルのアタッカーのときだけ（opponentSpiritDestroyed・opponentSpiritBpReachedZero・opponentDeckMilled で使う）
-          selfOnly?: true // ownSpiritDestroyed | ownSpiritExhausted | ownSpiritReducedLife 用
+          selfOnly?: true // ownSpiritDestroyed | ownSpiritExhausted | ownSpiritReducedLife | ownFunsaiMilled（このスピリットの【粉砕】）用
           causedByOpponent?: true // 疲労イベント限定。ネクサスの効果も含む（byOpponentEffectOnly は含まない）
           byOpponentOnly?: true // ownSpiritDestroyed | ownSpiritReturnedToHand 限定。後者は相手の効果で戻るときだけ（持ち主が自分の効果で戻すときは発火しない）
           opponentEffectSourceTypes?: CardType[] // 「相手のスピリット/マジックの効果で」はネクサスを含まない

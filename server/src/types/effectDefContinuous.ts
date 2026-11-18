@@ -229,6 +229,7 @@ export type EffectDefContinuous =
           id: string
           kind: "bpBuffSuppression" // BPを-する効果は対象外
           levels: number[] | null
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効。ブレイヴの召喚時に貸す P13-09 用
           phase?: Phase
           turn?: "own" | "opponent"
       }

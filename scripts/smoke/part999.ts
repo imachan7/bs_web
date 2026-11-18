@@ -46,7 +46,6 @@ scenario({
     steps(t) {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("白鴉鳥ヤタグロス") })
-        t.act("opp", { type: "resolveChoice", instanceId: t.id("相手.A") })
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
     },
@@ -71,13 +70,13 @@ scenario({
     name: "douglas-lv2-burst-mill-destroys-cost5",
     start: { me: { spirits: [{ card: DOUGLAS, cores: 2 }] }, opp: { deck: burstDeck, spirits: [{ card: HORN, rested: true }, { card: VAJ, rested: true }] } },
     steps: (t) => attackAndTakeLife(t, "爆光巨人ライト・ダグラス"),
-    expect: ["自分.爆光巨人ライト・ダグラス.疲労: false → true", "相手.デッキ枚数: 40 → 38", "相手.トラッシュ: なし → 武威煌炎刃、武威煌炎刃、ビッグ・ホーン", "相手.ビッグ・ホーン.場所: フィールド → なし", "相手.リザーブ: 10 → 12", "相手.ライフ: 5 → 4"],
+    expect: ["自分.爆光巨人ライト・ダグラス.疲労: false → true", "相手.デッキ枚数: 40 → 38", "相手.トラッシュ: なし → ビッグ・ホーン、武威煌炎刃、武威煌炎刃", "相手.ビッグ・ホーン.場所: フィールド → なし", "相手.リザーブ: 10 → 12", "相手.ライフ: 5 → 4"],
 })
 scenario({
     name: "douglas-lv1-mills-one-and-destroys",
     start: { me: { spirits: [{ card: DOUGLAS, cores: 1 }] }, opp: { deck: burstDeck, spirits: [{ card: HORN, rested: true }] } },
     steps: (t) => attackAndTakeLife(t, "爆光巨人ライト・ダグラス"),
-    expect: ["自分.爆光巨人ライト・ダグラス.疲労: false → true", "相手.デッキ枚数: 40 → 39", "相手.トラッシュ: なし → 武威煌炎刃、ビッグ・ホーン", "相手.ビッグ・ホーン.場所: フィールド → なし", "相手.リザーブ: 10 → 12", "相手.ライフ: 5 → 4"],
+    expect: ["自分.爆光巨人ライト・ダグラス.疲労: false → true", "相手.デッキ枚数: 40 → 39", "相手.トラッシュ: なし → ビッグ・ホーン、武威煌炎刃", "相手.ビッグ・ホーン.場所: フィールド → なし", "相手.リザーブ: 10 → 12", "相手.ライフ: 5 → 4"],
 })
 scenario({
     name: "douglas-no-burst-card-no-destroy",

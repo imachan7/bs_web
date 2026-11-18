@@ -378,9 +378,16 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
 
 // 1体にキーワードを与える。対象の決め方は旧 grantKeyword と同じ（指定が無ければバトル中の自分のスピリット優先）
 function placeKeyword(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
-    const { state, owner, sourceName, targetInstanceId } = ctx
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
     const content = action.content.find((c): c is Extract<Content, { type: "keyword" }> => c.type === "keyword")
     if (!content) return
+    // target:"self"＝発生源自身に与える。このバトルの間も可（P13-14「相手は可能ならば必ずブロックする」＝このバトルだけ【激突】を持つ）
+    if (action.target === "self") {
+        if (!self) return
+        pushInstanceRecord(state, owner, self, [content], action.duration)
+        log(state, `${sourceName}：${getCard(self.cardId).name}に${action.duration === "battle" ? "このバトルの間" : "このターンの間"}【${KEYWORDS[content.keyword].label}】を与えた。`)
+        return
+    }
     if (action.duration !== "turn") {
         log(state, `${sourceName}：「このバトルの間」キーワードを与える効果は未対応のため発揮しなかった。`)
         return

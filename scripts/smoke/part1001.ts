@@ -37,8 +37,13 @@ scenario({
 // 「ムゲン」入りがいない：「さらに」の2体目は壊さない（1体だけ）
 scenario({
     name: "fire-no-mugen-only-one-destroyed",
-    start: { me: { hand: [FIRE], spirits: [{ card: VANILLA }] }, opp: { spirits: [{ card: BERSERK }, { card: WOLF }] } },
-    steps: (t) => cast(t, "バーサーカー・ガン"),
+    start: { interactive: true, me: { hand: [FIRE], spirits: [{ card: HARDES }] }, opp: { spirits: [{ card: BERSERK }, { card: WOLF }] } },
+    steps(t) {
+        // 破壊する1体は使用者が選ぶ（非対話の自動選択はBP最大を選ぶので、選択を待たせて答える）
+        t.act("me", { type: "castMagic", handIndex: 0, timing: "flash" })
+        t.act("me", { type: "resolveChoice", instanceId: t.id("バーサーカー・ガン") })
+        t.closeFlash()
+    },
     expect: [...castLines, "相手.バーサーカー・ガン.場所: フィールド → なし", "相手.リザーブ: 10 → 11", "相手.トラッシュ: なし → バーサーカー・ガン"],
 })
 // 相手のBP3000以下がいなければ何も起きない（使用コストだけ）
