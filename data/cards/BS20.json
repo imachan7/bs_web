@@ -5929,7 +5929,7 @@
         "type": "timedEffect",
         "content": [
          {
-          "type": "mustBlock"
+          "type": "opponentMustBlock"
          }
         ],
         "duration": "battle",

@@ -27,7 +27,7 @@ scenario({
     name: "sweets-bp0-first-time-recovers",
     start: { me: { hand: [SWEETS], spirits: [{ card: VANILLA, rested: true }] }, opp: { spirits: [{ card: BERSERK }] } },
     steps: (t) => cast(t, "バーサーカー・ガン"),
-    expect: [...castLines, "自分.ロクケラトプス.疲労: true → false", "相手.バーサーカー・ガン.場所: フィールド → なし", "相手.リザーブ: 10 → 11", "相手.トラッシュ: なし → バーサーカー・ガン"],
+    expect: [...castLines, "自分.ロクケラトプス.疲労: true → false", "相手.バーサーカー・ガン.BP: 1000 → 0"] // BP0 になっても破壊されない（Q26732）,
 })
 // BP0にならない：回復しない
 scenario({
@@ -41,14 +41,14 @@ scenario({
     name: "sweets-recover-mine-not-opp-rested",
     start: { me: { hand: [SWEETS], spirits: [{ card: VANILLA, rested: true }] }, opp: { spirits: [{ card: BERSERK }, { card: WOLF, rested: true }] } },
     steps: (t) => cast(t, "バーサーカー・ガン"),
-    expect: [...castLines, "自分.ロクケラトプス.疲労: true → false", "相手.バーサーカー・ガン.場所: フィールド → なし", "相手.リザーブ: 10 → 11", "相手.トラッシュ: なし → バーサーカー・ガン"],
+    expect: [...castLines, "自分.ロクケラトプス.疲労: true → false", "相手.バーサーカー・ガン.BP: 1000 → 0"] // BP0 になっても破壊されない（Q26732）,
 })
 // 回復が任意でなく、回復状態の味方しかいなくても処理は成立する（変化は相手の破壊と使用コストだけ）
 scenario({
     name: "sweets-bp0-no-rested-ally",
     start: { me: { hand: [SWEETS], spirits: [{ card: VANILLA }] }, opp: { spirits: [{ card: BERSERK }] } },
     steps: (t) => cast(t, "バーサーカー・ガン"),
-    expect: [...castLines, "相手.バーサーカー・ガン.場所: フィールド → なし", "相手.リザーブ: 10 → 11", "相手.トラッシュ: なし → バーサーカー・ガン"],
+    expect: [...castLines, "相手.バーサーカー・ガン.BP: 1000 → 0"] // BP0 になっても破壊されない（Q26732）,
 })
 
 console.log("=== P13-25 ゴドフリー ===")

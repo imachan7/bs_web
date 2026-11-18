@@ -45,7 +45,7 @@ scenario({
     name: "snow-no-green-core-removed",
     start: { turn: "opp", opp: { hand: [REMOVE], spirits: [{ card: SNOW }] }, me: { spirits: [{ card: HEAVY, cores: 2 }] } },
     steps: castSteps,
-    expect: [...castLines, "自分.銃騎士ヘビーバレル.コア: 2 → 1", "自分.リザーブ: 10 → 11"], // 緑シンボルなし：連鎖は発揮されず通常どおり減る
+    expect: [...castLines, "自分.銃騎士ヘビーバレル.場所: フィールド → なし", "自分.リザーブ: 10 → 12", "自分.トラッシュ: なし → 銃騎士ヘビーバレル"], // 緑シンボルなし：連鎖は発揮されず1個減り、Lv1コスト2を割って消滅する（残りの1個もリザーブへ）
 })
 scenario({
     name: "snow-no-green-1core-destroyed",
@@ -63,7 +63,7 @@ scenario({
     name: "snow-no-green-soulcore-normal-core-moves",
     start: { turn: "opp", opp: { hand: [REMOVE], spirits: [{ card: SNOW }] }, me: { soulCore: "銃騎士ヘビーバレル", spirits: [{ card: HEAVY, cores: 2 }] } },
     steps: castSteps,
-    expect: [...castLines, "自分.銃騎士ヘビーバレル.コア: 2 → 1", "自分.リザーブ: 10 → 11"], // ソウルコアは動かず通常コアだけがリザーブへ（ソウルコアの行は変わらない）
+    expect: [...castLines, "自分.銃騎士ヘビーバレル.場所: フィールド → なし", "自分.リザーブ: 10 → 12", "自分.ソウルコア: 自分.銃騎士ヘビーバレル → リザーブ", "自分.トラッシュ: なし → 銃騎士ヘビーバレル"], // 通常コアが1個減り、Lv1コストを割って消滅する。ソウルコアはリザーブへ
 })
 
 // 1節目：BP4000以下のスピリットのアタックではお互いのライフが減らない（連鎖と無関係）

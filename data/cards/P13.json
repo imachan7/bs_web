@@ -420,7 +420,6 @@
           2,
           3
         ],
-        "selfOnly": true,
         "condition": {
           "lastFunsaiHasBurst": true
         },
@@ -432,7 +431,8 @@
               "max": 5
             }
           }
-        }
+        },
+        "bySelfEffectOnly": true
       },
       {
         "id": "P13-06-e3",
@@ -790,32 +790,31 @@
           2,
           3
         ],
+        "optional": false,
         "action": {
-          "type": "sequence",
-          "actions": [
-            {
-              "type": "exhaust",
-              "count": 1,
-              "chooserIsTarget": true
-            },
-            {
-              "type": "if",
-              "cond": {
-                "count": "selfLevel",
-                "atLeast": 2
-              },
-              "then": {
-                "type": "placeCores",
-                "from": "void",
-                "to": "spirit",
-                "target": "self",
-                "count": 1,
-                "countCounter": "lastMoved"
-              }
-            }
-          ]
-        },
-        "optional": false
+          "type": "exhaust",
+          "count": 1,
+          "chooserIsTarget": true
+        }
+      },
+      {
+        "id": "P13-11-e2",
+        "kind": "fieldEvent",
+        "event": "opponentSpiritExhaustedByOwnSpiritEffect",
+        "levels": [
+          2,
+          3
+        ],
+        "bySelfEffectOnly": true,
+        "duringSelfAttack": true,
+        "selfMode": "source",
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
+          "count": 1
+        }
       }
     ]
   },
@@ -1062,8 +1061,7 @@
             "type": "timedEffect",
             "content": [
               {
-                "type": "keyword",
-                "keyword": "clash"
+                "type": "opponentMustBlock"
               }
             ],
             "duration": "battle",

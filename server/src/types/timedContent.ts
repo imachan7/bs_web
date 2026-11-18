@@ -16,6 +16,7 @@ export type TimedContent =
     | { type: "effectsDisabled" } // 効果を失い、新たに得ることもない（付与されたキーワードも。instEffectsSuppressed が読む）
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
     | { type: "canBlockWhileRested" } // 疲労状態でもブロックできる（期間は turn のみ。1体は自分のスピリットから選ぶ）
+    | { type: "opponentMustBlock" } // このスピリットのアタックに対し、相手は可能ならば必ずブロックする（アタックする側に掛ける。【激突】を与えるのではないので「【激突】を持つ」には数えない）
     | { type: "mustBlock" } // 可能ならばブロックしなければならない（期間は battle。その個体でブロックできるなら、ライフで受ける・ほかの個体でブロックは検証で拒否する。26RSD03-007）
     | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; targetFilter?: TargetFilter; optional?: true } // 誘発効果を与える（期間は turn、または自分1体に限り battle。1体は自分のスピリットから選ぶ）。targetFilter＝イベントの相手役（onBlocked ならブロッカー）が合うときだけ発火。optional＝「〜できる」：発火したとき持ち主に発動するかを聞く（2026-11-06 ユーザー確認：任意効果の聞き方に揃える）
     | { type: "grantEntry"; cardId: string; effectId: string } // 別カードの誘発エントリ1つを、この個体の効果として持つ（条件・eventTarget・optional ごと。イリテバンが借りた結果連動型。#505）

@@ -21,7 +21,7 @@ const bpUntil = (action: TimedEffect): "turn" | "battle" => (action.duration ===
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "ownAttackStepEffectsDisabled", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "alsoCost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "immune", "cantRefresh", "untargetableByOpponentMagic", "colorless"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "opponentMustBlock", "canBlockWhileRested", "suppressTrigger", "ownAttackStepEffectsDisabled", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "alsoCost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "immune", "cantRefresh", "untargetableByOpponentMagic", "colorless"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 // 効果の期間つき記録は、発生源（種別・色）を必ず持たせる。相手の「すべて」の記録を【装甲】などで防ぐ判定（timedRecordsOn）が読むため
@@ -381,13 +381,6 @@ function placeKeyword(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: 
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     const content = action.content.find((c): c is Extract<Content, { type: "keyword" }> => c.type === "keyword")
     if (!content) return
-    // target:"self"＝発生源自身に与える。このバトルの間も可（P13-14「相手は可能ならば必ずブロックする」＝このバトルだけ【激突】を持つ）
-    if (action.target === "self") {
-        if (!self) return
-        pushInstanceRecord(state, owner, self, [content], action.duration)
-        log(state, `${sourceName}：${getCard(self.cardId).name}に${action.duration === "battle" ? "このバトルの間" : "このターンの間"}【${KEYWORDS[content.keyword].label}】を与えた。`)
-        return
-    }
     if (action.duration !== "turn") {
         log(state, `${sourceName}：「このバトルの間」キーワードを与える効果は未対応のため発揮しなかった。`)
         return
@@ -1043,6 +1036,12 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         }
         recordFrom(ctx, { content: action.content.filter((c) => c.type === "grantTrigger"), target: { kind: "rule", pid: owner, filter, ...(self ? { selfInstanceId: self.instanceId } : {}) }, until: "turn", ownerPid: owner })
         log(state, `${sourceName}：このターンの間、条件に合う自分のスピリットすべてに効果を付与した。`)
+        return
+    }
+    if (action.target === "self" && action.content.some((c) => c.type === "opponentMustBlock")) {
+        if (!self) return
+        pushInstanceRecord(state, owner, self, action.content.filter(isRecorded), action.duration)
+        log(state, `${sourceName}：このバトルの間、${getCard(self.cardId).name}のアタックに対し、相手は可能ならば必ずブロックする。`)
         return
     }
     if (!action.all && action.target !== "lastTargets" && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "immune" || (c.type === "colorless" && action.side === "own") || (c.type === "noBpCompareDestroy" && action.target !== "self"))) {
