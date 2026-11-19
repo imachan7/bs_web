@@ -22,7 +22,7 @@ import {
 import { isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { kyokaBonus } from "../keywords/kyoka"
-import { settleList } from "../designation"
+import { redirectReentryId, settleList, settleOne } from "../designation"
 
 
 // BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
@@ -75,12 +75,14 @@ const bpMinus: ActionHandler<"bpMinus"> = (ctx, action) => {
     const list = pickEnemyCandidates(state, opp, Infinity, (s) => !excluded.includes(s.instanceId) && matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType)
     // count 体を1体ずつ、選んだ個体を除いて繰り返す（exhaust と同じ形）
     const next = (t: CardInstance): void => {
-        const { chosenByPlayer: _c, ...rest } = action
+        const { chosenByPlayer: _c, picked: _p, ...rest } = action
         if ((action.count ?? 1) > 1) ctx.resolve({ ...rest, count: action.count! - 1, excludeIds: [...excluded, t.instanceId] })
     }
     // マジックは使用時に対象を指定してくる（castMagic の targetInstanceId）。誘発の targetInstanceId は出来事の個体なので使わない
-    const preChosen = (action.chosenByPlayer || (srcType === "magic" && excluded.length === 0)) && targetInstanceId !== undefined
-    let target = preChosen ? list.find((s) => s.instanceId === targetInstanceId) : undefined
+    // 付け替えの答えで再入したら、選ばれていた元の1体（targetInstanceId は付け替え先の答え）
+    const reentry = redirectReentryId(action)
+    const preChosen = reentry === undefined && (action.chosenByPlayer || (srcType === "magic" && excluded.length === 0)) && targetInstanceId !== undefined
+    let target = reentry !== undefined ? list.find((s) => s.instanceId === reentry) : preChosen ? list.find((s) => s.instanceId === targetInstanceId) : undefined
     if (target === undefined) {
         if (list.length === 0) {
             log(state, `${sourceName}のBP-：対象がいなかった。`)
@@ -92,6 +94,9 @@ const bpMinus: ActionHandler<"bpMinus"> = (ctx, action) => {
         target = (lethal.length > 0 ? lethal : list).reduce((best, s) => (bp(s) > bp(best) ? s : best))
     }
     const attempt = attemptOf(ctx, "other", "targeted")
+    const moved = settleOne(ctx, action, target, list.map((s) => s.instanceId), attempt)
+    if (moved === null) return
+    target = moved
     if (askPayToNegateIfNeeded(state, opp, target, attempt, action, self, sourceName)) return
     const resisted = resistanceAgainst(state, opp, target, attempt)
     if (resisted) {

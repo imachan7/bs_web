@@ -5,7 +5,7 @@ import { takeFromTrash } from "../zones/trash"
 import { handGainDenial } from "../handGate"
 import { bounceDenial } from "../bounceGate"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
-import { settleList } from "../designation"
+import { settleList, settleOne } from "../designation"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
@@ -229,12 +229,17 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
         }
         // 対象指定時はその1体のみ手札へ戻す
         if (targetInstanceId && !action.choosing && !action.picked) {
-            const found = findSpiritAny(state, targetInstanceId)
-            if (!found) {
+            const found0 = findSpiritAny(state, targetInstanceId)
+            if (!found0) {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 return
             }
             const bounceAttempt = attemptOf(ctx, "bounce", "targeted")
+            // 付け替えの答えで再入すると picked が立つので、この分岐には来ない（汎用の選択経路が picked を読む）
+            const poolIds = pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType, "bounce").map((s) => s.instanceId)
+            const moved = settleOne(ctx, action, found0.inst, poolIds, bounceAttempt)
+            if (moved === null) return
+            const found = findSpiritAny(state, moved.instanceId) ?? found0
             // 「手札を破棄することで効果を受けない」は払うかを守る側に聞いてから判定する（BS08竜騎集う円卓Lv2）
             if (askPayToNegateIfNeeded(state, found.pid, found.inst, bounceAttempt, action, self, sourceName)) return
             const resisted = resistanceAgainst(state, found.pid, found.inst, bounceAttempt)
@@ -692,12 +697,18 @@ function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" 
                 (resolvedFilter !== SELF_REQUIRED && matchesTarget(state, pid, s, resolvedFilter, self?.instanceId)))
         // 明示された1体（誘発が渡す対象・クライアントが先に選んだ対象）
         if (targetInstanceId !== undefined && !action.choosing && !action.picked) {
-            const found = findSpiritAny(state, targetInstanceId)
-            if (!found) {
+            const found0 = findSpiritAny(state, targetInstanceId)
+            if (!found0) {
                 log(state, `${sourceName}のデッキ戻し：対象がいなかった。`)
                 return
             }
-            const r = gateTargetedApply(state, found.pid, found.inst, attemptOf(ctx, "bounce", "targeted"), action, self, sourceName)
+            const deckAttempt = attemptOf(ctx, "bounce", "targeted")
+            // 付け替えの答えで再入すると picked が立つので、この分岐には来ない（汎用の選択経路が picked を読む）
+            const poolIds = pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce").map((s) => s.instanceId)
+            const moved = settleOne(ctx, action, found0.inst, poolIds, deckAttempt)
+            if (moved === null) return
+            const found = findSpiritAny(state, moved.instanceId) ?? found0
+            const r = gateTargetedApply(state, found.pid, found.inst, deckAttempt, action, self, sourceName)
             if (r === "asked") return
             if (r) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`)

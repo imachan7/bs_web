@@ -22,7 +22,7 @@ import { coreRemovalAllowed } from "../coreGate"
 import { coreZoneChoiceId, coresToOpponentReserveGoToTrash, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
-import { settleList } from "../designation"
+import { redirectReentryId, settleList, settleOne } from "../designation"
 import { recordCores, recordEmptiedSpirits, recordLeftCost, recordMoved, lastEmptiedSpiritsOf } from "../record"
 import { canPayLife, lifeCostQuery, lifeLossAllowed, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import { kyokaBonus } from "../keywords/kyoka"
@@ -345,7 +345,8 @@ const resolveAllTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
 
 const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     const { state, owner, self, sourceName, srcColors, srcType } = ctx
-    const targetInstanceId = ctx.targetInstanceId ?? action.soulChoiceTarget
+    const reentry = redirectReentryId(action)
+    const targetInstanceId = reentry ?? ctx.targetInstanceId ?? action.soulChoiceTarget
     // 体数をカウンタで決める（「破棄した枚数と同じ数の相手のスピリットから1個ずつ」）。最初に一度だけ数えて固定する
     if (action.targetsCounter !== undefined) {
         const { targetsCounter, ...rest } = action
@@ -395,11 +396,16 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     }
 
     // 払う確認で中断したら true。resume は「この1体の続きから」解決し直すアクション
-    const applyOne = (pid: PlayerId, inst: CardInstance, resume: typeof action = action): boolean => {
+    const applyOne = (pid: PlayerId, inst0: CardInstance, resume: typeof action = action): boolean => {
         // 対象が選ばれた後に数える（対象の陣営で Q765 の判定が変わる。選択前に数えた count は使わない）
         const countFor = resolvedCount(ctx, action, pid)
+        let inst = inst0
         if (pid !== owner) {
             const attempt = attemptOf(ctx, "coreRemove", "targeted")
+            // 付け替えの確認で中断しても残りの体数・除外が失われないよう、再開用の resume を渡す
+            const to = settleOne(ctx, resume, inst, candidatesFor().filter((c) => c.pid === pid).map((c) => c.inst.instanceId), attempt)
+            if (to === null) return true
+            inst = to
             if (askPayToNegateIfNeeded(state, pid, inst, attempt, continueWith(ctx, resume), self, sourceName)) return true
             const resisted = resistanceAgainst(state, pid, inst, attempt)
             if (resisted) {

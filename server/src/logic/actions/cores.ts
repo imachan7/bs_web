@@ -1,6 +1,7 @@
 // コア操作系のアクションハンドラ（相手のコアを取り除く・自分のコアを払う／動かす）。コアを置く系は coreGain.ts、ライフは life.ts、【転召】は tensho.ts
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import { targetableSpirits } from "../targeting"
+import { redirectReentryId, settleOne } from "../designation"
 import { coreGainBlocked, takeCoreGainAllowance } from "../coreGainCap"
 import { coreRemovalAllowed } from "../coreGate"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
@@ -288,11 +289,14 @@ function totalCoresOf(state: GameState, pid: PlayerId): number {
 // 「別のスピリット」の指定はフィールドの先頭側（対象自身を除く）に固定した決定的簡略化
 const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    const reentry = redirectReentryId(action)
     // selfTarget：対象を発生源自身に固定する（『このスピリット上のコアを』。BS01要塞龍ギガLv2）
     const found = action.selfTarget
         ? self
             ? { pid: owner, inst: self }
             : null
+        : reentry !== undefined
+        ? findSpiritAny(state, reentry)
         : targetInstanceId
         ? findSpiritAny(state, targetInstanceId)
         : action.anySide
@@ -305,7 +309,14 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    const { pid, inst } = found
+    const { pid } = found
+    let inst = found.inst
+    if (pid !== owner && !action.selfTarget) {
+        const pool = action.anySide ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType) : pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
+        const to = settleOne(ctx, action, inst, pool.map((s) => s.instanceId), attemptOf(ctx, "coreRemove", "targeted"))
+        if (to === null) return
+        inst = to
+    }
     if (pid !== owner) {
         const resisted = gateTargetedApply(state, pid, inst, attemptOf(ctx, "coreRemove", "targeted"), action, self, sourceName)
         if (resisted === "asked") return
