@@ -135,6 +135,18 @@ function pickOwnBpTarget(state: GameState, owner: PlayerId, filter: ResolvedTarg
     return mine[0] ?? null
 }
 
+// 1体が決まった後の付け替え。付け替えの答えでの再入（picked.settled）は選び直さず、picked の対象から決める。確認を出したら null。
+// matches＝その指定で取りえる相手側の候補の条件（付け替え先は candidates に入るものに限られる）
+function settleOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, target: CardInstance | undefined, matches: (s: CardInstance) => boolean): CardInstance | undefined | null {
+    const { state, opp, srcColors, srcType } = ctx
+    const ids = action.picked?.settled === true ? action.picked.ids : target ? [target.instanceId] : []
+    if (ids.length === 0) return target
+    const candidates = pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType).map((s) => s.instanceId)
+    const settled = settleTargets(ctx, action, ids, candidates, attemptOf(ctx, "other", "targeted"))
+    if (settled === null) return null
+    return (settled[0] !== undefined ? findSpiritAny(state, settled[0])?.inst : undefined) ?? target
+}
+
 // 1体を指定するBP変更。対象選択の優先順：
 // 1.targetInstanceId指定 2.side:"both"かつ対話ならプレイヤーが選ぶ 3.それ以外は自動選択（既定=相手は実効BP最大、own/bothの非対話フォールバックは自分の場から）
 function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: TimedEffect, filter: ResolvedTargetFilter): void {
@@ -450,13 +462,15 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
             matchesTarget(state, sPid, s, filter, self?.instanceId) &&
             (!content.requireLevelExists || getCard(s.cardId).levels.some((l) => l.level === levelOf(s)))
         const candidates = pids.flatMap((p) => targetableSpirits(state, p, (s) => passes(s, p)))
+        const reentry = action.picked?.settled === true
         if (
+            !reentry &&
             targetInstanceId === undefined &&
             tryInteractiveTargetChoice(state, owner, self, `${sourceName}：${content.max ? "最高Lv" : `Lv${content.set}`}として扱うスピリットを選んでください`, candidates, action, null)
         ) {
             return
         }
-        const found = findSpiritAny(state, targetInstanceId ?? candidates[0]?.instanceId ?? "")
+        let found = findSpiritAny(state, reentry ? action.picked!.ids[0]! : targetInstanceId ?? candidates[0]?.instanceId ?? "")
         if (!found) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
@@ -465,6 +479,9 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
             log(state, `${sourceName}：対象が条件を満たさなかった。`)
             return
         }
+        const moved = settleOne(ctx, action, found.inst, (s) => passes(s, opp))
+        if (moved === null) return
+        found = (moved ? findSpiritAny(state, moved.instanceId) : undefined) ?? found
         if (gated(found.inst, found.pid)) return
         const level = levelOf(found.inst)
         recordFrom(ctx, { content: [{ type: "level", set: level }], target: { kind: "instance", instanceId: found.inst.instanceId }, until, ownerPid: owner })
@@ -472,8 +489,11 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         return
     }
     let target: CardInstance | undefined
-    if (targetInstanceId !== undefined) {
-        const found = findSpiritAny(state, targetInstanceId)
+    if (action.picked?.settled === true || targetInstanceId !== undefined) {
+        let found = findSpiritAny(state, action.picked?.settled === true ? action.picked.ids[0]! : targetInstanceId!)
+        const moved = settleOne(ctx, action, found?.inst, () => true)
+        if (moved === null) return
+        found = (moved ? findSpiritAny(state, moved.instanceId) : undefined) ?? found
         if (found && gated(found.inst, found.pid)) return
         target = found?.inst
     } else {
@@ -530,7 +550,8 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         askColor(self)
         return
     }
-    if (targetInstanceId === undefined) {
+    const reentry = action.picked?.settled === true
+    if (targetInstanceId === undefined && !reentry) {
         const candidates = (
             action.side === "both"
                 ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
@@ -545,8 +566,11 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         requestChoice(state, owner, "色を与える対象のスピリットを選んでください", candidates, false, action, self)
         return
     }
-    const found = findSpiritAny(state, targetInstanceId)
+    let found = findSpiritAny(state, reentry ? action.picked!.ids[0]! : targetInstanceId!)
     if (!found) return
+    const moved = settleOne(ctx, action, found.inst, () => true)
+    if (moved === null) return
+    found = (moved ? findSpiritAny(state, moved.instanceId) : undefined) ?? found
     const r = gateTargetedApply(state, found.pid, found.inst, attemptOf(ctx, "other", "targeted"), action, self, sourceName)
     if (r === "asked") return
     if (r) {
@@ -658,8 +682,14 @@ function placeEventTargetBpAs(ctx: Parameters<ActionHandler<"timedEffect">>[0], 
 // 数える印は陣営を問わず1体に付く（スリーカード）。非対話で対象が渡らないときは実効BP最大（自動選択の簡略化）
 function placeCountAs(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    const found = targetInstanceId ? findSpiritAny(state, targetInstanceId) : pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
+    const reentry = action.picked?.settled === true
+    let found = reentry ? findSpiritAny(state, action.picked!.ids[0]!) : targetInstanceId ? findSpiritAny(state, targetInstanceId) : pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
     const c = action.content.find((x): x is Extract<Content, { type: "countAs" }> => x.type === "countAs")
+    if (found) {
+        const moved = settleOne(ctx, action, found.inst, () => true)
+        if (moved === null) return
+        found = (moved ? findSpiritAny(state, moved.instanceId) : undefined) ?? found
+    }
     if (!found || !c) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
@@ -784,7 +814,7 @@ function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], ac
 // 1体のシンボル・コストを変える。対象の決め方は旧 type のまま（symbolAdd＝陣営を問わず実効BP最大、cost＝自分のスピリットから、
 // symbolSet＝filter に合う自分のスピリットでバトル中の個体優先）
 function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
-    const { state, owner, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     const content = action.content.find((c): c is Extract<Content, { type: "symbolAdd" | "symbolSet" | "cost" }> =>
         c.type === "symbolAdd" || c.type === "symbolSet" || c.type === "cost")
     if (!content) return
@@ -816,8 +846,12 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
     }
     if (content.type === "symbolAdd") {
         let target: CardInstance | undefined
-        if (targetInstanceId !== undefined) target = findSpiritAny(state, targetInstanceId)?.inst
-        else {
+        if (action.picked?.settled === true || targetInstanceId !== undefined) {
+            target = findSpiritAny(state, action.picked?.settled === true ? action.picked.ids[0]! : targetInstanceId!)?.inst
+            const moved = settleOne(ctx, action, target, () => true)
+            if (moved === null) return
+            target = moved
+        } else {
             const candidates =
                 action.side === "both" ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType) : state.players[owner].field.spirits.slice()
             if (tryInteractiveTargetChoice(state, owner, self, `${sourceName}：シンボルを追加するスピリットを選んでください`, candidates, action, null)) return
@@ -851,9 +885,14 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
         return
     }
     let target: CardInstance | null = null
-    if (targetInstanceId !== undefined) {
-        const found = findSpiritAny(state, targetInstanceId)
-        if (found && matchesTarget(state, found.pid, found.inst, filter, self?.instanceId)) target = found.inst
+    const matchesFilter = (s: CardInstance, pid: PlayerId) => matchesTarget(state, pid, s, filter, self?.instanceId)
+    if (action.picked?.settled === true || targetInstanceId !== undefined) {
+        const found = findSpiritAny(state, action.picked?.settled === true ? action.picked.ids[0]! : targetInstanceId!)
+        if (found && matchesFilter(found.inst, found.pid)) {
+            const moved = settleOne(ctx, action, found.inst, (s) => matchesFilter(s, opp))
+            if (moved === null) return
+            target = moved ?? null
+        }
     } else target = pickOwnBpTarget(state, owner, filter, self?.instanceId)
     if (!target) {
         log(state, `${sourceName}：対象がいなかった。`)
@@ -890,6 +929,17 @@ function placeSymbolLossRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], a
             const counts = ALL_COLORS.map((c) => [c, targets.filter((sp) => instHasColor(sp, c)).length] as const)
             color = counts.reduce((a, b) => (b[1] > a[1] ? b : a))[0]
         }
+    }
+    // 色は action に焼き込む（付け替えの確認を挟んでも、再入で色を選び直さない）
+    const settledAction: TimedEffect = { ...action, content: [{ ...content, color }] }
+    const now = (pid === undefined ? [owner, opp] : [pid]).flatMap((p) => targetableSpirits(state, p, (s) => matchesTarget(state, p, s, filter, self?.instanceId)))
+    const settled = settleList(ctx, settledAction, now, attemptOf(ctx, "other", "area"))
+    if (settled === null) return
+    if (action.picked?.settled === true && settled.length === 1 && ctx.targetInstanceId === settled[0]!.instanceId) {
+        const to = settled[0]!
+        recordFrom(ctx, { content: [{ type: "symbolLoss", color }], target: { kind: "instance", instanceId: to.instanceId }, until: action.duration === "step" ? "step" : "turn", ownerPid: owner })
+        log(state, `${sourceName}：色「${COLOR_LABELS[color]}」を指定した。${getCard(to.cardId).name}はそのシンボル1つを失う。`)
+        return
     }
     recordFrom(ctx, {
         content: [{ type: "symbolLoss", color }],
