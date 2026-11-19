@@ -332,7 +332,7 @@ function hasOptionalEvidence(effects: Record<string, unknown>[]): boolean {
 // 効果解決のたびに選ぶ任意発揮ではない）。これらの kind しか無いカードに「できる。」があっても
 // 実装側に対応するフィールドが存在しえないため、S3 の対象から外す
 // （実測: 166件中ほぼ全部がこのカテゴリで、キーワード定義の頻度ベース除外だけでは拾いきれなかった）
-const OPTIONAL_CAPABLE_KINDS = new Set(["triggered", "step", "battleWon", "fieldEvent", "reviveOnDestroy", "deckMillNegate", "magic", "magicTargetRedirect"])
+const OPTIONAL_CAPABLE_KINDS = new Set(["triggered", "step", "battleWon", "fieldEvent", "reviveOnDestroy", "deckMillNegate", "magic", "magicTargetRedirect", "targetRedirect"])
 
 function canCarryOptionalEvidence(effects: Record<string, unknown>[]): boolean {
     return effects.some((e) => {

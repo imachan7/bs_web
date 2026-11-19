@@ -789,6 +789,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `settleDerived`（fn）：戻り値は、列を解決し終えて実際にトラッシュに置かれたスピリットの数（列が選択待ちで止まったときは 0。区切りの後の数え直しは未対応）
 - `settleDerivedHandler`（const）
 
+## server/src/logic/designation.ts
+
+- `settleTargets`（fn）：戻り値：そのまま進めるなら対象、確認を出したら null（呼び出し側は中断する）。
+
 ## server/src/logic/destroyGate.ts
 
 - `DestroyDenialQuery`（型）
@@ -1037,10 +1041,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isOncePerBattleUsed`（fn）：〔バトル1回〕（kind:"activated" の oncePerBattle）。上のターン単位の枠とは別にバトル単位で数え、
 - `markOncePerBattleUsed`（fn）
 - `revertOncePerBattleUsed`（fn）
-
-## server/src/logic/ownTargetChoice.ts
-
-- `ownTargetRedirect`（fn）：選び終えた対象（ids）に、持ち主の付け替えを挟む。そのまま進めるなら ids、確認を出したら null（呼び出し側は中断する）。
 
 ## server/src/logic/pickTargets.ts
 

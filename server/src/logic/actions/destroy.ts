@@ -202,10 +202,12 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                 }
                 ids = chosen.filter((x) => x !== "")
             }
+            const eachPool = [...new Set(action.eachFilter.flatMap((f) => pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, opp, s, f, self?.instanceId), srcColors, srcType).map((s) => s.instanceId)))]
             const passed = gatePickedTargets(
                 ctx,
                 action,
                 ids,
+                eachPool,
                 (id) => findSpiritAny(state, id) ?? undefined,
                 attemptOf(ctx, "destroy", "targeted"),
                 (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),
@@ -374,6 +376,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             ctx,
             pickAction,
             ids,
+            pool.map((sp) => sp.instanceId),
             (id) => findSpiritAny(state, id) ?? undefined,
             attemptOf(ctx, "destroy", "targeted"),
             (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),

@@ -41,9 +41,19 @@ export type EffectDefContinuous =
           protectFamily?: FamilyFilter // 指定時は「持ち主のこの系統が対象に含まれる」ときに絞り込む。絞り込み先は発生源自身
           protectColor?: Color
           protectCost?: number // 持ち主のこのコストのスピリットに限る
-          redirectTo?: "self" | "ownTargetChosen" // 省略＝self（発生源自身に絞る）。ownTargetChosen＝持ち主が選んだ自分のスピリット1体に絞る（相手の効果の対象を選び終えた後・解決前。ownTargetChoice.ts）
-          sourceTypes?: ("spirit" | "magic")[] // ownTargetChosen 限定。この種別の効果だけを対象にする（省略＝種別を問わない）
           optional?: true // 未指定＝強制
+      }
+    | {
+          id: string
+          kind: "targetRedirect" // 設計は docs/design/TARGET_REDIRECT.md §2.1。今は includes:"own"・to:"chosenOwn" だけ動く
+          levels: number[] | null
+          turn?: "own" | "opponent"
+          phase?: Phase
+          sourceTypes?: CardType[] // 付け替えられる相手の効果の発生源の種類（省略＝問わない）
+          includes: "self" | "own" | "bothSides" | { filter: TargetFilter }
+          to: "self" | "chosenOwn" | "side"
+          requireReceivable?: true // 付け替え先は、その指定の候補に入り、効果を受けられるものに限る
+          optional?: true
       }
     | {
           id: string

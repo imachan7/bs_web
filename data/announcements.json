@@ -3,6 +3,11 @@
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
   {
+   "date": "2026-11-19",
+   "category": "fix",
+   "text": "「古の魔王城」の対象の変更が、1体だけを対象にする効果でも使えるようにし、相手が選んでいない自分のスピリットにも変更できるようにしました"
+  },
+  {
    "date": "2026-11-18",
    "category": "new",
    "text": "2013年のプロモーションカード29枚（P13・P14-09）を追加しました"
