@@ -994,11 +994,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/magic/redirect.ts
 
-- `bothSidesPids`（fn）：封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）：「お互いを対象とするマジックの効果」の
-- `findBothSidesRedirectSource`（fn）：封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の発生源を探す。
+- `bothSidesPids`（fn）：封印された魔導書Lv1（kind:"targetRedirect"（includes:"bothSides"））：「お互いを対象とするマジックの効果」の
+- `findBothSidesRedirectSource`（fn）：封印された魔導書Lv1（kind:"targetRedirect"（includes:"bothSides"））の発生源を探す。
 - `bothSidesRedirectKeepPid`（fn）：封印された魔導書Lv1 の答えのうち「**対象として残る側**」を返す（null＝絞らない）。
 - `applyBothSidesRedirectToCandidates`（fn）：上の答えで候補列挙（pickAnySideCandidates）を片側に絞る。スピリットとネクサスの両方を見る
-- `askBothSidesRedirect`（fn）：封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の「対象を相手のみ／自分のみに変更できる」の確認。
+- `askBothSidesRedirect`（fn）：封印された魔導書Lv1（kind:"targetRedirect"（includes:"bothSides"））の「対象を相手のみ／自分のみに変更できる」の確認。
 - `BOTH_SIDES_REDIRECT_OPTIONS`（const）：確認の選択肢。**この並び順に GameEngine.doResolveChoice が依存する**（0=変更しない / 1=相手のみ / 2=自分のみ）。
 - `actionTouchesBothSides`（fn）：「お互いを対象とする」効果（side:"both" 等）か、陣営を指定しない単体対象（anySide）を含むか。
 - `applyMagicSideChoice`（fn）：pendingChoice（対象の変更の確認）の後処理。keepPid=null なら変更せず、

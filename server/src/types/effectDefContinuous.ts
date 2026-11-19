@@ -85,12 +85,6 @@ export type EffectDefContinuous =
       }
     | {
           id: string
-          kind: "bothSidesTargetRedirect" // 選択を挟む仕組みが無いため、持ち主に有利な側に固定
-          levels: number[] | null
-          turn?: "own" | "opponent"
-      }
-    | {
-          id: string
           kind: "familySuppression"
           levels: number[] | null
           target: "anyAll" | "opponentAll" // anyAll=両陣営のスピリットすべて／opponentAll=相手のスピリットすべて

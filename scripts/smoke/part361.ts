@@ -4,7 +4,7 @@ import { assert, createGame, createInstance, getCard, resolveAction } from "./he
 import type { GameState, PlayerId } from "./helpers"
 
 const CHOHAKKAI = "BS15-052" // 天蒼元帥チョウハッカイ（globalConstraint noHandGainByEffect）
-const GRIMOIRE = "BS02-087" // 封印された魔導書（bothSidesTargetRedirect・自分のターンのみ）
+const GRIMOIRE = "BS02-087" // 封印された魔導書（targetRedirect（includes:"bothSides"）・自分のターンのみ）
 const VANILLA2 = "BS01-005" // コスト2のバニラ
 
 console.log("=== 前提: カードの機械確認 ===")
