@@ -1,0 +1,2393 @@
+[
+ {
+  "cardId": "CP14-01",
+  "name": "アルティメット・ジークフリード・ベビー",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "新生",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 7000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "CP",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\n【Uトリガー】Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は可能ならブロックする。\nただし、アルティメットはブロックしなくてもよい。\n相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)"
+ },
+ {
+  "cardId": "GX01",
+  "name": "ギャラクシードロー",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分はデッキから7枚ドローする。その後、自分のデッキすべてをゲームから取り除く。\nこのカードは「ギャラクシー」と認められたカードバトラーしか使用できない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+7000する。\nこのカードは「ギャラクシー」と認められたカードバトラーしか使用できない。"
+ },
+ {
+  "cardId": "GX02",
+  "name": "ヴィクトリードロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中のカード名に「ヴルム」と入っているスピリットカード1枚を、コストを支払わずに召喚できる。その後、デッキをシャッフルする。\nこのカードは「コアの光主」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+1000する。\nこのカードは「コアの光主」しか使用できない。"
+ },
+ {
+  "cardId": "GX03",
+  "name": "ヴァイオレットステージ",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のトラッシュにあるカード名に「魔界七将」と入っているスピリットカードすべてを、コストを支払わずに召喚できる。\nこのカードは「コアの光主」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+2000する。\nこのカードは「コアの光主」しか使用できない。"
+ },
+ {
+  "cardId": "GX04",
+  "name": "ソードサイクロン",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのターンの間、【神速】/【暴風】を持つ自分のスピリットすべては、アタックするとき相手のスピリット1体を指定し、そのスピリットにアタックできる。\nこのカードは「コアの光主」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+3000する。\nこのカードは「コアの光主」しか使用できない。"
+ },
+ {
+  "cardId": "GX05",
+  "name": "パーフェクトバリア",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのゲームの間、自分のスピリットすべてに“【装甲：赤/紫/緑/白/黄/青】このスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない”という効果を与える。\nこのカードは「コアの光主」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+4000する。\nこのカードは「コアの光主」しか使用できない。"
+ },
+ {
+  "cardId": "GX06",
+  "name": "サンシャインレイ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキを上から5枚オープンする。その中の系統：「天霊」を持つスピリットカードすべてを、コストを支払わずに召喚できる。\n残ったカードは好きな順番でデッキの上に戻す。\nこのカードは「コアの光主」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「コアの光主」しか使用できない。"
+ },
+ {
+  "cardId": "GX07",
+  "name": "エックスクラッシュ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのターンの間、自分のXレアのスピリットがアタックしたとき、相手のデッキを上から10枚破棄する。\nこのカードは「コアの光主」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+6000する。\nこのカードは「コアの光主」しか使用できない。"
+ },
+ {
+  "cardId": "GX08",
+  "name": "ギャラクシーステップ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのターンの『アタックステップ』終了後、『コアステップ』、『ドローステップ』、『リフレッシュステップ』、『メインステップ』、『アタックステップ』を順番に1回ずつ行う。\nこのカードは「ギャラクシー」と認められたカードバトラーしか使用できない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+7000する。\nこのカードは「ギャラクシー」と認められたカードバトラーしか使用できない。"
+ },
+ {
+  "cardId": "GX09",
+  "name": "ライジングドロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中のカード名に「太陽」と入っているスピリットカード1枚を、コストを支払わずに召喚する。\nその後、自分のデッキをシャッフルする。\nこのカードは「馬神弾」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「馬神弾」しか使用できない。"
+ },
+ {
+  "cardId": "GX10",
+  "name": "パープルリフレイン",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のトラッシュにあるブレイヴカードすべてを、コストを支払わずに召喚できる。\nこのカードは「紫乃宮まゐ」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「紫乃宮まゐ」しか使用できない。"
+ },
+ {
+  "cardId": "GX11",
+  "name": "ダークネスバグ",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのターンの間、系統：「怪虫」/「殻虫」/「殻人」を持つ自分のスピリットすべてに“【呪撃】『このスピリットのアタック時』このスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。”という効果を与える。\nこのカードは「暴将デュック」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「暴将デュック」しか使用できない。"
+ },
+ {
+  "cardId": "GX12",
+  "name": "ルナテックドロー",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中のカード名に「月光」と入っているスピリットカード1枚を、コストを支払わずに召喚する。\nその後、自分のデッキをシャッフルする。\nこのカードは「月光のバローネ」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「月光のバローネ」しか使用できない。"
+ },
+ {
+  "cardId": "GX12-01",
+  "name": "偽☆ギャラクシー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 12,
+  "reduction": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "family": [
+   "光導",
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「バトスピ大好き声優」しか使えない。\n【バースト：自分のライフ減少後】\n自分のライフが1のとき、お互いのデッキを5枚以下になるよう破棄する。\nこの効果発揮後、このスピリットカードを召喚する。\nLv1･Lv2\nこのスピリットは、相手の一切の効果を受けない。\nLv2：フラッシュ\n自分のトラッシュにあるカード名に「犬」と入っているスピリットカード/ブレイヴカード1枚を、コストを支払わずに召喚できる。"
+ },
+ {
+  "cardId": "GX12-02",
+  "name": "青嵐帝 阪口",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "萌人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「バトスピ大好き声優」しか使えない。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n自分のデッキを上から3枚オープンできる。その中の系統：「天霊」を持つスピリットカードすべてを手札に加える。\n残ったカードは好きな順番でデッキの上に戻す。\nLv2･Lv3『このスピリットのアタック時』\n系統：「天霊」を持つスピリット1体につき、相手のデッキを上から5枚破棄する。"
+ },
+ {
+  "cardId": "GX12-03",
+  "name": "遠藤ビャク・ガロ子ちゃん",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 10,
+    "bp": 530000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「バトスピ大好き声優」しか使えない。\nLv1･Lv2･Lv3『このスピリットのバトル時』\n「諏訪部順一」か「ミスター」か「ギャラクシー渡辺」がかわりにバトルしてくれる。\nLv2･Lv3『このスピリットのアタック時』\n自分のデッキのイケメンスピリットカード1枚を、コストを支払わずに召喚できる。その後、デッキをシャッフルする。\nLv3『このスピリットの破壊時』\n相手は負けたことになる。"
+ },
+ {
+  "cardId": "GX13",
+  "name": "エンジェリックヘヴン",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのターンの間、系統：「天霊」を持つ自分のスピリットが破壊されたとき、自分のライフが5になるように、ボイドからコアを置く。\nこのカードは「クラッキー・レイ」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「クラッキー・レイ」しか使用できない。"
+ },
+ {
+  "cardId": "GX14",
+  "name": "ダーティフォビッド",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n次のターンの間、相手は『コアステップ』と『ドローステップ』を行えない。\nこのカードは「暗闇のザジ」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「暗闇のザジ」しか使用できない。"
+ },
+ {
+  "cardId": "GX15",
+  "name": "ブレイヴホライゾン",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中のブレイヴカードを、カード名に「アポロ」と入っている自分のスピリットすべてに合体させるだけ選び、コストを支払わずに直接合体するように召喚する。\nその後、自分のデッキをシャッフルする。\nこのカードは「馬神弾」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+3000する。\nこのカードは「馬神弾」しか使用できない。"
+ },
+ {
+  "cardId": "GX16",
+  "name": "ブレイヴドミネーション",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n相手の合体スピリットすべてのブレイヴすべてを破壊し、破壊したブレイヴ1つにつき、相手のライフのコア1個をボイドに置く。\nこのカードは「獄将デュック」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+6000する。\nこのカードは「獄将デュック」しか使用できない。"
+ },
+ {
+  "cardId": "GX17",
+  "name": "ゾディアックサーチ",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中の系統：「光導」を持つスピリットカード1枚を、コストを支払わずに召喚する。\nその後、自分のデッキをシャッフルする。\nこのカードは「兵堂剣蔵」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「兵堂剣蔵」しか使用できない。"
+ },
+ {
+  "cardId": "GX18",
+  "name": "ムーンライトクローク",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのターンの間、カード名に「ストライク」と入っている自分のスピリットすべてはブロックされない。\nこのカードは「月光のバローネ」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+4000する。\nこのカードは「月光のバローネ」しか使用できない。"
+ },
+ {
+  "cardId": "GX19",
+  "name": "ハンサムドロー",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nお互い、手札すべてを破棄する。\nその後、お互い、デッキの上から2枚目をドローする。\nこのカードは「ハンサム」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+2000する。\nこのカードは「ハンサム」しか使用できない。"
+ },
+ {
+  "cardId": "GX20",
+  "name": "ゾディアックプレッシャー",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのゲームの間、系統：「光導」を持つスピリットが召喚されたとき、相手のデッキを上から12枚破棄する。\nこのカードは「硯秀斗」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+1000する。\nこのカードは「硯秀斗」しか使用できない。"
+ },
+ {
+  "cardId": "GX21",
+  "name": "太陽昇龍覇",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「陽昇ハジメ」しか使えない。\n【バースト：自分のライフ減少後】\n自分のデッキをすべて見て、その中のカード名に「ロード・ドラゴン」と入っているスピリットカード1枚を召喚する。その後自分のデッキをシャッフルする。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+3000する。"
+ },
+ {
+  "cardId": "GX22",
+  "name": "獣皇咆哮激",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「棚志テガマル」しか使えない。\n【バースト：相手のスピリットのアタック後】\n自分のスピリットすべてを回復させ、このターンの間、自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+4000する。"
+ },
+ {
+  "cardId": "GX23",
+  "name": "運命神焔武",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「薬師寺アラタ」しか使えない。\n【バースト：自分のライフ減少後】\n自分のデッキの上から5枚オープンできる。その中のスピリットカード1枚を召喚する。\n残ったカードはすべて手札に加える。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。"
+ },
+ {
+  "cardId": "GX24",
+  "name": "ジャスティスバースト",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「ジャスティス」と認められたカードバトラーしか使えない。\n【バースト：自分のライフ減少後】\n自分のライフが1のとき、自分の手札にあるスピリットカードとブレイヴカードを好きなだけ召喚する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n自分のライフが1のとき、自分のライフが5になるようにボイドからコアを置く。"
+ },
+ {
+  "cardId": "GX25",
+  "name": "ボンバースト",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「ボンバー」と認められたカードバトラーしか使用できない。\n【バースト：自分がオナラをした後】\n相手のスピリット1体を疲労させる。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n自分のスピリットのコア1個を自分のトラッシュに置く。"
+ },
+ {
+  "cardId": "GX26",
+  "name": "ギャラクシーバースト",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「ギャラクシー」と認められたカードバトラーしか使用できない。\n【バースト：自分のライフ減少後】\n自分はデッキから7枚ドローする。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のデッキを上から7枚破棄する。"
+ },
+ {
+  "cardId": "KA12-01",
+  "name": "カンネイド・エース",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "雄将",
+   "華兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "KA",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット1体を疲労させる。\nLv2\n系統：「華兵」を持つ自分のスピリットすべてに【暴風：1】を与える。"
+ },
+ {
+  "cardId": "KF-01",
+  "name": "カーネル・ドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+3000する。\nLv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。"
+ },
+ {
+  "cardId": "KF-02",
+  "name": "キング・カーネル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "小玩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nカード名に「カーネル」/「ケンタ」と入っている自分のスピリット1体につき、このスピリットをBP+1000する。"
+ },
+ {
+  "cardId": "KF-03",
+  "name": "カーネル・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\nコスト4以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "KF-04",
+  "name": "チキンフィレサンドナイト",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手のスピリットのコア1個を相手のリザーブに置く。"
+ },
+ {
+  "cardId": "KF-05",
+  "name": "コールス・トータス",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "甲獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv2『このスピリットのブロック時』\nこのスピリットをBP+3000する。"
+ },
+ {
+  "cardId": "KF-06",
+  "name": "フライド・フェニックス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。"
+ },
+ {
+  "cardId": "KF-07",
+  "name": "フライドチキンの殿堂",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nカード名に「カーネル」/「ケンタ」と入っている自分のスピリットすべてをBP+2000する。\nLv2『相手のメインステップ』\n相手のスピリットすべての『このスピリットの召喚時』効果は発揮されない。"
+ },
+ {
+  "cardId": "KF-08",
+  "name": "マッハ・ツイスター",
+  "type": "brave",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "動器"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットのブロック時』\nBP4000以下の相手のスピリット1体を手札に戻す。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "KF-09",
+  "name": "ピヨケット",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "歌鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv2･Lv3『このスピリットの破壊時』\n自分のスピリット1体を回復させる。"
+ },
+ {
+  "cardId": "KF-10",
+  "name": "武者ムシャ・チキンカツサンダース",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個を自分のリザーブに置く。"
+ },
+ {
+  "cardId": "KF-11",
+  "name": "クリスピー・コブラ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "KF-12",
+  "name": "ポテトアロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "メイン：\nBP4000以下のスピリットすべてを破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。"
+ },
+ {
+  "cardId": "KF-13",
+  "name": "鶏肉の覇王ジーク・ケンタ・フリード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 8,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 6,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分のライフが3以下のとき、BP10000以下の相手のスピリット1体を破壊する。\nこの効果発揮後、このスピリットカードを召喚する。\nLv2･Lv3･Lv4『このスピリットのアタック時』\nカード名に「カーネル」と入っている自分のスピリットがいるとき、このスピリットのBP以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "KF-14",
+  "name": "爆揚げの覇王ケンタ・ドラゴン・バゼル",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇",
+   "戦竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのスピリットカードを召喚する。\nLv2･Lv3『このスピリットのアタック時』\nカード名に「カーネル」と入っている自分のスピリットがいるとき、このスピリットをBP+5000する。\nLv3『自分のバースト発動後』\nこのスピリットは回復する。"
+ },
+ {
+  "cardId": "KF-15",
+  "name": "アルバイト姫ケンタッキースター",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "KF",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のトラッシュにあるカード名に「カーネル」と入っているスピリットカード1枚を手札に戻す。\nLv2『このスピリットのアタック時』\nこのスピリットは、Lv1の相手のスピリットからブロックされない。"
+ },
+ {
+  "cardId": "LM13-01",
+  "name": "光と闇の聖剣シャイニング・オブ・ダーク",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "LM",
+  "limited": false,
+  "effect": "Lv1【強化】\n自分の「BP破壊効果」の上限を+1000する。\n合体条件：コスト5以上\n【合体時】『このスピリットの合体アタック時』\nBP5000以下の相手のスピリット1体を破壊する。\nこの効果発揮後、相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト5以上"
+ },
+ {
+  "cardId": "LM13-02",
+  "name": "疾風の妖刀ウスバ・ハヤテ",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "LM",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのブレイヴカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1『このブレイヴの召喚時』\n相手のスピリット1体を疲労させる。\n合体条件：コスト5以上\n【合体時】【強化】\n自分の「相手への疲労効果」の体数を+1体する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト5以上"
+ },
+ {
+  "cardId": "LM13-03",
+  "name": "白夜の光剣ミッドナイト・ソーラー",
+  "type": "brave",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "LM",
+  "limited": false,
+  "effect": "Lv1【強化】\n自分の「スピリット回復効果」の体数を+1体する。\n合体条件：コスト5以上\n【合体時】\nこのスピリットの【連鎖】は、条件を無視して発揮する。\n【合体時】『このスピリットのバトル時』\n自分の合体していないスピリット1体を回復させる。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト5以上"
+ },
+ {
+  "cardId": "P14-01",
+  "name": "ストーンエイジ・ドラグマン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nBP3000以下の相手のスピリット1体を破壊する。\n自分のアルティメットがいるとき、かわりに、BP5000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "P14-02",
+  "name": "デスデーモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコスト3以下の相手のスピリットすべてのコア1個ずつを相手のリザーブに置く。\n自分のアルティメットがいるとき、この効果でリザーブに置かれるコアすべては相手のトラッシュに置かれる。"
+ },
+ {
+  "cardId": "P14-03",
+  "name": "リーフブレイガー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nボイドからコア1個を自分のアルティメットに置く。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：BP4000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "P14-04",
+  "name": "爆撃兵ミッチェル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nBP合計5000まで相手のスピリットを好きなだけ手札に戻す。\nLv2\n自分のアルティメットがいる間、このスピリットは相手のスピリットの効果を受けない。"
+ },
+ {
+  "cardId": "P14-05",
+  "name": "天使プロティエル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『相手によるこのスピリットの破壊時』\n自分はデッキから1枚ドローする。\n自分のアルティメットがいるとき、さらに、このスピリットは手札に戻る。"
+ },
+ {
+  "cardId": "P14-06",
+  "name": "ローラー・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv1･Lv2･Lv3\n自分のアルティメットがいる間、【粉砕】を持つ自分のスピリットが相手によって破壊されたとき、相手のデッキを上から、破壊されたスピリットのコストと同じ枚数破棄する。"
+ },
+ {
+  "cardId": "P14-07",
+  "name": "アルティメット・ワルキューレ",
+  "type": "ultimate",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "新生",
+   "機人"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 4,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "【召喚条件：自分の白スピリット1体以上】\nLv3･Lv4『このアルティメットのブロック時』\nこのアルティメットをBP+3000する。\n【Uトリガー】Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このアルティメットは相手のスピリットからブロックされない。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)"
+ },
+ {
+  "cardId": "P14-08",
+  "name": "最強銀河究極ゼロ",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このネクサスの配置時』\nBP2000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n自分のアルティメットすべてをBP+3000する。"
+ },
+ {
+  "cardId": "PB12-01",
+  "name": "ブタデビルサイボーグ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "PB",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のターン』\n系統：「機獣」を持つ自分のスピリットすべてをBP+2000する。"
+ },
+ {
+  "cardId": "PB12-02",
+  "name": "ドリルの貴公子ラインハルト",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "道化",
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "PB",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nこのスピリットを疲労させることで、コスト8以上の相手のスピリットすべてを疲労させる。"
+ },
+ {
+  "cardId": "PB12-03",
+  "name": "喜劇王ペンタン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "歌鳥",
+   "漂精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "C,PB",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nこのターンの間、スピリットすべては、カード名に「ペンタン」を含むものとして扱う。\nLv2･Lv3\nカード名に「ペンタン」を含む自分のスピリットすべては、相手によって破壊されたとき手札に戻る。\nカード名に「ペンタン」を含む相手のスピリットすべては、自分によって破壊されたとき手札に戻る。"
+ },
+ {
+  "cardId": "PB12-04",
+  "name": "ふりかけの覇王ホワイトライス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "PB",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nBP(自分のスピリットの体数×1000)以下の相手のスピリット1体を破壊する。\nこの効果発揮後、このスピリットカードを召喚する。"
+ },
+ {
+  "cardId": "PB12-05",
+  "name": "ゲボタン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "小玩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "PB",
+  "limited": false,
+  "effect": ""
+ },
+ {
+  "cardId": "PB12-06",
+  "name": "ナイスミドル",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "PB",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のデッキを上から1枚破棄する。破棄したカードがスピリットカードのとき、相手のスピリット1体を疲労させる。\nブレイヴカードのとき、相手の合体スピリット2体を疲労させる。\nネクサスカードのとき、自分はデッキから1枚ドローする。\nマジックカードのとき、ボイドからコア1個を自分のリザーブに置く。"
+ },
+ {
+  "cardId": "PB13-01",
+  "name": "魔犬ゼロ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "無魔",
+   "小玩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2【呪撃】『このスピリットのアタック時』\nバトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する。\nLv2『このスピリットのアタック時』\n相手の合体スピリットのコスト4以下のブレイヴ1つを破壊する。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：このスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。"
+ },
+ {
+  "cardId": "PB13-02",
+  "name": "光翼の騎神ペガシオーネ・カスタム",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 8,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のスピリットを好きなだけ破壊することで、破壊したスピリット1体につき、相手のスピリット1体を手札に戻す。\nLv2･Lv3『相手のアタックステップ』\nこのスピリットは疲労状態でブロックできる。\nLv3：フラッシュ『お互いのアタックステップ』\nこのスピリットを破壊し、自分のトラッシュに置くことで、相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "PB13-03",
+  "name": "天使のたまご ほちゃー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 17,
+    "bp": 17000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "PB",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分の黄のスピリットすべてを回復させる。\nその後、このスピリットカードを召喚する。\nLv2･Lv3『このスピリットのバトル時』\nこのターンの間、相手のスピリット1体をBP-3000する。\nLv2･Lv3\nこのスピリットが相手によって破壊されたとき、系統：「天霊」を持つ自分のスピリット1体を疲労させることで、このスピリットは回復状態でフィールドに残る。"
+ },
+ {
+  "cardId": "PB13-04",
+  "name": "星の巫女クシナ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3：フラッシュ『お互いのアタックステップ』\nこのスピリットを破壊することで、自分の手札にある[超神星龍ジークヴルム・ノヴァ]1枚を、コストを支払わずに召喚する。\nLv2･Lv3\nこのスピリットは赤のスピリットとしても扱う。"
+ },
+ {
+  "cardId": "PB13-05",
+  "name": "グラウンド・オブ・ロロ",
+  "type": "nexus",
+  "colors": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "このネクサスカードは6コストを支払わなければ配置できない。\nLv1『自分のエンドステップ』\n自分の赤/紫/緑/白/黄/青のスピリットがそれぞれ1体ずついるとき、お互い、カードすべてをデッキに戻してシャッフルし、ライフ以外のコアすべてをボイドに戻す。\nその後、お互い、ボイドからコア6個をリザーブに置き、手札2枚を引いてから、ジャンケンで先攻を決め、1ターン目からゲームを再開する。\nこの効果は、ゲーム中に、自分か相手どちらか1回しか使えない。"
+ },
+ {
+  "cardId": "X010",
+  "name": "超皇帝ジークペンタン・ノヴァ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "皇獣",
+   "歌鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "yellow",
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：歌鳥/ボイド】\n召喚コスト支払い後、系統：「歌鳥」を持つ自分のスピリット1体のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n[皇帝アンプルール]で【転召】したとき、自分の手札と自分のトラッシュにある、カード名に「ペンタン」と入っているスピリットカードを好きなだけ、コストを支払わずに召喚する。\nただし、それらの『このスピリットの召喚時』効果は発揮されない。\nLv3『このスピリットのアタック時』\nカード名に「ペンタン」と入っている自分のスピリット3体を破壊することで、このスピリットは回復する。"
+ },
+ {
+  "cardId": "X015",
+  "name": "放浪者ロロ",
+  "type": "spirit",
+  "colors": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "family": [
+   "放浪者"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "このカードは、コストを支払わなければ召喚できない。\nLv1･Lv2\nこのスピリットは、アタックと合体ができず、このスピリット以外の一切の効果を受けない。"
+ },
+ {
+  "cardId": "X017",
+  "name": "アルティメットヒーローインパクト",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "X",
+  "limited": false,
+  "effect": "メイン：\n系統：「覇皇」を持つ相手のスピリット1体を破壊する。\nこの効果でスピリットを破壊したとき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、系統：「覇皇」を持つ自分のスピリット1体をBP+5000する。"
+ },
+ {
+  "cardId": "X018",
+  "name": "歌鳥の覇王ジーク・ヤマト・ペンタン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "覇皇",
+   "歌鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 11000
+   },
+   {
+    "level": 4,
+    "cores": 7,
+    "bp": 15000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分のライフが3以下のとき、BP15000以下の相手のスピリット1体を指定する。\nこのターンの間、そのスピリットはアタックできない。\nこの効果発揮後、このスピリットカードを召喚する。\nLv2･Lv3･Lv4『自分のアタックステップ』\nカード名に「ペンタン」と入っている自分のスピリットがLv2以下の相手のスピリットとBPを比べるとき、BPを比べずに相手のスピリットにブロックされなかったものとして扱う。"
+ },
+ {
+  "cardId": "X019",
+  "name": "交渉人ミクス",
+  "type": "spirit",
+  "colors": [
+   "red",
+   "purple",
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "purple",
+   "yellow"
+  ],
+  "family": [
+   "交渉人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットは赤/紫のスピリットとしても扱う。\nLv1･Lv2『自分のアタックステップ』\n系統：「神星」/「光導」/「星魂」を持つ自分のスピリットすべてをBP+1000する。\nLv2\nこのスピリットと自分の[星文学者リリア]すべては、相手によって破壊されたとき手札に戻る。"
+ },
+ {
+  "cardId": "X020",
+  "name": "星文学者リリア",
+  "type": "spirit",
+  "colors": [
+   "green",
+   "white",
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "white",
+   "blue"
+  ],
+  "family": [
+   "星文学者"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットは緑/白のスピリットとしても扱う。\nLv1･Lv2\n相手のライフが減ったとき、自分の手札にある系統：「光導」を持つスピリットカード1枚を、コストを支払わずに召喚できる。\nLv2\n自分の[交渉人ミクス]がいる間、系統：「光導」/「星魂」を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。"
+ },
+ {
+  "cardId": "NOID:絶対なる幻龍神アマテラス・ドラゴン",
+  "name": "絶対なる幻龍神アマテラス・ドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 10,
+  "reduction": [],
+  "family": [
+   "絶晶神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red",
+   "red",
+   "red"
+  ],
+  "flash": false,
+  "rarity": "XX",
+  "limited": false,
+  "effect": "Lv1\nこのスピリットは、あらゆる効果を受けない。\nこのスピリットは合体できない。BPはこのスピリット上のコア×10000となる。\nLv1『このスピリットの召喚時』\nこのスピリット以外のスピリットをすべて破壊する。"
+ }
+]
