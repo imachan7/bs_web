@@ -72,7 +72,23 @@ const filterFlags = new Set<string>() // "burst" | "flash"（選んだものす�
 let poolLimit = POOL_PAGE
 let filterSeries = ""
 let filterKeywords = ""
-let filterFamily = ""
+const filterFamilies = new Set<string>()
+let familyHas = true // 両方外れたときも「持つ」として扱う
+let familyMention = false
+// 効果文の 系統：「X」「X・Y」 から拾う。絞り込みのたびに正規表現を回さないよう読み込み時に1回だけ作る
+const mentionedFamilies = new Map<string, Set<string>>()
+function buildMentionedFamilies(): void {
+    mentionedFamilies.clear()
+    for (const card of cards) {
+        const set = new Set<string>()
+        for (const m of (card.effect ?? "").matchAll(/系統：((?:「[^」]+」\/?)+)/g)) {
+            for (const g of (m[1] ?? "").matchAll(/「([^」]+)」/g)) {
+                for (const f of (g[1] ?? "").split("・")) set.add(f)
+            }
+        }
+        mentionedFamilies.set(card.cardId, set)
+    }
+}
 let searchText = ""
 let sortOrder: "id" | "cost-asc" | "cost-desc" = "id"
 
@@ -189,7 +205,15 @@ function passesFilter(card: CardData): boolean {
         }
         if (!hasKw) return false
     }
-    if (filterFamily !== "" && !card.family.includes(filterFamily)) return false
+    if (filterFamilies.size > 0) {
+        const useHas = familyHas || !familyMention
+        const mentioned = mentionedFamilies.get(card.cardId)
+        let hit = false
+        for (const f of filterFamilies) {
+            if ((useHas && card.family.includes(f)) || (familyMention && mentioned?.has(f))) hit = true
+        }
+        if (!hit) return false
+    }
     if (searchText !== "" && !card.name.includes(searchText) && !(card.effect ?? "").includes(searchText)) return false
     
     if (filterNotes.size > 0) {
@@ -1232,18 +1256,47 @@ function setupFilterChips(): void {
         renderPool()
     })
 
-    const familySelect = $("filter-family") as HTMLSelectElement
-    const sortedFamilies = Array.from(availableFamilies).sort((a, b) => a.localeCompare(b, "ja"))
-    for (const fam of sortedFamilies) {
+    for (const set of mentionedFamilies.values()) for (const f of set) availableFamilies.add(f)
+    const familyInput = $("filter-family") as HTMLInputElement
+    const familyOptions = $("family-options")
+    for (const fam of Array.from(availableFamilies).sort((a, b) => a.localeCompare(b, "ja"))) {
         const option = document.createElement("option")
         option.value = fam
-        option.textContent = fam
-        familySelect.appendChild(option)
+        familyOptions.appendChild(option)
     }
-    familySelect.addEventListener("change", () => {
-        filterFamily = familySelect.value
+    const renderFamilyChips = () => {
+        const box = $("family-selected")
+        box.textContent = ""
+        for (const fam of filterFamilies) {
+            const chip = document.createElement("button")
+            chip.className = "chip active"
+            chip.textContent = `${fam} ×`
+            chip.title = "この系統を外す"
+            chip.addEventListener("click", () => {
+                filterFamilies.delete(fam)
+                renderFamilyChips()
+                renderPool()
+            })
+            box.appendChild(chip)
+        }
+    }
+    familyInput.addEventListener("input", () => {
+        // 候補の一覧から選ばれた（または完全一致で入力された）ときだけ追加する
+        if (!availableFamilies.has(familyInput.value)) return
+        filterFamilies.add(familyInput.value)
+        familyInput.value = ""
+        renderFamilyChips()
         renderPool()
     })
+    for (const btn of $("filter-family-mode").querySelectorAll<HTMLButtonElement>(".chip")) {
+        btn.addEventListener("click", () => {
+            const isHas = btn.dataset.mode === "has"
+            if (isHas) familyHas = !familyHas
+            else familyMention = !familyMention
+            btn.classList.toggle("active", isHas ? familyHas : familyMention)
+            renderPool()
+        })
+    }
 
     for (const btn of $("filter-colors").querySelectorAll<HTMLButtonElement>(".chip")) {
         btn.addEventListener("click", () => {
@@ -1338,9 +1391,11 @@ function setupFilterChips(): void {
         filterKeywords = ""
         ;(document.getElementById("filter-keywords") as HTMLSelectElement).value = ""
         
-        filterFamily = ""
-        const familySelect = $("filter-family") as HTMLSelectElement
-        familySelect.value = ""
+        filterFamilies.clear()
+        renderFamilyChips()
+        familyInput.value = ""
+        familyHas = true
+        familyMention = false
         searchText = ""
         searchInput.value = ""
 
@@ -1350,6 +1405,7 @@ function setupFilterChips(): void {
         for (const btn of document.querySelectorAll("#filters .chip")) {
             btn.classList.remove("active")
         }
+        $("filter-family-mode").querySelector('[data-mode="has"]')?.classList.add("active")
         renderPool()
     })
 }
@@ -1427,6 +1483,7 @@ async function init(): Promise<void> {
     }
     // トークンはデッキに入れられないので一覧に出さない
     cards = ((await res.json()) as CardData[]).filter((c) => !isTokenCard(c.cardId))
+    buildMentionedFamilies()
     cards.sort((a, b) => a.cardId.localeCompare(b.cardId))
     db = new Map(cards.map((c) => [c.cardId, c]))
 
