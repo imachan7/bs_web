@@ -12,17 +12,10 @@ import { attachCardArt, installSecretCardArt } from "./cardArt"
 
 const MAX_COPIES = 3 // 同名カードの上限枚数
 const STORAGE_KEY = "bsweb:decks"
-const MAX_COST = 8 // 第一弾の最大コスト（コストカーブ表示用）
+const POOL_PAGE = 200 // カード一覧の段階表示の1回分
+const COST_CHIP_MAX = 8 // コストのチップは 0〜7 と「8以上」
 
 const TYPE_LABELS = CARD_TYPE_LABELS // 表の実体は data/constants.ts（renderer と共有）
-
-// フィルタ用のコスト帯（チップの data-cost と同じ並び）
-const COST_BANDS: ReadonlyArray<{ min: number; max: number }> = [
-    { min: 0, max: 2 },
-    { min: 3, max: 4 },
-    { min: 5, max: 6 },
-    { min: 7, max: Infinity },
-]
 
 const SERIES_LABELS: Record<string, string> = {
     "BS01": "第一弾",
@@ -58,6 +51,14 @@ function seriesOf(cardId: string): string {
     return cardId.includes("-") ? cardId.split("-")[0]! : cardId.replace(/\d.*$/, "")
 }
 
+// 弾の絞り込み用の枠。P13・SJ12・X003A のように年代や末尾の英字で割れるものを頭の英字にまとめる（seriesOf と画像の置き場は変えない）
+function seriesGroupOf(cardId: string): string {
+    const s = seriesOf(cardId)
+    return /^(P|SJ|X|CP)\d/.exec(s)?.[1] ?? s
+}
+
+const MERGED_SERIES_LABELS: Record<string, string> = { P: "プロモ（P）", SJ: "最強ジャンプ（SJ）", X: "その他", CP: "CP" }
+
 function seriesLabel(series: string): string {
     if (series === "P" || series === "PX" || series === "X") return "プロモ"
     return SERIES_LABELS[series] ?? ""
@@ -74,10 +75,55 @@ let deck = new Map<string, number>()
 // フィルタ状態（空 = 全て表示）
 const filterColors = new Set<Color>()
 const filterTypes = new Set<CardType>()
-const filterCosts = new Set<number>() // COST_BANDS のインデックス
-let filterSeries = ""
-let filterKeywords = ""
-let filterFamily = ""
+const filterCosts = new Set<number>() // COST_CHIP_MAX は「それ以上」
+const filterFlags = new Set<string>() // "burst" | "flash"（選んだものすべてを満たすカード）
+let poolLimit = POOL_PAGE
+const filterSeries = new Set<string>()
+const filterKeywords = new Set<string>()
+const filterFamilies = new Set<string>()
+let familyHas = true // 両方外れたときも「持つ」として扱う
+let familyMention = false
+// 効果文の 系統：「X」「X・Y」 から拾う。絞り込みのたびに正規表現を回さないよう読み込み時に1回だけ作る
+const mentionedFamilies = new Map<string, Set<string>>()
+const FAMILY_GROUPS: ReadonlyArray<[string, string]> = [
+    ["red", "赤"], ["purple", "紫"], ["green", "緑"], ["white", "白"], ["yellow", "黄"], ["blue", "青"], ["multi", "多色"],
+]
+// 系統を持つカードの色のうち最多の色が7割以上ならその色、そうでなければ多色。持つカードが無い系統も多色
+function familyColors(all: Set<string>): Map<string, string> {
+    const tally = new Map<string, Map<string, number>>()
+    for (const card of cards) {
+        for (const fam of card.family) {
+            const t = tally.get(fam) ?? new Map<string, number>()
+            for (const c of card.colors) t.set(c, (t.get(c) ?? 0) + 1)
+            tally.set(fam, t)
+        }
+    }
+    const result = new Map<string, string>()
+    for (const fam of all) {
+        const t = tally.get(fam)
+        let best = "multi"
+        if (t) {
+            const total = Array.from(t.values()).reduce((a, b) => a + b, 0)
+            const [color, n] = Array.from(t.entries()).sort((a, b) => b[1] - a[1])[0] ?? ["multi", 0]
+            if (n / total >= 0.7) best = color
+        }
+        result.set(fam, best)
+    }
+    return result
+}
+
+function buildMentionedFamilies(): void {
+    mentionedFamilies.clear()
+    for (const card of cards) {
+        const set = new Set<string>()
+        for (const m of (card.effect ?? "").matchAll(/系統：((?:「[^」]+」\/?)+)/g)) {
+            for (const g of (m[1] ?? "").matchAll(/「([^」]+)」/g)) {
+                for (const f of (g[1] ?? "").split("・")) set.add(f)
+            }
+        }
+        mentionedFamilies.set(card.cardId, set)
+    }
+}
 let searchText = ""
 let sortOrder: "id" | "cost-asc" | "cost-desc" = "id"
 
@@ -178,28 +224,23 @@ function passesFilter(card: CardData): boolean {
     if (filterColors.size > 0 && !card.colors.some((c) => filterColors.has(c))) return false
     if (filterTypes.size > 0 && !filterTypes.has(card.type)) return false
     if (filterCosts.size > 0) {
+        const hit = card.cost >= COST_CHIP_MAX ? filterCosts.has(COST_CHIP_MAX) : filterCosts.has(card.cost)
+        if (!hit) return false
+    }
+    if (filterFlags.has("burst") && !card.effects.some((e) => e.kind === "burst")) return false
+    if (filterFlags.has("flash") && card.flash !== true) return false
+    if (filterSeries.size > 0 && !filterSeries.has(seriesGroupOf(card.cardId))) return false
+    if (filterKeywords.size > 0 && !card.effects.some((e) => e.kind === "keyword" && filterKeywords.has(e.keyword))) return false
+    if (filterFamilies.size > 0) {
+        const useHas = familyHas || !familyMention
+        const mentioned = mentionedFamilies.get(card.cardId)
         let hit = false
-        for (const idx of filterCosts) {
-            const band = COST_BANDS[idx]
-            if (band && card.cost >= band.min && card.cost <= band.max) {
-                hit = true
-            }
+        for (const f of filterFamilies) {
+            if ((useHas && card.family.includes(f)) || (familyMention && mentioned?.has(f))) hit = true
         }
         if (!hit) return false
     }
-    if (filterSeries !== "" && seriesOf(card.cardId) !== filterSeries) return false
-    if (filterKeywords !== "") {
-        let hasKw = false
-        for (const effect of card.effects) {
-            if (effect.kind === "keyword" && effect.keyword === filterKeywords) {
-                hasKw = true
-                break
-            }
-        }
-        if (!hasKw) return false
-    }
-    if (filterFamily !== "" && !card.family.includes(filterFamily)) return false
-    if (searchText !== "" && !card.name.includes(searchText)) return false
+    if (searchText !== "" && !card.name.includes(searchText) && !(card.effect ?? "").includes(searchText)) return false
     
     if (filterNotes.size > 0) {
         const note = cardNotes[card.cardId]
@@ -209,7 +250,9 @@ function passesFilter(card: CardData): boolean {
     return true
 }
 
-function renderPool(): void {
+// keepLimit=true は「もっと見る」からの再描画。絞り込みが変わったときは先頭の1ページに戻す
+function renderPool(keepLimit = false): void {
+    if (!keepLimit) poolLimit = POOL_PAGE
     const grid = $("pool-grid")
     grid.textContent = ""
     let visible = cards.filter(passesFilter)
@@ -222,7 +265,7 @@ function renderPool(): void {
         visible.sort((a, b) => a.cardId.localeCompare(b.cardId))
     }
 
-    for (const card of visible) {
+    for (const card of visible.slice(0, poolLimit)) {
         const el = document.createElement("div")
         el.className = "pool-card"
         el.dataset.cardId = card.cardId
@@ -324,6 +367,17 @@ function renderPool(): void {
         el.appendChild(removeBtn)
 
         grid.appendChild(el)
+    }
+
+    if (visible.length > poolLimit) {
+        const more = document.createElement("button")
+        more.className = "pool-more"
+        more.textContent = `もっと見る（残り${visible.length - poolLimit}件）`
+        more.addEventListener("click", () => {
+            poolLimit += POOL_PAGE
+            renderPool(true)
+        })
+        grid.appendChild(more)
     }
 
     $("pool-count").textContent = `${visible.length} / ${cards.length} 枚を表示中`
@@ -596,15 +650,18 @@ function toggleDetail(card: CardData, anchor: HTMLElement): void {
 
 // ---- デッキ面 ----
 
+// 追加できない理由（できるなら null）。addCard のトーストと＋ボタンの無効化で共有する
+function addBlockReason(card: CardData): string | null {
+    if (card.limited) return `${card.name} は禁止カードのためデッキに入れられません`
+    if (nameCount(card.name) >= nameLimit(card.name)) return `同名カードは${nameLimit(card.name)}枚までです（${card.name}）`
+    return null
+}
+
 function addCard(cardId: string): void {
     const card = master(cardId)
-    if (card.limited) {
-        showToast(`${card.name} は禁止カードのためデッキに入れられません`)
-        return
-    }
-
-    if (nameCount(card.name) >= nameLimit(card.name)) {
-        showToast(`同名カードは${nameLimit(card.name)}枚までです（${card.name}）`)
+    const blocked = addBlockReason(card)
+    if (blocked !== null) {
+        showToast(blocked)
         return
     }
     deck.set(cardId, (deck.get(cardId) ?? 0) + 1)
@@ -721,11 +778,6 @@ function renderDeck(): void {
         type.textContent = TYPE_LABELS[card.type]
         row.appendChild(type)
 
-        const countEl = document.createElement("span")
-        countEl.className = "row-count"
-        countEl.textContent = `×${count}`
-        row.appendChild(countEl)
-
         const minus = document.createElement("button")
         minus.className = "row-minus"
         minus.textContent = "−"
@@ -735,6 +787,23 @@ function renderDeck(): void {
             removeCard(cardId)
         })
         row.appendChild(minus)
+
+        const countEl = document.createElement("span")
+        countEl.className = "row-count"
+        countEl.textContent = `×${count}`
+        row.appendChild(countEl)
+
+        const plus = document.createElement("button")
+        plus.className = "row-plus"
+        plus.textContent = "＋"
+        const blocked = addBlockReason(card)
+        plus.disabled = blocked !== null
+        plus.title = blocked ?? "1枚増やす"
+        plus.addEventListener("click", (e) => {
+            e.stopPropagation()
+            addCard(cardId)
+        })
+        row.appendChild(plus)
 
         // ホバーおよびクリックで詳細表示
         row.addEventListener("mouseenter", () => {
@@ -755,9 +824,10 @@ function renderStats(): void {
     // コストカーブ（コスト別枚数の簡易バー）
     const curve = $("cost-curve")
     curve.textContent = ""
-    const byCost = new Array<number>(MAX_COST + 1).fill(0)
+    const maxCost = Math.max(...cards.map((c) => c.cost))
+    const byCost = new Array<number>(maxCost + 1).fill(0)
     for (const [cardId, count] of deck) {
-        const cost = Math.min(master(cardId).cost, MAX_COST)
+        const cost = master(cardId).cost
         byCost[cost] = (byCost[cost] ?? 0) + count
     }
     const peak = Math.max(1, ...byCost)
@@ -767,7 +837,7 @@ function renderStats(): void {
 
         const label = document.createElement("span")
         label.className = "curve-label"
-        label.textContent = cost === MAX_COST ? `${MAX_COST}+` : String(cost)
+        label.textContent = String(cost)
         row.appendChild(label)
 
         const track = document.createElement("div")
@@ -1168,13 +1238,77 @@ function applyPreset(color: Color): void {
 
 // ---- イベント登録 ----
 
+interface PickerGroup {
+    heading: string | null
+    items: ReadonlyArray<{ value: string; text: string; cls?: string | undefined }>
+}
+
+// 見出しで開閉する複数選択の一覧（系統・弾・キーワードで共有）。選択は selected に入れ、変わるたびに onChange を呼ぶ。
+// 戻り値の reset は条件クリア用
+function setupFoldPicker(prefix: string, label: string, selected: Set<string>, groups: PickerGroup[], onChange: () => void): () => void {
+    const toggle = $(`${prefix}-toggle`)
+    const panel = $(`${prefix}-panel`)
+    const box = $(`${prefix}-selected`)
+    const chipEls = new Map<string, HTMLButtonElement>()
+    const texts = new Map<string, string>()
+    const renderSelected = () => {
+        box.textContent = ""
+        for (const value of selected) {
+            const chip = document.createElement("button")
+            chip.className = "chip active"
+            chip.textContent = `${texts.get(value) ?? value} ×`
+            chip.title = "外す"
+            chip.addEventListener("click", () => flip(value))
+            box.appendChild(chip)
+        }
+    }
+    const flip = (value: string) => {
+        if (selected.has(value)) selected.delete(value)
+        else selected.add(value)
+        chipEls.get(value)?.classList.toggle("active", selected.has(value))
+        renderSelected()
+        onChange()
+    }
+    for (const g of groups) {
+        if (g.items.length === 0) continue
+        if (g.heading !== null) {
+            const head = document.createElement("div")
+            head.className = "filter-label"
+            head.textContent = g.heading
+            panel.appendChild(head)
+        }
+        const group = document.createElement("div")
+        group.className = "chip-group family-chips"
+        for (const item of g.items) {
+            const btn = document.createElement("button")
+            btn.className = item.cls ? `chip ${item.cls}` : "chip"
+            btn.textContent = item.text
+            btn.addEventListener("click", () => flip(item.value))
+            chipEls.set(item.value, btn)
+            texts.set(item.value, item.text)
+            group.appendChild(btn)
+        }
+        panel.appendChild(group)
+    }
+    toggle.addEventListener("click", () => {
+        const open = panel.classList.toggle("hidden") === false
+        toggle.textContent = `${label} ${open ? "▾" : "▸"}`
+        toggle.setAttribute("aria-expanded", String(open))
+    })
+    return () => {
+        selected.clear()
+        for (const el of chipEls.values()) el.classList.remove("active")
+        renderSelected()
+    }
+}
+
 function setupFilterChips(): void {
     const availableSeries = new Set<string>()
     const availableKeywords = new Set<Keyword>()
     const availableFamilies = new Set<string>()
 
     for (const card of cards) {
-        availableSeries.add(seriesOf(card.cardId))
+        availableSeries.add(seriesGroupOf(card.cardId))
         for (const effect of card.effects) {
             if (effect.kind === "keyword") {
                 availableKeywords.add(effect.keyword)
@@ -1185,45 +1319,37 @@ function setupFilterChips(): void {
         }
     }
 
-    const seriesSelect = $("filter-series") as HTMLSelectElement
-    const sortedSeries = Array.from(availableSeries).sort()
-    for (const s of sortedSeries) {
-        const option = document.createElement("option")
-        option.value = s
-        const label = seriesLabel(s)
-        option.textContent = label === "" ? s : `${s} ${label}`
-        seriesSelect.appendChild(option)
-    }
-    seriesSelect.addEventListener("change", () => {
-        filterSeries = seriesSelect.value
-        renderPool()
-    })
+    const seriesItem = (v: string) => ({ value: v, text: MERGED_SERIES_LABELS[v] ?? (seriesLabel(v) === "" ? v : `${v} ${seriesLabel(v)}`) })
+    const allSeries = Array.from(availableSeries).sort()
+    const resetSeries = setupFoldPicker("series", "弾", filterSeries, [
+        { heading: "ブースター", items: allSeries.filter((v) => v.startsWith("BS") && !v.startsWith("BSC")).map(seriesItem) },
+        { heading: "スターター", items: allSeries.filter((v) => v.startsWith("SD")).map(seriesItem) },
+        { heading: "コレクション", items: allSeries.filter((v) => v.startsWith("BSC")).map(seriesItem) },
+        { heading: "プロモ・その他", items: allSeries.filter((v) => !v.startsWith("BS") && !v.startsWith("SD")).map(seriesItem) },
+    ], renderPool)
+    const resetKeywords = setupFoldPicker("keyword", "キーワード", filterKeywords, [
+        { heading: null, items: Array.from(availableKeywords).sort().map((kw) => ({ value: kw, text: KEYWORDS[kw]?.label ?? kw })) },
+    ], renderPool)
 
-    const kwSelect = $("filter-keywords") as HTMLSelectElement
-    const sortedKw = Array.from(availableKeywords).sort()
-    for (const kw of sortedKw) {
-        const option = document.createElement("option")
-        option.value = kw
-        option.textContent = KEYWORDS[kw]?.label ?? kw
-        kwSelect.appendChild(option)
+    for (const set of mentionedFamilies.values()) for (const f of set) availableFamilies.add(f)
+    const familyColor = familyColors(availableFamilies)
+    const resetFamilies = setupFoldPicker("family", "系統", filterFamilies,
+        FAMILY_GROUPS.map(([colorKey, label]) => ({
+            heading: label,
+            items: Array.from(availableFamilies)
+                .filter((f) => familyColor.get(f) === colorKey)
+                .sort((a, b) => a.localeCompare(b, "ja"))
+                .map((f) => ({ value: f, text: f, cls: colorKey === "multi" ? undefined : `chip-${colorKey}` })),
+        })), renderPool)
+    for (const btn of $("filter-family-mode").querySelectorAll<HTMLButtonElement>(".chip")) {
+        btn.addEventListener("click", () => {
+            const isHas = btn.dataset.mode === "has"
+            if (isHas) familyHas = !familyHas
+            else familyMention = !familyMention
+            btn.classList.toggle("active", isHas ? familyHas : familyMention)
+            renderPool()
+        })
     }
-    kwSelect.addEventListener("change", () => {
-        filterKeywords = kwSelect.value
-        renderPool()
-    })
-
-    const familySelect = $("filter-family") as HTMLSelectElement
-    const sortedFamilies = Array.from(availableFamilies).sort((a, b) => a.localeCompare(b, "ja"))
-    for (const fam of sortedFamilies) {
-        const option = document.createElement("option")
-        option.value = fam
-        option.textContent = fam
-        familySelect.appendChild(option)
-    }
-    familySelect.addEventListener("change", () => {
-        filterFamily = familySelect.value
-        renderPool()
-    })
 
     for (const btn of $("filter-colors").querySelectorAll<HTMLButtonElement>(".chip")) {
         btn.addEventListener("click", () => {
@@ -1264,6 +1390,19 @@ function setupFilterChips(): void {
             renderPool()
         })
     }
+    for (const btn of $("filter-flags").querySelectorAll<HTMLButtonElement>(".chip")) {
+        btn.addEventListener("click", () => {
+            const flag = btn.dataset.flag as string
+            if (filterFlags.has(flag)) {
+                filterFlags.delete(flag)
+                btn.classList.remove("active")
+            } else {
+                filterFlags.add(flag)
+                btn.classList.add("active")
+            }
+            renderPool()
+        })
+    }
     for (const btn of $("filter-notes").querySelectorAll<HTMLButtonElement>(".chip")) {
         btn.addEventListener("click", () => {
             const note = btn.dataset.note as NoteStatus
@@ -1296,17 +1435,14 @@ function setupFilterChips(): void {
         filterColors.clear()
         filterTypes.clear()
         filterCosts.clear()
+        filterFlags.clear()
         filterNotes.clear()
         
-        filterSeries = ""
-        ;(document.getElementById("filter-series") as HTMLSelectElement).value = ""
-        
-        filterKeywords = ""
-        ;(document.getElementById("filter-keywords") as HTMLSelectElement).value = ""
-        
-        filterFamily = ""
-        const familySelect = $("filter-family") as HTMLSelectElement
-        familySelect.value = ""
+        resetSeries()
+        resetKeywords()
+        resetFamilies()
+        familyHas = true
+        familyMention = false
         searchText = ""
         searchInput.value = ""
 
@@ -1316,6 +1452,7 @@ function setupFilterChips(): void {
         for (const btn of document.querySelectorAll("#filters .chip")) {
             btn.classList.remove("active")
         }
+        $("filter-family-mode").querySelector('[data-mode="has"]')?.classList.add("active")
         renderPool()
     })
 }
@@ -1393,6 +1530,7 @@ async function init(): Promise<void> {
     }
     // トークンはデッキに入れられないので一覧に出さない
     cards = ((await res.json()) as CardData[]).filter((c) => !isTokenCard(c.cardId))
+    buildMentionedFamilies()
     cards.sort((a, b) => a.cardId.localeCompare(b.cardId))
     db = new Map(cards.map((c) => [c.cardId, c]))
 
