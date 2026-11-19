@@ -3,6 +3,7 @@
 import { targetableSpirits, targetableNexuses } from "../targeting"
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
+import { settleList } from "../designation"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, log, minLevelCores } from "../GameState"
@@ -425,7 +426,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
 }
 
 // 「すべて」の疲労は範囲の効果（attempt が "area"）。両陣営は bothSidesPids（封印された魔導書の片側への変更を見る）
-function exhaustAllTargets(ctx: ActionCtx, action: { filter?: TargetFilter; anySide?: true }): void {
+function exhaustAllTargets(ctx: ActionCtx, action: ExhaustNum): void {
     const { state, owner, opp, self, sourceName, srcType } = ctx
     const filter = normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) {
@@ -433,15 +434,21 @@ function exhaustAllTargets(ctx: ActionCtx, action: { filter?: TargetFilter; anyS
         return
     }
     const sides: PlayerId[] = action.anySide ? bothSidesPids(state, srcType) : [opp]
-    let exhausted = 0
+    const list: { pid: PlayerId; inst: CardInstance; instanceId: string }[] = []
     for (const pid of sides) {
-        for (const s of [...state.players[pid].field.spirits]) {
+        for (const s of state.players[pid].field.spirits) {
             if (s.isRested) continue
             if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
             if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
-            exhaustSpirit(state, pid, s, undefined, owner, srcType)
-            exhausted++
+            list.push({ pid, inst: s, instanceId: s.instanceId })
         }
+    }
+    const settled = settleList(ctx, action, list, attemptOf(ctx, "exhaust", "area"))
+    if (settled === null) return
+    let exhausted = 0
+    for (const t of settled) {
+        exhaustSpirit(state, t.pid, t.inst, undefined, owner, srcType)
+        exhausted++
     }
     log(state, `${sourceName}：条件を満たす${exhausted}体を疲労させた。`)
 }
@@ -486,11 +493,12 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: ExhaustNum): void {
 
     if (action.all) {
         let exhausted = 0
-        for (const s of spiritCandidates()) {
-            if (exhaustSpirit(state, opp, s, undefined, owner, srcType)) exhausted++
-        }
-        for (const n of nexusCandidates()) {
-            if (exhaustNexus(state, opp, n, owner, srcType)) exhausted++
+        const settled = settleList(ctx, action, [...spiritCandidates(), ...nexusCandidates()], attemptOf(ctx, "exhaust", "area"))
+        if (settled === null) return
+        for (const t of settled) {
+            if (oppField.spirits.includes(t)) {
+                if (exhaustSpirit(state, opp, t, undefined, owner, srcType)) exhausted++
+            } else if (exhaustNexus(state, opp, t, owner, srcType)) exhausted++
         }
         log(state, `${sourceName}：相手の${label}${exhausted}個を疲労させた。`)
         return

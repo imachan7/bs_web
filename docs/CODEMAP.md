@@ -792,6 +792,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/designation.ts
 
 - `settleTargets`（fn）：戻り値：そのまま進めるなら対象、確認を出したら null（呼び出し側は中断する）。
+- `settleList`（fn）：「すべて」のように、一覧を作ってから適用する action 用。一覧のまま進めるなら一覧（付け替えたら絞った一覧）、確認を出したら null
 
 ## server/src/logic/destroyGate.ts
 
