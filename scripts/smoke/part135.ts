@@ -74,6 +74,7 @@ const FLASH_MAGIC = ((): CardRow => {
     const candidates = CARDS.filter(
         (c) =>
             c.flash === true &&
+            (c as { onlyUsableBy?: string[] }).onlyUsableBy === undefined &&
             (c.effects ?? []).some(
                 (e) =>
                     e["kind"] === "magic" &&

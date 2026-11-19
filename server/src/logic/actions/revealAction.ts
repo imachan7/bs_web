@@ -16,6 +16,7 @@ import { summonDenial } from "../summonGate"
 import { hasKeyword, instHasColor, countSymbols } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { activateBurstCard } from "../keywords/burst"
+import { attachBrave } from "../brave"
 import { recordMoved } from "../record"
 import { countedAmount } from "../counted"
 
@@ -76,9 +77,15 @@ export function matchesPick(id: string, pick: CardPick | undefined, costOverride
 }
 
 // dest の失敗（型不一致・維持コア不足・召喚禁止）時の行き先。orHand指定時のみ手札、それ以外はトラッシュ
-function failDest(ctx: ActionCtx, orHand: boolean | undefined, cardId: string): void {
+function failDest(ctx: ActionCtx, orHand: boolean | undefined, cardId: string, fromDeck?: true): void {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
+    // デッキから選んだカードが行き先に行けなければデッキに残る（トラッシュへは落とさない）
+    if (fromDeck) {
+        player.deck.push(cardId)
+        log(state, `${sourceName}：${getCard(cardId).name}はデッキに残った。`)
+        return
+    }
     if (orHand && !handGainDenial(state, { pid: owner, from: "revealed", cause: "effect" })) {
         player.hand.push(cardId)
         notifyHandGained(state, owner, 1)
@@ -98,10 +105,18 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
     // （立てた後に戻すと、smoke の中断ガードが「中断後に盤面が変化した」と落とす）
     const zone = state.revealedCards
     // 同名のカードが公開ゾーンに複数あり得るので、有無ではなく「末尾に積む／末尾のものを抜く」で対にする
+    const deck = action.fromDeck ? state.players[action.srcPid].deck : undefined
+    let deckAt = -1
     const putBack = (): void => {
-        zone?.cardIds.push(cardId)
+        if (deck) deck.splice(Math.max(deckAt, 0), 0, cardId)
+        else zone?.cardIds.push(cardId)
     }
     const takeOut = (): void => {
+        if (deck) {
+            deckAt = deck.indexOf(cardId)
+            if (deckAt >= 0) deck.splice(deckAt, 1)
+            return
+        }
         const at = zone ? zone.cardIds.lastIndexOf(cardId) : -1
         if (zone && at >= 0) zone.cardIds.splice(at, 1)
     }
@@ -111,7 +126,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
         takeOut()
         return false
     }
-    if (action.fromRevealed || action.placeCores !== undefined) takeOut()
+    if (action.fromRevealed || action.fromDeck || action.placeCores !== undefined) takeOut()
     // 「召喚/配置できる」：ネクサスは配置、それ以外は召喚
     const dest: RevealDest = action.dest === "summonOrPlace" ? (card.type === "nexus" ? "placeNexus" : "summon") : (action.dest ?? "hand")
     switch (dest) {
@@ -170,21 +185,21 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
         }
         case "cast": {
             if (card.type !== "magic") {
-                failDest(ctx, action.orHand, cardId)
+                failDest(ctx, action.orHand, cardId, action.fromDeck)
                 return
             }
             // 「使用」なので使用の制限を受ける。使えなければ「使用しない」として扱う（magic/effectUse.ts）
             const denial = effectMagicUseDenial(state, owner, card, "flash")
             if (denial) {
                 log(state, `${sourceName}：${card.name}を使用できなかった（${denial}）。`)
-                failDest(ctx, action.orHand, cardId)
+                failDest(ctx, action.orHand, cardId, action.fromDeck)
                 return
             }
             const resume = { type: "useMagicCard" as const, cardId, timing: "flash" as const, paidCost: false }
             const paid = payMagicFreeUseSurcharge(state, owner, card, resume)
             if (paid === "cannot") {
                 log(state, `${sourceName}：余分のコストを支払えず、${card.name}を使用できなかった。`)
-                failDest(ctx, action.orHand, cardId)
+                failDest(ctx, action.orHand, cardId, action.fromDeck)
                 return
             }
             log(state, `${sourceName}：${card.name}のフラッシュ効果をコストを支払わずに使用した。`)
@@ -194,29 +209,30 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
         case "summon": {
             // ブレイヴはスピリット状態で召喚する（旧 revealTopSummonFreeOrHand と同じ）
             if (card.type !== "spirit" && card.type !== "brave") {
-                failDest(ctx, action.orHand, cardId)
+                failDest(ctx, action.orHand, cardId, action.fromDeck)
                 return
             }
-            const denial = summonDenial(state, { pid: owner, cardId, from: "revealed", cause: "effect" })
+            const hostId = action.braveTargetInstanceId
+            const denial = summonDenial(state, { pid: owner, cardId, from: "revealed", cause: "effect", braveTargetInstanceId: hostId })
             if (denial) {
                 log(state, `${sourceName}：${denial}：${card.name}を召喚できなかった。`)
-                failDest(ctx, action.orHand, cardId)
+                failDest(ctx, action.orHand, cardId, action.fromDeck)
                 return
             }
             // placeCores が付いていれば、置くコアの選択待ちで pay:"cost" のコストと余分は払い済み（summonCores.ts）
-            const maintain = action.placeCores ?? minLevelCores(card)
+            const maintain = hostId !== undefined ? 0 : action.placeCores ?? minLevelCores(card)
             const fullCost = action.pay === "cost" ? effectiveCost(state, owner, card, false, [], false, false) : 0
             const cost = action.placeCores !== undefined ? 0 : fullCost
             if (action.surchargePrepaid) state.summonSurchargePaid = owner
             const owed = action.pay === "cost" ? fullCost : surchargeOwed(state, owner, card, true)
             const surchargeOnly = action.pay !== "cost" && owed > 0
-            if (action.placeCores === undefined && askCores(owed, surchargeOnly ? { ...action, surchargePrepaid: true } : action, surchargeOnly)) return
+            if (action.placeCores === undefined && hostId === undefined && askCores(owed, surchargeOnly ? { ...action, surchargePrepaid: true } : action, surchargeOnly)) return
             if (action.pay === "cost" ? player.reserve < maintain + cost + summonVoidToll(state, card) : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
-                failDest(ctx, action.orHand, cardId)
+                failDest(ctx, action.orHand, cardId, action.fromDeck)
                 return
             }
-            if (action.pay !== "cost" && action.placeCores === undefined && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
+            if (action.pay !== "cost" && action.placeCores === undefined && hostId === undefined && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
             const placedFromField = action.pay !== "cost" ? payFreeSummonSurchargeKeeping(state, owner, card, true, maintain) ?? 0 : 0
             if (action.pay === "cost") payVoidToll(state, owner, card)
             payCost(state, owner, cost, undefined, maintain)
@@ -224,8 +240,10 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             const inst = createInstance(cardId, state.turn, maintain)
             if (action.returnToDeckBottomAtEndStep) inst.returnToDeckBottomAtEndStep = true
             if (action.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
-            player.field.spirits.push(inst)
-            log(state, `${player.name}は${sourceName}の効果で、${card.name}を${action.pay === "cost" ? `コスト${fullCost}を支払って` : "コストを支払わずに"}召喚した。`)
+            const braveHost = hostId === undefined ? undefined : player.field.spirits.find((sp) => sp.instanceId === hostId)
+            if (braveHost !== undefined) attachBrave(state, owner, braveHost, inst)
+            else player.field.spirits.push(inst)
+            log(state, `${player.name}は${sourceName}の効果で、${braveHost !== undefined ? `${getCard(braveHost.cardId).name}に合体させて` : ""}${card.name}を${action.pay === "cost" ? `コスト${fullCost}を支払って` : "コストを支払わずに"}召喚した。`)
             if (action.tensho === undefined) {
                 if (!state.winner) resolveTensho(state, owner, inst)
                 if (state.pendingChoice) {

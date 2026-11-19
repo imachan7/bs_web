@@ -122,9 +122,7 @@ if (ok10) {
         ],
     })
     // BRAVE.md §12.6（2026-08-25）：効果で「コストを支払わずに召喚できる」ブレイヴも合体先を選べる。合体した後の盤面は書いていない
-    // moveCards（トラッシュから召喚）はまだ合体先を聞かない。2 段目で直すまで飛ばす
-    if (process.env.GX10_COMBINE !== "1") console.log("（未実装）GX10 トラッシュから召喚したブレイヴの合体先の選択")
-    else scenario({
+    scenario({
         name: "GX10-合体条件（コスト4以上）を満たすスピリットがいると合体先の選択が出て、選ばなければスピリット状態で出る",
         start: { names: { me: "紫乃宮まゐ", opp: "ユウキ" }, interactive: true, me: { hand: [GX10], trash: [BRAVE1], spirits: [{ card: "BS16-053", label: "H" }] } },
         steps(t) {

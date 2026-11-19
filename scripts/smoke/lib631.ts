@@ -32,7 +32,9 @@ export function resolveAll(t: ScenarioCtx, prefer: string[] = [], accept: boolea
     for (let i = 0; i < 30 && t.state.pendingChoice; i++) {
         const pc = t.state.pendingChoice
         const side: Side = pc.pid === t.me ? "me" : "opp"
-        if (pc.kind === "target") {
+        if (pc.kind === "target" && accept === false && pc.optional) {
+            t.act(side, { type: "resolveChoice" })
+        } else if (pc.kind === "target") {
             const ids = prefer.flatMap((l) => {
                 try {
                     return [t.id(l)]
@@ -48,8 +50,10 @@ export function resolveAll(t: ScenarioCtx, prefer: string[] = [], accept: boolea
             const pick = yes ? opts.find((o) => !isNo(o)) : opts.find(isNo)
             if (pick === undefined && !yes) t.act(side, { type: "resolveChoice" })
             else t.act(side, { type: "resolveChoice", option: pick ?? opts[0]! })
+        } else if (accept === false && pc.optional && pc.cardZone === "deck") {
+            t.act(side, { type: "resolveChoice" })
         } else {
-            const zone = pc.cardZone === "reveal" ? t.state.revealedCards!.cardIds : pc.cardZone === "trash" ? t.state.players[pc.cardOwner!].trashCards : t.state.players[pc.cardOwner!].hand
+            const zone = pc.cardZone === "reveal" ? t.state.revealedCards!.cardIds : pc.cardZone === "deck" ? t.state.players[pc.cardOwner!].deck : pc.cardZone === "trash" ? t.state.players[pc.cardOwner!].trashCards : t.state.players[pc.cardOwner!].hand
             const idx = pc.cardIndices!.find((i) => prefer.includes(getCard(zone[i]!).name))
             t.act(side, { type: "resolveChoice", cardIndex: idx ?? pc.cardIndices![0]! })
         }

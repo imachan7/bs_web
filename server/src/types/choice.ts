@@ -51,10 +51,11 @@ export interface PendingChoice {
     prompt: string // クライアント表示用の説明文（日本語）
     candidates: string[] // kind:"target" のとき使用する候補instanceId（kind:"option"/"card"のときは空配列）
     options?: string[] // kind:"option" のとき選択肢ラベル一覧（表示ラベル＝そのまま値として使う）
-    cardZone?: "hand" | "trash" | "reveal" // kind:"card" のとき必須：どのゾーンから選ぶか（reveal=GameState.revealedCards の公開ゾーン）
+    cardZone?: "hand" | "trash" | "reveal" | "deck" // kind:"card" のとき必須：どのゾーンから選ぶか（reveal=GameState.revealedCards の公開ゾーン）
     cardOwner?: PlayerId // kind:"card" のとき必須：ゾーンの持ち主（今回は常に pid 自身のゾーン＝pidと同値）
     cardIndices?: number[] // kind:"card" のとき必須：cardZone配列内の選択可能インデックス
     // （cardZone:"reveal" のときは GameState.revealedCards.cardIds のインデックス）
+    cardIds?: string[] // cardZone:"deck" のとき cardIndices に対応するカード（viewFor が選ぶ本人の view にだけ付ける。相手には渡らない）
     optional: boolean // true ならスキップ（選ばない）可
     selectedCardIndices?: number[] // kind:"card" のトグル選択で「いま選ばれている」手札のインデックス（cardIndices にも入れておき、もう一度選ぶと外れる。相手視点ではマスクする）
     selectedIds?: string[] // kind:"target" のトグル選択で「いま選ばれている」候補（クライアントが選択済みとして描く）。

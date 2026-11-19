@@ -772,11 +772,13 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
-    } else if (myPendingChoice && myPendingChoice.kind === "card" && myPendingChoice.cardZone === "reveal") {
-        // 公開ゾーン（デッキから「オープン」したカード）。トラッシュと同じボタンUIで並べる
+    } else if (myPendingChoice && myPendingChoice.kind === "card" && (myPendingChoice.cardZone === "reveal" || myPendingChoice.cardZone === "deck")) {
+        // 公開ゾーン（デッキから「オープン」したカード）とデッキ全体からの選択。トラッシュと同じボタンUIで並べる。
+        // デッキの中身は cardIds（cardIndices と同じ並び）で選ぶ本人にだけ届く
         const revealed = view.revealedCards?.cardIds ?? []
-        for (const idx of myPendingChoice.cardIndices ?? []) {
-            const cardId = revealed[idx]
+        const deckIds = myPendingChoice.cardIds
+        for (const [pos, idx] of (myPendingChoice.cardIndices ?? []).entries()) {
+            const cardId = myPendingChoice.cardZone === "deck" ? deckIds?.[pos] : revealed[idx]
             if (cardId === undefined) continue
             const card = master(cardId)
             const b = document.createElement("button")

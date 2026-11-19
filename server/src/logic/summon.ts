@@ -414,7 +414,7 @@ export function summonFreeFromTrashIndex(
     owner: PlayerId,
     sourceName: string,
     trashIndex: number,
-    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string; surchargeBatch?: true; placeCores?: number; costPaid?: true; reserveOnly?: true },
+    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string; surchargeBatch?: true; placeCores?: number; costPaid?: true; reserveOnly?: true; braveTargetInstanceId?: string },
 ): void {
     const player = state.players[owner]
     const cardId = player.trashCards[trashIndex]
@@ -422,19 +422,20 @@ export function summonFreeFromTrashIndex(
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    const denial = summonDenial(state, { pid: owner, cardId, from: "trash", cause: "effect" })
+    const denial = summonDenial(state, { pid: owner, cardId, from: "trash", cause: "effect", braveTargetInstanceId: opts?.braveTargetInstanceId })
     if (denial) {
         log(state, `${sourceName}：${denial}：${getCard(cardId).name}を召喚できなかった。`)
         return
     }
     const card = getCard(cardId)
-    const maintain = opts?.placeCores ?? minLevelCores(card)
+    // 合体して出るブレイヴは維持コアを置かない（手札版と同じ）
+    const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : opts?.placeCores ?? minLevelCores(card)
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
     // BS07常闇の聖堂＝「自分のフィールドのコアをコストとして使うことで〜召喚できる」）。
     // 支払い元はリザーブに加えて**フィールドのコア**も使える（paySources。手札版と同じ）
     const fullCost = opts?.payCost ? effectiveCost(state, owner, card, false, [], opts.summonedBy === "soryo", false) : 0
     const cost = opts?.costPaid ? 0 : fullCost
-    const askCores = opts?.payCost === true && !opts.costPaid && opts.placeCores === undefined && opts.paySources === undefined && state.interactiveTargets
+    const askCores = opts?.payCost === true && !opts.costPaid && opts.placeCores === undefined && opts.paySources === undefined && opts.braveTargetInstanceId === undefined && state.interactiveTargets
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
     const voidToll = opts?.payCost ? summonVoidToll(state, card) : 0
     if (askCores ? summonCoreOptions(state, owner, card, cost, opts?.reserveOnly === true).length === 0 : !summonPayable(state, owner, card, cost, maintain, voidToll, fromField, opts)) {
@@ -445,13 +446,14 @@ export function summonFreeFromTrashIndex(
         type: "summonFreeIndexInternal" as const,
         zone: "trash" as const,
         index: trashIndex,
+        ...(opts?.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: opts.braveTargetInstanceId } : {}),
         ...(opts?.skipOnSummon ? { skipOnSummon: true as const } : {}),
         ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
         ...(opts?.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
         ...(opts?.payCost ? { payCost: true as const, costPaid: true as const } : {}),
     }
     if (askCores && askSummonCores(state, owner, card, cost, resume, false, opts?.reserveOnly === true)) return
-    if (!opts?.payCost && opts?.placeCores === undefined && voidToll === 0) {
+    if (!opts?.payCost && opts?.placeCores === undefined && opts?.braveTargetInstanceId === undefined && voidToll === 0) {
         const owed = surchargeOwed(state, owner, card, opts?.surchargeBatch === true)
         if (askSummonCores(state, owner, card, owed, resume, owed > 0)) return
     }
@@ -464,12 +466,14 @@ export function summonFreeFromTrashIndex(
     if (opts?.payCost) state.summoningPaid = true
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
     if (opts?.skipOnSummon) inst.noOnSummon = true
-    player.field.spirits.push(inst)
+    const braveHost = opts?.braveTargetInstanceId === undefined ? undefined : player.field.spirits.find((sp) => sp.instanceId === opts.braveTargetInstanceId)
+    if (braveHost !== undefined) attachBrave(state, owner, braveHost, inst)
+    else player.field.spirits.push(inst)
     // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
     if (opts?.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
     log(
         state,
-        `${player.name}は${sourceName}の効果で、トラッシュから${card.name}を` +
+        `${player.name}は${sourceName}の効果で、${braveHost !== undefined ? `${getCard(braveHost.cardId).name}に合体させて` : ""}トラッシュから${card.name}を` +
             (opts?.payCost ? `コスト${fullCost}を支払って召喚した。` : "コストを支払わずに召喚した。"),
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで

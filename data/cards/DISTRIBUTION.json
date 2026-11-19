@@ -29,8 +29,7 @@
    "兵堂剣蔵",
    "百瀬勇貴",
    "硯秀斗",
-   "クラッキー",
-   "レイ"
+   "クラッキー・レイ"
   ],
   "effects": [
    {
@@ -289,7 +288,20 @@
   "onlyUsableBy": [
    "遠藤綾"
   ],
-  "effects": []
+  "effects": [
+   {
+    "id": "GX12-03-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "loseGame",
+     "side": "opponent"
+    }
+   }
+  ]
  },
  {
   "cardId": "GX22",
@@ -2203,6 +2215,520 @@
        "交渉人ミクス"
       ]
      }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX02",
+  "name": "ヴィクトリードロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中のカード名に「ヴルム」と入っているスピリットカード1枚を、コストを支払わずに召喚できる。その後、デッキをシャッフルする。\nこのカードは「コアの光主」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+1000する。\nこのカードは「コアの光主」しか使用できない。",
+  "onlyUsableBy": [
+   "馬神弾",
+   "馬神ダン",
+   "ヴィオレ魔ゐ",
+   "紫乃宮まゐ",
+   "兵堂剣蔵",
+   "百瀬勇貴",
+   "硯秀斗",
+   "クラッキー・レイ"
+  ],
+  "effects": [
+   {
+    "id": "GX02-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "deck",
+       "count": 1,
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "nameIncludes": "ヴルム"
+       },
+       "optional": true
+      },
+      {
+       "type": "shuffleDeck"
+      }
+     ]
+    }
+   },
+   {
+    "id": "GX02-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX09",
+  "name": "ライジングドロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中のカード名に「太陽」と入っているスピリットカード1枚を、コストを支払わずに召喚する。\nその後、自分のデッキをシャッフルする。\nこのカードは「馬神弾」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「馬神弾」しか使用できない。",
+  "onlyUsableBy": [
+   "馬神弾"
+  ],
+  "effects": [
+   {
+    "id": "GX09-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "deck",
+       "count": 1,
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "nameIncludes": "太陽"
+       }
+      },
+      {
+       "type": "shuffleDeck"
+      }
+     ]
+    }
+   },
+   {
+    "id": "GX09-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX12",
+  "name": "ルナテックドロー",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中のカード名に「月光」と入っているスピリットカード1枚を、コストを支払わずに召喚する。\nその後、自分のデッキをシャッフルする。\nこのカードは「月光のバローネ」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「月光のバローネ」しか使用できない。",
+  "onlyUsableBy": [
+   "月光のバローネ"
+  ],
+  "effects": [
+   {
+    "id": "GX12-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "deck",
+       "count": 1,
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "nameIncludes": "月光"
+       }
+      },
+      {
+       "type": "shuffleDeck"
+      }
+     ]
+    }
+   },
+   {
+    "id": "GX12-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX17",
+  "name": "ゾディアックサーチ",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中の系統：「光導」を持つスピリットカード1枚を、コストを支払わずに召喚する。\nその後、自分のデッキをシャッフルする。\nこのカードは「兵堂剣蔵」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+5000する。\nこのカードは「兵堂剣蔵」しか使用できない。",
+  "onlyUsableBy": [
+   "兵堂剣蔵"
+  ],
+  "effects": [
+   {
+    "id": "GX17-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "deck",
+       "count": 1,
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "family": "光導"
+       }
+      },
+      {
+       "type": "shuffleDeck"
+      }
+     ]
+    }
+   },
+   {
+    "id": "GX17-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX21",
+  "name": "太陽昇龍覇",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "このカードは「陽昇ハジメ」しか使えない。\n【バースト：自分のライフ減少後】\n自分のデッキをすべて見て、その中のカード名に「ロード・ドラゴン」と入っているスピリットカード1枚を召喚する。その後自分のデッキをシャッフルする。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+3000する。",
+  "onlyUsableBy": [
+   "陽昇ハジメ"
+  ],
+  "effects": [
+   {
+    "id": "GX21-e1",
+    "kind": "burst",
+    "event": "ownLifeDamaged",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "deck",
+       "count": 1,
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "nameIncludes": "ロード・ドラゴン"
+       },
+       "pay": "cost"
+      },
+      {
+       "type": "shuffleDeck"
+      }
+     ]
+    },
+    "thenPay": "flash"
+   },
+   {
+    "id": "GX21-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX19",
+  "name": "ハンサムドロー",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nお互い、手札すべてを破棄する。\nその後、お互い、デッキの上から2枚目をドローする。\nこのカードは「ハンサム」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+2000する。\nこのカードは「ハンサム」しか使用できない。",
+  "onlyUsableBy": [
+   "ハンサム"
+  ],
+  "effects": [
+   {
+    "id": "GX19-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "discard",
+       "from": "hand",
+       "side": "both",
+       "count": "all"
+      },
+      {
+       "type": "draw",
+       "count": 1,
+       "nth": 2,
+       "side": "both"
+      }
+     ]
+    }
+   },
+   {
+    "id": "GX19-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "PB12-06",
+  "name": "ナイスミドル",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "PB",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のデッキを上から1枚破棄する。破棄したカードがスピリットカードのとき、相手のスピリット1体を疲労させる。\nブレイヴカードのとき、相手の合体スピリット2体を疲労させる。\nネクサスカードのとき、自分はデッキから1枚ドローする。\nマジックカードのとき、ボイドからコア1個を自分のリザーブに置く。",
+  "effects": [
+   {
+    "id": "PB12-06-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "discard",
+       "from": "deck",
+       "side": "own",
+       "count": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "cardType": "spirit"
+        }
+       },
+       "then": {
+        "type": "exhaust",
+        "count": 1
+       },
+       "else": {
+        "type": "if",
+        "cond": {
+         "last": {
+          "cardType": "brave"
+         }
+        },
+        "then": {
+         "type": "exhaust",
+         "count": 2,
+         "filter": {
+          "combined": true
+         }
+        },
+        "else": {
+         "type": "if",
+         "cond": {
+          "last": {
+           "cardType": "nexus"
+          }
+         },
+         "then": {
+          "type": "draw",
+          "count": 1
+         },
+         "else": {
+          "type": "if",
+          "cond": {
+           "last": {
+            "cardType": "magic"
+           }
+          },
+          "then": {
+           "type": "placeCores",
+           "from": "void",
+           "to": "reserve",
+           "count": 1
+          }
+         }
+        }
+       }
+      }
+     ]
     }
    }
   ]
