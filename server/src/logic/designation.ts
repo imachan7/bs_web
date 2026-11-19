@@ -83,3 +83,29 @@ export function settleList<T extends { instanceId: string }>(
     const settled = settleTargets(ctx, action, ids, ids, attempt)
     return settled === null ? null : list.filter((t) => settled.includes(t.instanceId))
 }
+
+// 付け替えの答えで再入したとき、元の指定で選ばれていた1体。再入でなければ undefined。
+// 再入では ctx.targetInstanceId は付け替え先の答えなので、呼び出し側は自分の選択として読まずにこちらを使う
+export function redirectReentryId(action: EffectAction & PickProgress): string | undefined {
+    return action.picked?.settled === true ? action.picked.ids[0] : undefined
+}
+
+// 1体が決まった後の付け替え。付け替え先（または元の1体）を返す。確認を出したら null（呼び出し側は中断する）。
+// candidates＝その指定で取りえた候補（付け替え先は requireReceivable ならこの中に限られる）
+export function settleOne(
+    ctx: ActionCtx,
+    action: EffectAction & PickProgress,
+    target: CardInstance,
+    candidates: string[],
+    attempt: EffectAttempt,
+): CardInstance | null {
+    const settled = settleTargets(ctx, action, [target.instanceId], candidates, attempt)
+    if (settled === null) return null
+    const id = settled[0]
+    if (id === undefined || id === target.instanceId) return target
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const found = ctx.state.players[pid].field.spirits.find((s) => s.instanceId === id)
+        if (found) return found
+    }
+    return target
+}

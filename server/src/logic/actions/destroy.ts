@@ -50,7 +50,7 @@ import { countedAmount } from "../counted"
 import { tryNexusReviveOnDestroy } from "../revive"
 import { recordDestroysOf, resolveHandFreeSummonOnDestroy } from "../removal"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
-import { settleList } from "../designation"
+import { settleList, settleOne } from "../designation"
 import { destroyDenial } from "../destroyGate"
 import { soulCoreLeavesField, wouldDeplete } from "../soulCore"
 import { currentRecordScope, lastMovedOf, recordDestroyedCount, recordLeftCost, recordMoved, recordNexusCost } from "../record"
@@ -260,11 +260,15 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             // 候補列挙（pickEnemyCandidates）では除外済みでも、この経路はここで改めて免疫を判定する
             // （coreRemove / returnToHand と同じ考え方。選択の提示から解決までの間に状態が変わりうる）。
             // anySide対応のためfindSpiritAnyで両陣営から検索する（instanceIdはゲーム内で一意）
-            const found = findSpiritAny(state, targetInstanceId)
-            if (!found) {
+            const found0 = findSpiritAny(state, targetInstanceId)
+            if (!found0) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 return
             }
+            // 付け替えの答えで再入すると picked が立つので、この分岐には来ない（汎用の選択経路が picked を読む）
+            const moved = settleOne(ctx, action, found0.inst, pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType, "destroy").map((s) => s.instanceId), attemptOf(ctx, "destroy", "targeted"))
+            if (moved === null) return
+            const found = findSpiritAny(state, moved.instanceId) ?? found0
             // クライアントが先に選んだ対象（castMagic の targetInstanceId）も通るので、陣営もここで見る
             if (!action.anySide && found.pid !== (action.side === "own" ? owner : opp)) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象にできない。`)

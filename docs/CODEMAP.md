@@ -793,6 +793,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `settleTargets`（fn）：戻り値：そのまま進めるなら対象、確認を出したら null（呼び出し側は中断する）。
 - `settleList`（fn）：「すべて」のように、一覧を作ってから適用する action 用。一覧のまま進めるなら一覧（付け替えたら絞った一覧）、確認を出したら null
+- `redirectReentryId`（fn）：付け替えの答えで再入したとき、元の指定で選ばれていた1体。再入でなければ undefined。
+- `settleOne`（fn）：1体が決まった後の付け替え。付け替え先（または元の1体）を返す。確認を出したら null（呼び出し側は中断する）。
 
 ## server/src/logic/destroyGate.ts
 

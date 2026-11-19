@@ -5,7 +5,8 @@ import { getCard, log, suspend } from "../GameState"
 import { effectiveBp, matchesTarget } from "../../../../shared/rules"
 import { pickEnemyCandidates, targetableSpirits } from "../targeting"
 import { lastTargetsOf, recordTargets } from "../record"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+import { settleTargets } from "../designation"
 
 const designateHandler: ActionHandler<"designate"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
@@ -21,21 +22,30 @@ const designateHandler: ActionHandler<"designate"> = (ctx, action) => {
         finish([])
         return
     }
+    // 指定が決まった時点で付け替えを挟む。付け替えた後の1体を直前の対象に書く（後続の「そのスピリット」はそちらを指す）
+    const settleAndFinish = (ids: string[], pool: string[]): void => {
+        const settled = settleTargets(ctx, action, ids, [...ids, ...pool], attemptOf(ctx, "other", "targeted"))
+        if (settled !== null) finish(settled)
+    }
     const matches = (s: Parameters<typeof matchesTarget>[2]): boolean => !chosen.includes(s.instanceId) && matchesTarget(state, pid, s, filter, self?.instanceId)
     // 相手のスピリットは装甲などの「指定されない」を通す（自分のスピリットには働かない）
     const candidates = action.side === "opponent" ? pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType) : targetableSpirits(state, owner, matches)
     const count = action.count ?? 1
+    if (action.picked?.settled === true) {
+        settleAndFinish(action.picked.ids, candidates.map((s) => s.instanceId))
+        return
+    }
     // 選択の解決（awaiting が付いているときだけ targetInstanceId を選ばれた個体として読む。素の targetInstanceId は誘発のイベント対象）
     if (action.awaiting) {
         const { awaiting: _a, ...rest } = action
         const picked = targetInstanceId !== undefined && candidates.some((s) => s.instanceId === targetInstanceId) ? [...chosen, targetInstanceId] : chosen
         // スキップ（「まで」で選ばずに終えた）か、選び終えた
-        if (picked.length === chosen.length || picked.length >= count) finish(picked)
+        if (picked.length === chosen.length || picked.length >= count) settleAndFinish(picked, candidates.map((s) => s.instanceId))
         else ctx.resolve({ ...rest, chosen: picked })
         return
     }
     if (chosen.length >= count || candidates.length === 0) {
-        finish(chosen)
+        settleAndFinish(chosen, candidates.map((s) => s.instanceId))
         return
     }
     // 候補2体以上なら聞く。「まで」は1体でも聞く（選ばずに終えられる）
@@ -54,7 +64,7 @@ const designateHandler: ActionHandler<"designate"> = (ctx, action) => {
     }
     // 非対話と選ぶ余地が無いとき：実効BPの高い順
     const ordered = [...candidates].sort((a, b) => effectiveBp(state, pid, b) - effectiveBp(state, pid, a))
-    finish([...chosen, ...ordered.slice(0, count - chosen.length).map((s) => s.instanceId)])
+    settleAndFinish([...chosen, ...ordered.slice(0, count - chosen.length).map((s) => s.instanceId)], candidates.map((s) => s.instanceId))
 }
 
 const handlers = {

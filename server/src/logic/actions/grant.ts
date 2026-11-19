@@ -3,6 +3,7 @@
 import { canBeTargeted } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { requestActivationConfirm, targetableSpirits, targetableNexuses } from "../targeting"
+import { redirectReentryId, settleOne } from "../designation"
 import { redirectMagicInUse } from "../magic/inUse"
 import { coreRemovalAllowed } from "../coreGate"
 import { handGainDenial } from "../handGate"
@@ -311,7 +312,7 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
         // 「相手のスピリット1体を指定する」＝対話中は常に持ち主が選ぶ（非対話は従来どおり自動。2026-10-02 ユーザー確認）
         const filter = normalizeFilter(ctx, action)
         const pool = filter === SELF_REQUIRED ? [] : pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, owner, s, filter, self?.instanceId), srcColors, srcType)
-        if (targetInstanceId === undefined && state.interactiveTargets && pool.length > 0) {
+        if (targetInstanceId === undefined && redirectReentryId(action) === undefined && state.interactiveTargets && pool.length > 0) {
             requestChoice(
                 state,
                 owner,
@@ -324,16 +325,20 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
             return
         }
         // ミストカーテン：対象の相手スピリットのアタックでは、このターン使用者のライフが減らない
-        const found = targetInstanceId
-            ? findSpiritAny(state, targetInstanceId)
+        const reentry = redirectReentryId(action)
+        const found0 = (reentry ?? targetInstanceId)
+            ? findSpiritAny(state, (reentry ?? targetInstanceId)!)
             : (() => {
                   const t = action.filter === undefined ? pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType) : pool[0]
                   return t ? { pid: opp, inst: t } : null
               })()
-        if (!found) {
+        if (!found0) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
+        const to = settleOne(ctx, action, found0.inst, pool.map((s) => s.instanceId), attemptOf(ctx, "other", "targeted"))
+        if (to === null) return
+        const found = { pid: found0.pid, inst: to }
         const resisted = gateTargetedApply(state, found.pid, found.inst, attemptOf(ctx, "other", "targeted"), action, self, sourceName)
         if (resisted === "asked") return
         if (resisted) {

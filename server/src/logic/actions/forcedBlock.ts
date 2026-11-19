@@ -13,6 +13,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { matchesTarget } from "../../../../shared/rules"
+import { redirectReentryId, settleOne } from "../designation"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const exhaustAndForceBlockHandler: ActionHandler<"exhaustAndForceBlock"> = (ctx, action) => {
@@ -30,8 +31,10 @@ const exhaustAndForceBlockHandler: ActionHandler<"exhaustAndForceBlock"> = (ctx,
     // 疲労状態でも選べる（疲労は起きないがブロックは強制される）。アタッカー自身は「アタックしていない」で除外
     const matches = (s: { instanceId: string }): boolean =>
         s.instanceId !== battle.attackerInstanceId && matchesTarget(state, opp, s as never, filter, self?.instanceId)
-    let target = targetInstanceId !== undefined ? findSpiritAny(state, targetInstanceId) : null
-    if (targetInstanceId === undefined) {
+    // 付け替えの答えで再入したら、選ばれていた元の1体（targetInstanceId は付け替え先の答え）
+    const reentry = redirectReentryId(action)
+    let target = reentry !== undefined || targetInstanceId !== undefined ? findSpiritAny(state, reentry ?? targetInstanceId!) : null
+    if (targetInstanceId === undefined && reentry === undefined) {
         const candidates = pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "exhaust")
         if (tryInteractiveTargetChoice(state, owner, self, `${sourceName}：疲労させてブロックさせる相手のスピリットを選んでください`, candidates, action, null)) return
         const picked = pickEnemyByBp(state, opp, Infinity, matches, srcColors, srcType, "exhaust")
@@ -42,6 +45,10 @@ const exhaustAndForceBlockHandler: ActionHandler<"exhaustAndForceBlock"> = (ctx,
         return
     }
     const attempt = attemptOf(ctx, "exhaust", "targeted")
+    const candidateIds = pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "exhaust").map((s) => s.instanceId)
+    const moved = settleOne(ctx, action, target.inst, candidateIds, attempt)
+    if (moved === null) return
+    target = { pid: target.pid, inst: moved }
     if (askPayToNegateIfNeeded(state, target.pid, target.inst, attempt, action, self, sourceName)) return
     const resisted = resistanceAgainst(state, target.pid, target.inst, attempt)
     if (resisted) {

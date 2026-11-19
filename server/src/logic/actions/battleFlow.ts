@@ -87,8 +87,9 @@ import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { affectableBraves, gateBraveTargets } from "../braveTargetGate"
+import { redirectReentryId, settleOne } from "../designation"
 import { countedAmount } from "../counted"
-import { lastTargetsOf, recordMoved } from "../record"
+import { currentRecordScope, lastTargetsOf, recordMoved } from "../record"
 
 const funsaiOnBlockHandler: ActionHandler<"funsaiOnBlock"> = (ctx) => {
     const { state, owner, self } = ctx
@@ -1518,16 +1519,27 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
     const { count: _c, countCounter: _cc, ...actionForChoice } = action
     const remainingAction =
         resolvedCount > 1 ? { ...actionForChoice, count: resolvedCount - 1 } : null
+    const reentry = redirectReentryId(action)
     if (
         targetInstanceId === undefined &&
+        reentry === undefined &&
         tryInteractiveTargetChoice(state, owner, self, prompt, candidates, actionForChoice, remainingAction)
     ) {
         return
     }
     // 非対話・候補1体：resolvedCount回、候補を毎回取り直して先頭を自動選択（盤面の変化を反映）
-    const chosen =
-        (targetInstanceId !== undefined ? candidates.find((c) => c.instanceId === targetInstanceId) : undefined) ??
+    const picked =
+        (targetInstanceId !== undefined && reentry === undefined ? candidates.find((c) => c.instanceId === targetInstanceId) : undefined) ??
+        (reentry !== undefined ? candidates.find((c) => c.instanceId === reentry) : undefined) ??
         candidates[0]!
+    const chosen = settleOne(ctx, actionForChoice, picked, candidates.map((c) => c.instanceId), attemptOf(ctx, op, "targeted"))
+    if (chosen === null) {
+        // 確認を出す前に積まれていない残り回数は、ここで積む（再入では最初の選択で積み済み）
+        if (reentry === undefined && remainingAction && state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "action", selfInstanceId: self ? self.instanceId : null, action: remainingAction, recordScope: currentRecordScope(state) }])
+        }
+        return
+    }
     removeOne(chosen, spirits, braves)
     for (let i = 1; i < resolvedCount; i++) {
         if (state.winner) return

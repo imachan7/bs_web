@@ -21,6 +21,7 @@
   - サンク系（サンク・ケット・シー・スノーホワイト・ティンカ）：付け替え先は「このスピリット」
   - 魔導書（封印された・開かれし）：お互いを対象にするマジックの効果を、片方の陣営だけに絞る
 - **「このターンの間、相手のスピリットすべては〜」も使った時点なら付け替えられ、付け替えた後はその1体だけに効く**（後から出たスピリットにも効かない。対象がその1体に置き換わるため。直接の裁定は無い。2026-11-19 ユーザー確認）
+- **同じ指定に付け替えの効果が2つ以上かかるときは、持ち主が使うものを選ぶ**（1つの指定で付け替えは1回。Q960）。各効果の付け替え先の候補をまとめて1回の確認にし、選ばれた個体を付け替え先にできる効果を使う（2026-11-19 ユーザー確認）
 - **サンク系も「すべて」の付け替えで相手側が外れる**（魔王城 Q23559 と同じ扱いにそろえる。2026-11-19 ユーザー合意）
 
 ## 2. 部品（2026-11-19 ユーザー合意）
@@ -69,6 +70,7 @@ export function settleTargets(ctx: ActionCtx, action: EffectAction & PickProgres
    - 2b-1 timedEffect の主な経路（#647）：①振り分けの末尾の汎用（相手N体に cantAttack 等）は「1体選ぶ→適用→次」をやめ、`pickTargets` で全部選んでから `settleTargets`→適用（#437 SP-1 と同じ）②`placeAny` は確定した集合を `settleList` ③`placeBp` は1体が決まった後に `settleTargets([その1体], 候補)`。付け替えの答えで再入したら `picked` から対象を取る ④`placeRule`（「すべて」のルール型）は今の該当個体を `settleList` に通し、付け替えたらその1体に置く記録（`apply`）へ切り替える
    - 2b-2 残りの place*：placeLevel・placeRule の Lv 分岐・placeSymbolOrCost・placeSymbolLossRule・placeColor・placeUnblockable・placeCountAs。形は 2b-1 の placeBp（1体）・placeRule（すべて）と同じ。battleLock はプレイヤーへの制限でスピリットを対象にしないので対象外
    - 未決：きっかけの出来事で対象が決まるもの（ベトール BS12-037「アタックしたとき、そのスピリットのBPを2000として扱う」の placeEventTargetBpAs）を付け替えられるか
+2c. **3 より先に**、1体ずつ耐性を見ている残りの経路（G2・G5 の個体指定。gateTargetedApply／resistanceAgainst を直接呼ぶ約16か所）に `settleOne`（designation.ts）を挟む。サンク系は今 `magicRedirectTo`＋耐性の入口で全経路に効いているので、先に指定の段を全経路に通さないと 3 で効かなくなる経路が出る
 3. サンク系・魔導書を `targetRedirect` に移し、`magicRedirectTo`・`magicRedirectDecision`・`magicSideDecision`・`magicTargetRedirect`・`bothSidesTargetRedirect` を消す
 4. 残り（G2・G5 のコア・指定アタック・持ち主が選ぶもの）
 

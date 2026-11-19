@@ -8,7 +8,7 @@ import { KEYWORDS, bravesOf, countAuraCounter, effectiveBp, instBaseCost, instHa
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
-import { settleList, settleTargets } from "../designation"
+import { redirectReentryId, settleList, settleOne, settleTargets } from "../designation"
 import { pickTargets } from "../pickTargets"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { lastMovedOf, lastTargetsOf } from "../record"
@@ -135,16 +135,14 @@ function pickOwnBpTarget(state: GameState, owner: PlayerId, filter: ResolvedTarg
     return mine[0] ?? null
 }
 
-// 1体が決まった後の付け替え。付け替えの答えでの再入（picked.settled）は選び直さず、picked の対象から決める。確認を出したら null。
-// matches＝その指定で取りえる相手側の候補の条件（付け替え先は candidates に入るものに限られる）
-function settleOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, target: CardInstance | undefined, matches: (s: CardInstance) => boolean): CardInstance | undefined | null {
+// matches＝その指定で取りえる相手側の候補の条件。再入（付け替えの答え）では picked の1体を元の対象にする
+function settleOneTimed(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, target: CardInstance | undefined, matches: (s: CardInstance) => boolean): CardInstance | undefined | null {
     const { state, opp, srcColors, srcType } = ctx
-    const ids = action.picked?.settled === true ? action.picked.ids : target ? [target.instanceId] : []
-    if (ids.length === 0) return target
+    const reentry = redirectReentryId(action)
+    const from = reentry !== undefined ? findSpiritAny(state, reentry)?.inst : target
+    if (!from) return target
     const candidates = pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType).map((s) => s.instanceId)
-    const settled = settleTargets(ctx, action, ids, candidates, attemptOf(ctx, "other", "targeted"))
-    if (settled === null) return null
-    return (settled[0] !== undefined ? findSpiritAny(state, settled[0])?.inst : undefined) ?? target
+    return settleOne(ctx, action, from, candidates, attemptOf(ctx, "other", "targeted"))
 }
 
 // 1体を指定するBP変更。対象選択の優先順：
@@ -479,7 +477,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
             log(state, `${sourceName}：対象が条件を満たさなかった。`)
             return
         }
-        const moved = settleOne(ctx, action, found.inst, (s) => passes(s, opp))
+        const moved = settleOneTimed(ctx, action, found.inst, (s) => passes(s, opp))
         if (moved === null) return
         found = (moved ? findSpiritAny(state, moved.instanceId) : undefined) ?? found
         if (gated(found.inst, found.pid)) return
@@ -491,7 +489,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     let target: CardInstance | undefined
     if (action.picked?.settled === true || targetInstanceId !== undefined) {
         let found = findSpiritAny(state, action.picked?.settled === true ? action.picked.ids[0]! : targetInstanceId!)
-        const moved = settleOne(ctx, action, found?.inst, () => true)
+        const moved = settleOneTimed(ctx, action, found?.inst, () => true)
         if (moved === null) return
         found = (moved ? findSpiritAny(state, moved.instanceId) : undefined) ?? found
         if (found && gated(found.inst, found.pid)) return
@@ -568,7 +566,7 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     }
     let found = findSpiritAny(state, reentry ? action.picked!.ids[0]! : targetInstanceId!)
     if (!found) return
-    const moved = settleOne(ctx, action, found.inst, () => true)
+    const moved = settleOneTimed(ctx, action, found.inst, () => true)
     if (moved === null) return
     found = (moved ? findSpiritAny(state, moved.instanceId) : undefined) ?? found
     const r = gateTargetedApply(state, found.pid, found.inst, attemptOf(ctx, "other", "targeted"), action, self, sourceName)
@@ -686,7 +684,7 @@ function placeCountAs(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: 
     let found = reentry ? findSpiritAny(state, action.picked!.ids[0]!) : targetInstanceId ? findSpiritAny(state, targetInstanceId) : pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
     const c = action.content.find((x): x is Extract<Content, { type: "countAs" }> => x.type === "countAs")
     if (found) {
-        const moved = settleOne(ctx, action, found.inst, () => true)
+        const moved = settleOneTimed(ctx, action, found.inst, () => true)
         if (moved === null) return
         found = (moved ? findSpiritAny(state, moved.instanceId) : undefined) ?? found
     }
@@ -848,7 +846,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
         let target: CardInstance | undefined
         if (action.picked?.settled === true || targetInstanceId !== undefined) {
             target = findSpiritAny(state, action.picked?.settled === true ? action.picked.ids[0]! : targetInstanceId!)?.inst
-            const moved = settleOne(ctx, action, target, () => true)
+            const moved = settleOneTimed(ctx, action, target, () => true)
             if (moved === null) return
             target = moved
         } else {
@@ -889,7 +887,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
     if (action.picked?.settled === true || targetInstanceId !== undefined) {
         const found = findSpiritAny(state, action.picked?.settled === true ? action.picked.ids[0]! : targetInstanceId!)
         if (found && matchesFilter(found.inst, found.pid)) {
-            const moved = settleOne(ctx, action, found.inst, (s) => matchesFilter(s, opp))
+            const moved = settleOneTimed(ctx, action, found.inst, (s) => matchesFilter(s, opp))
             if (moved === null) return
             target = moved ?? null
         }

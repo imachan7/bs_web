@@ -3,7 +3,7 @@
 import { targetableSpirits, targetableNexuses } from "../targeting"
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
-import { settleList } from "../designation"
+import { redirectReentryId, settleList, settleOne } from "../designation"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, log, minLevelCores } from "../GameState"
@@ -296,12 +296,16 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
         }
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
         if (targetInstanceId && !action.excludeTarget && !action.choosing && !action.picked) {
-            const found = findSpiritAny(state, targetInstanceId)
-            if (!found) {
+            const found0 = findSpiritAny(state, targetInstanceId)
+            if (!found0) {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                 return
             }
             const exhaustAttempt = attemptOf(ctx, "exhaust", "targeted")
+            // 付け替えの答えで再入すると picked が立つので、この分岐には来ない（汎用の選択経路が picked を読む）
+            const moved = settleOne(ctx, action, found0.inst, pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust").map((s) => s.instanceId), exhaustAttempt)
+            if (moved === null) return
+            const found = findSpiritAny(state, moved.instanceId) ?? found0
             // excludeIds 付き＝count 体を1体ずつ選んでいる途中。この1体の処理が済んだら（受けなかった場合も含め）残りを選び直す
             const chainNext = (): void => {
                 if (action.excludeIds === undefined || action.count <= 1) return
@@ -511,15 +515,21 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: ExhaustNum): void {
             owner,
             `${sourceName}：疲労させる相手の${label}を選んでください（あと${remaining}つまで）`,
             [...spiritCandidates(), ...nexusCandidates()].map((c) => c.instanceId),
-            { ...action, count: remaining },
+            { ...withoutPicked(action), count: remaining },
             self,
         )
     }
 
     if (targetInstanceId !== undefined) {
-        const nexus = nexusCandidates().find((n) => n.instanceId === targetInstanceId)
-        const spirit = nexus ? undefined : spiritCandidates().find((s) => s.instanceId === targetInstanceId)
+        // 付け替えの答えで再入したら、選ばれていた元の1体を付け替える（ctx.targetInstanceId は付け替え先の答え）
+        const reentry = redirectReentryId(action)
+        const fromId = reentry ?? targetInstanceId
+        const nexus = nexusCandidates().find((n) => n.instanceId === fromId)
+        let spirit = nexus ? undefined : spiritCandidates().find((s) => s.instanceId === fromId)
         if (spirit) {
+            const moved = settleOne(ctx, action, spirit, spiritCandidates().map((s) => s.instanceId), attemptOf(ctx, "exhaust", "targeted"))
+            if (moved === null) return
+            spirit = moved
             // 候補の列挙は数えるだけ（probing）。払う耐性の確認と判定は、適用するこの1体で行う
             const gate = gateTargetedApply(state, opp, spirit, attemptOf(ctx, "exhaust", "targeted"), action, self, sourceName)
             if (gate === "asked") return
@@ -661,29 +671,35 @@ const heavyExhaustHandler: ActionHandler<"heavyExhaust"> = (ctx, action) => {
     const count = action.count ?? 1
     const candidates = (): CardInstance[] =>
         pickEnemyCandidates(state, opp, Infinity, (s) => !s.heavyRested && matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType, "exhaust")
-    const apply = (target: CardInstance): void => {
+    // false＝付け替えの確認を出した（呼び出し側は中断する）
+    const apply = (from: CardInstance): boolean => {
+        const target = settleOne(ctx, action, from, candidates().map((s) => s.instanceId), attemptOf(ctx, "exhaust", "targeted"))
+        if (target === null) return false
         const resisted = resistanceAgainst(state, opp, target, attemptOf(ctx, "exhaust", "targeted"))
         if (resisted) {
             log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-            return
+            return true
         }
         if (action.escalate && !target.isRested) {
             exhaustSpirit(state, opp, target, undefined, owner, srcType)
             log(state, exhaustLog(sourceName, getCard(target.cardId).name, false))
-            return
+            return true
         }
         heavyExhaustSpirit(state, opp, target, owner, srcType)
         if (target.heavyRested) log(state, `${sourceName}の効果で、${getCard(target.cardId).name}は重疲労した。`)
+        return true
     }
     const prompt = (n: number): string =>
         `${sourceName}：重疲労させる${action.chooserIsTarget ? "自分" : "相手"}のスピリットを選んでください（あと${n}体${action.upTo ? "まで" : ""}）`
     const chooser = action.chooserIsTarget ? opp : undefined
     // 選択の解決として再入した（upTo は1体ずつ残数で聞き直す。それ以外の残りは resume スタックが持つ）
-    if (action.chosenByPlayer && targetInstanceId !== undefined) {
-        const chosen = candidates().find((s) => s.instanceId === targetInstanceId)
-        if (chosen) apply(chosen)
+    // 付け替えの答えで再入したときは、選ばれていた元の1体（ctx.targetInstanceId は付け替え先の答え）
+    const reentry = redirectReentryId(action)
+    if ((action.chosenByPlayer && targetInstanceId !== undefined) || reentry !== undefined) {
+        const chosen = reentry !== undefined ? findSpiritAny(state, reentry)?.inst : candidates().find((s) => s.instanceId === targetInstanceId)
+        if (chosen && !apply(chosen)) return
         if (action.upTo && count > 1) {
-            requestUpToChoice(state, owner, prompt(count - 1), candidates().map((s) => s.instanceId), { ...action, count: count - 1 }, self, chooser)
+            requestUpToChoice(state, owner, prompt(count - 1), candidates().map((s) => s.instanceId), { ...withoutPicked(action), count: count - 1 }, self, chooser)
         }
         return
     }
@@ -702,7 +718,8 @@ const heavyExhaustHandler: ActionHandler<"heavyExhaust"> = (ctx, action) => {
     // 非対話（と候補1体）：実効BP最大から count 体（相手が選ぶときは最小から）
     const sign = action.chooserIsTarget ? -1 : 1
     const ordered = [...list].sort((a, b) => sign * (effectiveBp(state, opp, b) - effectiveBp(state, opp, a)))
-    for (const target of ordered.slice(0, count)) apply(target)
+    // 付け替えの確認で中断したら、残りの対象は処理しない（簡略化。count 2 以上で自動選択に落ちた場合だけ）
+    for (const target of ordered.slice(0, count)) if (!apply(target)) return
 }
 
 const refreshOneHandler = (ctx: ActionCtx, action: Extract<EffectAction, { type: "refresh" }>): void => {
@@ -867,6 +884,12 @@ function applyLevelUpThisTurn(state: GameState, target: CardInstance): void {
     log(state, `${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`)
 }
 
+// 付け替えの答えを運ぶ picked を、次の選択へ持ち越さない
+function withoutPicked<A extends { picked?: unknown }>(action: A): Omit<A, "picked"> {
+    const { picked: _p, ...rest } = action
+    return rest
+}
+
 const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName , srcType } = ctx
         // スクルディア：このスピリットが疲労したとき、相手の疲労状態のスピリット1体を指定する。
@@ -886,6 +909,7 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
         }
         if (
             ctx.targetInstanceId === undefined &&
+            redirectReentryId(action) === undefined &&
             tryInteractiveTargetChoice(
                 state,
                 owner,
@@ -898,11 +922,16 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
         ) {
             return
         }
-        const target =
-            (ctx.targetInstanceId !== undefined
-                ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+        // 付け替えの答えで再入したら、選ばれていた元の1体（ctx.targetInstanceId は付け替え先の答え）
+        const reentry = redirectReentryId(action)
+        const chosenId = reentry ?? ctx.targetInstanceId
+        const from =
+            (chosenId !== undefined
+                ? candidates.find((s) => s.instanceId === chosenId)
                 : undefined) ??
             candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
+        const target = settleOne(ctx, action, from, candidates.map((s) => s.instanceId), attemptOf(ctx, "other", "targeted"))
+        if (target === null) return
         const gate = gateTargetedApply(state, opp, target, attemptOf(ctx, "other", "targeted"), action, self, sourceName)
         if (gate === "asked") return
         if (gate) {
