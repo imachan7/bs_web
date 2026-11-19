@@ -50,6 +50,7 @@ import { countedAmount } from "../counted"
 import { tryNexusReviveOnDestroy } from "../revive"
 import { recordDestroysOf, resolveHandFreeSummonOnDestroy } from "../removal"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
+import { settleList } from "../designation"
 import { destroyDenial } from "../destroyGate"
 import { soulCoreLeavesField, wouldDeplete } from "../soulCore"
 import { currentRecordScope, lastMovedOf, recordDestroyedCount, recordLeftCost, recordMoved, recordNexusCost } from "../record"
@@ -447,7 +448,7 @@ export function destroyAllTargetList(ctx: ActionCtx, action: AllTargetsSpec): { 
 // 「すべて」の破壊は範囲の効果（attempt が "area"）。1体を対象に取る destroy とは耐性の判定が違うので、destroy{all} もここを通す
 function destroyAllTargets(
     ctx: ActionCtx,
-    action: AllTargetsSpec & { drawPerDestroyed?: number; millPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true },
+    action: Extract<EffectAction, { type: "destroy" }>,
 ): void {
     const { state, sourceName } = ctx
         const list = destroyAllTargetList(ctx, action)
@@ -455,7 +456,9 @@ function destroyAllTargets(
             log(state, `${sourceName}：BP参照元がいなかった。`)
             return
         }
-        destroyTargetList(ctx, list, action)
+        const settled = settleList(ctx, action, list, attemptOf(ctx, "destroy", "area"))
+        if (settled === null) return
+        destroyTargetList(ctx, settled, action)
 }
 
 // まとめた破壊。1体ごとに「復活しますか」で中断できる（中断したら destroyBatch フレームを積んで抜ける）

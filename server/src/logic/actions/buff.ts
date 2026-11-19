@@ -22,6 +22,7 @@ import {
 import { isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { kyokaBonus } from "../keywords/kyoka"
+import { settleList } from "../designation"
 
 
 // BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
@@ -56,8 +57,9 @@ const bpMinus: ActionHandler<"bpMinus"> = (ctx, action) => {
     if (filter === SELF_REQUIRED) return
     const amount = action.amount + (action.per ? countEffectCounter(state, owner, self, action.per.counter, srcType) * action.per.amount : 0) + kyokaBonus(state, owner, "bpMinus") * 1000
     if (action.all) {
-        const hit = targetableSpirits(state, opp, (s) => matchesTarget(state, opp, s, filter, self?.instanceId))
-        for (const t of hit) {
+        const settled = settleList(ctx, action, targetableSpirits(state, opp, (s) => matchesTarget(state, opp, s, filter, self?.instanceId)), attemptOf(ctx, "other", "area"))
+        if (settled === null) return
+        for (const t of settled) {
             const resisted = resistanceAgainst(state, opp, t, attemptOf(ctx, "other", "area"))
             if (resisted) {
                 log(state, `${getCard(t.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)

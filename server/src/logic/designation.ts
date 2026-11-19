@@ -71,3 +71,15 @@ export function settleTargets(
     })
     return null
 }
+
+// 「すべて」のように、一覧を作ってから適用する action 用。一覧のまま進めるなら一覧（付け替えたら絞った一覧）、確認を出したら null
+export function settleList<T extends { instanceId: string }>(
+    ctx: ActionCtx,
+    action: EffectAction & PickProgress,
+    list: T[],
+    attempt: EffectAttempt,
+): T[] | null {
+    const ids = list.map((t) => t.instanceId)
+    const settled = settleTargets(ctx, action, ids, ids, attempt)
+    return settled === null ? null : list.filter((t) => settled.includes(t.instanceId))
+}

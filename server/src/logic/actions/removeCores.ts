@@ -22,6 +22,7 @@ import { coreRemovalAllowed } from "../coreGate"
 import { coreZoneChoiceId, coresToOpponentReserveGoToTrash, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
+import { settleList } from "../designation"
 import { recordCores, recordEmptiedSpirits, recordLeftCost, recordMoved, lastEmptiedSpiritsOf } from "../record"
 import { canPayLife, lifeCostQuery, lifeLossAllowed, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import { kyokaBonus } from "../keywords/kyoka"
@@ -319,11 +320,21 @@ const resolveAllTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         log(state, `${sourceName}のコア除去：対象がいなかった。`)
         return
     }
+    // 付け替えの確認。決まった後の再入（ソウルコアの質問など）は picked.ids をそのまま使う
+    const decided = action.picked !== undefined && action.picked.settled !== true
+    const settledList = decided
+        ? list.filter((t) => action.picked!.ids.includes(t.inst.instanceId))
+        : settleList(ctx, action, list.map((t) => ({ ...t, instanceId: t.inst.instanceId })), attemptOf(ctx, "coreRemove", "area"))
+    if (settledList === null) return
+    if (!decided) {
+        const ids = settledList.map((t) => t.inst.instanceId)
+        action = { ...action, picked: { ids, passed: ids, failed: [] } }
+    }
     // 1体も動かす前に全員ぶん聞き終える（中断後の再入で二重に取り除かないため）
-    for (const { pid, inst } of list) {
+    for (const { pid, inst } of settledList) {
         if (amountFor(inst, count, action.leaveAtLeast) > 0 && soulFor(ctx, action, pid, inst, to) === "asked") return
     }
-    for (const { pid, inst } of list) {
+    for (const { pid, inst } of settledList) {
         const amount = amountFor(inst, count, action.leaveAtLeast)
         if (amount <= 0) continue
         applyToIndividual(ctx, pid, inst, amount, to, soulFor(ctx, action, pid, inst, to) === true)
@@ -617,9 +628,23 @@ const resolveSpread = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     }
     const totalWanted = count === "all" ? Number.POSITIVE_INFINITY : (count as number)
 
+    // 付け替えの確認（スピリット・ネクサスの候補が対象）。決まった後は picked.ids の外の候補を除く。
+    // リザーブ・トラッシュは場のカードではないので付け替えの対象にしない
+    const fieldIds = (): string[] =>
+        spreadCandidatesFor(ctx, pids, from, filter, action.leaveAtLeast).flatMap((c) => (c.inst ? [c.inst.instanceId] : []))
+    if (action.picked === undefined || action.picked.settled === true) {
+        const settled = settleList(ctx, action, fieldIds().map((instanceId) => ({ instanceId })), attemptOf(ctx, "coreRemove", "area"))
+        if (settled === null) return
+        const ids = settled.map((t) => t.instanceId)
+        action = { ...action, picked: { ids, passed: ids, failed: [] } }
+    }
+    const decidedIds = action.picked!.ids
+    const candidatesOf = (): RemoveSource[] =>
+        spreadCandidatesFor(ctx, pids, from, filter, action.leaveAtLeast).filter((c) => c.inst === undefined || decidedIds.includes(c.inst.instanceId))
+
     const step = (left: number, excludeIds: string[]): void => {
         if (state.winner || left <= 0) return
-        const candidates = spreadCandidatesFor(ctx, pids, from, filter, action.leaveAtLeast).filter(
+        const candidates = candidatesOf().filter(
             (c) => !excludeIds.includes(sourceIdOf(c)),
         )
         if (candidates.length === 0) return
@@ -651,7 +676,7 @@ const resolveSpread = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     // 対話の再入：選ばれた1つから1個取り、続きを解決する
     const reTarget = targetInstanceId ?? action.soulChoiceTarget
     if (action.spreadRemaining !== undefined && reTarget !== undefined) {
-        const candidates = spreadCandidatesFor(ctx, pids, from, filter, action.leaveAtLeast)
+        const candidates = candidatesOf()
         const chosen = candidates.find((c) => sourceIdOf(c) === reTarget)
         if (chosen) {
             const soul = chosen.kind === "spirit" ? soulFor(ctx, action, chosen.pid, chosen.inst!, to) : false

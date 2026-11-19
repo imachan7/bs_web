@@ -14,7 +14,8 @@ import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, 
 import { matchesPick } from "./revealAction"
 import { destroyAllTargetList, destroyTargetList, ownSideDestroyCandidates } from "./destroy"
 import { returnToHandCandidateCountForPay } from "./bounce"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+import { settleList } from "../designation"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
@@ -151,7 +152,7 @@ const simultaneousHandler: ActionHandler<"simultaneous"> = (ctx, action) => {
         return
     }
     const picked = [...(action.chosenIds ?? [])]
-    if (action.choosing && ctx.targetInstanceId !== undefined) picked.push(ctx.targetInstanceId)
+    if (action.choosing && ctx.targetInstanceId !== undefined && action.picked?.settled !== true) picked.push(ctx.targetInstanceId)
     const targets: { pid: PlayerId; instanceId: string }[] = []
     const add = (pid: PlayerId, instanceId: string): void => {
         if (!targets.some((x) => x.instanceId === instanceId)) targets.push({ pid, instanceId })
@@ -185,7 +186,10 @@ const simultaneousHandler: ActionHandler<"simultaneous"> = (ctx, action) => {
             add(owner, id)
         }
     }
-    destroyTargetList(ctx, targets)
+    // 同時に指定された対象を1回の指定として扱う（TARGET_REDIRECT.md §3.2 C）
+    const settled = settleList(ctx, action, targets, attemptOf(ctx, "destroy", "area"))
+    if (settled === null) return
+    destroyTargetList(ctx, settled)
 }
 
 // 【Re覚醒】覚醒モードを開く印（26系）。pendingChoiceを立てずログのみのno-op。

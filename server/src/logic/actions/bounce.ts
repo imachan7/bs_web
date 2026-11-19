@@ -5,6 +5,7 @@ import { takeFromTrash } from "../zones/trash"
 import { handGainDenial } from "../handGate"
 import { bounceDenial } from "../bounceGate"
 import { gatePickedTargets, pickTargets } from "../pickTargets"
+import { settleList } from "../designation"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
@@ -198,7 +199,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
             return
         }
         if (action.all) {
-            returnAllTargetsToHand(ctx, { side: action.anySide ? "both" : "opponent", ...(action.filter ? { filter: action.filter } : {}) })
+            returnAllTargetsToHand(ctx, { side: action.anySide ? "both" : "opponent", ...(action.filter ? { filter: action.filter } : {}) }, action)
             return
         }
         // BS15共通器：globalConstraint "noHandGainByEffect" が効いている間は、バウンス効果自体が
@@ -538,6 +539,7 @@ const returnToHandEachHeavyArmorColorHandler: ActionHandler<"returnToHandEachHea
 function returnAllTargetsToHand(
     ctx: ActionCtx,
     action: { side: "opponent" | "both"; costFilter?: { max?: number; min?: number }; filter?: TargetFilter },
+    source: Extract<EffectAction, { type: "return"; to: "hand" }>,
 ): void {
     const { state, opp, self, sourceName, srcType } = ctx
         // 1体版と同じく、手札を増やせない間は発揮しない（全員が場に残る。2026-09-24 ユーザー確認）
@@ -555,20 +557,23 @@ function returnAllTargetsToHand(
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         let returned = 0
         const moved: string[] = []
+        const list: { pid: PlayerId; s: CardInstance; instanceId: string }[] = []
         for (const pid of sides) {
-            // returnSpiritToHand が field.spirits を破壊的に変更するため、対象をスナップショットしてから戻す
-            const targets = targetableSpirits(state, pid, (s) => {
+            for (const s of targetableSpirits(state, pid, (s) => {
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instMatchesCostFilter(s, action.costFilter)) return false
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) return false
                 if (isResisted(state, pid, s, attemptOf(ctx, "bounce", "area"))) return false
                 return true
-            })
-            for (const s of targets) {
-                markBounce(state, pid, s, "hand", sourceName)
-                moved.push(s.cardId)
-                returned++
-            }
+            })) list.push({ pid, s, instanceId: s.instanceId })
+        }
+        const settled = settleList(ctx, source, list, attemptOf(ctx, "bounce", "area"))
+        if (settled === null) return
+        // markBounce は待機させるだけで場を変えないので、一覧のまま順に待機させてよい
+        for (const t of settled) {
+            markBounce(state, t.pid, t.s, "hand", sourceName)
+            moved.push(t.s.cardId)
+            returned++
         }
         // 全部を待機させてから一度に戻す（「戻ったとき」の誘発は全部戻ってからまとめて発揮する）
         flushBounces(state)
@@ -597,20 +602,33 @@ function returnAllMatchingToDeck(ctx: ActionCtx, action: DeckReturnAction, posit
         // まだ順番を決めていない対象を集める。耐性の判定とログは**1周目だけ**行う
         // （判定結果は途中で変わらないので、選ぶたびに同じログを出さない）
         const firstPass = action.orderedIds === undefined
+        // 付け替えの答えが出た後（picked がある）は、同じログを重ねない
+        const logResisted = firstPass && action.picked === undefined
         const remaining: CardInstance[] = []
         for (const s of pool) {
             if (ordered.includes(s.instanceId)) continue
+            // 付け替えで絞られた後は、絞った一覧だけを順番の対象にする
+            if (action.picked !== undefined && !firstPass && !action.picked.ids.includes(s.instanceId)) continue
             const resisted = resistanceAgainst(state, targetPid, s, attemptOf(ctx, "bounce", "area"))
             if (resisted) {
-                if (firstPass) {
+                if (logResisted) {
                     log(state, `${getCard(s.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 }
                 continue
             }
             remaining.push(s)
         }
+        // 付け替えの確認は最初の1回だけ。絞った結果は picked に持たせ、順番の聞き直しにも引き継ぐ。
+        // targetInstanceId が付け替えの答えなのは1周目の再入だけ（2周目以降は順番の答え）
+        const answeredRedirect = firstPass && action.picked?.settled === true
+        if (firstPass) {
+            const settled = settleList(ctx, action, remaining, attemptOf(ctx, "bounce", "area"))
+            if (settled === null) return
+            remaining.splice(0, remaining.length, ...settled)
+            action = { ...action, picked: { ids: settled.map((s) => s.instanceId), passed: [], failed: [], settled: true } }
+        }
         // 選択から戻ってきた：選ばれた1体を順番の末尾に積んで、残りを聞き直す
-        if (targetInstanceId !== undefined && remaining.some((s) => s.instanceId === targetInstanceId)) {
+        if (!answeredRedirect && targetInstanceId !== undefined && remaining.some((s) => s.instanceId === targetInstanceId)) {
             ctx.resolve(
                 { ...action, orderedIds: [...ordered, targetInstanceId] },
                 { sourceColors: srcColors, sourceType: srcType },
