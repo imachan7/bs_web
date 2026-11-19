@@ -740,13 +740,34 @@ input[type="text"] {
     flex-shrink: 0;
 }
 
+.row-plus {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    line-height: 1;
+    font-size: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.row-plus:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.pool-more {
+    grid-column: 1 / -1;
+    padding: 10px;
+}
+
 .row-minus:hover {
     background: #e05d5d;
 }
 
 /* モバイル（ホバー不可端末）ではさらにタップ領域を拡大 */
 @media (hover: none) {
-    .row-minus {
+    .row-minus,
+    .row-plus {
         width: 44px;
         height: 44px;
         font-size: 18px;

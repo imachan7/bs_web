@@ -12,17 +12,10 @@ import { attachCardArt, installSecretCardArt } from "./cardArt"
 
 const MAX_COPIES = 3 // 同名カードの上限枚数
 const STORAGE_KEY = "bsweb:decks"
-const MAX_COST = 8 // 第一弾の最大コスト（コストカーブ表示用）
+const POOL_PAGE = 200 // カード一覧の段階表示の1回分
+const COST_CHIP_MAX = 8 // コストのチップは 0〜7 と「8以上」
 
 const TYPE_LABELS = CARD_TYPE_LABELS // 表の実体は data/constants.ts（renderer と共有）
-
-// フィルタ用のコスト帯（チップの data-cost と同じ並び）
-const COST_BANDS: ReadonlyArray<{ min: number; max: number }> = [
-    { min: 0, max: 2 },
-    { min: 3, max: 4 },
-    { min: 5, max: 6 },
-    { min: 7, max: Infinity },
-]
 
 const SERIES_LABELS: Record<string, string> = {
     "BS01": "第一弾",
@@ -74,7 +67,9 @@ let deck = new Map<string, number>()
 // フィルタ状態（空 = 全て表示）
 const filterColors = new Set<Color>()
 const filterTypes = new Set<CardType>()
-const filterCosts = new Set<number>() // COST_BANDS のインデックス
+const filterCosts = new Set<number>() // COST_CHIP_MAX は「それ以上」
+const filterFlags = new Set<string>() // "burst" | "flash"（選んだものすべてを満たすカード）
+let poolLimit = POOL_PAGE
 let filterSeries = ""
 let filterKeywords = ""
 let filterFamily = ""
@@ -178,15 +173,11 @@ function passesFilter(card: CardData): boolean {
     if (filterColors.size > 0 && !card.colors.some((c) => filterColors.has(c))) return false
     if (filterTypes.size > 0 && !filterTypes.has(card.type)) return false
     if (filterCosts.size > 0) {
-        let hit = false
-        for (const idx of filterCosts) {
-            const band = COST_BANDS[idx]
-            if (band && card.cost >= band.min && card.cost <= band.max) {
-                hit = true
-            }
-        }
+        const hit = card.cost >= COST_CHIP_MAX ? filterCosts.has(COST_CHIP_MAX) : filterCosts.has(card.cost)
         if (!hit) return false
     }
+    if (filterFlags.has("burst") && !card.effects.some((e) => e.kind === "burst")) return false
+    if (filterFlags.has("flash") && card.flash !== true) return false
     if (filterSeries !== "" && seriesOf(card.cardId) !== filterSeries) return false
     if (filterKeywords !== "") {
         let hasKw = false
@@ -199,7 +190,7 @@ function passesFilter(card: CardData): boolean {
         if (!hasKw) return false
     }
     if (filterFamily !== "" && !card.family.includes(filterFamily)) return false
-    if (searchText !== "" && !card.name.includes(searchText)) return false
+    if (searchText !== "" && !card.name.includes(searchText) && !(card.effect ?? "").includes(searchText)) return false
     
     if (filterNotes.size > 0) {
         const note = cardNotes[card.cardId]
@@ -209,7 +200,9 @@ function passesFilter(card: CardData): boolean {
     return true
 }
 
-function renderPool(): void {
+// keepLimit=true は「もっと見る」からの再描画。絞り込みが変わったときは先頭の1ページに戻す
+function renderPool(keepLimit = false): void {
+    if (!keepLimit) poolLimit = POOL_PAGE
     const grid = $("pool-grid")
     grid.textContent = ""
     let visible = cards.filter(passesFilter)
@@ -222,7 +215,7 @@ function renderPool(): void {
         visible.sort((a, b) => a.cardId.localeCompare(b.cardId))
     }
 
-    for (const card of visible) {
+    for (const card of visible.slice(0, poolLimit)) {
         const el = document.createElement("div")
         el.className = "pool-card"
         el.dataset.cardId = card.cardId
@@ -324,6 +317,17 @@ function renderPool(): void {
         el.appendChild(removeBtn)
 
         grid.appendChild(el)
+    }
+
+    if (visible.length > poolLimit) {
+        const more = document.createElement("button")
+        more.className = "pool-more"
+        more.textContent = `もっと見る（残り${visible.length - poolLimit}件）`
+        more.addEventListener("click", () => {
+            poolLimit += POOL_PAGE
+            renderPool(true)
+        })
+        grid.appendChild(more)
     }
 
     $("pool-count").textContent = `${visible.length} / ${cards.length} 枚を表示中`
@@ -596,15 +600,18 @@ function toggleDetail(card: CardData, anchor: HTMLElement): void {
 
 // ---- デッキ面 ----
 
+// 追加できない理由（できるなら null）。addCard のトーストと＋ボタンの無効化で共有する
+function addBlockReason(card: CardData): string | null {
+    if (card.limited) return `${card.name} は禁止カードのためデッキに入れられません`
+    if (nameCount(card.name) >= nameLimit(card.name)) return `同名カードは${nameLimit(card.name)}枚までです（${card.name}）`
+    return null
+}
+
 function addCard(cardId: string): void {
     const card = master(cardId)
-    if (card.limited) {
-        showToast(`${card.name} は禁止カードのためデッキに入れられません`)
-        return
-    }
-
-    if (nameCount(card.name) >= nameLimit(card.name)) {
-        showToast(`同名カードは${nameLimit(card.name)}枚までです（${card.name}）`)
+    const blocked = addBlockReason(card)
+    if (blocked !== null) {
+        showToast(blocked)
         return
     }
     deck.set(cardId, (deck.get(cardId) ?? 0) + 1)
@@ -721,11 +728,6 @@ function renderDeck(): void {
         type.textContent = TYPE_LABELS[card.type]
         row.appendChild(type)
 
-        const countEl = document.createElement("span")
-        countEl.className = "row-count"
-        countEl.textContent = `×${count}`
-        row.appendChild(countEl)
-
         const minus = document.createElement("button")
         minus.className = "row-minus"
         minus.textContent = "−"
@@ -735,6 +737,23 @@ function renderDeck(): void {
             removeCard(cardId)
         })
         row.appendChild(minus)
+
+        const countEl = document.createElement("span")
+        countEl.className = "row-count"
+        countEl.textContent = `×${count}`
+        row.appendChild(countEl)
+
+        const plus = document.createElement("button")
+        plus.className = "row-plus"
+        plus.textContent = "＋"
+        const blocked = addBlockReason(card)
+        plus.disabled = blocked !== null
+        plus.title = blocked ?? "1枚増やす"
+        plus.addEventListener("click", (e) => {
+            e.stopPropagation()
+            addCard(cardId)
+        })
+        row.appendChild(plus)
 
         // ホバーおよびクリックで詳細表示
         row.addEventListener("mouseenter", () => {
@@ -755,9 +774,10 @@ function renderStats(): void {
     // コストカーブ（コスト別枚数の簡易バー）
     const curve = $("cost-curve")
     curve.textContent = ""
-    const byCost = new Array<number>(MAX_COST + 1).fill(0)
+    const maxCost = Math.max(...cards.map((c) => c.cost))
+    const byCost = new Array<number>(maxCost + 1).fill(0)
     for (const [cardId, count] of deck) {
-        const cost = Math.min(master(cardId).cost, MAX_COST)
+        const cost = master(cardId).cost
         byCost[cost] = (byCost[cost] ?? 0) + count
     }
     const peak = Math.max(1, ...byCost)
@@ -767,7 +787,7 @@ function renderStats(): void {
 
         const label = document.createElement("span")
         label.className = "curve-label"
-        label.textContent = cost === MAX_COST ? `${MAX_COST}+` : String(cost)
+        label.textContent = String(cost)
         row.appendChild(label)
 
         const track = document.createElement("div")
@@ -1264,6 +1284,19 @@ function setupFilterChips(): void {
             renderPool()
         })
     }
+    for (const btn of $("filter-flags").querySelectorAll<HTMLButtonElement>(".chip")) {
+        btn.addEventListener("click", () => {
+            const flag = btn.dataset.flag as string
+            if (filterFlags.has(flag)) {
+                filterFlags.delete(flag)
+                btn.classList.remove("active")
+            } else {
+                filterFlags.add(flag)
+                btn.classList.add("active")
+            }
+            renderPool()
+        })
+    }
     for (const btn of $("filter-notes").querySelectorAll<HTMLButtonElement>(".chip")) {
         btn.addEventListener("click", () => {
             const note = btn.dataset.note as NoteStatus
@@ -1296,6 +1329,7 @@ function setupFilterChips(): void {
         filterColors.clear()
         filterTypes.clear()
         filterCosts.clear()
+        filterFlags.clear()
         filterNotes.clear()
         
         filterSeries = ""
