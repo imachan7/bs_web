@@ -308,6 +308,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
             ctx,
             { ...actionForChoice, count: resolvedCount },
             ids,
+            pool.map((sp) => sp.instanceId),
             (id) => findSpiritAny(state, id) ?? undefined,
             attemptOf(ctx, "bounce", "targeted"),
             (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),
@@ -470,6 +471,7 @@ function returnToHandNexusOrSpirit(ctx: ActionCtx, action: HandReturn): void {
         ctx,
         action,
         ids,
+        [...spirits, ...nexuses].map((c) => c.instanceId),
         (id) => {
             const n = nexusOf(id)
             return n ? { pid: opp, inst: n } : findSpiritAny(state, id) ?? undefined
@@ -734,6 +736,7 @@ function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" 
             ctx,
             action,
             ids,
+            pool.map((sp) => sp.instanceId),
             (id) => findSpiritAny(state, id) ?? undefined,
             attemptOf(ctx, "bounce", "targeted"),
             (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),

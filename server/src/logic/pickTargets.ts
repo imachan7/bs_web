@@ -11,7 +11,7 @@ import type { PickedTargets } from "../types/effectAction"
 import type { ActionCtx } from "./actions/types"
 import { suspend } from "./GameState"
 import { gateTargetedApply } from "./EffectModules"
-import { ownTargetRedirect } from "./ownTargetChoice"
+import { settleTargets } from "./designation"
 import type { EffectAttempt, Resistance } from "../../../shared/rules"
 
 export interface PickProgress {
@@ -93,14 +93,14 @@ export function gatePickedTargets<A extends EffectAction & PickProgress>(
     ctx: ActionCtx,
     action: A,
     ids: string[],
+    candidates: string[],
     find: (id: string) => { pid: PlayerId; inst: CardInstance } | undefined,
     attempt: EffectAttempt,
     onResisted: (inst: CardInstance, r: Resistance) => void,
     skipGate: (pid: PlayerId, inst: CardInstance) => boolean = () => false,
 ): string[] | null {
     const { state, self, sourceName } = ctx
-    // 選び終えた対象を、持ち主の付け替え（古の魔王城）に通す。確認を出したら中断
-    const targets = ownTargetRedirect(ctx, action, ids, attempt)
+    const targets = settleTargets(ctx, action, ids, candidates, attempt)
     if (targets === null) return null
     const passed = [...(action.picked?.passed ?? [])]
     const failed = [...(action.picked?.failed ?? [])]

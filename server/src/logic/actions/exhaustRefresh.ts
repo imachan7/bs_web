@@ -401,6 +401,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             ctx,
             actionForChoice,
             ids,
+            pool.map((sp) => sp.instanceId),
             (id) => findSpiritAny(state, id) ?? undefined,
             attemptOf(ctx, "exhaust", "targeted"),
             (inst, r) => log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${r.label}）。`),

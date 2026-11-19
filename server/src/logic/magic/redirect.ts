@@ -146,8 +146,6 @@ export function findMagicRedirectSource(
     for (const inst of state.players[defenderPid].field.spirits) {
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "magicTargetRedirect") continue
-            // 持ち主が選ぶ付け替え（古の魔王城）は解決の前ではなく、対象を選び終えた後に別の経路で掛かる（ownTargetChoice.ts）
-            if (effect.redirectTo === "ownTargetChosen") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
             // 『相手のターン』＝発生源の持ち主がターンプレイヤーでないとき／『自分のターン』＝turnPlayerのとき
             if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
