@@ -1,7 +1,7 @@
 // smoke パート120（§5-B：封印された魔導書 Lv1）
 //
 // 新設した機構:
-//   - kind:"bothSidesTargetRedirect" ＋ EffectModules.bothSidesPids
+//   - kind:"targetRedirect"（includes:"bothSides"） ＋ EffectModules.bothSidesPids
 //     「お互いを対象とするマジックの効果」の対象を片側だけに変更する。両陣営を対象にするアクション
 //     （destroyNexus side:"both" / bothSidesCoreToTrash / bothSidesCoreToVoid / exhaustAll side:"both" /
 //      returnAllToHand side:"both" / nexusCoresToTrash side:"both" / draw side:"both" / discardBothHands）

@@ -8,7 +8,7 @@
 //   magicNegate 5件      【氷壁：色】5枚。既存テストは「無効化できる発生源を探す」ところまでで、
 //                        **実際に無効化のコストを払う経路**（payMagicNegate）を通っていなかった
 //   onMilledFromDeck 2件 デッキから破棄されたとき自分をコストなしで使う3枚のうち2枚が未検証
-//   bothSidesTargetRedirect 1件  BS06-086 開かれし魔導書（BS02-087 封印された魔導書だけが通っていた）
+//   targetRedirect（includes:"bothSides"） 1件  BS06-086 開かれし魔導書（BS02-087 封印された魔導書だけが通っていた）
 //   freeSummonFromHandOnDiscardedByOpponent 1件  BS09-025 忍者サルトベ
 //   freeSummonFromHandOnLifeDamaged 1件          BS09-035 巨獣皇スミドロード（条件つきの成立側が未検証）
 //   bofuChooserSelf 1件   BS09-060 緑翼の大樹Lv2

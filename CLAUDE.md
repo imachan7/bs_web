@@ -285,6 +285,7 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | `docs/design/CONJUNCTION.md` | **効果文の接続詞を読むときの一次資料**。「その後」「さらに」「そうしたとき」「ことで」「この効果発揮後」「このとき」がそれぞれ前後関係か同時かを定める。**効果を2つ以上持つカードの解決順で迷ったらまずここ**（2026-08-13 ユーザー提供） |
 | `docs/design/COST_MODEL.md` | **「〜することで〜する」を実装するときに読む**。コストの一般則（AとBの両方が完全に解決できるときだけ発揮できる）・現状の適合表 |
 | `docs/design/RESUME_STACK.md` | **中断された側をどう書くか**（再開スタック・挿入順の規則・召喚と【転召】の手順）。エンジンの解決順に触るときに読む |
+| `docs/design/TARGET_REDIRECT.md` | **「相手の効果の対象を〜のみにする」効果を実装するときに読む**（古の魔王城・サンク系・魔導書・【影武者】）。規則（Q&A つき）・部品 `targetRedirect` と指定の段 `designation.ts`（`settleTargets`／`settleList`／`settleOne`）・未決 |
 | `docs/design/CHOOSER_RULES.md` | **効果文の主語が「相手は」のときに読む**。誰が選ぶかの規則・`chooserIsTarget` の書き方・現状の適合表 |
 | `docs/design/AI_OPPONENT.md` | **AI対戦相手の設計**。1手評価の点数表・AIに相手の手札を覗かせない仕組み（評価は GameView だけを見る）・安全弁・既知の限界。**AIの強さを変える／AIが変な手を打つのを直すときに読む** |
 | `docs/design/EFFECT_SOURCE_CONTEXT.md` | **「〜の効果で〜されたとき」を条件にする誘発を足すときに読む**。`currentEffectSource` の仕組みと、コア配置の検出を差分で取っている理由 |

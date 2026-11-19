@@ -6,7 +6,7 @@ import { currentLevel, findInstanceAnywhere, getCard, log, opponentOf, suspend }
 import { effectSources } from "../../../../shared/rules"
 import { resolveMagicEffects } from "./resolve"
 
-// 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）：「お互いを対象とするマジックの効果」の
+// 封印された魔導書Lv1（kind:"targetRedirect"（includes:"bothSides"））：「お互いを対象とするマジックの効果」の
 // 対象を片側だけに変更する。両陣営を対象にするアクション（destroy{nexus:"only", side:"both"} / bothSidesCoreToTrash /
 // bothSidesCoreToVoid / exhaust{all, anySide} / returnToHand{all, anySide} / removeCores side:"both" /
 // draw / discard の side:"both"）は、ハードコードの ["p1","p2"] の代わりにこれを呼ぶ。
@@ -41,7 +41,7 @@ export function bothSidesPids(
     return all.filter((p) => p !== excluded)
 }
 
-// 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の発生源を探す。
+// 封印された魔導書Lv1（kind:"targetRedirect"（includes:"bothSides"））の発生源を探す。
 // **どちらに変更するか（あるいは変更しないか）は呼び出し側が決める**。
 // resolveMagic の事前確認（このマジックで対象変更が起こりうるか）と、実際に絞り込む
 // bothSidesPids / anySide の候補列挙が共用する。相手が使ったマジックにも効くので両陣営を走査する
@@ -52,11 +52,11 @@ export function findBothSidesRedirectSource(
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(state, ownerPid)) {
             for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "bothSidesTargetRedirect") continue
+                if (effect.kind !== "targetRedirect" || effect.includes !== "bothSides") continue
                 if (!entryActive(state, ownerPid, source, effect, currentLevel(source).level)) continue
                 if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
-                noteCoverage(effect, "bothSidesTargetRedirect")
+                noteCoverage(effect, "targetRedirect")
                 return { pid: ownerPid, inst: source }
             }
         }
@@ -95,7 +95,7 @@ export function applyBothSidesRedirectToCandidates(
     return candidates.filter((c) => ids.has(c.instanceId))
 }
 
-// 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の「対象を相手のみ／自分のみに変更できる」の確認。
+// 封印された魔導書Lv1（kind:"targetRedirect"（includes:"bothSides"））の「対象を相手のみ／自分のみに変更できる」の確認。
 // 出したら true（中断）を返す。**このマジックが実際に両陣営に関わる場合だけ**聞く
 // （相手だけを対象にする大多数のマジックで確認を出さないため）。答えはマジックの解決中ずっと使い回す
 export function askBothSidesRedirect(

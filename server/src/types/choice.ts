@@ -272,7 +272,7 @@ export interface PendingChoice {
         causingInstanceId?: string // BS15共通器：kind:"deckMillNegate".thenReturnCauseToDeckBottom用。破棄を起こした発生源インスタンスID（GameState.currentEffectSource.instanceIdから確認の時点で控える。BS15-042オリンピアの天使アラトロンLv2）
     }
     magicSideChoice?: {
-        // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の対象変更の確認待ち。
+        // 封印された魔導書Lv1（kind:"targetRedirect"（includes:"bothSides"））の対象変更の確認待ち。
         // magicNegate と同じく **action は解決しない**（答えを GameState.magicSideDecision に
         // 記録してからマジックの解決へ進む）。選ぶのは**魔導書の持ち主**で、マジックの使用者とは限らない
         casterPid: PlayerId

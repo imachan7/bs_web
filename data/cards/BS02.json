@@ -5133,7 +5133,12 @@
   "effects": [
    {
     "id": "BS02-087-e1",
-    "kind": "bothSidesTargetRedirect",
+    "kind": "targetRedirect",
+    "includes": "bothSides",
+    "to": "side",
+    "sourceTypes": [
+     "magic"
+    ],
     "levels": [
      1,
      2
