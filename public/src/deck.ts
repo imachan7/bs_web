@@ -57,7 +57,7 @@ function seriesGroupOf(cardId: string): string {
     return /^(P|SJ|X|CP)\d/.exec(s)?.[1] ?? s
 }
 
-const MERGED_SERIES_LABELS: Record<string, string> = { P: "プロモ（P）", SJ: "最強ジャンプ（SJ）", X: "Xレア（X）", CP: "CP" }
+const MERGED_SERIES_LABELS: Record<string, string> = { P: "プロモ（P）", SJ: "最強ジャンプ（SJ）", X: "その他", CP: "CP" }
 
 function seriesLabel(series: string): string {
     if (series === "P" || series === "PX" || series === "X") return "プロモ"
