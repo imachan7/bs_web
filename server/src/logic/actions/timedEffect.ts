@@ -363,7 +363,7 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
     // 使った時点の対象を付け替えられる。付け替えた後はその個体だけに効き、後から出たスピリットには効かない（2026-11-19 ユーザー確認）。
     // 個体の記録で置けない content（recorded 以外）が混ざるときは付け替えを聞かず、ルールのまま置く
     if (action.content.every(isRecorded)) {
-        const now = (pid === undefined ? [owner, opp] : [pid]).flatMap((p) => state.players[p].field.spirits.filter((s) => matchesTarget(state, p, s, filter, self?.instanceId)))
+        const now = (pid === undefined ? [owner, opp] : [pid]).flatMap((p) => targetableSpirits(state, p, (s) => matchesTarget(state, p, s, filter, self?.instanceId)))
         const settled = settleList(ctx, action, now, attemptOf(ctx, "other", "area"))
         if (settled === null) return
         // 付け替えたかは持ち主の答えで見る（該当が元から1体だけでも、付け替えたら後から出たものには効かない）
