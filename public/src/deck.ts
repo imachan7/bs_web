@@ -70,8 +70,8 @@ const filterTypes = new Set<CardType>()
 const filterCosts = new Set<number>() // COST_CHIP_MAX は「それ以上」
 const filterFlags = new Set<string>() // "burst" | "flash"（選んだものすべてを満たすカード）
 let poolLimit = POOL_PAGE
-let filterSeries = ""
-let filterKeywords = ""
+const filterSeries = new Set<string>()
+const filterKeywords = new Set<string>()
 const filterFamilies = new Set<string>()
 let familyHas = true // 両方外れたときも「持つ」として扱う
 let familyMention = false
@@ -221,17 +221,8 @@ function passesFilter(card: CardData): boolean {
     }
     if (filterFlags.has("burst") && !card.effects.some((e) => e.kind === "burst")) return false
     if (filterFlags.has("flash") && card.flash !== true) return false
-    if (filterSeries !== "" && seriesOf(card.cardId) !== filterSeries) return false
-    if (filterKeywords !== "") {
-        let hasKw = false
-        for (const effect of card.effects) {
-            if (effect.kind === "keyword" && effect.keyword === filterKeywords) {
-                hasKw = true
-                break
-            }
-        }
-        if (!hasKw) return false
-    }
+    if (filterSeries.size > 0 && !filterSeries.has(seriesOf(card.cardId))) return false
+    if (filterKeywords.size > 0 && !card.effects.some((e) => e.kind === "keyword" && filterKeywords.has(e.keyword))) return false
     if (filterFamilies.size > 0) {
         const useHas = familyHas || !familyMention
         const mentioned = mentionedFamilies.get(card.cardId)
@@ -1239,6 +1230,70 @@ function applyPreset(color: Color): void {
 
 // ---- イベント登録 ----
 
+interface PickerGroup {
+    heading: string | null
+    items: ReadonlyArray<{ value: string; text: string; cls?: string | undefined }>
+}
+
+// 見出しで開閉する複数選択の一覧（系統・弾・キーワードで共有）。選択は selected に入れ、変わるたびに onChange を呼ぶ。
+// 戻り値の reset は条件クリア用
+function setupFoldPicker(prefix: string, label: string, selected: Set<string>, groups: PickerGroup[], onChange: () => void): () => void {
+    const toggle = $(`${prefix}-toggle`)
+    const panel = $(`${prefix}-panel`)
+    const box = $(`${prefix}-selected`)
+    const chipEls = new Map<string, HTMLButtonElement>()
+    const texts = new Map<string, string>()
+    const renderSelected = () => {
+        box.textContent = ""
+        for (const value of selected) {
+            const chip = document.createElement("button")
+            chip.className = "chip active"
+            chip.textContent = `${texts.get(value) ?? value} ×`
+            chip.title = "外す"
+            chip.addEventListener("click", () => flip(value))
+            box.appendChild(chip)
+        }
+    }
+    const flip = (value: string) => {
+        if (selected.has(value)) selected.delete(value)
+        else selected.add(value)
+        chipEls.get(value)?.classList.toggle("active", selected.has(value))
+        renderSelected()
+        onChange()
+    }
+    for (const g of groups) {
+        if (g.items.length === 0) continue
+        if (g.heading !== null) {
+            const head = document.createElement("div")
+            head.className = "filter-label"
+            head.textContent = g.heading
+            panel.appendChild(head)
+        }
+        const group = document.createElement("div")
+        group.className = "chip-group family-chips"
+        for (const item of g.items) {
+            const btn = document.createElement("button")
+            btn.className = item.cls ? `chip ${item.cls}` : "chip"
+            btn.textContent = item.text
+            btn.addEventListener("click", () => flip(item.value))
+            chipEls.set(item.value, btn)
+            texts.set(item.value, item.text)
+            group.appendChild(btn)
+        }
+        panel.appendChild(group)
+    }
+    toggle.addEventListener("click", () => {
+        const open = panel.classList.toggle("hidden") === false
+        toggle.textContent = `${label} ${open ? "▾" : "▸"}`
+        toggle.setAttribute("aria-expanded", String(open))
+    })
+    return () => {
+        selected.clear()
+        for (const el of chipEls.values()) el.classList.remove("active")
+        renderSelected()
+    }
+}
+
 function setupFilterChips(): void {
     const availableSeries = new Set<string>()
     const availableKeywords = new Set<Keyword>()
@@ -1256,82 +1311,28 @@ function setupFilterChips(): void {
         }
     }
 
-    const seriesSelect = $("filter-series") as HTMLSelectElement
-    const sortedSeries = Array.from(availableSeries).sort()
-    for (const s of sortedSeries) {
-        const option = document.createElement("option")
-        option.value = s
-        const label = seriesLabel(s)
-        option.textContent = label === "" ? s : `${s} ${label}`
-        seriesSelect.appendChild(option)
-    }
-    seriesSelect.addEventListener("change", () => {
-        filterSeries = seriesSelect.value
-        renderPool()
-    })
-
-    const kwSelect = $("filter-keywords") as HTMLSelectElement
-    const sortedKw = Array.from(availableKeywords).sort()
-    for (const kw of sortedKw) {
-        const option = document.createElement("option")
-        option.value = kw
-        option.textContent = KEYWORDS[kw]?.label ?? kw
-        kwSelect.appendChild(option)
-    }
-    kwSelect.addEventListener("change", () => {
-        filterKeywords = kwSelect.value
-        renderPool()
-    })
+    const seriesItem = (v: string) => ({ value: v, text: seriesLabel(v) === "" ? v : `${v} ${seriesLabel(v)}` })
+    const allSeries = Array.from(availableSeries).sort()
+    const resetSeries = setupFoldPicker("series", "弾", filterSeries, [
+        { heading: "ブースター", items: allSeries.filter((v) => v.startsWith("BS") && !v.startsWith("BSC")).map(seriesItem) },
+        { heading: "スターター", items: allSeries.filter((v) => v.startsWith("SD")).map(seriesItem) },
+        { heading: "コレクション", items: allSeries.filter((v) => v.startsWith("BSC")).map(seriesItem) },
+        { heading: "プロモ・その他", items: allSeries.filter((v) => !v.startsWith("BS") && !v.startsWith("SD")).map(seriesItem) },
+    ], renderPool)
+    const resetKeywords = setupFoldPicker("keyword", "キーワード", filterKeywords, [
+        { heading: null, items: Array.from(availableKeywords).sort().map((kw) => ({ value: kw, text: KEYWORDS[kw]?.label ?? kw })) },
+    ], renderPool)
 
     for (const set of mentionedFamilies.values()) for (const f of set) availableFamilies.add(f)
     const familyColor = familyColors(availableFamilies)
-    const familyToggle = $("family-toggle")
-    const familyPanel = $("family-panel")
-    const familyChipEls = new Map<string, HTMLButtonElement>()
-    const toggleFamily = (fam: string) => {
-        if (filterFamilies.has(fam)) filterFamilies.delete(fam)
-        else filterFamilies.add(fam)
-        familyChipEls.get(fam)?.classList.toggle("active", filterFamilies.has(fam))
-        renderFamilyChips()
-        renderPool()
-    }
-    for (const [colorKey, label] of FAMILY_GROUPS) {
-        const fams = Array.from(availableFamilies).filter((f) => familyColor.get(f) === colorKey).sort((a, b) => a.localeCompare(b, "ja"))
-        if (fams.length === 0) continue
-        const head = document.createElement("div")
-        head.className = "filter-label"
-        head.textContent = label
-        const group = document.createElement("div")
-        group.className = "chip-group family-chips"
-        for (const fam of fams) {
-            const btn = document.createElement("button")
-            btn.className = colorKey === "multi" ? "chip" : `chip chip-${colorKey}`
-            btn.textContent = fam
-            btn.addEventListener("click", () => toggleFamily(fam))
-            familyChipEls.set(fam, btn)
-            group.appendChild(btn)
-        }
-        familyPanel.append(head, group)
-    }
-    familyToggle.addEventListener("click", () => {
-        const open = familyPanel.classList.toggle("hidden") === false
-        familyToggle.textContent = open ? "系統 ▾" : "系統 ▸"
-        familyToggle.setAttribute("aria-expanded", String(open))
-    })
-    const renderFamilyChips = () => {
-        const box = $("family-selected")
-        box.textContent = ""
-        for (const fam of filterFamilies) {
-            const chip = document.createElement("button")
-            chip.className = "chip active"
-            chip.textContent = `${fam} ×`
-            chip.title = "この系統を外す"
-            chip.addEventListener("click", () => {
-                toggleFamily(fam)
-            })
-            box.appendChild(chip)
-        }
-    }
+    const resetFamilies = setupFoldPicker("family", "系統", filterFamilies,
+        FAMILY_GROUPS.map(([colorKey, label]) => ({
+            heading: label,
+            items: Array.from(availableFamilies)
+                .filter((f) => familyColor.get(f) === colorKey)
+                .sort((a, b) => a.localeCompare(b, "ja"))
+                .map((f) => ({ value: f, text: f, cls: colorKey === "multi" ? undefined : `chip-${colorKey}` })),
+        })), renderPool)
     for (const btn of $("filter-family-mode").querySelectorAll<HTMLButtonElement>(".chip")) {
         btn.addEventListener("click", () => {
             const isHas = btn.dataset.mode === "has"
@@ -1429,15 +1430,9 @@ function setupFilterChips(): void {
         filterFlags.clear()
         filterNotes.clear()
         
-        filterSeries = ""
-        ;(document.getElementById("filter-series") as HTMLSelectElement).value = ""
-        
-        filterKeywords = ""
-        ;(document.getElementById("filter-keywords") as HTMLSelectElement).value = ""
-        
-        filterFamilies.clear()
-        renderFamilyChips()
-        for (const el of familyChipEls.values()) el.classList.remove("active")
+        resetSeries()
+        resetKeywords()
+        resetFamilies()
         familyHas = true
         familyMention = false
         searchText = ""
