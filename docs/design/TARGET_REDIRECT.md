@@ -71,7 +71,9 @@ export function settleTargets(ctx: ActionCtx, action: EffectAction & PickProgres
    - 2b-2 残りの place*：placeLevel・placeRule の Lv 分岐・placeSymbolOrCost・placeSymbolLossRule・placeColor・placeUnblockable・placeCountAs。形は 2b-1 の placeBp（1体）・placeRule（すべて）と同じ。battleLock はプレイヤーへの制限でスピリットを対象にしないので対象外
    - 未決：きっかけの出来事で対象が決まるもの（ベトール BS12-037「アタックしたとき、そのスピリットのBPを2000として扱う」の placeEventTargetBpAs）を付け替えられるか
 2c. **3 より先に**、1体ずつ耐性を見ている残りの経路（G2・G5 の個体指定。gateTargetedApply／resistanceAgainst を直接呼ぶ約16か所）に `settleOne`（designation.ts）を挟む。サンク系は今 `magicRedirectTo`＋耐性の入口で全経路に効いているので、先に指定の段を全経路に通さないと 3 で効かなくなる経路が出る
-3. サンク系・魔導書を `targetRedirect` に移し、`magicRedirectTo`・`magicRedirectDecision`・`magicSideDecision`・`magicTargetRedirect`・`bothSidesTargetRedirect` を消す
+3. 3a サンク系：`settleTargets` を一般化する（発生源を全部集め、includes で起きるかを判定し、各効果の付け替え先の候補をまとめて1回の確認。to:"self" の候補は発生源自身）。非対話は to:"self" なら自動で付け替え（今のサンク系と同じ）、chosenOwn は付け替えない。データ4枚を移し、`magicRedirectTo`・`magicRedirectDecision`・使用時の確認（pendingChoice.magicRedirect）・耐性の入口の ① と `magicRedirect` カテゴリ・`setTargetRedirect` ほか・`magicTargetRedirect` を消す
+   3b 魔導書：`settleSides` を足して `bothSidesPids` を置き換え、`magicSideDecision`・`bothSidesTargetRedirect` を消す
+   （元の文）サンク系・魔導書を `targetRedirect` に移し、`magicRedirectTo`・`magicRedirectDecision`・`magicSideDecision`・`magicTargetRedirect`・`bothSidesTargetRedirect` を消す
 4. 残り（G2・G5 のコア・指定アタック・持ち主が選ぶもの）
 
 ## 3. 入口の洗い出し（調査役の報告。2026-11-19。確認済み＝コードを読んだ／推測＝名前から判断）
