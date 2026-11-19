@@ -85,6 +85,8 @@ console.log("=== C. AI 対 AI：ブレイヴを含むデッキで、AI がブレ
     s.interactiveTargets = true
     s.players.p1.deck = Array.from({ length: 40 }, (_, i) => (i % 2 === 0 ? BRAVE : HOST))
     s.players.p2.deck = Array.from({ length: 40 }, (_, i) => (i % 2 === 0 ? BRAVE : HOST))
+    // 手札も差し替える（createGame が配った手札に安いスピリットが入ると、ブレイヴを出す前に勝負がついて落ちていた）
+    for (const pid of ["p1", "p2"] as const) s.players[pid].hand = s.players[pid].hand.map((_, i) => (i % 2 === 0 ? HOST : BRAVE))
     runTurnStart(s)
     const seen = new Set<string>()
     const scan = (): void => {
