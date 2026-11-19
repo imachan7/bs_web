@@ -3,7 +3,7 @@
 import type { CantRefreshDef, CardInstance, CardType, EffectDef, PlayerId } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { hasGlobalConstraint, timedPlayerRules } from "./constraints"
+import { hasGlobalConstraint, timedPlayerRules, timedRecordsOn } from "./constraints"
 import { matchesTarget } from "./targetFilter"
 
 export type RefreshPath = { by: "step" } | { by: "effect"; sourceType: CardType }
@@ -28,5 +28,9 @@ export function refreshBlockedByRule(board: Board, ownerPid: PlayerId, inst: Car
         if (effect.turn === "opponent" && board.turnPlayer === sourcePid) return false
         return pathAndInstMatch(c, board, ownerPid, inst, path)
     })
-    return fromField || timedPlayerRules(board, ownerPid).some((r) => r.type === "cantRefresh" && pathAndInstMatch(r, board, ownerPid, inst, path))
+    // このターンの間、個体に付いた「回復できない」（グラストラップ）。until:"nextRefresh" の記録はリフレッシュステップ専用なので含めない
+    const onInst = timedRecordsOn(board, inst, false, (r) => r.until === "turn" && r.content.some((c) => c.type === "cantRefresh")).some((r) =>
+        r.content.some((c) => c.type === "cantRefresh" && pathAndInstMatch(c, board, ownerPid, inst, path)),
+    )
+    return fromField || onInst || timedPlayerRules(board, ownerPid).some((r) => r.type === "cantRefresh" && pathAndInstMatch(r, board, ownerPid, inst, path))
 }

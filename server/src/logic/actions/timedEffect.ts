@@ -633,9 +633,12 @@ function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
         if (!self) return
         target = self
     } else {
-        const candidates = targetableSpirits(state, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+        const candidates =
+            action.side === "both"
+                ? pickAnySideCandidates(state, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId), ctx.srcColors, ctx.srcType)
+                : targetableSpirits(state, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId))
         if (candidates.length === 0) {
-            log(state, `${sourceName}：条件に合う自分のスピリットがいなかった。`)
+            log(state, `${sourceName}：条件に合うスピリットがいなかった。`)
             return
         }
         if (targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
@@ -645,11 +648,21 @@ function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
         target =
             targetInstanceId !== undefined
                 ? candidates.find((s) => s.instanceId === targetInstanceId)
-                : candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
+                : (() => {
+                      // 非対話の既定：自分のスピリットを優先し、実効BP最大
+                      const mine = candidates.filter((s) => state.players[owner].field.spirits.includes(s))
+                      const pid = mine.length > 0 ? owner : ctx.opp
+                      return (mine.length > 0 ? mine : candidates).reduce((best, s) => (effectiveBp(state, pid, s) > effectiveBp(state, pid, best) ? s : best))
+                  })()
         if (!target) {
             log(state, `${sourceName}：指定されたスピリットは条件を満たさなかった。`)
             return
         }
+    }
+    if (action.target !== "self" && !state.players[owner].field.spirits.includes(target)) {
+        const moved = settleOneTimed(ctx, action, target, () => true)
+        if (moved === null) return
+        target = moved ?? target
     }
     recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until, ownerPid: owner })
     log(state, `${sourceName}：${getCard(target.cardId).name}は、${period}${fromLabel}にブロックされない。`)
@@ -681,6 +694,10 @@ function placeEventTargetBpAs(ctx: Parameters<ActionHandler<"timedEffect">>[0], 
 function placeCountAs(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, sourceName, srcColors, srcType, targetInstanceId } = ctx
     const reentry = action.picked?.settled === true
+    if (!reentry && !targetInstanceId) {
+        const candidates = pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
+        if (tryInteractiveTargetChoice(state, owner, ctx.self, `${sourceName}：3体分として数えるスピリットを選んでください`, candidates, action, null)) return
+    }
     let found = reentry ? findSpiritAny(state, action.picked!.ids[0]!) : targetInstanceId ? findSpiritAny(state, targetInstanceId) : pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
     const c = action.content.find((x): x is Extract<Content, { type: "countAs" }> => x.type === "countAs")
     if (found) {
@@ -891,13 +908,23 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
             if (moved === null) return
             target = moved ?? null
         }
+    } else if (action.side === undefined && action.target !== "self") {
+        const candidates = pickEnemyCandidates(state, opp, Infinity, (s) => matchesFilter(s, opp), srcColors, srcType)
+        if (tryInteractiveTargetChoice(state, owner, self, `${sourceName}：シンボルを変えるスピリットを選んでください`, candidates, action, null)) return
+        const best = pickEnemyByBp(state, opp, Infinity, (s) => matchesFilter(s, opp), srcColors, srcType)
+        if (best) {
+            const moved = settleOneTimed(ctx, action, best, (s) => matchesFilter(s, opp))
+            if (moved === null) return
+            target = moved ?? null
+        }
     } else target = pickOwnBpTarget(state, owner, filter, self?.instanceId)
     if (!target) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "battle", ownerPid: owner })
-    log(state, `${getCard(target.cardId).name}は、このバトルの間シンボルを${content.color ? COLOR_LABELS[content.color] : ""}${content.count}つとして扱う。`)
+    const symUntil = action.duration === "turn" ? "turn" : "battle"
+    recordFrom(ctx, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: symUntil, ownerPid: owner })
+    log(state, `${getCard(target.cardId).name}は、${symUntil === "turn" ? "このターン" : "このバトル"}の間シンボルを${content.color ? COLOR_LABELS[content.color] : ""}${content.count}つとして扱う。`)
 }
 
 // 「色1色を指定できる」＝色を選ばずに終えられる（2026-10-11 ユーザー確認）。選ばなければ何もしない
@@ -1061,7 +1088,9 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
             }
         }
     }
-    if ((action.duration === "nextRefresh") !== action.content.every((c) => (ONLY_NEXT_REFRESH as readonly string[]).includes(c.type) || (c.type === "playerRule" && c.rule.type === "skipMainStep"))) {
+    // cantRefresh は「このターンの間」でも書ける（個体に付き、効果による回復も止める）。次のリフレッシュ専用の扱いは nextRefresh だけ
+    const nextOnly = (c: Content): boolean => (ONLY_NEXT_REFRESH as readonly string[]).includes(c.type) && !(c.type === "cantRefresh" && action.duration === "turn")
+    if ((action.duration === "nextRefresh") !== action.content.every((c) => nextOnly(c) || (c.type === "playerRule" && c.rule.type === "skipMainStep"))) {
         log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
         return
     }
