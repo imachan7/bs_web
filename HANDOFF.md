@@ -32,7 +32,9 @@
 - サーバー：`playerView` に `burstRevealed: boolean` を足す（`buildView` が state から求めて渡す。真＝`state.declaredBursts` にその pid・cardId がある／`pendingChoice.burst` が一致／`currentEffectSource.burst` で pid・cardId が一致）。真なら相手にも `burst` の cardId を返す。新しい状態は足さない
 - 画面：伏せている間は裏面の画像（相手は画像だけ、自分は画像の上に名前）。`burstRevealed` なら表向き（色の枠＋名前、🔒なし）。発動のイベント（#620 で cardId つき）を受けたら、その陣営のバースト欄を表向きにめくる演出を約2.5秒出す（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）
 
-### 未着手：カード画像を Cloud Run を通さずバケットから直接配る（2026-11-18 ユーザーと合意。設計のみ）
+### 進行中：カード画像を Cloud Run を通さずバケットから直接配る（#638。2026-11-18 ユーザーと合意）
+
+**状況（2026-11-19）**：3（クライアント）と手順書は PR 済み。**デプロイの前に**ユーザーが 1・2 を実行する（手順は DEPLOY_CLOUDRUN.md「旧カードの画像」の 3）。4 は切り替えから数日後（同じ節の 4）
 
 背景：今は Cloud Run がバケット `bs-web-card-images` をマウントし、express（`server/src/index.ts:43`、maxAge 7d）で返している。画像の数だけインスタンスが動き、コールドスタートの遅れも画像に乗る
 1. **公開の仕方**：`allUsers` に `roles/storage.legacyObjectReader`（ファイル単位の読み取りだけ）を付ける。`objectViewer` は一覧も取れるので使わない（カード画像は合言葉で出す隠し要素。URL を知っていれば開けるのは今と同じ）。IAM の変更はユーザーが実行する

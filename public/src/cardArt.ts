@@ -2,9 +2,17 @@
 // 画像があるのは刷新後のカード（cardId が公式表記の 26RDB01-001 など）だけ。
 // 旧カードの BS01-001 は別のカードなので、画像に対応させない（名前・効果と食い違うため）。
 // 画像が無いカードは <img> の onerror で外し、従来のテキスト表示にフォールバックする
+// 本番はバケットから直接配る（Cloud Run を通さない。#638）。ローカル開発と Discord Activity（*.discordsays.com。
+// Portal の URL Mapping が相対パスにしか効かない）は、サーバーが配る相対パスのまま
+// 呼ぶたびに決める（smoke が node で読み込むので、読み込み時に location を触らない）
+function cardImageBase(): string {
+    const host = typeof location === "undefined" ? "localhost" : location.hostname
+    return host === "localhost" || host === "127.0.0.1" || host.endsWith(".discordsays.com") ? "/imgs/cards" : "https://storage.googleapis.com/bs-web-card-images"
+}
+
 export function cardImageUrl(cardId: string, size: "md" | "sm" | "xs" = "md"): string | null {
     if (!cardId.startsWith("26R") && !secretArtOn()) return null
-    return `/imgs/cards/${size}/${cardSetDir(cardId)}/${cardId}.webp`
+    return `${cardImageBase()}/${size}/${cardSetDir(cardId)}/${cardId}.webp`
 }
 
 // 画像の置き場の弾フォルダ。プロモ（P001・PX01・X014）は番号に「-」が無いので英字の部分で分ける。
