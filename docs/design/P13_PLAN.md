@@ -50,7 +50,7 @@
 | 〃 | Lv2 破壊時：相手のスピリットのコア1個を相手リザーブへ | `onDestroy removeCores count:1 target:spread`。手本 BS19-015-e1 |
 | P13-11 | Lv1-3 アタック時：相手は、相手のスピリット1体を疲労させる | `onAttack exhaust count:1 chooserIsTarget`。手本 BS06-028-e2・BS08-021（同文）。選ぶのは相手（CHOOSER_RULES・SEMANTICS_AUDIT §3.28） |
 | 〃 | Lv2-3：この効果で疲労させたとき、疲労させた1体につき、ボイドからコア1個をこのスピリットへ | 上のエントリを `sequence[exhaust, if{count selfLevel atLeast 2} then placeCores from:void to:spirit target:self countCounter lastMoved]` にして、1つの action に収める（後から読む枠を作らない）。手本 BS20-069-e2（疲労を条件に置く fieldEvent `opponentSpiritExhaustedByOwnSpiritEffect`）は「自分のスピリットの効果」全般で、「このスピリットの効果」には広い。**未確認**：exhaust が `lastMoved`／`lastTargetCount` を記録するか（記録しないなら record.ts に足す。新しい器ではない）、`if` の cond に `selfLevel` を載せられるか |
-| P13-12 | 【合体時】合体アタック時：コスト4以下の相手にブロックされたとき、自分の合体スピリット1体を回復 | `onBlocked whileCombined eventTarget:use condition{targetMaxCost:4} refresh target:self`。手本 BS06-X21-e3（targetMaxCost）・BS19-022-e2 |
+| P13-12 | 【合体時】合体アタック時：コスト4以下の相手にブロックされたとき、自分の合体スピリット1体を回復 | `onBlocked whileCombined eventTarget:use condition{targetMaxCost:4} refresh count:1 filter{combined:true}`。手本 BS06-X21-e3（targetMaxCost）・BSC05-025（自分の合体スピリット1体を回復。「このスピリット」ではないので target:self にしない。#641） |
 | P13-13 | 【合体時】合体アタック時：手札1枚を破棄することで1枚ドロー。【連鎖：白】コスト4以下の相手1体を手札へ | `triggered rensa onAttack whileCombined sequence[pay{cost:discard hand 1, then:draw 1}, if rensa white then return to:hand filter{cost:{max:4}}]`。手本 BS22-075（pay＋rensa）・BS19-044-e1（return）。連鎖元が不発でも連鎖は解決（BS19_PLAN Q773） |
 | P13-14 | Lv1-2【強襲：1】 | `keyword kyoshu count:1` と `triggered onAttack pay{cost:exhaust nexusOnly, then:refresh self, limitByKeyword:"kyoshu"}`。手本 BS07-052-e1・e2 |
 | 〃 | 【連鎖：赤】相手は可能ならば必ずブロックする | `triggered rensa onAttack if rensa red then timedEffect mustBlock duration:…`。手本 BS20-X02-e1 |

@@ -869,7 +869,10 @@
         },
         "action": {
           "type": "refresh",
-          "target": "self"
+          "count": 1,
+          "filter": {
+            "combined": true
+          }
         },
         "optional": false
       }
