@@ -8,7 +8,7 @@
 //   2. 1回の起動で打てる手数に上限を置く（超えたら AI を降参させて対戦を終わらせる）
 import type { GameState, PlayerId } from "../type"
 import { handleAction } from "../logic/GameEngine"
-import { decideAiAction, moveKey } from "./index"
+import { decideAiAction, moveKey, type AiMove } from "./index"
 
 // 1手ごとの間隔。人間側が AI の動きを1手ずつ追えるだけの間を空ける。
 // BS_AI_DELAY_MS で上書きできる（E2E を待たせないため。0 にすれば間を空けずに指す）
@@ -97,13 +97,21 @@ export function pumpAi(state: GameState, aiPid: PlayerId, opts: AiPumpOptions): 
 
 // テスト用：間隔を空けずに、AI が打てなくなるまでその場で進める。
 // 打った手数を返す（smoke から AI 対 AI の自己対戦を回すのに使う）
-export function pumpAiSync(state: GameState, aiPid: PlayerId, maxActions = MAX_ACTIONS_PER_PUMP): number {
+// onMove は手を打つ直前に呼ばれ、戻した関数が打った直後に結果（null＝受理）つきで呼ばれる（ai:bench の無意味手の計測用）
+export function pumpAiSync(
+    state: GameState,
+    aiPid: PlayerId,
+    maxActions = MAX_ACTIONS_PER_PUMP,
+    onMove?: (move: AiMove, state: GameState) => ((error: string | null) => void) | void,
+): number {
     let acted = 0
     const rejected = new Set<string>()
     while (acted < maxActions && !state.winner) {
         const move = decideAiAction(state, aiPid, rejected)
         if (!move) break
+        const after = onMove?.(move, state)
         const error = handleAction(state, aiPid, move.action)
+        if (after) after(error)
         if (error) {
             rejected.add(moveKey(move))
             if (rejected.size >= MAX_CONSECUTIVE_ERRORS) break

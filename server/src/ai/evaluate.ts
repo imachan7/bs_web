@@ -110,6 +110,52 @@ function scoreChoice(view: GameView, me: PlayerId, action: GameAction): number {
     return choice.optional ? 20 : 10
 }
 
+// 効果の持ち主から見た、相手の最も強い対象の BP（千単位。スピリットがいなければ 0）
+function strongestOpponentBp(view: GameView, me: PlayerId): number {
+    const opp = opponentOf(me)
+    return view.players[opp].field.spirits.reduce((m, s) => Math.max(m, bpScore(view, opp, s)), 0)
+}
+
+// 自分のバトル中のスピリットが今は負けていて、bonus だけ BP を足せば勝つか
+function bonusFlipsBattle(view: GameView, me: PlayerId, bonus: number): boolean {
+    const battle = view.battle
+    if (!battle || bonus <= 0) return false
+    const iAttack = view.turnPlayer === me
+    const mineId = iAttack ? battle.attackerInstanceId : battle.blockerInstanceId
+    const theirsId = iAttack ? battle.blockerInstanceId : battle.attackerInstanceId
+    const mine = view.players[me].field.spirits.find((s) => s.instanceId === mineId)
+    const theirs = view.players[opponentOf(me)].field.spirits.find((s) => s.instanceId === theirsId)
+    if (!mine || !theirs) return false
+    const mineBp = effectiveBp(view, me, mine)
+    const theirsBp = effectiveBp(view, opponentOf(me), theirs)
+    return mineBp <= theirsBp && mineBp + bonus > theirsBp
+}
+
+// マジック・起動能力の点。「何もしない手」（フラッシュのパス40・アタックステップへ20）との比較で決める。
+// タグの無い手（手組みのテスト用）は従来の固定点
+function scoreSpell(view: GameView, me: PlayerId, move: AiMove, targetId: string | undefined, fixedBattle: number, fixedMain: number): number {
+    const t = move.tags
+    if (!t) return view.battle ? fixedBattle : fixedMain
+    const inBattle = !!view.battle
+    if (t.tags.includes("removal")) {
+        if (targetId !== undefined) {
+            const found = findOnBoard(view, targetId)
+            // 自分の個体に撃つ手は最後（相手の個体は強いほど先）
+            if (!found || found.owner === me) return 5
+            return 60 + Math.min(50, bpScore(view, found.owner, found.inst) * 5)
+        }
+        return 60 + Math.min(50, strongestOpponentBp(view, me) * 5)
+    }
+    if (t.tags.includes("battleOnly") || t.tags.includes("buffOwn")) {
+        if (!inBattle) return 15
+        if (t.bpPlus > 0 || t.tags.includes("buffOwn")) return bonusFlipsBattle(view, me, t.bpPlus) ? 120 : 30
+        // BP+ を持たない守り（バトル終了・BP比較の飛ばし等）は、アタックを受ける側のときだけ撃つ
+        return view.turnPlayer !== me ? 90 : 15
+    }
+    if (t.tags.includes("draw")) return inBattle ? 45 : 50
+    return inBattle ? 35 : 25
+}
+
 // 1手の点数。高いほど「打ちたい手」
 export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
     const action = move.action
@@ -149,11 +195,9 @@ export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
         case "setNexus":
             return 60
         case "castMagic":
-            // 効果の内容までは読まない（構造化された効果の意味づけは AI では扱わない）。
-            // バトル中のフラッシュは撃ちどころなので上げ、それ以外は控えめにする
-            return view.battle ? 65 : 45
+            return scoreSpell(view, me, move, action.type === "castMagic" ? action.targetInstanceId : undefined, 65, 45)
         case "activateAbility":
-            return 70
+            return scoreSpell(view, me, move, undefined, 70, 70)
         case "moveCore": {
             const inst =
                 my.field.spirits.find((s) => s.instanceId === action.instanceId) ??
