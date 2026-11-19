@@ -72,7 +72,8 @@ export function settleTargets(ctx: ActionCtx, action: EffectAction & PickProgres
    - 未決：きっかけの出来事で対象が決まるもの（ベトール BS12-037「アタックしたとき、そのスピリットのBPを2000として扱う」の placeEventTargetBpAs）を付け替えられるか
 2c. **3 より先に**、1体ずつ耐性を見ている残りの経路（G2・G5 の個体指定。gateTargetedApply／resistanceAgainst を直接呼ぶ約16か所）に `settleOne`（designation.ts）を挟む。サンク系は今 `magicRedirectTo`＋耐性の入口で全経路に効いているので、先に指定の段を全経路に通さないと 3 で効かなくなる経路が出る
 3. 3a サンク系：`settleTargets` を一般化する（発生源を全部集め、includes で起きるかを判定し、各効果の付け替え先の候補をまとめて1回の確認。to:"self" の候補は発生源自身）。非対話は to:"self" なら自動で付け替え（今のサンク系と同じ）、chosenOwn は付け替えない。データ4枚を移し、`magicRedirectTo`・`magicRedirectDecision`・使用時の確認（pendingChoice.magicRedirect）・耐性の入口の ① と `magicRedirect` カテゴリ・`setTargetRedirect` ほか・`magicTargetRedirect` を消す
-   3b 魔導書：`settleSides` を足して `bothSidesPids` を置き換え、`magicSideDecision`・`bothSidesTargetRedirect` を消す
+   3b 魔導書：データを `targetRedirect`（includes:"bothSides"・to:"side"・sourceTypes:["magic"]）に移し、今の仕組み（magic/redirect.ts の `findBothSidesRedirectSource`・`bothSidesPids`）が新しい型を読むようにして `bothSidesTargetRedirect` を消す。**確認はマジックを使った時点で1回のまま**（2026-11-19 ユーザー確認）。Q21940・Q22088「その対象を相手のみ／自分のみにして使える」が使う時点で決める読みに合い、陣営で絞るので選ばれた個体に左右されない
+   - 未決：答えを `state.magicSideDecision` に置く形は残る（設計の3原則の3から外れる）。候補を集める共通の関数（`pickAnySideCandidates` ほか）が state だけを受け取り中断できないため。明示的に運ぶなら、それらを ctx を受け取る形に作り替える
    （元の文）サンク系・魔導書を `targetRedirect` に移し、`magicRedirectTo`・`magicRedirectDecision`・`magicSideDecision`・`magicTargetRedirect`・`bothSidesTargetRedirect` を消す
 4. 残り（G2・G5 のコア・指定アタック・持ち主が選ぶもの）
 
