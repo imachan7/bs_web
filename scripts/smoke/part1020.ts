@@ -242,6 +242,16 @@ if (check("GX21", "太陽昇龍覇", "magic", 3)) {
         expect: [...common, "自分.リザーブ: 2 → 3"],
     })
     scenario({
+        name: "GX21-リザーブが足りなくても、フィールドのスピリットのコアで払えれば召喚できる（ユーザー決定 2026-11-20）",
+        start: { ...board([VAN, LORD, VAN, VAN, VAN], 2), me: { ...board([], 2).me, deck: [VAN, LORD, VAN, VAN, VAN], spirits: [{ card: TODOL, label: "A", cores: 6 }] } },
+        steps(t) {
+            run(t, "noPay")
+            assert(deckOf(t) === sorted([VAN, VAN, VAN, VAN]), "GX21: 召喚した1枚だけがデッキから減る")
+        },
+        // コスト6＋置くコア1＝7を、リザーブ3（ライフ減少の1個込み）とAのコア4で払う
+        expect: [...common, "自分.デッキ枚数: 5 → 4", "自分.リザーブ: 2 → 0", "自分.トラッシュのコア: 0 → 6", "自分.A.コア: 6 → 2", "自分.A.Lv: 2 → 1", "自分.A.BP: 6000 → 1000", ...born("自分", "英雄皇ロード・ドラゴン・ドミニオン", 5000)],
+    })
+    scenario({
         name: "GX21-その後コストを支払うと、フラッシュ効果で自分のスピリット1体がBP+3000される",
         start: board([VAN, LORD, VAN, VAN, VAN]),
         steps: (t) => run(t, true),

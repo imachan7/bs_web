@@ -155,17 +155,26 @@ console.log("=== 7. オープンしたブレイヴを召喚すると合体先の
     }
 }
 
-console.log("=== 8. コストを払うデッキ召喚はリザーブが足りなければデッキに残る ===")
+console.log("=== 8. コストを払うデッキ召喚：リザーブが足りなくてもフィールドのコアで払えれば召喚でき、足りなければデッキに残る ===")
 {
-    const s = game("deck5", true, mixed())
-    s.players.p1.reserve = 2 // トドールはコスト3＋置くコア1
-    const before = sorted(s.players.p1.deck)
-    resolveAction(s, "p1", null, { type: "moveCards", from: "deck", pick: { cardType: "spirit", nameIncludes: "トドール" }, count: 1, dest: "summon", pay: "cost", optional: true })
-    assert(s.pendingChoice === null && s.players.p1.field.spirits.length === 0, "払えないので聞かれず召喚もされない")
-    assert(sorted(s.players.p1.deck) === before && s.players.p1.trashCards.length === 0, "カードはデッキに残り、トラッシュへ行かない")
-    s.players.p1.reserve = 10
-    resolveAction(s, "p1", null, { type: "moveCards", from: "deck", pick: { cardType: "spirit", nameIncludes: "トドール" }, count: 1, dest: "summon", pay: "cost", optional: true })
-    assert(s.pendingChoice?.cardZone === "deck", "払えるなら選べる")
+    const pay: EffectAction = { type: "moveCards", from: "deck", pick: { cardType: "spirit", nameIncludes: "トドール" }, count: 1, dest: "summon", pay: "cost", optional: true }
+    const withField = (seed: string, reserve: number, hostCores: number): GameState => {
+        const s = game(seed, false, mixed())
+        s.players.p1.reserve = reserve
+        s.players.p1.field.spirits.push(createInstance(HOST, s.turn - 1, hostCores))
+        refreshLevelAsOverrides(s)
+        return s
+    }
+    // トドールはコスト3＋置くコア1＝4
+    const poor = withField("deck5", 2, 1)
+    const before = sorted(poor.players.p1.deck)
+    resolveAction(poor, "p1", null, pay)
+    assert(poor.players.p1.field.spirits.length === 1 && sorted(poor.players.p1.deck) === before && poor.players.p1.trashCards.length === 0, "フィールドのコアも足りなければ召喚されず、カードはデッキに残る")
+    const rich = withField("deck6", 2, 4)
+    resolveAction(rich, "p1", null, pay)
+    const p = rich.players.p1
+    assert(p.field.spirits.some((x) => x.cardId === TODOL) && p.reserve === 0 && p.deck.length === 21 && p.trashCards.length === 0, "リザーブ2とフィールドのコアで払って召喚できる")
+    assert(p.field.spirits.find((x) => x.cardId === HOST)!.cores < 4, "フィールドのスピリットのコアが減る")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part1019）")

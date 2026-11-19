@@ -6,6 +6,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./ty
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
 import { getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, shuffle, suspend } from "../GameState"
 import { braveCombineCandidates } from "../../../../shared/summon"
+import { summonPayPlan } from "../summonCores"
 import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { canPayMagicCost, payMagicCostThenResolve } from "../magic/payThenResolve"
@@ -132,8 +133,6 @@ function affordable(state: GameState, pid: PlayerId, action: MoveCards, cardId: 
     const player = state.players[pid]
     const card = getCard(cardId)
     const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
-    // デッキからの召喚は revealApplyOne がリザーブだけで払うので、候補もリザーブだけで判定する
-    if (action.dest === "summon" && action.pay === "cost" && action.from === "deck") return player.reserve >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo, false) + summonVoidToll(state, card)
     if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo, action.from === "hand") + summonVoidToll(state, card) : canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card), true)
     if (action.dest === "cast") return action.pay === "cost" ? canPayMagicCost(state, pid, effectiveCost(state, pid, card)) : true
     if (action.pay === "fieldCoresOnly") return fieldCoresSpendable(state, pid).reduce((sum, x) => sum + x.max, 0) >= effectiveCost(state, pid, card)
@@ -444,9 +443,8 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
             frame: (a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a }),
         })
     }
-    // 通常のコストを支払う召喚は、リザーブだけで払えるカードに限る（オープン中の選択に支払い元を選ぶ場が無い）
-    const reserve = state.players[owner].reserve
-    const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || reserve >= minLevelCores(getCard(id)) + effectiveCost(state, owner, getCard(id), false, [], false, false)
+    // 通常のコストを支払う召喚は、リザーブとフィールドのコアで払えるカードに限る（支払い方は revealApplyOne が置くコアの待ちで聞く）
+    const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || summonPayPlan(state, owner, minLevelCores(getCard(id)) + effectiveCost(state, owner, getCard(id), false, [], false, false) + summonVoidToll(state, getCard(id))) !== null
     const candidates = (): number[] => zone.cardIds.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick, undefined, ctx.sourceCardId) && payable(x.id)).map((x) => x.i)
     // 1枚を送る。効果で召喚するブレイヴは合体先を選べる（BRAVE.md §12.6）。非対話はスピリット状態。
     // 再開（combineIndex）は選んだ位置のカードを、合体先（無ければスピリット状態）で送る

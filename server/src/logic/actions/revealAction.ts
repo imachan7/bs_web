@@ -5,7 +5,8 @@ import { payMagicFreeUseSurcharge } from "../magic/freeUseSurcharge"
 import { handGainDenial } from "../handGate"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "../summonSurcharge"
-import { askSummonCores } from "../summonCores"
+import { askSummonCores, summonPayPlan } from "../summonCores"
+import { normalReserveOf } from "../soulCore"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardPick, EffectAction, Keyword, PlayerId, PlayerState } from "../../type"
 import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames } from "../GameState"
@@ -227,15 +228,21 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             const owed = action.pay === "cost" ? fullCost : surchargeOwed(state, owner, card, true)
             const surchargeOnly = action.pay !== "cost" && owed > 0
             if (action.placeCores === undefined && hostId === undefined && askCores(owed, surchargeOnly ? { ...action, surchargePrepaid: true } : action, surchargeOnly)) return
-            if (action.pay === "cost" ? player.reserve < maintain + cost + summonVoidToll(state, card) : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
-                log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
+            // 支払いは手札・トラッシュからの召喚と同じ（リザーブとフィールドのコア。summonPayPlan。ユーザー決定 2026-11-20）。
+            // placeCores 付きはコストを置くコアの待ちで払い済みなので、置くコアだけを見る
+            const toll = summonVoidToll(state, card)
+            const cannotPay = action.pay === "cost" ? (action.placeCores !== undefined ? player.reserve < maintain + toll : normalReserveOf(player) < toll || summonPayPlan(state, owner, cost + maintain + toll) === null) : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)
+            if (cannotPay) {
+                log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
                 failDest(ctx, action.orHand, cardId, action.fromDeck)
                 return
             }
             if (action.pay !== "cost" && action.placeCores === undefined && hostId === undefined && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
-            const placedFromField = action.pay !== "cost" ? payFreeSummonSurchargeKeeping(state, owner, card, true, maintain) ?? 0 : 0
             if (action.pay === "cost") payVoidToll(state, owner, card)
-            payCost(state, owner, cost, undefined, maintain)
+            const placedFromField =
+                action.pay !== "cost"
+                    ? payFreeSummonSurchargeKeeping(state, owner, card, true, maintain) ?? 0
+                    : payCost(state, owner, cost, (action.placeCores === undefined ? ctx.paySources : undefined) ?? summonPayPlan(state, owner, cost + maintain)?.paySources, maintain)
             player.reserve -= maintain - placedFromField
             const inst = createInstance(cardId, state.turn, maintain)
             if (action.returnToDeckBottomAtEndStep) inst.returnToDeckBottomAtEndStep = true
