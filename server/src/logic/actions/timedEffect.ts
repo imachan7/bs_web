@@ -8,6 +8,8 @@ import { KEYWORDS, bravesOf, countAuraCounter, effectiveBp, instBaseCost, instHa
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
+import { settleList, settleTargets } from "../designation"
+import { pickTargets } from "../pickTargets"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { lastMovedOf, lastTargetsOf } from "../record"
 import { kyokaBonus } from "../keywords/kyoka"
@@ -174,7 +176,14 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
     // 「そのスピリットが」の控えは今回のBP増加の結果でなければならない（直前の BP 増加の結果でなければ控えは残さない）
     delete state.lastBpBuffTargetId
     let target: CardInstance | null = null
-    if (targetInstanceId !== undefined) {
+    // 付け替えの答えでの再入では、targetInstanceId は付け替え先の答えなので、選んだ対象は picked から取る
+    const attempt = attemptOf(ctx, "other", "targeted")
+    const settleCandidateIds = (): string[] =>
+        pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType).map((s) => s.instanceId)
+    if (action.picked) {
+        const ids = settleTargets(ctx, action, action.picked.ids, settleCandidateIds(), attempt)
+        target = (ids?.[0] !== undefined ? findSpiritAny(state, ids[0])?.inst : undefined) ?? null
+    } else if (targetInstanceId !== undefined) {
         const found = findSpiritAny(state, targetInstanceId)
         if (found && matchesTarget(state, found.pid, found.inst, filter, self?.instanceId)) target = found.inst
     } else if (action.side === "both" && state.interactiveTargets) {
@@ -210,6 +219,11 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
     if (!target) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
+    }
+    if (!action.picked) {
+        const ids = settleTargets(ctx, action, [target.instanceId], settleCandidateIds(), attempt)
+        if (ids === null) return
+        target = (ids[0] !== undefined ? findSpiritAny(state, ids[0])?.inst : undefined) ?? target
     }
     state.lastBpBuffTargetId = target.instanceId
     // bp と同じ timedEffect に並んだ色つきシンボル追加は、BP を上げる個体と同じ個体に付く
@@ -345,6 +359,19 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
     if (skipOnly && pid === undefined) {
         log(state, `${sourceName}：お互いの「次のリフレッシュステップで回復できない」は未対応のため発揮しなかった。`)
         return
+    }
+    // 使った時点の対象を付け替えられる。付け替えた後はその個体だけに効き、後から出たスピリットには効かない（2026-11-19 ユーザー確認）。
+    // 個体の記録で置けない content（recorded 以外）が混ざるときは付け替えを聞かず、ルールのまま置く
+    if (action.content.every(isRecorded)) {
+        const now = (pid === undefined ? [owner, opp] : [pid]).flatMap((p) => state.players[p].field.spirits.filter((s) => matchesTarget(state, p, s, filter, self?.instanceId)))
+        const settled = settleList(ctx, action, now, attemptOf(ctx, "other", "area"))
+        if (settled === null) return
+        // 付け替えたかは持ち主の答えで見る（該当が元から1体だけでも、付け替えたら後から出たものには効かない）
+        const redirected = action.picked?.settled === true && settled.length === 1 && ctx.targetInstanceId === settled[0]!.instanceId
+        if (redirected) {
+            for (const s of settled) log(state, apply(state, owner, s, action))
+            return
+        }
     }
     if (action.content.some((c) => c.type === "level")) {
         // 耐性は記録時でなく、計算し直すたびに判定する（state/continuous.ts の applyTimedCopies）。後から耐性を得た／失った個体も正しくなる
@@ -1137,8 +1164,8 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         placeAny(ctx, action, candidates)
         return
     }
-    // 選択の再開：1体ぶんの action（count:1）が選ばれた個体つきで戻ってくる
-    if (targetInstanceId !== undefined) {
+    // 呼び出し側が個体を直接渡してきたとき（選択の再開ではない）
+    if (targetInstanceId !== undefined && !action.choosing && !action.picked) {
         const found = candidates.find((s) => s.instanceId === targetInstanceId)
         log(state, found ? apply(state, owner, found, action) : `${sourceName}：対象がいなかった。`)
         return
@@ -1152,24 +1179,27 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         return
     }
     const { countCounter: _cc, ...rest } = action
-    if (
-        tryInteractiveTargetChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：${contentLabel(action)}ようにする相手のスピリットを選んでください${count > 1 ? `（残り${count}体）` : ""}`,
-            candidates,
-            { ...rest, count: 1 },
-            count > 1 ? { ...rest, count: count - 1 } : null,
-        )
-    ) {
-        return
+    const candidateIds = candidates.map((s) => s.instanceId)
+    let ids: string[] | null
+    if (state.interactiveTargets) {
+        ids = pickTargets(ctx, { ...rest, count }, {
+            candidates: candidateIds,
+            count,
+            upTo: false,
+            prompt: `${sourceName}：${contentLabel(action)}ようにする相手のスピリットを選んでください`,
+            verb: "指定する",
+        })
+    } else {
+        // 非対話時は実効BP最大から順に選ぶ
+        ids = [...candidates].sort((a, b) => effectiveBp(state, opp, b) - effectiveBp(state, opp, a)).slice(0, count).map((s) => s.instanceId)
     }
-    // 非対話時は実効BP最大から順に選ぶ
-    const picked = [...candidates]
-        .sort((a, b) => effectiveBp(state, opp, b) - effectiveBp(state, opp, a))
-        .slice(0, count)
-    for (const s of picked) log(state, apply(state, owner, s, action))
+    if (ids === null) return
+    const settled = settleTargets(ctx, { ...rest, count }, ids, candidateIds, attemptOf(ctx, "other", "targeted"))
+    if (settled === null) return
+    for (const id of settled) {
+        const s = candidates.find((c) => c.instanceId === id)
+        if (s) log(state, apply(state, owner, s, action))
+    }
 }
 
 // 「好きなだけ指定する」：候補を押すたびに選ぶ／外すを切り替え、確定で掛ける。非対話は候補すべてに掛ける
@@ -1179,11 +1209,15 @@ function placeAny(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Time
     let chosen = (action.chosenIds ?? []).filter((id) => ids.includes(id))
     // anyMax：「N体まで」の上限（BS18-033）。上限に達したら、選んだものを外す操作だけ受け付ける
     const max = action.anyMax ?? Infinity
-    if (action.choosing && targetInstanceId !== undefined) {
+    // 付け替えの答えでの再入：選び終えた集合は picked が持つ（targetInstanceId は付け替え先の答え）
+    if (action.picked) chosen = action.picked.ids
+    else if (action.choosing && targetInstanceId !== undefined) {
         if (chosen.includes(targetInstanceId)) chosen = chosen.filter((id) => id !== targetInstanceId)
         else if (chosen.length < max) chosen = [...chosen, targetInstanceId]
     }
-    if (!state.interactiveTargets) {
+    if (action.picked) {
+        // 確定済み
+    } else if (!state.interactiveTargets) {
         // 非対話は実効BP最大から上限まで
         chosen = [...candidates].sort((a, b) => effectiveBp(state, opp, b) - effectiveBp(state, opp, a)).slice(0, max).map((s) => s.instanceId)
     } else if (!(action.choosing && targetInstanceId === undefined) && candidates.length > 0) {
@@ -1205,7 +1239,12 @@ function placeAny(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Time
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    for (const id of chosen) log(state, apply(state, owner, candidates.find((s) => s.instanceId === id)!, action))
+    const settled = settleTargets(ctx, action, chosen, ids, attemptOf(ctx, "other", "targeted"))
+    if (settled === null) return
+    for (const id of settled) {
+        const s = candidates.find((c) => c.instanceId === id)
+        if (s) log(state, apply(state, owner, s, action))
+    }
 }
 
 // atTurnEnd（BS16-068）：解決した時点ではactionを実行せず、state.turnEndActionsへ記録するだけ。
