@@ -247,14 +247,30 @@ Cloud Run が返す `https://bs-web-xxxxx.asia-northeast1.run.app` は安定し�
 
 ## 旧カードの画像（隠し要素。2026-11-02）
 
-画像は git 管理外。手元で取って縮小し、Cloud Storage のバケット（`bs-web-card-images`）に置く。**イメージには含めず、Cloud Run にバケットをつないで `/app/public/imgs/cards` として読む**（2026-11-12。以前はデプロイのたびに全部取って焼き込んでいて、毎回1分前後かかっていた）。画像を足すときはバケットに上げるだけで、デプロイは要らない。同じドメインから配るので Discord Activity の「外部ホスト禁止」も守れる。
+画像は git 管理外。手元で取って縮小し、Cloud Storage のバケット（`bs-web-card-images`）に置く。**本番の画面はバケットから直接読む**（`https://storage.googleapis.com/bs-web-card-images/...`。#638。Cloud Run を通さないので、画像のたびにインスタンスが動かない）。ローカル開発と Discord Activity は相対パス `/imgs/cards` のまま（Activity は Portal の URL Mapping でバケットへ向ける。DISCORD_ACTIVITY.md）。切り替えは `public/src/cardArt.ts` の `cardImageBase` 1か所。画像を足すときはバケットに上げるだけで、デプロイは要らない。
 画面に出るのは、入力欄に「ゲートオープン開放」と打った端末だけ（`public/src/cardArt.ts`）。
 
 1. 画像を取る・縮小する（取得済みは飛ばす。全部で1時間強）
    `npx tsx scripts/download-card-images.ts && npx tsx scripts/optimize-card-images.ts`
 2. 画像を上げる（画像を足したら同じコマンドで上げ直す。**original は上げない**＝バケットの中身がそのまま配られる）
-   `gcloud storage rsync --recursive --exclude 'original/.*' public/imgs/cards gs://bs-web-card-images`
-3. **初回だけ**：実行用のサービスアカウントにバケットの読み取りを付け、Cloud Run にバケットをつなぐ（つなぐ設定はサービスに残り、以後の `gcloud run deploy` でも消えない。リビジョンが入れ替わるので、ルームが空いているときに行う）
+   `gcloud storage rsync --recursive --exclude 'original/.*' --cache-control="public, max-age=2592000" public/imgs/cards gs://bs-web-card-images`
+   キャッシュは30日（差し替えはほぼ無い）。公開オブジェクトは Google 側でもキャッシュされ、**消す手段が無い**ので、画像を差し替えると最大30日古い絵が残りうる
+3. **初回だけ（#638 の切り替え前に1回）**：バケットを匿名で読めるようにし、上がっている画像にキャッシュの指定を付け直す
+   ```bash
+   # ファイル単位の読み取りだけ（objectViewer は一覧も取れるので使わない。画像は合言葉で出す隠し要素）
+   gcloud storage buckets add-iam-policy-binding gs://bs-web-card-images --member=allUsers --role=roles/storage.legacyObjectReader
+   # rsync の指定は上げ直したものにしか付かないので、既存の約6,600件に1回付ける
+   gcloud storage objects update "gs://bs-web-card-images/**" --cache-control="public, max-age=2592000"
+   # 匿名で開けること・Cache-Control が返ることを確かめる（Public Access Prevention が enforced だと allUsers が効かない）
+   curl -sI https://storage.googleapis.com/bs-web-card-images/md/BS01/BS01-001.webp | grep -iE "^HTTP|cache-control"
+   ```
+4. **切り替えから数日たったら**：Cloud Run のバケットのマウントと `server/src/index.ts` の `/imgs/cards` の配信を外す（切り替え前に開いたタブが `/imgs/cards` を取りに来続けるため、すぐには外さない。マウントはデプロイでは消えないので明示的に外す）
+   ```bash
+   gcloud run services update bs-web --region asia-northeast1 --project bs-web-imachan \
+     --remove-volume-mount=/app/public/imgs/cards --remove-volume=cards
+   ```
+   ローカル開発と Activity は `/imgs/cards` を使うので、index.ts の配信を外すかは Activity の着手時に決め直す
+5. **旧方式の記録（2026-11-12〜#638）**：実行用のサービスアカウントにバケットの読み取りを付け、Cloud Run にバケットをつないでいた（つなぐ設定はサービスに残り、以後の `gcloud run deploy` でも消えない。リビジョンが入れ替わるので、ルームが空いているときに行う）
    ```bash
    SA=$(gcloud run services describe bs-web --region asia-northeast1 --project bs-web-imachan --format='value(spec.template.spec.serviceAccountName)')
    SA=${SA:-910728969072-compute@developer.gserviceaccount.com}   # 空なら既定のサービスアカウント
