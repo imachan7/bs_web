@@ -414,9 +414,11 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
         )
         if (passed === null) return
         let exhausted = 0
+        const exhaustedIds: string[] = []
         for (const id of passed) {
             const found = findSpiritAny(state, id)
             if (!found || found.inst.isRested) continue
+            exhaustedIds.push(id)
             exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
             exhausted += 1
             log(state, exhaustLog(sourceName, getCard(found.inst.cardId).name, action.bofuSourcePid !== undefined))
@@ -427,6 +429,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             }
         }
         if (exhausted === 0 && ids.length === 0) log(state, `${sourceName}の疲労付与：対象がいなかった。`)
+        recordTargets(state, exhaustedIds)
 }
 
 // 「すべて」の疲労は範囲の効果（attempt が "area"）。両陣営は bothSidesPids（封印された魔導書の片側への変更を見る）
