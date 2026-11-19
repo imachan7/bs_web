@@ -1093,3 +1093,12 @@ input[type="text"] {
 .pool-card.has-art .info { display: none; }
 /* コストも画像に入っているので出さない */
 .pool-card.has-art .cost-badge { display: none; }
+
+#family-panel {
+    flex-basis: 100%;
+}
+
+#family-panel .family-chips {
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}

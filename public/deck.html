@@ -80,14 +80,13 @@
                     </select>
                 </div>
                 <div class="filter-row">
-                    <span class="filter-label">系統</span>
-                    <input id="filter-family" class="family-select" list="family-options" placeholder="系統を入力して選ぶ" autocomplete="off" />
-                    <datalist id="family-options"></datalist>
+                    <button id="family-toggle" class="chip" aria-expanded="false">系統 ▸</button>
                     <div class="chip-group" id="family-selected"></div>
                     <div class="chip-group" id="filter-family-mode">
                         <button class="chip active" data-mode="has">系統を持つ</button>
                         <button class="chip" data-mode="mention">効果で扱う</button>
                     </div>
+                    <div id="family-panel" class="hidden"></div>
 
                     <span class="filter-label">特徴</span>
                     <div class="chip-group" id="filter-flags">

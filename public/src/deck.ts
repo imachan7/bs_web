@@ -77,6 +77,33 @@ let familyHas = true // 両方外れたときも「持つ」として扱う
 let familyMention = false
 // 効果文の 系統：「X」「X・Y」 から拾う。絞り込みのたびに正規表現を回さないよう読み込み時に1回だけ作る
 const mentionedFamilies = new Map<string, Set<string>>()
+const FAMILY_GROUPS: ReadonlyArray<[string, string]> = [
+    ["red", "赤"], ["purple", "紫"], ["green", "緑"], ["white", "白"], ["yellow", "黄"], ["blue", "青"], ["multi", "多色"],
+]
+// 系統を持つカードの色のうち最多の色が7割以上ならその色、そうでなければ多色。持つカードが無い系統も多色
+function familyColors(all: Set<string>): Map<string, string> {
+    const tally = new Map<string, Map<string, number>>()
+    for (const card of cards) {
+        for (const fam of card.family) {
+            const t = tally.get(fam) ?? new Map<string, number>()
+            for (const c of card.colors) t.set(c, (t.get(c) ?? 0) + 1)
+            tally.set(fam, t)
+        }
+    }
+    const result = new Map<string, string>()
+    for (const fam of all) {
+        const t = tally.get(fam)
+        let best = "multi"
+        if (t) {
+            const total = Array.from(t.values()).reduce((a, b) => a + b, 0)
+            const [color, n] = Array.from(t.entries()).sort((a, b) => b[1] - a[1])[0] ?? ["multi", 0]
+            if (n / total >= 0.7) best = color
+        }
+        result.set(fam, best)
+    }
+    return result
+}
+
 function buildMentionedFamilies(): void {
     mentionedFamilies.clear()
     for (const card of cards) {
@@ -1257,13 +1284,40 @@ function setupFilterChips(): void {
     })
 
     for (const set of mentionedFamilies.values()) for (const f of set) availableFamilies.add(f)
-    const familyInput = $("filter-family") as HTMLInputElement
-    const familyOptions = $("family-options")
-    for (const fam of Array.from(availableFamilies).sort((a, b) => a.localeCompare(b, "ja"))) {
-        const option = document.createElement("option")
-        option.value = fam
-        familyOptions.appendChild(option)
+    const familyColor = familyColors(availableFamilies)
+    const familyToggle = $("family-toggle")
+    const familyPanel = $("family-panel")
+    const familyChipEls = new Map<string, HTMLButtonElement>()
+    const toggleFamily = (fam: string) => {
+        if (filterFamilies.has(fam)) filterFamilies.delete(fam)
+        else filterFamilies.add(fam)
+        familyChipEls.get(fam)?.classList.toggle("active", filterFamilies.has(fam))
+        renderFamilyChips()
+        renderPool()
     }
+    for (const [colorKey, label] of FAMILY_GROUPS) {
+        const fams = Array.from(availableFamilies).filter((f) => familyColor.get(f) === colorKey).sort((a, b) => a.localeCompare(b, "ja"))
+        if (fams.length === 0) continue
+        const head = document.createElement("div")
+        head.className = "filter-label"
+        head.textContent = label
+        const group = document.createElement("div")
+        group.className = "chip-group family-chips"
+        for (const fam of fams) {
+            const btn = document.createElement("button")
+            btn.className = colorKey === "multi" ? "chip" : `chip chip-${colorKey}`
+            btn.textContent = fam
+            btn.addEventListener("click", () => toggleFamily(fam))
+            familyChipEls.set(fam, btn)
+            group.appendChild(btn)
+        }
+        familyPanel.append(head, group)
+    }
+    familyToggle.addEventListener("click", () => {
+        const open = familyPanel.classList.toggle("hidden") === false
+        familyToggle.textContent = open ? "系統 ▾" : "系統 ▸"
+        familyToggle.setAttribute("aria-expanded", String(open))
+    })
     const renderFamilyChips = () => {
         const box = $("family-selected")
         box.textContent = ""
@@ -1273,21 +1327,11 @@ function setupFilterChips(): void {
             chip.textContent = `${fam} ×`
             chip.title = "この系統を外す"
             chip.addEventListener("click", () => {
-                filterFamilies.delete(fam)
-                renderFamilyChips()
-                renderPool()
+                toggleFamily(fam)
             })
             box.appendChild(chip)
         }
     }
-    familyInput.addEventListener("input", () => {
-        // 候補の一覧から選ばれた（または完全一致で入力された）ときだけ追加する
-        if (!availableFamilies.has(familyInput.value)) return
-        filterFamilies.add(familyInput.value)
-        familyInput.value = ""
-        renderFamilyChips()
-        renderPool()
-    })
     for (const btn of $("filter-family-mode").querySelectorAll<HTMLButtonElement>(".chip")) {
         btn.addEventListener("click", () => {
             const isHas = btn.dataset.mode === "has"
@@ -1393,7 +1437,7 @@ function setupFilterChips(): void {
         
         filterFamilies.clear()
         renderFamilyChips()
-        familyInput.value = ""
+        for (const el of familyChipEls.values()) el.classList.remove("active")
         familyHas = true
         familyMention = false
         searchText = ""
