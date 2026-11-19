@@ -291,3 +291,108 @@
 ## 8. 時代の確認
 - GX・KF・PB・LM13 は2010〜2013年の配布で、語彙は 【暴風】【激突】【粉砕】【強化】【連鎖】【神速】【転召】【呪撃】など（既存プールにある）。26系の語彙は無い（ソウルコア・煌臨・アクセル）
 - 例外：「アルティメット」「Uトリガー」「召喚条件」は ULTIMATE.md の領域（§5）
+
+## 9. 3段目以降の調査（2026-11-20）
+
+対象：GX01・03・04・05・07・08・11・12-01・13・14・15・16・18・20・24、KF-02・07・14・15、PB12-03・04・05、PB13-01・05、X010・X015・X018、アマテラス（cardId は BS55-XX01）。§3 の「未確認」を既存カードの効果文の grep と型・ハンドラの読みで潰した。§2 の部品番号とは別に、9.3 で番号を振り直した（#3＝部品1、#4＝部品5、#5＝部品6、#6＝部品2、#7＝部品3）。
+使用者の名前制限（`onlyUsableBy`）は全カード共通で §4 の表のとおり。下の表には書かない。マジックのフラッシュ（BP+N）は 1・2段目と同じ形なので省く。
+
+### 9.1 前例の形（実装役・データ役が写す。どれも `data/cards` の実在エントリ）
+
+- **このターンの間の継続効果をマジックから貸す**：`{kind:"magic",timing:"main",action:{type:"lendSelfThisTurn"}}` ＋ `lentOnly:true` の継続エントリ。手本 BS02-101（keywordGrant）・BS08-084・BS05-070（fieldEvent）・BS08-067（`anySpiritAttacked`＋`ownOnly`＋`subjectFilter`）・BS03-134（nameAsGrant）。**後から出たスピリットにも効くのは貸す形だけ**（`timedEffect all` は付与時点のスピリット向きの手本 P081 しか無い）。
+- 貸与の仕組み：`server/src/logic/actions/grant.ts` の `pushVirtualSource`（約360行）・`lendSelfThisTurnHandler`。仮想発生源は `PlayerState.turnVirtualInstances` に積み、`PhaseManager.endTurn`（約462行）で空にする。走査は `shared/rules/level.ts` の `effectSources`（約255行）。
+
+### 9.2 カードごとの表
+
+判定：**既存**＝既存の器の組み合わせで書ける／**部品N**＝9.3 の部品／**確認N**＝9.4 のユーザー確認。
+
+| cardId | 効果節 | 判定 | JSON の形・足す場所 |
+| :-- | :-- | :-- | :-- |
+| GX01 | メイン：7枚ドロー。その後デッキすべてをゲームから取り除く | 部品1 | `sequence[draw 7, removeDeckFromGame]`。draw は GX26-e1 と同形 |
+| GX03 | メイン：トラッシュの「魔界七将」入りスピリットすべてを無償で召喚できる | 既存 | GX10-e1 と同形：`moveCards from:trash count:"all" dest:summon ask:true pick:{cardType:"spirit",nameIncludes:"魔界七将"}` |
+| GX04 | メイン：このターンの間、【神速】/【暴風】を持つ自分のスピリットすべては、アタックするとき相手のスピリット1体を指定してアタックできる | 既存 | `lendSelfThisTurn` ＋ `{kind:"constraintGrant",levels:null,target:"ownAll",lentOnly:true,filter:{keyword:["soku","bofu"]},constraint:{type:"canDirectAttack",targetFilter:"any"}}`。手本 BS05-056-e2（constraintGrant＋canDirectAttack）・BS11-X01-e1。keyword の配列＝OR（P051 のコストで実在） |
+| GX05 | メイン：このゲームの間、自分のスピリットすべてに【装甲：全色】を与える | 部品2 | `lendSelfThisGame` ＋ `{kind:"keywordGrant",levels:null,target:"ownAll",lentOnly:true,keyword:"armor",colors:[red,purple,green,white,yellow,blue]}`（BS02-101-e2 と同形） |
+| GX07 | メイン：このターンの間、自分のXレアのスピリットがアタックしたとき相手のデッキを上から10枚破棄 | 部品3 | `lendSelfThisTurn` ＋ BS08-067-e2 と同形の `fieldEvent anySpiritAttacked ownOnly lentOnly subjectFilter:{rarity:"X"} action:{type:"discard",from:"deck",side:"opponent",count:10}` |
+| GX08 | メイン：このターンのアタックステップ終了後、コア・ドロー・リフレッシュ・メイン・アタックの各ステップを順に1回ずつ | 部品6・確認1 | 9.3 の部品6 |
+| GX11 | メイン：このターンの間、「怪虫」「殻虫」「殻人」の自分のスピリットすべてに【呪撃】を与える | 既存 | `lendSelfThisTurn` ＋ `{kind:"keywordGrant",levels:null,target:"ownAll",lentOnly:true,keyword:"jugeki",familyFilter:["怪虫","殻虫","殻人"]}`（手本 BS08-084-e2・BS06-077-e1。【呪撃】の本体は keyword が持つので効果文の本文を別エントリに書かない） |
+| GX12-01 | バースト：ライフ1のとき、お互いのデッキを5枚以下になるよう破棄。この効果発揮後、召喚 | 部品4 | `burst ownLifeDamaged if{count:"ownLife",atMost:1} then sequence[discard from:deck side:own downTo:5, discard from:deck side:opponent downTo:5, settleDerived, summon from:burst]`。形は KF-13-e1 と同じ |
+| 〃 | Lv1-2：相手の一切の効果を受けない | 既存・確認3 | `constraint immuneToOpponentEffects levels:[1,2] against:["spirit","magic","brave","nexus","burst"]`（未指定はスピリット/マジックだけ。`shared/rules/constraints.ts` の `hasFullEffectImmunity`・`resistance.ts` 130行がバーストを読む） |
+| 〃 | Lv2：フラッシュ：トラッシュの「犬」入りスピリット/ブレイヴ1枚を無償召喚できる | 既存 | `kind:"activated",timing:"flash",levels:[2]`＋`moveCards from:trash count:1 dest:summon optional:true pick:{cardType:["spirit","brave"],nameIncludes:"犬"}`。手本 BS13-026-e1（無コスト版は smoke で確かめる）。`pick.cardType` の配列は GX24 と同じ |
+| GX13 | メイン：このターンの間、「天霊」の自分のスピリットが破壊されたとき、ライフが5になるようボイドからコアを置く | 既存 | `lendSelfThisTurn` ＋ `fieldEvent ownSpiritDestroyed lentOnly subjectFilter:{family:"天霊"} action:{type:"placeCores",from:"void",to:"life",count:0,fillTo:5}`（BS12-082-e2・BS09-X35-e2 と同形） |
+| GX14 | メイン：次のターンの間、相手はコアステップとドローステップを行えない | 部品5・確認2 | `timedEffect duration:"nextRefresh" content:[{type:"playerRule",rule:{type:"skipSteps",steps:["core","draw"]}}]`（side 省略＝相手。`placePlayerRule`＝timedEffect.ts 約595行）。手本 BS18-054-e4 |
+| GX15 | メイン：デッキのブレイヴを「アポロ」入りの自分のスピリットすべてに合体させるだけ選び、直接合体で召喚。その後シャッフル | 部品7・確認6 | `sequence[moveCards{from:"deck",dest:"summon",combineToEach:{nameContains:"アポロ"}}, shuffleDeck]` |
+| GX16 | メイン：相手の合体スピリットすべてのブレイヴすべてを破壊、破壊したブレイヴ1つにつき相手のライフのコア1個をボイドへ | 部品8・確認7 | `sequence[destroyBrave{allHosts:true,allBraves:true}, settleDerived, lifeCrush{count:1,countCounter:"lastDestroyedCount",dest:"void"}]`。lifeCrush は BS13-050-e1・BS15-027-e2 |
+| GX18 | メイン：このターンの間、「ストライク」入りの自分のスピリットすべてはブロックされない | 既存 | BSC05-026-e1 と同形：`timedEffect content:[{type:"unblockable"}] duration:"turn" all:true side:"own" filter:{nameContains:"ストライク"}`（`all` は rule で置くので後から出たスピリットにも効く＝timedEffect.ts `placeUnblockable`） |
+| GX20 | メイン：このゲームの間、「光導」のスピリットが召喚されたとき相手のデッキを上から12枚破棄 | 部品2 | `lendSelfThisGame` ＋ `fieldEvent anySpiritSummoned lentOnly subjectFilter:{family:"光導"} action:{type:"discard",from:"deck",side:"opponent",count:12}`（BS18-064-e1 が anySpiritSummoned の手本。**両陣営のスピリットで発火**し、subjectSide は付けない） |
+| GX24 | バースト：ライフ1のとき、手札のスピリットとブレイヴを好きなだけ召喚。その後フラッシュ | 既存 | `burst ownLifeDamaged if{count:"ownLife",atMost:1} then moveCards{from:"hand",dest:"summon",count:"all",upTo:true,pay:"cost",pick:{cardType:["spirit","brave"]}}` ＋ `thenPay:"flash"`。`pay:"cost"` は moveCards.ts 136・168・434行で実在（GX23 の `pay:"cost"` と同じ） |
+| 〃 | フラッシュ：ライフ1のとき、ライフが5になるようボイドからコアを置く | 既存 | `magic flash if{count:"ownLife",atMost:1} then placeCores{from:"void",to:"life",count:0,fillTo:5}` |
+| KF-02 | Lv1-3：「カーネル」/「ケンタ」入りの自分のスピリット1体につき BP+1000 | 既存 | `aura{type:"bp",target:"self",amountPer:1000,counter:{ownSpiritsMatching:{nameContains:["カーネル","ケンタ"]}}}`（AuraCounter の `ownSpiritsMatching`＝auraCounter.ts。発生源自身も数える＝効果文どおり） |
+| KF-07 | Lv1-2『お互いのアタックステップ』：「カーネル」/「ケンタ」入りの自分のスピリットすべて BP+2000 | 既存 | `aura{type:"bp",target:"ownAll",filter:{nameContains:[…]},amount:2000,phaseTurn:{phase:"attack",turn:"both"}}`（BS14-039-e2 と同形） |
+| 〃 | Lv2『相手のメインステップ』：相手のスピリットすべての召喚時効果は発揮されない | 既存 | BS04-086-e1 と同形：`triggerSuppression levels:[2] trigger:"onSummon" phase:"main" turn:"opponent"` |
+| KF-14 | バースト：召喚／Lv2-3 アタック時：「カーネル」入りがいればBP+5000／Lv3『自分のバースト発動後』：回復 | 既存 | `burst ownLifeDamaged summon from:burst`（BS14-X04-e1）、`onAttack`＋KF-13-e2 と同形の if（BP+5000 は `timedEffect bp 5000 duration:battle target:self`）、`fieldEvent ownBurstActivated levels:[3] selfMode:"source" action:{type:"refresh",target:"self"}`（BS14-X05-e3 が `ownBurstActivated` の手本。self 解決は `selfMode:"source"` を付けて確かめる） |
+| KF-15 | Lv1-2 召喚時：トラッシュの「カーネル」入りスピリット1枚を手札へ／Lv2 アタック時：Lv1の相手からブロックされない | 既存 | P039-e1 と同形（`nameIncludes:"カーネル"`）／BS13-058-e1 と同形の `timedEffect target:self duration:battle content:[{type:"unblockable",opponentOnly:true,from:{level:[1]}}]` |
+| PB12-03 | Lv1-3 召喚時：このターンの間、スピリットすべてはカード名に「ペンタン」を含むものとして扱う | 部品9 | `triggered onSummon levels:[1,2,3] lendSelfThisTurn`（BS03-058-e1 型）＋ `{kind:"nameAsGrant",levels:null,lentOnly:true,target:"anyAll",nameIncludes:"ペンタン"}`。**`target` に両陣営を足す**（現在 ownAll／self。continuous.ts 500〜532行） |
+| 〃 | Lv2-3：「ペンタン」の自分のスピリットは相手によって破壊されたとき手札へ／「ペンタン」の相手のスピリットは自分によって破壊されたとき手札へ | 既存＋部品9 | 前半：`reviveOnDestroy scope:"ownAll" filter:{nameContains:"ペンタン"} when:{byOpponent:true} revived:{toHand:true}`（BS12-068-e2 型）。後半：`scope:"opponentAll"` を足す（部品9。revive.ts 1411〜1421行の走査） |
+| PB12-04 | バースト：BP(自分のスピリットの体数×1000)以下の相手1体を破壊。この効果発揮後召喚 | 既存 | `burst ownLifeDamaged sequence[destroy{count:1,filter:{maxBp:0,maxBpPer:{counter:{ownSpirits:{}},amount:1000}}}, settleDerived, summon from:burst]`。`maxBpPer` は actions/filter.ts 232行で実在、counter `ownSpirits:TargetFilter` は effectCounter.ts 69行。**maxBp:0 の足し算が 0 を落とさないか smoke で確かめる**（体数0のとき BP0以下だけが対象＝効果文どおり） |
+| PB12-05 | 効果なし | 既存 | `effects:[]`（BS01-001 など270枚が同形） |
+| PB13-01 | Lv1-2【呪撃】 | 既存 | `keyword jugeki levels:[1,2]` |
+| 〃 | Lv2 アタック時：相手の合体スピリットのコスト4以下のブレイヴ1つを破壊 | 部品8 | `destroyBrave{filter:{cost:{max:4}}}`（destroyBrave に filter が無い） |
+| 〃 | 【連鎖：黄】アタックで相手のライフを減らしたとき、ボイドからコア1個を自分のライフへ | 既存 | `triggered keyword:"rensa" trigger:"onLifeDealt" heading:"attack" levels:[2] if{rensa:true,cond:{count:{ownColorSymbols:"yellow"},atLeast:1}} then placeCores void→life`（BS22-026-e1・BS22-060-e1 と同形） |
+| PB13-05 | 6コストを支払わなければ配置できない／Lv1 エンドステップ：ゲームの再開始 | 部品10・確認8 | 9.3 の部品10。**最後** |
+| X010 | 【転召：歌鳥/ボイド】 | 既存 | `keyword tensho familyFilter:["歌鳥"] dest:"void"`（BS12-007-e1 と同形） |
+| 〃 | Lv1-3：[皇帝アンプルール]で転召したとき、手札とトラッシュの「ペンタン」入りスピリットを好きなだけ無償召喚。召喚時効果は発揮されない | 既存 | `fieldEvent ownTensho levels:[1,2,3] nameIncludes:["皇帝アンプルール"] selfMode:"source" action:{type:"summon",from:"hand",alsoFrom:"trash",nameIncludes:"ペンタン",skipOnSummon:true,count:99,upTo:true}`（BS09-X37-e3 が ownTensho の形、P13-25-e1 が `alsoFrom:"trash"`＋`count:99`、BS06-057-e1 が `nameIncludes`＋`skipOnSummon`） |
+| 〃 | Lv3 アタック時：「ペンタン」入りの自分のスピリット3体を破壊することで回復 | 既存 | `onAttack levels:[3] pay{cost:{type:"destroy",side:"own",count:3,filter:{nameContains:"ペンタン"}},then:{type:"refresh",target:"self"}}`（BS02-X07-e3 型。count 3 は smoke で確かめる） |
+| X015 | コストを支払わなければ召喚できない | 既存 | `summonNeedsCost`（X13-17-e1） |
+| 〃 | Lv1-2：アタックと合体ができず、このスピリット以外の一切の効果を受けない | 部品11・確認4 | `cantAttack`＋`cantCombine`（BS01-142-e1・BS11-X02-e1）＋ 部品11 |
+| X018 | バースト：ライフ3以下のとき、BP15000以下の相手1体を指定。このターンの間アタックできない。この効果発揮後召喚 | 既存 | `burst ownLifeDamaged if{count:"ownLife",atMost:3} then sequence[timedEffect{content:[{type:"cantAttack"}],duration:"turn",count:1,filter:{maxBp:15000}}, settleDerived, summon from:burst]`（PX17-e2 の cantAttack＋KF-13-e1 の形。side 省略＝相手） |
+| 〃 | Lv2-4：「ペンタン」の自分のスピリットがLv2以下の相手とBPを比べるとき、比べずブロックされなかったものとして扱う | 部品12 | `effectGrant levels:[2,3,4] target:"ownAll" nameIncludes:"ペンタン" granted:{trigger:"onAttack",action:{type:"treatAsUnblocked",when:{blockerMaxLevel:2}}}`（BS19-X05-e3 と同形。`when` に Lv の上限を足す） |
+| アマテラス（BS55-XX01） | Lv1：あらゆる効果を受けない | 部品11・確認4 | 同上 |
+| 〃 | 合体できない。BPはこのスピリット上のコア×10000 | 既存 | `cantCombine`＋`aura{type:"bp",target:"self",amountPer:10000,counter:"selfCores"}`（levels の bp は 0。`selfCores` の手本 BS13-020 ブッシュベイベ。auraCounter.ts の `selfCores`） |
+| 〃 | Lv1 召喚時：このスピリット以外のスピリットすべてを破壊 | 既存 | `onSummon destroy{count:1,all:true,anySide:true,filter:{excludeSelf:true}}`（BS05-070-e2 が all＋anySide、`excludeSelf` は BS15-045-e2 の subjectFilter で実在。**自分のスピリットも壊す**ので両陣営で確かめる） |
+
+### 9.3 新部品の一覧
+
+原則1の確認：どれも既存の器の組み合わせで書けるかを、効果文の grep（9.1 の前例）と型で確かめたうえで残ったもの。
+
+| # | 部品 | 足す場所 | 組み合わせで書けない理由 | 使うカード |
+| :-- | :-- | :-- | :-- | :-- |
+| 1 | `removeDeckFromGame`（自分のデッキすべてをゲームから取り除く） | `types/effectAction.ts`（`shuffleDeck` の隣）、`logic/actions/` に概念ごとの新ファイル（`deckZone.ts`）か `drawDiscard.ts`、`PlayerState.removedCards: string[]`（`types/playerState.ts`・`shared/board.ts`・`GameState.ts` 781行のコピー・`type.ts` 374行のビュー） | `moveCards` の dest は手札/デッキ/トラッシュ等でゲーム外が無く、`moveCards from:deck` は選ぶ動作で「全部」に向かない。「ゲームから除外」を扱う既存カードが無い（grep 空） | GX01 |
+| 2 | `lendSelfThisGame`＋`PlayerState.gameVirtualInstances` | `grant.ts` の `pushVirtualSource`（`scope:"game"` を足す。`lendSelfThisBattle` と同形で、積む先が違うだけ）、`level.ts` `effectSources`（256行）と 295・317行、`board.ts` 40行、`GameState.ts` 193・782行、`playerState.ts` 59行、`type.ts` 375行。**どこでも消さない**（`PhaseManager` 462・470行と `GameState.ts` 540行の消去には足さない）。`debugBoard.ts` 144行だけ空にする | `TimedContent` に fieldEvent が無く、`timedEffect` の duration に game が無い。貸与（`lendSelfThisTurn`）は turnVirtualInstances がターン終了で消える | GX05・GX20 |
+| 3 | フィルタの軸 `rarity: string` | `types/targetFilter.ts`（`nameContains` の隣。`validate-cards` の軸一覧はこの型から自動で読む）、`shared/rules/targetFilter.ts` の `matchesTarget`（141行付近。`card(inst.cardId).rarity.split(",").includes(filter.rarity)`＝"X,PX" も X に当たる） | `targetFilter` にレアリティを読む軸が無い（`CardData.rarity` は type.ts 234行にある） | GX07 |
+| 4 | `discard from:"deck"` に `downTo:number`（デッキがその枚数以下になるまで） | `types/effectAction.ts` 90行の定義、`logic/actions/mill.ts` の `discardFromDeck`（`count` を `max(0, deck.length-downTo)` に解く。上限枚数・【強化】は `side:"opponent"` の count≥1 にだけ乗る＝`deckDiscardKyokaCount`） | `count` は固定数かカウンタで、デッキの現在枚数を読む EffectCounter が無い。hand の `downTo` と同じ意味の語を deck にも通す | GX12-01 |
+| 5 | `PlayerRuleDef` に `{type:"skipSteps";steps:("core"|"draw")[]}`（寿命 nextRefresh） | `type.ts` の PlayerRuleDef（skipMainStep の隣・325行）、`logic/actions/timedEffect.ts` の許可リスト（597行・1093行の `skipMainStep` 限定を広げる）、`PhaseManager.turnStartSegments` の core②（コア置き。133行付近）と draw②（ドロー。183行付近）で `timedPlayerRules(state,pid)` を読んで飛ばす。**消費はしない**（リフレッシュステップが `consumeNextRefreshRecords` で使い切る） | `skipMainStep`（BS18-054-e4）はメイン専用、`skipDrawStep` は「ドローしないことで」の支払い用でコアステップを止める器が無い。コアとドローを別々の部品にせず `steps` 配列で1つにまとめた | GX14 |
+| 6 | 追加ターン：`extraTurnSteps` アクション＋`GameState.extraTurnAfterAttackPending` | `types/effectAction.ts`（`extraAttackStep` 154行の隣）、`logic/actions/battleFlow.ts` の `extraAttackStepHandler`（187行）をまねてフラグを立てる（自分のターンでなければ不発・立っていれば何もしない）、`PhaseManager.endTurn` の BS15-X04 の枠（`state.phase==="attack" && !state.extraStepAfterAttackUsed`。351行）の**前**に「フラグがあれば消して `driveTurnStart(state, 1, MAIN_SEGMENT)` を呼んで return」を足す（区間1〜6＝コア・ドロー・リフレッシュ・メイン。区間番号は `turnStartSegments`）。**`runExtraStep` は使わない**（`extraMainStep` を立てるのでメイン後に追加のアタックへ進めない）。追加メインを普通のメインとして扱い、「アタックステップへ」で `toAttackPhase` → もう一度アタック→エンドの流れに戻る。ターン終了の消去（522行付近の `delete`）にフラグを足す。先攻1ターン目はアタックステップが無い（`toAttackPhase` が止める）のでフラグは使われずに消える | `extraAttackStep`（BS10-008・PX18）はアタックとエンドの追加だけ。コア〜メインを順に走らせる処理が `runExtraStep`（1ステップだけ・メイン後はアタックへ進めない）以外に無い | GX08 |
+| 7 | `moveCards` の `combineToEach:{filter}`（デッキのブレイヴを、フィルタに合う自分のスピリットそれぞれに1枚ずつ直接合体で召喚） | `types/effectAction.ts` 220行の moveCards、`logic/actions/moveCards.ts`（`sendOne` 150行の `hostId`＝`braveTargetInstanceId` と `combineIndex` の再開が手本。2段目で入った「召喚したブレイヴの合体先の選択」）。ホストごとにブレイヴ1枚を（使用者が）選び、**全員ぶん決めてから同時に召喚**（`surchargeBatch`／`summonBatchFlush` 系。ユーザー決定：同時に全員）。合体条件を満たさないブレイヴはそのホストの候補から外す（`braveCombineCandidates`） | `count`＋`combineIndex` は「選んだ1枚の合体先を選ぶ」で、「各ホストに別のブレイヴ1枚ずつ」の割り当てが無い（手本無し）。**判断が残る＝Sonnet** | GX15 |
+| 8 | `destroyBrave` に `allBraves?:true`（`allHosts` と併用で各ホストのブレイヴすべて）・`filter?:TargetFilter`（ブレイヴの絞り込み）、破壊数の記録 | `types/effectAction.ts` 181行、`logic/actions/battleFlow.ts` の `destroyBraveHandler`（1043行。`allHosts` は `affectableBraves(...)[0]` の1つだけ取っている）、`logic/braveTargetGate.ts` の `affectableBraves`（16行。第5引数 `braves` を filter で絞る）、`logic/brave.ts` の `destroyCombinedBraves`（151行）で `passed.length` を `recordDestroyedCount`（`logic/record.ts` 72行）に書く（**【破壊されない】等で弾かれた分は数えない**） | `allHosts` は1ホスト1つだけ。ブレイヴの絞り込み欄が無い。破壊数は `lastDestroyedCount`（`destroy` だけが書く）にブレイヴ破壊が書かない | GX16・PB13-01 |
+| 9 | `nameAsGrant.target:"anyAll"`（両陣営のスピリット）・`reviveOnDestroy.scope:"opponentAll"`（発生源の持ち主の相手のスピリットが破壊されるとき） | `types/effectDefContinuous.ts` 544行・`types/effectDefTrigger.ts` 327行、`logic/state/continuous.ts` 500〜532行（`player.field.spirits` を両陣営に回す）、`logic/revive.ts` 1411〜1421行（`effectSources(state, opponentOf(ownerPid))` も走査し、`entryActive` に発生源側の pid を渡す。`when.byOpponent` は復活する側から見た相手＝発生源の持ち主なので条件はそのまま通る） | 既存の2つは自分側（ownAll／self）しか持たない。1文が「自分のスピリットは〜／相手のスピリットは〜」の両側を指す | PB12-03 |
+| 10 | ロロ：①`summonNeedsCost` をネクサスの配置へ広げる（確認8）②ゲーム再開始アクション `restartGame` ③「ゲーム中に1回」の記録 | ①`RuleValidator.validateSetNexus`（449行）と効果による配置の入口。②全カード（フィールド・手札・トラッシュ・バースト・ブレイヴ・手元）をデッキへ戻しシャッフル、ライフ以外のコアをボイドへ、ボイドから6個をリザーブへ、手札2枚、先攻をジャンケン（ランダム）で決め、`state.turn=1` に戻す（先攻1ターン目はコアステップ・アタックステップなし＝既存の `turn===1` 判定が使える）、`state.timedEffects`・`turnVirtualInstances` 等の一時状態を消す。③`GameState.restartUsed`。条件（6色のスピリットが1体ずつ）は `if` の入れ子6つ（`{count:{ownSpirits:{color:"red"}},atLeast:1}`）で書ける＝新部品なし | ゲームの手順そのものを置き換える処理で、既存のどの action にも無い（`GameState.ts` の初期化 `createInitialState` 相当を部分的に呼ぶ形になる） | PB13-05 |
+| 11 | 「一切／あらゆる効果を受けない」：`constraint immuneToAllEffects{exceptSelf?:true}` | `types/constraintDef.ts`（`immuneToOpponentEffects` の隣・24行）、`shared/rules/resistance.ts` の `boardResistanceAgainst`（78行。「ここから下は相手の効果限定」の**前**に置く）、`EffectAttempt` に `sourceInstanceId?` を足し（`exceptSelf` の判定用）、`continuousEffectReaches`（217行。`source.pid === targetPid → true` の近道が自分の継続効果を通してしまうので、自分のほかの発生源の継続効果を止める分岐を足す。`source` に `instanceId` を渡す）。呼び出しは約70か所だが**入口は `boardResistanceAgainst` の1か所**（resistance.ts 冒頭の方針） | `immuneToOpponentEffects` は相手の効果だけ（`actorPid===targetOwnerPid` で通す）。`immune`（timedContent）も相手のカード限定で against を絞る形。自分の効果・自分の継続効果まで止める器が無い | X015・アマテラス |
+| 12 | `treatAsUnblocked.when:{blockerMaxLevel:number}` | `types/effectAction.ts` 132行、`type.ts` 272行（battle.treatAsUnblocked）、`logic/battleResolve.ts` 429〜441行の判定、`logic/actions/battleFlow.ts` 1731行（ラベル）・1738行（stored へ写す） | `when` は blockerLevel1（Lv1固定）・blockerMaxBp・levelAtLeastBlocker・blockerBpBelowSelf だけで、Lv2以下を表せない（`blockerLevel1` の一般化） | X018 |
+
+### 9.4 ユーザーに確認すべき解釈（8件）
+
+| # | カード | 私はこう読みました | 割れる点 | 影響 |
+| :-- | :-- | :-- | :-- | :-- |
+| 1 | GX08 | アタックステップが終わった直後（エンドステップ・第2メインの前）に、コア→ドロー→リフレッシュ→メインを順に行い、メインの後でアタックステップをもう1回行う。そのあと従来どおり第2メイン→エンド。追加のメイン中は普通のメインで、マジックも使える | 第2メインを追加ステップの前に行うのか／追加のメインの終わりでアタックを飛ばせるか（飛ばせない読み） | GX08の1枚 |
+| 2 | GX14 | 「コアステップ／ドローステップを行えない」＝コアを置く・ドローするだけを行わず、ステップ開始・終了時の誘発は発揮される（既存の「コアを置かない」「ドローしない」の処理と同じ扱い） | ステップごと行わず誘発も出ない読み | GX14と、コア・ドローステップに誘発を持つスピリット/ネクサス |
+| 3 | GX12-01 | 「相手の一切の効果を受けない」＝相手のスピリット・マジック・ブレイヴ・ネクサス・バーストすべて（`against` 5種を並べる）。既存の「相手の効果を受けない」（スピリット/マジックだけ）より広い | 既存と同じ範囲でよいか | GX12-01の1枚 |
+| 4 | X015・アマテラス | 「このスピリット以外の一切の効果を受けない」（X015）は、自分のマジック・自分のほかのスピリットの継続効果（BP+など）・自分の誘発も受けない。自分自身の効果は通る。アマテラスの「あらゆる効果を受けない」は自分自身の効果も含めて受けない（ただしBPの継続効果は自身の定義なので通す）。**アマテラスの手札・デッキ・トラッシュにあるときの Q&A（Q8743〜Q8756：効果で召喚できない・手札に戻せない・デッキからオープンされたら破棄 等）は実装せず `card-notes` に載せる**（26系の【Uトリガー】【超装甲】【天照界放】に依存するものを含む）。**staging の効果文には Wiki にある先頭の「このカードは一切の効果を受けない。」が無い**ので、入れるか | Q&Aの範囲／自分の効果まで止めてよいか／先頭の1文を足すか | X015・アマテラスの2枚 |
+| 5 | GX07 | 「Xレア」＝レアリティ欄が X（"X,PX" のような複数表記は X を含めば該当） | PXなど別のレアリティを含めない読み | GX07の1枚 |
+| 6 | GX15 | 「アポロ」入りの自分のスピリットすべてに、デッキのブレイヴを1枚ずつ（別のカード）、合体条件を満たすものだけ、使用者が選んで同時に直接合体で召喚。ホストの数よりブレイヴが少なければ、選べた分だけ（「合体させるだけ」）。選ばずに終えることも可 | 同名ブレイヴを複数ホストに使ってよいか（デッキに同名が複数あれば別カード扱い） | GX15の1枚 |
+| 7 | GX16 | 「破壊したブレイヴ1つにつき」は**実際に破壊できた数**（効果を受けない・破壊されないブレイヴは数えない）。ライフが0になれば勝敗が決まる | 指定した数で数える読み | GX16の1枚 |
+| 8 | PB13-05 | 「6コストを支払わなければ配置できない」＝`summonNeedsCost`（1コスト以上の支払いが要る。軽減で0になる・無償の配置は不可）と同じ扱い。ネクサスへの対応は新しく足す | 「ちょうど6支払う（軽減不可）」と読むか。軽減シンボルの無いネクサスなので差が出るのは軽減・コスト変更の効果だけ | PB13-05の1枚 |
+
+### 9.5 バッチ案（実装役1体あたり新部品2〜3個。上から順）
+
+| バッチ | 内容 | 担当 | 対象カード |
+| :-- | :-- | :-- | :-- |
+| 3a データのみ（部品なし） | 9.2 の「既存」の行：GX03・04・11・13・18・24、KF-02・07・14・15、PB12-04・05、PB13-01（呪撃と連鎖）、X010、X015の cantAttack/cantCombine/summonNeedsCost、X018-e1、GX12-01（バースト除く）。**使用者の名前制限（§4）も同時に**。`lendSelfThisTurn` の形は 9.1。part1017 以降で期待値役が先に場面テスト | Haiku（形を貼る）／期待値役は Sonnet | 上記17枚 |
+| 3b | 部品2（ゲームの間の貸与）・3（rarity）・1（ゲームから除外） | Sonnet 1体 | GX05・07・20・01 |
+| 3c | 部品4（デッキ downTo）・12（treatAsUnblocked の Lv 上限）・9（両陣営の名前扱い・相手の復活） | Sonnet 1体 | GX12-01・X018・PB12-03 |
+| 3d | 部品8（destroyBrave の全ブレイヴ・filter・数の記録） | Haiku でも可（場所と形が確定。smoke の場面は期待値役） | GX16・PB13-01 Lv2 |
+| 3e | 部品5（ステップを止める rule）・6（追加ターン） | Sonnet 1体（PhaseManager の再開フレームをまたぐ。確認1・2の答えが先） | GX14・GX08 |
+| 3f | 部品11（全効果耐性）＋アマテラス・X015 のデータ | Sonnet 1体（確認4の答えが先。`resistance.ts` の呼び出し元を表にして、戻すと落ちる smoke を書く） | X015・アマテラス |
+| 3g | 部品7（各ホストへの同時直接合体） | Sonnet 1体（判断が残る。確認6が先） | GX15 |
+| 4 | 部品10（ロロ） | Sonnet（最後。確認8が先） | PB13-05 |
+
+注：バッチ 3a のうち GX12-01 の Lv1-2 耐性は確認3の答え待ち、GX24 は `moveCards pay:"cost"` の手札からの召喚で2段目の決定（フィールドのコアにも広げる）が入っていることが前提（HANDOFF §1 の 0）。
