@@ -20,6 +20,7 @@
   - 【影武者】：条件に合わなくても付け替えられる。合わなければ効果は空振りする（Q956・Q957）
   - サンク系（サンク・ケット・シー・スノーホワイト・ティンカ）：付け替え先は「このスピリット」
   - 魔導書（封印された・開かれし）：お互いを対象にするマジックの効果を、片方の陣営だけに絞る
+- **「このターンの間、相手のスピリットすべては〜」も使った時点なら付け替えられ、付け替えた後はその1体だけに効く**（後から出たスピリットにも効かない。対象がその1体に置き換わるため。直接の裁定は無い。2026-11-19 ユーザー確認）
 - **サンク系も「すべて」の付け替えで相手側が外れる**（魔王城 Q23559 と同じ扱いにそろえる。2026-11-19 ユーザー合意）
 
 ## 2. 部品（2026-11-19 ユーザー合意）
@@ -65,7 +66,8 @@ export function settleTargets(ctx: ActionCtx, action: EffectAction & PickProgres
 1. designation.ts を作り、`gatePickedTargets` の中の `ownTargetRedirect` を `settleTargets` に置き換える。魔王城のデータを `targetRedirect` に移す。単体対象でも聞き、候補を未選択の個体まで広げる（#634 のフレイムガスト）
 2. 「すべて」と timedEffect を指定の段に乗せる（#634 の残りの場面）。2本に分ける
    - 2a「すべて」（G4）：一覧を作る関数（例 `destroyAllTargetList`）の直後に `settleTargets(ctx, action, 一覧, 一覧, attempt)` を挟み、返った ids で一覧を絞って適用する。確認の間は盤面が変わらないので、再入では一覧を作り直してよい（picked.settled が答えを運ぶ）
-   - 2b timedEffect（G3）：place* を「選ぶ」と「適用する」に分ける。形は 2a の後に決める
+   - 2b-1 timedEffect の主な経路：①振り分けの末尾の汎用（相手N体に cantAttack 等）は「1体選ぶ→適用→次」をやめ、`pickTargets` で全部選んでから `settleTargets`→適用（#437 SP-1 と同じ）②`placeAny` は確定した集合を `settleList` ③`placeBp` は1体が決まった後に `settleTargets([その1体], 候補)`。付け替えの答えで再入したら `picked` から対象を取る ④`placeRule`（「すべて」のルール型）は今の該当個体を `settleList` に通し、付け替えたらその1体に置く記録（`apply`）へ切り替える
+   - 2b-2 残りの place*（level・unblockable・symbol/cost・color・keyword・battleLock など）
 3. サンク系・魔導書を `targetRedirect` に移し、`magicRedirectTo`・`magicRedirectDecision`・`magicSideDecision`・`magicTargetRedirect`・`bothSidesTargetRedirect` を消す
 4. 残り（G2・G5 のコア・指定アタック・持ち主が選ぶもの）
 
