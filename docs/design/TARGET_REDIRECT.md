@@ -22,18 +22,50 @@
   - 魔導書（封印された・開かれし）：お互いを対象にするマジックの効果を、片方の陣営だけに絞る
 - **サンク系も「すべて」の付け替えで相手側が外れる**（魔王城 Q23559 と同じ扱いにそろえる。2026-11-19 ユーザー合意）
 
-## 2. 部品（設計の3原則の1。2026-11-19 ユーザー合意の方向）
+## 2. 部品（2026-11-19 ユーザー合意）
 
-既存の `magicRedirectTo`・`magicSideDecision`（state の一時フィールド）と、魔王城の `ownTargetRedirect`（`gatePickedTargets` だけで判定）は廃止し、次の2つに置き換える。
+**対象を決める段（指定の段）を共通の関数に切り出し、各ハンドラがそれを呼ぶ**。割り込みは action 1個の単位で、1文に複数の action が並ぶカードは実質無い（SD06-014 爆烈十紋刃は destroy の types で1つにまとめ直す。BS04-108 は simultaneous を1回の指定として扱う）。
 
-| 部品 | 種類 | 中身 |
-| :-- | :-- | :-- |
-| 相手の効果の対象が出そろったとき | タイミング | 指定の時点ごとに1回の割り込み。起きる条件（このスピリットが含まれる／系統・色・コストの合う自分のスピリットが含まれる／ソウルコアの置かれたスピリットが含まれる／お互いが含まれる）は既存の条件の軸で書く |
-| 対象をこれのみにする | アクション | 付け替え先＝このスピリット／選んだ自分のスピリット1体／直前に召喚したスピリット／片方の陣営。付け替え先の条件を見るか（魔王城）見ないか（【影武者】）はデータの欄 |
+### 2.1 データ：`kind: "targetRedirect"`（`magicTargetRedirect`・`bothSidesTargetRedirect` を置き換える）
 
-付け替えの結果は state に置かず、効果の解決の文脈（action・中断のフレーム）に入れて運ぶ（設計の3原則の3）。
+```ts
+| { id: string; kind: "targetRedirect"; levels: number[] | null; turn?: "own" | "opponent"; phase?: Phase
+    sourceTypes?: CardType[]                 // 付け替えられる相手の効果の発生源の種類（省略＝問わない）
+    includes: "self" | "own" | "bothSides" | { filter: TargetFilter } // 起きる条件：同時に指定された対象に何が含まれるか（持ち主側から見て）
+    to: "self" | "chosenOwn" | "side"         // 付け替え先（【影武者】の取り込み時に "summoned" を足す）
+    requireReceivable?: true                 // 付け替え先は、その指定の候補に入り、効果を受けられるものに限る
+    optional?: true }
+```
 
-【影武者】＝タイミング＋手札から召喚（既存）＋`sequence`＋直前に召喚したスピリットへ付け替え、で書ける形にしておく。カードは烈火伝の取り込み時に入れる。
+| カード | includes | to | sourceTypes | requireReceivable |
+| :-- | :-- | :-- | :-- | :-- |
+| サンク BS04-054 | self | self | magic | true（今の `redirectTargetMatches` と同じ） |
+| ケット・シー BS06-056 | {filter:{cost:2}} | self | magic | true |
+| スノーホワイト BS05-040 | {filter:{family:["氷姫"],color:"white"}} | self | spirit,magic | true |
+| ティンカ BS09-038 | {filter:{family:["楽族"]}} | self | spirit,magic | true |
+| 古の魔王城 BSC05-017 | own | chosenOwn | spirit,magic | true |
+| 封印された／開かれし魔導書 | bothSides | side | magic | なし |
+
+### 2.2 エンジン：`server/src/logic/designation.ts`（新設。ownTargetChoice.ts はここへ移して消す）
+
+```ts
+// 指定の段：同時に指定された対象が出そろった時点で呼ぶ。付け替えの割り込みを挟み、決まった対象を返す。確認を出したら null
+export function settleTargets(ctx: ActionCtx, action: EffectAction & PickProgress, ids: string[], candidates: string[], attempt: EffectAttempt): string[] | null
+```
+
+- `candidates`＝その指定で取りえた候補（pickTargets の `opts.candidates`、「すべて」なら集めた全体）。`chosenOwn` の選択肢は「対象の持ち主のスピリットで、candidates に入り、耐性で弾かれないもの」。未選択の個体も選べる（Q23564）
+- 付け替えたら、返す対象は付け替え先1体だけ（相手側・ネクサスも外れる。Q23559・Q962）。`side` なら、その陣営のものだけ残す
+- 割り込みの済んだ印は action の `picked` に入れて運ぶ（`PickedTargets.ownRedirectAsked` を `settled?: true` に改める）。state には置かない
+- 割り込めないもの：バースト効果（`currentEffectSource.burst`）・【連鎖】の部分（`action.rensa`）。発生源の種類は `ctx.srcType` を `sourceTypes` と照らす。**どの入口（マジック・誘発・起動・fieldEvent）から来ても同じ判定**になる
+- 非対話（`interactiveTargets` が偽）は付け替えない（今の魔王城と同じ）。サンク系・魔導書の非対話の既定は §2.3 の3で移すときに決める
+- 順番：指定（選ぶ）→ settleTargets → 耐性と円卓（`gateTargetedApply`）→ 適用。【迷彩】は今は適用の段で払っており、指定の段へ移すかは後で決める（未決）
+
+### 2.3 移行の順番（PR を分ける。移していない action は今のまま動く）
+
+1. designation.ts を作り、`gatePickedTargets` の中の `ownTargetRedirect` を `settleTargets` に置き換える。魔王城のデータを `targetRedirect` に移す。単体対象でも聞き、候補を未選択の個体まで広げる（#634 のフレイムガスト）
+2. 「すべて」（G4）と timedEffect（G3）を「集めて返す → settleTargets → 適用」に分ける（#634 の残りの場面）
+3. サンク系・魔導書を `targetRedirect` に移し、`magicRedirectTo`・`magicRedirectDecision`・`magicSideDecision`・`magicTargetRedirect`・`bothSidesTargetRedirect` を消す
+4. 残り（G2・G5 のコア・指定アタック・持ち主が選ぶもの）
 
 ## 3. 入口の洗い出し（調査役の報告。2026-11-19。確認済み＝コードを読んだ／推測＝名前から判断）
 
