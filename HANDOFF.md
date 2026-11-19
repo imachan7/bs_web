@@ -32,6 +32,16 @@
 - サーバー：`playerView` に `burstRevealed: boolean` を足す（`buildView` が state から求めて渡す。真＝`state.declaredBursts` にその pid・cardId がある／`pendingChoice.burst` が一致／`currentEffectSource.burst` で pid・cardId が一致）。真なら相手にも `burst` の cardId を返す。新しい状態は足さない
 - 画面：伏せている間は裏面の画像（相手は画像だけ、自分は画像の上に名前）。`burstRevealed` なら表向き（色の枠＋名前、🔒なし）。発動のイベント（#620 で cardId つき）を受けたら、その陣営のバースト欄を表向きにめくる演出を約2.5秒出す（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）
 
+### 未着手：カード画像を Cloud Run を通さずバケットから直接配る（2026-11-18 ユーザーと合意。設計のみ）
+
+背景：今は Cloud Run がバケット `bs-web-card-images` をマウントし、express（`server/src/index.ts:43`、maxAge 7d）で返している。画像の数だけインスタンスが動き、コールドスタートの遅れも画像に乗る
+1. **公開の仕方**：`allUsers` に `roles/storage.legacyObjectReader`（ファイル単位の読み取りだけ）を付ける。`objectViewer` は一覧も取れるので使わない（カード画像は合言葉で出す隠し要素。URL を知っていれば開けるのは今と同じ）。IAM の変更はユーザーが実行する
+2. **キャッシュ**：同期に `--cache-control="public, max-age=2592000"`（30日。差し替えはほぼ無い）を足す。既に上がっているものは `gcloud storage objects update gs://bs-web-card-images/** --cache-control=...` で1回付け直す。手順は docs/ops/DEPLOY_CLOUDRUN.md の画像の節を書き換える
+3. **クライアント**：`public/src/cardArt.ts` の画像 URL（7行目 `/imgs/cards/...`）の頭を1か所の定数にし、本番は `https://storage.googleapis.com/bs-web-card-images`、ローカル開発（localhost）は今の `/imgs/cards` のまま。`<img>` なので CORS は要らない
+4. **後片付け**：本番で表示とキャッシュの応答ヘッダーを確かめてから、Cloud Run のバケットのマウントと index.ts:43 の配信を外す（同じ PR にしない。切り戻せるように）
+- ロードバランサ＋Cloud CDN は入れない（公開オブジェクトは Google 側でもキャッシュされる。必要になったら測ってから）
+- Discord Activity（未着手）では Portal の URL Mapping で画像の頭をバケットへ向ける必要が出る。DISCORD_ACTIVITY.md の表に追記済み
+
 ### 未着手：「既存の部品の組み合わせで書けるか」を推理でなく検索で決める道具（2026-11-18 ユーザーと合意。設計のみ）
 
 背景：P13 で調査役が新しい部品を3つ提案し、2つは既存で書けた（効果の貸し出し `lendSelfThisTurn` がスピリットでも使える・`bySelfEffectOnly` を知らない）。データ役も同じ文面の BS20-069 を探さず独自に書いた。どれも「同じ文面の既存カードの書き方を写せば済む」もの。今の索引は kind/type の名前だけで欄（`lentOnly`・`bySelfEffectOnly` など）が載っておらず、サブは推理するしかない
