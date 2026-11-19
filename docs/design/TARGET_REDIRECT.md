@@ -63,7 +63,9 @@ export function settleTargets(ctx: ActionCtx, action: EffectAction & PickProgres
 ### 2.3 移行の順番（PR を分ける。移していない action は今のまま動く）
 
 1. designation.ts を作り、`gatePickedTargets` の中の `ownTargetRedirect` を `settleTargets` に置き換える。魔王城のデータを `targetRedirect` に移す。単体対象でも聞き、候補を未選択の個体まで広げる（#634 のフレイムガスト）
-2. 「すべて」（G4）と timedEffect（G3）を「集めて返す → settleTargets → 適用」に分ける（#634 の残りの場面）
+2. 「すべて」と timedEffect を指定の段に乗せる（#634 の残りの場面）。2本に分ける
+   - 2a「すべて」（G4）：一覧を作る関数（例 `destroyAllTargetList`）の直後に `settleTargets(ctx, action, 一覧, 一覧, attempt)` を挟み、返った ids で一覧を絞って適用する。確認の間は盤面が変わらないので、再入では一覧を作り直してよい（picked.settled が答えを運ぶ）
+   - 2b timedEffect（G3）：place* を「選ぶ」と「適用する」に分ける。形は 2a の後に決める
 3. サンク系・魔導書を `targetRedirect` に移し、`magicRedirectTo`・`magicRedirectDecision`・`magicSideDecision`・`magicTargetRedirect`・`bothSidesTargetRedirect` を消す
 4. 残り（G2・G5 のコア・指定アタック・持ち主が選ぶもの）
 
