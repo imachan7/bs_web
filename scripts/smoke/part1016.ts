@@ -239,7 +239,6 @@ if (okPB34) {
         start: board([NOVA]),
         steps(t) {
             t.act("opp", { type: "attack", instanceId: t.id("O") })
-            t.closeFlash()
             t.act("me", { type: "activateAbility", instanceId: t.id("K"), effectId: "PB13-04-e1" })
             resolveAll(t)
         },
@@ -250,7 +249,6 @@ if (okPB34) {
         start: board([VAN]),
         steps(t) {
             t.act("opp", { type: "attack", instanceId: t.id("O") })
-            t.closeFlash()
             act(t.state, t.me, { type: "activateAbility", instanceId: t.id("K"), effectId: "PB13-04-e1" })
             resolveAll(t, [], false)
         },
@@ -271,22 +269,26 @@ if (ok17) {
         ],
     })
     scenario({
-        name: "X017-覇皇でない相手のスピリットは対象にできない",
+        // 対象にできないものを指定すると、使用時に指定が捨てられて選び直す（usableMagicTarget）
+        name: "X017-覇皇でない相手のスピリットは対象にできない（指定しても覇皇が破壊される）",
         start: { me: { hand: [X17] }, opp: { spirits: [{ card: HERO, label: "H" }, { card: VAN, label: "U" }] } },
-        steps: (t) => t.actRejected("me", { type: "castMagic", handIndex: 0, timing: "main", targetInstanceId: t.id("U") }),
-        expect: [],
+        steps: (t) => t.act("me", { type: "castMagic", handIndex: 0, timing: "main", targetInstanceId: t.id("U") }),
+        expect: [
+            ...magicOut("自分", "アルティメットヒーローインパクト", 5).filter((l) => !l.startsWith("自分.手札")), "自分.手札: アルティメットヒーローインパクト → ロクケラトプス", "自分.デッキ枚数: 40 → 39",
+            "相手.H.場所: フィールド → なし", "相手.トラッシュ: なし → 英雄龍ロード・ドラゴン", "相手.リザーブ: 10 → 11",
+        ],
     })
     scenario({
         name: "X017-フラッシュで覇皇の自分のスピリット1体がBP+5000される",
         start: { me: { hand: [X17], spirits: [{ card: HERO, label: "H" }, { card: VAN, label: "R" }] } },
         steps: (t) => t.act("me", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id("H") }),
-        expect: [...magicOut("自分", "アルティメットヒーローインパクト", 5), "自分.H.BP: 4000 → 9000"],
+        expect: [...magicOut("自分", "アルティメットヒーローインパクト", 3), "自分.H.BP: 4000 → 9000"], // 赤シンボル2つで軽減
     })
     scenario({
-        name: "X017-フラッシュは覇皇でない自分のスピリットを対象にできない",
+        name: "X017-フラッシュは覇皇でない自分のスピリットを対象にできない（指定しても覇皇に及ぶ）",
         start: { me: { hand: [X17], spirits: [{ card: HERO, label: "H" }, { card: VAN, label: "R" }] } },
-        steps: (t) => t.actRejected("me", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id("R") }),
-        expect: [],
+        steps: (t) => t.act("me", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id("R") }),
+        expect: [...magicOut("自分", "アルティメットヒーローインパクト", 3), "自分.H.BP: 4000 → 9000"],
     })
 }
 

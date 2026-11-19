@@ -775,7 +775,6 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
     ["grantedTriggerAskInternal", "期間つきで与えた任意の誘発（timedEffect の grantTrigger.optional）を発火時に「発動しますか？」と聞いてから解決する包み（triggers.ts が作る。カードデータは grantTrigger に optional を書く）"],
     ["trashReturnToHandInternal", "kind:\"trashReturnOnOwnSpiritDestroyed\"／\"trashReturnOnOwnHeavyExhaust\" の「手札に戻しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。26RSD05-012・26RBS02-032）"],
-    ["directAttack", "イリテバンが借りた指定アタック（constraint canDirectAttack）を、効果の解決の途中で立てる（borrowCombinedAttackEffect が組む。カードの指定アタックは constraint で書く。#583）"],
     ["summonFreeFromTrashIndexInternal", "kind:\"trashSummonOnNameSummoned\" の「召喚しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。BS11-004 プロミネンスワイバーン）"],
     ["summonFreeIndexInternal", "無償召喚の余分（転召の祭壇など）の支払い待ちから再開する内部専用（カードデータには書かない）"],
     ["resshinsokuFinishInternal", "【烈神速】の余分の支払い待ちから再開する内部専用（カードデータには書かない）"],

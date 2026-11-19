@@ -27,8 +27,8 @@ export function fix(id: string, name: string, type: string, cost: number): void 
 }
 
 const NO = ["いいえ", "しない", "わない", "断る", "使わない"]
-// 選択待ちが残っているあいだ答える。accept=false なら確認は断る。対象は prefer の先頭から候補にあるものを選ぶ
-export function resolveAll(t: ScenarioCtx, prefer: string[] = [], accept = true): void {
+// 選択待ちが残っているあいだ答える。accept=false なら確認は断る。"noPay" はバーストの「その後コストを支払うことで」だけ断る。対象は prefer の先頭から候補にあるものを選ぶ
+export function resolveAll(t: ScenarioCtx, prefer: string[] = [], accept: boolean | "noPay" = true): void {
     for (let i = 0; i < 30 && t.state.pendingChoice; i++) {
         const pc = t.state.pendingChoice
         const side: Side = pc.pid === t.me ? "me" : "opp"
@@ -44,11 +44,12 @@ export function resolveAll(t: ScenarioCtx, prefer: string[] = [], accept = true)
         } else if (pc.kind === "option") {
             const opts = pc.options!
             const isNo = (o: string) => NO.some((w) => o.includes(w))
-            const pick = accept ? opts.find((o) => !isNo(o)) : opts.find(isNo)
-            if (pick === undefined && !accept) t.act(side, { type: "resolveChoice" })
+            const yes = accept === "noPay" ? !pc.burstThenPay : accept
+            const pick = yes ? opts.find((o) => !isNo(o)) : opts.find(isNo)
+            if (pick === undefined && !yes) t.act(side, { type: "resolveChoice" })
             else t.act(side, { type: "resolveChoice", option: pick ?? opts[0]! })
         } else {
-            const zone = pc.cardZone === "trash" ? t.state.players[pc.cardOwner!].trashCards : t.state.players[pc.cardOwner!].hand
+            const zone = pc.cardZone === "reveal" ? t.state.revealedCards!.cardIds : pc.cardZone === "trash" ? t.state.players[pc.cardOwner!].trashCards : t.state.players[pc.cardOwner!].hand
             const idx = pc.cardIndices!.find((i) => prefer.includes(getCard(zone[i]!).name))
             t.act(side, { type: "resolveChoice", cardIndex: idx ?? pc.cardIndices![0]! })
         }

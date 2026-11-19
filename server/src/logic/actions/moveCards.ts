@@ -344,8 +344,9 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
 }
 
 function candidatesForAsk(ctx: ActionCtx, action: MoveCards): boolean {
-    const zone = ctx.state.revealedCards
-    return !!zone && zone.cardIds.some((id) => matchesPick(id, action.pick, undefined, ctx.sourceCardId))
+    const p = ctx.state.players[action.side === "opponent" ? ctx.opp : ctx.owner]
+    const ids = action.from === "revealed" ? ctx.state.revealedCards?.cardIds ?? [] : action.from === "trash" ? p.trashCards : p.hand
+    return ids.some((id) => matchesPick(id, action.pick, undefined, ctx.sourceCardId))
 }
 
 // オープン中のカード（GameState.revealedCards）から。pick 無し・count:"all" でデッキ/トラッシュ/手札行きは「残り」（revealRest：デッキへは戻す順番を選ばせる）。
@@ -356,23 +357,6 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     if (!zone) return
     const dest = action.dest
     if (dest === "exMark") return
-    // 承認後の再入は ask を外した同じ action で来るので二度聞かない。断ると確認の解決側が再開スタックの次の手順へ進む
-    if (action.ask && state.interactiveTargets && chosenCardIndex === undefined && candidatesForAsk(ctx, action)) {
-        const { ask: _ask, ...confirmed } = action
-        // requestActivationConfirm は moveCardsPayable（revealed を数えない）で不発扱いにするので、同じ形の確認を直接出す
-        suspend(state, {
-            pid: owner,
-            kind: "option",
-            prompt: `${sourceName}：${destLabel(action).endsWith("する") ? `${destLabel(action).slice(0, -2)}しますか` : `${destLabel(action)}か`}？`,
-            candidates: [],
-            options: ["発動する"],
-            optional: true,
-            confirm: true,
-            action: confirmed,
-            selfInstanceId: self ? self.instanceId : null,
-        })
-        return
-    }
     if (action.pick === undefined && action.count === "all") {
         if (dest !== "deckTop" && dest !== "deckBottom" && dest !== "deckTopOrBottom" && dest !== "trash" && dest !== "hand") return
         ctx.resolve({ type: "revealRest", destPid: zone.pid, rest: dest })
@@ -462,6 +446,23 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
 // upTo 指定時は0〜count枚を選べる（2026-09-28ユーザー決定。途中で1枚も選ばずに終えられる）
 const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, chosenCardIndex } = ctx
+    // 承認後の再入は ask を外した同じ action で来るので二度聞かない。断ると確認の解決側が再開スタックの次の手順へ進む
+    if (action.ask && state.interactiveTargets && chosenCardIndex === undefined && candidatesForAsk(ctx, action)) {
+        const { ask: _ask, ...confirmed } = action
+        // requestActivationConfirm は moveCardsPayable（revealed を数えない）で不発扱いにするので、同じ形の確認を直接出す
+        suspend(state, {
+            pid: owner,
+            kind: "option",
+            prompt: `${sourceName}：${destLabel(action).endsWith("する") ? `${destLabel(action).slice(0, -2)}しますか` : `${destLabel(action)}か`}？`,
+            candidates: [],
+            options: ["発動する"],
+            optional: true,
+            confirm: true,
+            action: confirmed,
+            selfInstanceId: self ? self.instanceId : null,
+        })
+        return
+    }
     if (action.from === "revealed") {
         moveRevealed(ctx, action)
         return
