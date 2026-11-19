@@ -51,6 +51,14 @@ function seriesOf(cardId: string): string {
     return cardId.includes("-") ? cardId.split("-")[0]! : cardId.replace(/\d.*$/, "")
 }
 
+// 弾の絞り込み用の枠。P13・SJ12・X003A のように年代や末尾の英字で割れるものを頭の英字にまとめる（seriesOf と画像の置き場は変えない）
+function seriesGroupOf(cardId: string): string {
+    const s = seriesOf(cardId)
+    return /^(P|SJ|X|CP)\d/.exec(s)?.[1] ?? s
+}
+
+const MERGED_SERIES_LABELS: Record<string, string> = { P: "プロモ（P）", SJ: "最強ジャンプ（SJ）", X: "Xレア（X）", CP: "CP" }
+
 function seriesLabel(series: string): string {
     if (series === "P" || series === "PX" || series === "X") return "プロモ"
     return SERIES_LABELS[series] ?? ""
@@ -221,7 +229,7 @@ function passesFilter(card: CardData): boolean {
     }
     if (filterFlags.has("burst") && !card.effects.some((e) => e.kind === "burst")) return false
     if (filterFlags.has("flash") && card.flash !== true) return false
-    if (filterSeries.size > 0 && !filterSeries.has(seriesOf(card.cardId))) return false
+    if (filterSeries.size > 0 && !filterSeries.has(seriesGroupOf(card.cardId))) return false
     if (filterKeywords.size > 0 && !card.effects.some((e) => e.kind === "keyword" && filterKeywords.has(e.keyword))) return false
     if (filterFamilies.size > 0) {
         const useHas = familyHas || !familyMention
@@ -1300,7 +1308,7 @@ function setupFilterChips(): void {
     const availableFamilies = new Set<string>()
 
     for (const card of cards) {
-        availableSeries.add(seriesOf(card.cardId))
+        availableSeries.add(seriesGroupOf(card.cardId))
         for (const effect of card.effects) {
             if (effect.kind === "keyword") {
                 availableKeywords.add(effect.keyword)
@@ -1311,7 +1319,7 @@ function setupFilterChips(): void {
         }
     }
 
-    const seriesItem = (v: string) => ({ value: v, text: seriesLabel(v) === "" ? v : `${v} ${seriesLabel(v)}` })
+    const seriesItem = (v: string) => ({ value: v, text: MERGED_SERIES_LABELS[v] ?? (seriesLabel(v) === "" ? v : `${v} ${seriesLabel(v)}`) })
     const allSeries = Array.from(availableSeries).sort()
     const resetSeries = setupFoldPicker("series", "弾", filterSeries, [
         { heading: "ブースター", items: allSeries.filter((v) => v.startsWith("BS") && !v.startsWith("BSC")).map(seriesItem) },
