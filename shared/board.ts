@@ -19,6 +19,7 @@ import type {
 
 export interface BoardPlayer {
     id: PlayerId
+    name: string // 対戦画面のプレイヤー名（CardData.onlyUsableBy が読む）
     life: number
     reserve: number
     trashCores: number

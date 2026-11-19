@@ -1,7 +1,7 @@
 // 召喚を止める禁止の問い合わせ。召喚の制限は効果文に「通常の召喚」と書かれていなければ、効果による召喚にも効く
 // （2026-10-29 ユーザー確認。docs/design/EFFECT_GATE.md §4 PR 2a）。新しい禁止はここへ足す
 import { noteCoverage } from "../../../shared/coverage"
-import { effectSources, isVanillaCard, timedPlayerRules, trashFrozen } from "../../../shared/rules"
+import { onlyUsableDenial, effectSources, isVanillaCard, timedPlayerRules, trashFrozen } from "../../../shared/rules"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { braveCombineCandidates } from "../../../shared/summon"
 import type { GameState, PlayerId } from "../type"
@@ -36,6 +36,9 @@ function globalConstraintsOf(state: GameState, pid: PlayerId, type: string, with
 export function summonDenial(state: GameState, a: SummonAttempt): string | null {
     const card = getCard(a.cardId)
     const both: PlayerId[] = ["p1", "p2"]
+
+    const onlyBy = onlyUsableDenial(state, a.pid, a.cardId)
+    if (onlyBy) return onlyBy
 
     if (a.cause === "effect") {
         // BS12-072：効果による召喚が両陣営で禁じられている間

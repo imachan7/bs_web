@@ -235,6 +235,7 @@ export interface CardData {
     limited: boolean // 禁止カードか
     limitCount?: number // 制限カード（同名の最大投入数。3枚未満に制限する場合のみ指定。省略時は通常の3枚まで）
     effect: string // 表示用テキスト（原文）
+    onlyUsableBy?: string[] // 対戦画面のプレイヤー名がどれかと一致するときだけ使える（召喚・使用・配置・バースト。判定は shared/rules/onlyUsableBy.ts）
     effects: EffectDef[] // 構造化された効果（未対応の効果は含まれない）
     // ---- type === "brave" のときだけ持つ（docs/design/BRAVE.md §2.2）----
     braveLevels?: LevelDef[] // 合体状態のレベル表。bp は「合体時BP+」の加算値、cores は**合体スピリット上の**コア数で判定する。

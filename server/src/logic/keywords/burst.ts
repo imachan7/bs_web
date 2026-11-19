@@ -12,7 +12,7 @@ import { anyWaiting } from "../../../../shared/rules/waiting"
 import type { CardInstance, Color, DeclaredBurst, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
-import { burstActivationForbidden, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
+import { onlyUsableDenial, burstActivationForbidden, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 
 import { instHasColor, matchesFamilyFilter, spiritHasKeyword } from "../../../../shared/rules"
@@ -503,6 +503,7 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         player.trashCards.push(cardId)
         return true
     }
+    if (onlyUsableDenial(state, owner, cardId)) return false
     if ((ignoreCondition && burstActivationBlocked(state, owner, cardId, effect.event)) || burstFeeUnpayable(state, owner, cardId)) return false
     noteCoverage(effect, "burst")
     player.burst = cardId

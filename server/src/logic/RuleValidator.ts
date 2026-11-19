@@ -27,7 +27,7 @@ import {
 } from "./GameState"
 import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, timedCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
-import { canDiscardHand, costExhaustLocked, coreIntakeRefused, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { onlyUsableDenial, canDiscardHand, costExhaustLocked, coreIntakeRefused, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockDestroyCandidates, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter, mandatoryDirectAttackTargetIds } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
@@ -464,6 +464,8 @@ export function validateSetNexus(
     const card = getCard(cardId)
     const bannedNexus = handCardBanned(state, pid, cardId)
     if (bannedNexus) return bannedNexus
+    const onlyByNexus = onlyUsableDenial(state, pid, cardId)
+    if (onlyByNexus) return onlyByNexus
     if (card.type !== "nexus") return "ネクサスカードではありません"
 
     const cost = effectiveCost(state, pid, card)
@@ -512,6 +514,8 @@ export function validateSetBurst(state: GameState, pid: PlayerId, handIndex: num
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     if (!getCard(cardId).effects.some((e) => e.kind === "burst")) return "バースト効果を持たないカードです"
+    const onlyByBurst = onlyUsableDenial(state, pid, cardId)
+    if (onlyByBurst) return onlyByBurst
     // 相手はリザーブのコアを指定数トラッシュへ置かなければセットできない（足りなければ手札に残る）
     const required = burstSetCoresRequired(state, pid)
     if (required > 0 && player.reserve < required) {
@@ -629,6 +633,8 @@ export function validateUseHandAbility(
 // マジックの「使用」の制限（タイミング以外）。手札・手元からの使用と、効果による使用（magic/effectUse.ts）が共有する。
 // 場の効果の制限・カード自身の「自分のターンでは使えない」「ターンに1回」・使用条件（RULES_BATSPI_WIKI §6。#510）
 export function magicUseRestriction(state: GameState, pid: PlayerId, card: CardData, useTiming: "main" | "flash", paySources?: PaySource[]): string | null {
+    const onlyBy = onlyUsableDenial(state, pid, card.cardId)
+    if (onlyBy) return onlyBy
     const player = state.players[pid]
     // battleLock "magic"（BS16-X06）：手札・手元どちらの経路でも「使用」自体を止める。バースト発動は別経路なので掛からない
     if (timedMagicLocked(state, pid)) return "効果により、このバトルの間マジックを使用できません"

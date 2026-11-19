@@ -4,7 +4,7 @@ import type { GameView } from "../../../server/src/type"
 import { CARD_TYPE_LABELS, COLOR_LABELS } from "../../../data/constants"
 import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../../shared/cost"
 import { attachCardArt } from "../cardArt"
-import { ownHandKeyword, zoneSpiritEffectsDisabled, hasHandKeywordGrant, flashSummonFromHandNow, hasKeyword, burstSetCoresRequired, timedFlashLocked, timedMagicLocked, magicColorBanned, isFlashLockedFor, handCardBanned, magicUseWindowDenial } from "../../../shared/rules"
+import { ownHandKeyword, zoneSpiritEffectsDisabled, hasHandKeywordGrant, flashSummonFromHandNow, hasKeyword, burstSetCoresRequired, timedFlashLocked, timedMagicLocked, magicColorBanned, isFlashLockedFor, handCardBanned, onlyUsableDenial, magicUseWindowDenial } from "../../../shared/rules"
 import { handBurstEffectDenial } from "../../../shared/handBurstEffect"
 import { payableFieldCores, payingAltPay } from "./paying"
 import { master, UiState, $ } from "../renderer"
@@ -91,7 +91,7 @@ export function renderHand(view: GameView, ui: UiState): void {
             (myMainFree) ||
             (inFlash && !flashLocked && ((m.type === "magic" && m.flash) || flashSummonable || resshinsokuReady))
 
-        const isUsableState = !view.pendingChoice && !magicColorLocked && !magicBattleLocked && isTimingValid
+        const isUsableState = !view.pendingChoice && onlyUsableDenial(view, view.you, cardId) === null && !magicColorLocked && !magicBattleLocked && isTimingValid
         const usable = isUsableState && (resshinsokuReady || reserve >= need)
         const usableField = isUsableState && !usable && (reserve + fieldCores >= need)
         const unusable = !usable && !usableField
