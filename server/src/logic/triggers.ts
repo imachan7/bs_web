@@ -119,7 +119,6 @@ import {
     requestActivationConfirm,
     resolveAction
 } from "./EffectModules"
-import { setTargetRedirect } from "./magic/redirect"
 import { isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { finishSummonEffect } from "./keywords/burst"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
@@ -128,7 +127,7 @@ import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { derivedHoldId, holdDerived } from "./derivedSettle"
 export { resolveMagic } from "./magic/cast"
 export { findMagicNegateSource, applyMagicNegateChoice, declineMagicNegateChoice } from "./magic/negate"
-export { bothSidesPids, findBothSidesRedirectSource, bothSidesRedirectKeepPid, applyBothSidesRedirectToCandidates, BOTH_SIDES_REDIRECT_OPTIONS, applyMagicSideChoice, applyMagicRedirectChoice } from "./magic/redirect"
+export { bothSidesPids, findBothSidesRedirectSource, bothSidesRedirectKeepPid, applyBothSidesRedirectToCandidates, BOTH_SIDES_REDIRECT_OPTIONS, applyMagicSideChoice } from "./magic/redirect"
 export { resolveMagicEffects, MAGIC_REPEAT_OPTIONS, applyMagicRepeatChoice } from "./magic/resolve"
 
 // ---- イベント発火 ----
@@ -542,16 +541,9 @@ export function fireTrigger(
                 { targetInstanceId: effect.eventTarget === "ignore" ? undefined : targetInstanceId },
             )
         } else {
-            // 対象の付け替え（kind:"magicTargetRedirect"）は**マジックに限らず、対象を選ぶ効果全般**に効く
-            // （2026-08-14 ユーザー確認。BS09-038スズランの妖精ティンカ／BS05-040スノーホワイトの
-            //  効果文どおり「スピリット/マジックの効果」が対象）。ネクサスの効果は対象外
-            // ブレイヴの効果も「合体スピリット＝スピリットの効果」として扱う（BRAVE.md §12.1）
-            const redirecting = card.type === "spirit" || entry.src !== selfInstance
-            if (redirecting) setTargetRedirect(state, owner, targetInstanceId, effect.action)
             // 中の pay が確認で止まると、下の effectFizzled による巻き戻しは再開前に通り過ぎる。断った／不発のときに戻せるよう pay に渡す
             const action = effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action
             resolveAction(state, owner, selfInstance, action, effect.eventTarget === "ignore" ? undefined : targetInstanceId)
-            if (redirecting) delete state.magicRedirectTo
         }
         // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す
         if (effect.oncePerTurn === true && state.effectFizzled) {
@@ -575,7 +567,6 @@ export function fireTrigger(
             levelRecheck: { instanceId: entry.src.instanceId, effectId: effect.id },
             ...(target !== undefined ? { targetInstanceId: target } : {}),
             ...(effect.optional && state.interactiveTargets ? { confirmPrompt: `${getCard(entry.src.cardId).name}の効果を発動しますか？` } : {}),
-            ...(card.type === "spirit" || entry.src !== selfInstance ? { redirectTarget: true as const } : {}),
         }
     }
     const grantedFrame = (a: EffectAction): ResumeFrame => ({

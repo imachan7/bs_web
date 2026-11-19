@@ -3247,11 +3247,15 @@
   "effects": [
    {
     "id": "BS04-054-e1",
-    "kind": "magicTargetRedirect",
+    "kind": "targetRedirect",
     "levels": [
      2
     ],
     "turn": "opponent",
+    "includes": "self",
+    "to": "self",
+    "sourceTypes": ["magic"],
+    "requireReceivable": true,
     "optional": true
    }
   ]

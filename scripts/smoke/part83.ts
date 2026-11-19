@@ -1,9 +1,9 @@
 // smoke パート83（BS04-054 アルカナソルジャー・サンク Lv2 ＝ マジックの対象の絞り込み）
 //
-// kind "magicTargetRedirect"：相手が使用したマジックがサンクを対象に含むとき、
+// kind "targetRedirect"：相手が使用したマジックがサンクを対象に含むとき、
 // そのマジックの効果の対象をサンク**のみ**にする（＝同じ持ち主の他のスピリットは効果を受けない）。
 // 「対象に含む」には全体効果も含まれる（利用者確認。DECISIONS.md）。
-// 実装は GameState.magicRedirectTo を resolveMagic が立て、isEffectBlocked が各ガード地点で参照する。
+// 実装は対象が出そろった時点の settleTargets（designation.ts）。
 // 「できる」は自動適用の簡略化。
 import { act, assert, createGame, createInstance, giveBp } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
@@ -122,7 +122,6 @@ console.log("--- 絞り込みは解決中のマジックにのみ効き、次の
     s.players.p2.reserve = 20
     assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "1枚目のフレイムテンペスト")
     assert(alive(s, "p1", ally1), "1枚目では味方が守られる")
-    assert(s.magicRedirectTo === undefined, "解決後に絞り込みフラグが解除されている")
 
     // サンクがいなくなった状態で2枚目 → 通常どおり全体に当たる
     s.players.p2.hand[0] = "BS01-122"
@@ -133,7 +132,7 @@ console.log("--- 絞り込みは解決中のマジックにのみ効き、次の
 console.log("=== 実対戦では絞り込むかを守る側に確認する（『〜にできる』の任意性） ===")
 {
     // 2026-08-10 修正: 以前は「できる」を選べず常に自動で絞り込んでいた。
-    // 対話モードでは、マジックの解決に入る前に守る側（サンクの持ち主）へ1回だけ確認する
+    // 対話モードでは、対象が出そろった後に守る側（サンクの持ち主）へ1回だけ確認する
     const s = setup("sank-redirect-confirm")
     s.interactiveTargets = true
     const sank = put(s, "p1", "BS04-054", 2) // Lv2＝効果が有効
@@ -148,8 +147,8 @@ console.log("=== 実対戦では絞り込むかを守る側に確認する（『
     assert(alive(s, "p1", ally1), "確認中はマジックの効果がまだ解決されていない")
 
     assert(
-        act(s, "p1", { type: "resolveChoice", option: "このスピリットのみにする" }) === null,
-        "「このスピリットのみにする」を選ぶ",
+        act(s, "p1", { type: "resolveChoice", instanceId: sank.instanceId }) === null,
+        "付け替え先にサンクを選ぶ",
     )
     assert(s.pendingChoice === null, "選択待ちが解消される")
     assert(!alive(s, "p1", sank), "対象がサンクのみになるので、サンクは破壊される")

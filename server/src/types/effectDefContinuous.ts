@@ -34,18 +34,7 @@ export type EffectDefContinuous =
       }
     | {
           id: string
-          kind: "magicTargetRedirect" // 相手が使用したマジックが発生源を対象に含むとき、対象を発生源のみに絞る
-          levels: number[] | null
-          turn?: "own" | "opponent" // own=持ち主がturnPlayerのとき／opponent=でないとき
-          phase?: Phase
-          protectFamily?: FamilyFilter // 指定時は「持ち主のこの系統が対象に含まれる」ときに絞り込む。絞り込み先は発生源自身
-          protectColor?: Color
-          protectCost?: number // 持ち主のこのコストのスピリットに限る
-          optional?: true // 未指定＝強制
-      }
-    | {
-          id: string
-          kind: "targetRedirect" // 設計は docs/design/TARGET_REDIRECT.md §2.1。今は includes:"own"・to:"chosenOwn" だけ動く
+          kind: "targetRedirect" // 設計は docs/design/TARGET_REDIRECT.md §2.1。bothSides・side は 3b で動かす
           levels: number[] | null
           turn?: "own" | "opponent"
           phase?: Phase

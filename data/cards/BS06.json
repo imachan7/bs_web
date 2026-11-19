@@ -3300,14 +3300,17 @@
    },
    {
     "id": "BS06-056-e2",
-    "kind": "magicTargetRedirect",
+    "kind": "targetRedirect",
     "levels": [
      1,
      2,
      3
     ],
     "turn": "own",
-    "protectCost": 2,
+    "includes": {"filter": {"cost": {"in": [2]}}},
+    "to": "self",
+    "sourceTypes": ["magic"],
+    "requireReceivable": true,
     "optional": true
    },
    {

@@ -20,7 +20,6 @@ import {
     continueBurstActivation,
     fireEventBursts,
     applyMagicNegateChoice,
-    applyMagicRedirectChoice,
     applyMagicSideChoice,
     applyMagicRepeatChoice,
     applyHandFreeSummon,
@@ -45,7 +44,6 @@ import {
 } from "./EffectModules"
 import { validatePaySources } from "./RuleValidator"
 import { doCastMagic } from "./magic/cast"
-import { setTargetRedirect } from "./magic/redirect"
 import { resumeBraveDestroy } from "./brave"
 import { tryBraveFreeSummon } from "./braveFreeSummon"
 import { doSummonFromTegamoto } from "./tegamotoSummon"
@@ -672,24 +670,6 @@ function resolveChoiceInner(
         return finishChoiceResolution(state, pending.pid)
     }
 
-    // 対象の絞り込みの確認（BS04サンク／BS05スノーホワイト）。action は解決せず、
-    // 承認・拒否のどちらでも中断していたマジックの解決を続ける（絞り込むかだけが変わる）
-    if (pending.magicRedirect) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const info = pending.magicRedirect
-        state.pendingChoice = null
-        if (option === undefined) {
-            const source = findInstanceAnywhere(state, info.sourceInstanceId)
-            const name = source ? getCard(source.cardId).name : "効果"
-            log(state, `${name}：${getCard(info.cardId).name}の対象を絞り込まなかった。`)
-        }
-        applyMagicRedirectChoice(state, info, option !== undefined)
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
     if (pending.kind === "option") {
         if (option !== undefined && !(pending.options ?? []).includes(option)) {
             return "選択できない候補です"
@@ -837,7 +817,6 @@ export function runActionFrame(state: GameState, pid: PlayerId, frame: Extract<R
     else delete state.resumeBurst
     if (frame.effectId !== undefined) state.resumeEffectId = frame.effectId
     else delete state.resumeEffectId
-    if (frame.redirectTarget) setTargetRedirect(state, frame.actorPid ?? pid, frame.targetInstanceId, frame.action)
     // 発生源は個体が今も居るなら、その個体の今の色で判定する（#579。集めた時点の色は使わない）
     const srcInst = frame.sourceInstanceId !== undefined ? findInstanceAnywhere(state, frame.sourceInstanceId) : undefined
     const srcColors = srcInst ? instColors(srcInst) : frame.sourceColors
@@ -854,7 +833,6 @@ export function runActionFrame(state: GameState, pid: PlayerId, frame: Extract<R
         frame.sourceCardId,
     )
     delete state.resumeEffectId
-    if (frame.redirectTarget) delete state.magicRedirectTo
     if (prevBurst) state.resumeBurst = prevBurst
     else delete state.resumeBurst
 }

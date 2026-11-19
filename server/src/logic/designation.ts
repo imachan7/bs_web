@@ -1,32 +1,43 @@
 // 指定の段：同時に指定された対象が出そろった時点で、持ち主の付け替え（kind:"targetRedirect"）を挟む（docs/design/TARGET_REDIRECT.md）。
-// 今は古の魔王城（includes:"own"・to:"chosenOwn"）だけを扱う。Q23559〜Q23568
-import type { CardInstance, EffectAction, PlayerId } from "../type"
+// 魔導書（bothSides・side）は未対応。Q23559〜Q23568
+import type { CardInstance, EffectAction, PlayerId, ResolvedTargetFilter } from "../type"
 import type { EffectAttempt } from "../../../shared/rules"
-import { effectActiveAtLevel, effectSources } from "../../../shared/rules"
+import { effectActiveAtLevel, effectSources, matchesTarget } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import type { ActionCtx } from "./actions/types"
 import type { PickProgress } from "./pickTargets"
 import { currentLevel, getCard, log, opponentOf, suspend } from "./GameState"
 import { isResisted } from "./EffectModules"
 
-function findRedirectSource(state: ActionCtx["state"], holder: PlayerId, srcType: ActionCtx["srcType"]) {
-    for (const source of effectSources(state, holder)) {
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "targetRedirect" || effect.to !== "chosenOwn") continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
-            const typeOk = effect.sourceTypes === undefined || (srcType !== undefined && (effect.sourceTypes as string[]).includes(srcType))
-            if (typeOk) return { source, effect }
-        }
-    }
-    return null
-}
+type RedirectEffect = Extract<NonNullable<ReturnType<typeof getCard>["effects"]>[number], { kind: "targetRedirect" }>
+interface RedirectOffer { source: CardInstance; effect: RedirectEffect; options: string[] }
 
 // 選べるのは、その指定の候補に入り、効果を受けられるもの。選ばれていない個体も選べる（Q23560・Q23562・Q23564）。
-// 確認を出すときと、答えを受け取るときで同じ集合を使う
-function redirectOptions(state: ActionCtx["state"], holder: PlayerId, effect: NonNullable<ReturnType<typeof findRedirectSource>>["effect"], candidates: string[], attempt: EffectAttempt): string[] {
-    return state.players[holder].field.spirits
-        .filter((s) => (effect.requireReceivable !== true || candidates.includes(s.instanceId)) && !isResisted(state, holder, s, attempt))
-        .map((s) => s.instanceId)
+// 確認を出すときと、答えを受け取るときで同じ集合を使う。bothSides・side は 3b で足す（今は起きない扱い）
+function redirectOffers(state: ActionCtx["state"], holder: PlayerId, srcType: ActionCtx["srcType"], ids: string[], candidates: string[], attempt: EffectAttempt): RedirectOffer[] {
+    const spirits = state.players[holder].field.spirits
+    const offers: RedirectOffer[] = []
+    for (const source of effectSources(state, holder)) {
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "targetRedirect" || effect.includes === "bothSides" || effect.to === "side") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.turn !== undefined && (effect.turn === "own") !== (holder === state.turnPlayer)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            if (effect.sourceTypes !== undefined && (srcType === undefined || !(effect.sourceTypes as string[]).includes(srcType))) continue
+            const inc = effect.includes
+            const involved = inc === "self"
+                ? ids.includes(source.instanceId)
+                : spirits.some((s) => ids.includes(s.instanceId) && (inc === "own" || matchesTarget(state, holder, s, inc.filter as unknown as ResolvedTargetFilter)))
+            if (!involved) continue
+            const options = effect.to === "self"
+                // 自分1体に絞り込む結果が今と同じ（対象が発生源だけ）なら聞く意味がない
+                ? spirits.filter((s) => s.instanceId === source.instanceId && !(ids.length === 1 && ids[0] === s.instanceId)
+                    && (effect.requireReceivable !== true || candidates.includes(s.instanceId)) && !isResisted(state, holder, s, attempt)).map((s) => s.instanceId)
+                : spirits.filter((s) => (effect.requireReceivable !== true || candidates.includes(s.instanceId)) && !isResisted(state, holder, s, attempt)).map((s) => s.instanceId)
+            if (options.length > 0) offers.push({ source, effect, options })
+        }
+    }
+    return offers
 }
 
 // 戻り値：そのまま進めるなら対象、確認を出したら null（呼び出し側は中断する）。
@@ -43,24 +54,32 @@ export function settleTargets(
     const holderSpirit = (id: string): CardInstance | undefined => state.players[holder].field.spirits.find((s) => s.instanceId === id)
     if (action.picked?.settled === true) {
         const pick = ctx.targetInstanceId
-        const found = findRedirectSource(state, holder, srcType)
-        if (pick === undefined || !found || !redirectOptions(state, holder, found.effect, candidates, attempt).includes(pick)) return ids
+        const found = pick === undefined ? undefined : redirectOffers(state, holder, srcType, action.picked.ids, candidates, attempt).find((o) => o.options.includes(pick))
+        if (pick === undefined || !found) return ids
         noteCoverage(found.effect, "targetRedirect")
         log(state, `${sourceName}：効果の対象を${getCard(holderSpirit(pick)!.cardId).name}のみに変更した。`)
         return [pick]
     }
     // バースト効果そのもの（Q23567）と【連鎖】の部分（Q23568）は付け替えられない
     if (state.currentEffectSource?.burst === true || action.rensa === true) return ids
-    if (action.picked !== undefined || owner === holder || !state.interactiveTargets) return ids
+    if (action.picked !== undefined || owner === holder) return ids
     if (!ids.some((id) => holderSpirit(id) !== undefined)) return ids
-    const found = findRedirectSource(state, holder, srcType)
-    if (!found) return ids
-    const options = redirectOptions(state, holder, found.effect, candidates, attempt)
-    if (options.length === 0) return ids
+    const offers = redirectOffers(state, holder, srcType, ids, candidates, attempt)
+    if (offers.length === 0) return ids
+    // 発生源が自分自身へ付け替える効果は、強制（optional なし）か非対話なら確認なしで先頭のものを使う
+    const auto = offers.find((o) => o.effect.to === "self" && (o.effect.optional !== true || !state.interactiveTargets))
+    if (auto) {
+        noteCoverage(auto.effect, "targetRedirect")
+        log(state, `${getCard(auto.source.cardId).name}：${sourceName}の効果の対象を、このスピリットのみにした。`)
+        return [auto.source.instanceId]
+    }
+    if (!state.interactiveTargets) return ids
+    const options = [...new Set(offers.flatMap((o) => o.options))]
+    const name = offers.length === 1 ? getCard(offers[0]!.source.cardId).name : "対象の付け替え"
     suspend(state, {
         pid: holder,
         kind: "target",
-        prompt: `${getCard(found.source.cardId).name}：相手の効果の対象を、自分のスピリット1体だけに変更しますか？`,
+        prompt: `${name}：相手の効果の対象を、自分のスピリット1体だけに変更しますか？`,
         candidates: options,
         optional: true,
         resolveOnSkip: true,

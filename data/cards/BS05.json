@@ -2376,17 +2376,17 @@
   "effects": [
    {
     "id": "BS05-040-e1",
-    "kind": "magicTargetRedirect",
+    "kind": "targetRedirect",
     "levels": [
      1,
      2,
      3
     ],
     "turn": "opponent",
-    "protectFamily": [
-     "氷姫"
-    ],
-    "protectColor": "white",
+    "includes": {"filter": {"family": ["氷姫"], "color": "white"}},
+    "to": "self",
+    "sourceTypes": ["spirit", "magic"],
+    "requireReceivable": true,
     "optional": true
    },
    {

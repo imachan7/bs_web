@@ -9,7 +9,7 @@ import { emitEvent, payCost, resolveAction } from "../EffectModules"
 import { destroySpirit } from "../removal"
 import { canPayMagicCost, payMagicCostThenResolve } from "./payThenResolve"
 import { effectMagicUseDenial } from "./effectUse"
-import { isRedirectOptional, askBothSidesRedirect, findMagicRedirectSourceForCard } from "./redirect"
+import { askBothSidesRedirect } from "./redirect"
 import { findMagicNegateSource, payMagicNegate } from "./negate"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
 import { beginMagicUse, finishMagicUseOrDefer } from "./inUse"
@@ -98,36 +98,6 @@ function resolveMagicInner(
         payMagicNegate(state, negate, card)
         fireMagicUsedTriggers(state, owner, card, timing, paidCost)
         return
-    }
-
-    // 対象の絞り込み（BS04サンク／BS05スノーホワイト）は「〜にできる」＝任意なので、
-    // 守る側に1回だけ確認する。**このマジックの効果のどれかで実際に絞り込みが起こる場合だけ聞く**
-    // （聞いても意味がない場面で確認を出さないため）。答えはマジックの解決中ずっと使い回す
-    delete state.magicRedirectDecision
-    if (state.interactiveTargets) {
-        const redirectSource = findMagicRedirectSourceForCard(state, owner, card, timing, targetInstanceId)
-        if (redirectSource && isRedirectOptional(redirectSource)) {
-            suspend(state, {
-                pid: opponentOf(owner),
-                kind: "option",
-                prompt: `${getCard(redirectSource.cardId).name}：${card.name}の効果の対象を、このスピリットのみにしますか？`,
-                candidates: [],
-                options: ["このスピリットのみにする"],
-                optional: true,
-                confirm: true,
-                magicRedirect: {
-                    casterPid: owner,
-                    cardId,
-                    timing,
-                    targetInstanceId,
-                    sourceInstanceId: redirectSource.instanceId,
-                    paidCost,
-                },
-                action: { type: "noop" },
-                selfInstanceId: redirectSource.instanceId,
-            })
-            return
-        }
     }
 
     if (askBothSidesRedirect(state, owner, card, timing, targetInstanceId, paidCost)) return

@@ -10,7 +10,6 @@ import { resolveAction } from "../EffectModules"
 import { hasPendingFramesOfEffect, settleDerived } from "../derivedSettle"
 import { markPayConfirmed } from "../actions/pay"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { setTargetRedirect } from "./redirect"
 import type { ActionHandler } from "../actions/types"
 import { resolveMagic } from "./cast"
 import { hasKeywordAtLevel } from "../keywords/kobo"
@@ -222,9 +221,6 @@ export function runMagicActions(
         const effect = effects[i]
         if (!effect || !matches(effect)) continue
         if (magicEntryBlocked(state, owner, card, effect)) continue
-        // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
-        // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
-        setTargetRedirect(state, owner, targetInstanceId, effect.action)
         if (taxed) {
             collected.push(markPayConfirmed(effect.action))
             continue
@@ -240,21 +236,14 @@ export function runMagicActions(
                 state,
                 remaining.map((e) => ({ kind: "action" as const, selfInstanceId: null, action: { type: "resumeMagicEntry" as const, cardId, effectId: e.id }, effectId })),
             )
-            // 選択待ちで抜けるときも絞り込みは持ち越さない（選択の解決は別のアクションとして走る）
-            delete state.magicRedirectTo
             return
         }
     }
     if (collected.length > 0) {
         // 1つなら sequence で包まない：sequence は子へ対象（targetInstanceId）を渡さないので、対象つきマジックの対象が税の後で失われる
         resolveAction(state, owner, null, withEffectTax(state, owner, "magic", cardId, collected.length === 1 ? collected[0]! : { type: "sequence", actions: collected }), targetInstanceId, magicEffectiveColors(state, owner, card), "magic", undefined, undefined, card.cardId)
-        if (state.pendingChoice) {
-            delete state.magicRedirectTo
-            return
-        }
+        if (state.pendingChoice) return
     }
-    // 対象の絞り込みはこのマジックの解決中だけ有効（誘発効果には及ぼさない）
-    delete state.magicRedirectTo
     } finally {
         if (prevHold !== undefined) state.holdDerivedFor = prevHold
         else delete state.holdDerivedFor
