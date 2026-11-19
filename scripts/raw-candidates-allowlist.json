@@ -21,7 +21,6 @@
     "forcedBlock.ts:resolveForcedBlock": "ルール処理（ブロック・攻撃・継続効果・誘発の走査）で、効果の対象選択ではない",
     "keywords/burst.ts:burstConditionMet": "数える・条件を見る（待機中も場にいるので数える）",
     "keywords/tensho.ts:tenshoCandidates": "コスト支払い・条件の判定（効果の対象ではない）（【転召】のコストになる個体）",
-    "magic/redirect.ts:findMagicRedirectSource": "ルール処理（ブロック・攻撃・継続効果・誘発の走査）で、効果の対象選択ではない",
     "revive.ts:tryReviveOnDestroy": "コスト支払い・条件の判定（効果の対象ではない）",
     "state/continuous.ts:refreshLevelAsOverrides": "ルール処理（ブロック・攻撃・継続効果・誘発の走査）で、効果の対象選択ではない",
     "triggers.ts:fireTrigger": "数える・条件を見る（待機中も場にいるので数える）"

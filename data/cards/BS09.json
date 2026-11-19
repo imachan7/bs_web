@@ -2615,7 +2615,7 @@
     "effects": [
       {
         "id": "BS09-038-e1",
-        "kind": "magicTargetRedirect",
+        "kind": "targetRedirect",
         "levels": [
           1,
           2,
@@ -2623,11 +2623,12 @@
         ],
         "turn": "opponent",
         "phase": "attack",
-        "protectFamily": [
-          "楽族"
-        ],
+        "includes": {"filter": {"family": ["楽族"]}},
+        "to": "self",
+        "sourceTypes": ["spirit", "magic"],
+        "requireReceivable": true,
         "optional": true
-      }
+       }
     ]
   },
   {

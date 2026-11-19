@@ -37,7 +37,6 @@ export type ResistanceCategory =
     | "battlingImmune" // バトル中は効果を受けない（globalConstraint:"battlingEffectImmune"）
     | "paidNegate" // コストを払って効果を受けなかった（kind:"targetNegateByHandDiscard"。サーバー側で判定）
     | "summonEffectImmune" // 相手のスピリットの『召喚時』効果を受けない（サーバー側で判定）
-    | "magicRedirect" // 対象の絞り込みで、この個体が対象から外れた（耐性ではないが同じ入口で弾く。サーバー側で判定）
     | "meisai" // 【迷彩：N】＝スピリットの効果で指定する時のコスト要求（サーバー側で判定。払えなければ指定できない）
 
 export interface Resistance {

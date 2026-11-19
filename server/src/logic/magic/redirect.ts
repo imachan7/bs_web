@@ -1,9 +1,9 @@
 // 両陣営を対象にするマジックの対象の付け替え
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
-import type { CardData, CardInstance, CardType, PendingChoice, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
+import type { CardData, CardInstance, CardType, PendingChoice, EffectAction, GameState, PlayerId } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, log, opponentOf, suspend } from "../GameState"
-import { effectActiveAtLevel, effectSources, instHasColor, instHasCost, matchesTarget, matchesFamilyFilter } from "../../../../shared/rules"
+import { effectSources } from "../../../../shared/rules"
 import { resolveMagicEffects } from "./resolve"
 
 // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）：「お互いを対象とするマジックの効果」の
@@ -95,110 +95,6 @@ export function applyBothSidesRedirectToCandidates(
     return candidates.filter((c) => ids.has(c.instanceId))
 }
 
-// マジックカードの効果を実行する（timing に一致するすべての効果を配列順に実行）。
-// 「ドロー＋バフ」のような複合テキストは effects に複数エントリを並べて表現する。
-// アルカナソルジャー・サンクLv2（kind:"magicTargetRedirect"）の判定。
-// 「相手がこのスピリットを対象に含むマジックの効果を使用したとき、その対象をこのスピリットのみにできる」。
-// 「できる」は自動適用の簡略化（magicFreeGrant と同じ扱い）。
-// 対象に含むかの判定:
-//   - 明示ターゲットあり → それがサンク自身のときだけ絞り込む（他の1体を選んだならサンクは対象外）
-//   - 明示ターゲットなし（全体効果・自動選択） → 対象に含むものとして絞り込む
-//     （利用者確認：マジックの「対象」には全体を含む効果も含まれる。DECISIONS.md）
-export function setTargetRedirect(
-    state: GameState,
-    casterPid: PlayerId,
-    targetInstanceId: string | undefined,
-    action: EffectAction,
-): void {
-    delete state.magicRedirectTo
-    const found = findMagicRedirectSource(state, casterPid, targetInstanceId, action)
-    if (!found) return
-    // 対話モードでは、絞り込むかどうかを発生源の持ち主（＝守る側）に確認済み。
-    // 「しない」を選んでいたら絞り込まない（『〜にできる』の任意性。BS04サンク／BS05スノーホワイト）。
-    // 決定が無い＝非対話（テスト・自動解決）なので、従来どおり自動で絞り込む
-    const decision = state.magicRedirectDecision
-    if (decision && decision.sourceInstanceId === found.instanceId && !decision.approved) return
-    noteCoverage(getCard(found.cardId).effects.find((e) => e.kind === "magicTargetRedirect"), "magicTargetRedirect")
-    state.magicRedirectTo = { pid: opponentOf(casterPid), instanceId: found.instanceId }
-    log(
-        state,
-        `${getCard(found.cardId).name}：このマジックの効果の対象を、このスピリットのみにした。`,
-    )
-}
-
-// この発生源の絞り込みが「〜にできる」＝任意か（optional:true）。
-// 任意のものだけ、絞り込む前に持ち主へ確認を出す。強制（optional 未指定）なら確認せず自動で絞り込む
-export function isRedirectOptional(inst: CardInstance): boolean {
-    return getCard(inst.cardId).effects.some(
-        (e) => e.kind === "magicTargetRedirect" && e.optional === true,
-    )
-}
-
-// magicTargetRedirect の発生源を探す（実際に絞り込むかは呼び出し側が決める）。
-// resolveMagic の事前確認（このマジックで絞り込みが起こりうるか）と setMagicRedirect が共用する
-export function findMagicRedirectSource(
-    state: GameState,
-    casterPid: PlayerId,
-    targetInstanceId: string | undefined,
-    action: EffectAction,
-): CardInstance | null {
-    const defenderPid = opponentOf(casterPid)
-    for (const inst of state.players[defenderPid].field.spirits) {
-        for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "magicTargetRedirect") continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
-            // 『相手のターン』＝発生源の持ち主がターンプレイヤーでないとき／『自分のターン』＝turnPlayerのとき
-            if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
-            if (effect.turn === "own" && defenderPid !== state.turnPlayer) continue
-            // 『相手の**アタックステップ**』のようにステップまで限定されているとき（BS09-038ティンカ）。
-            // turn だけでは相手のメインステップに使われた効果からも守ってしまう
-            if (effect.phase !== undefined && state.phase !== effect.phase) continue
-            if (effect.protectFamily !== undefined || effect.protectCost !== undefined) {
-                // スノーホワイト：守る対象は「持ち主の指定系統（＋指定色）のスピリット」で、
-                // 絞り込み先は発生源自身。守る対象が1体も対象に含まれていなければ発動しない
-                // （BS06細剣の猫騎士ケット・シー：protectCostで「持ち主の指定コストのスピリット」を守る同型版）
-                const guarded = state.players[defenderPid].field.spirits.filter(
-                    (s) =>
-                        (effect.protectFamily === undefined ||
-                            matchesFamilyFilter(state, defenderPid, s, effect.protectFamily)) &&
-                        (effect.protectColor === undefined || instHasColor(s, effect.protectColor)) &&
-                        (effect.protectCost === undefined || instHasCost(s, effect.protectCost)),
-                )
-                if (guarded.length === 0) continue
-                const included =
-                    targetInstanceId !== undefined
-                        ? guarded.some((s) => s.instanceId === targetInstanceId)
-                        : guarded.some((s) => redirectTargetMatches(state, defenderPid, s, action))
-                if (!included) continue
-            } else {
-                if (targetInstanceId !== undefined && targetInstanceId !== inst.instanceId) continue
-                // そもそもこのアクションの絞り込みに合致しなければ「対象に含む」ではない
-                // （例: BP3000以下を破壊するマジックに対し、BP4000のサンクは対象外＝絞り込みは起きない）
-                if (!redirectTargetMatches(state, defenderPid, inst, action)) continue
-            }
-            return inst
-        }
-    }
-    return null
-}
-
-// 絞り込み対象（サンク）が、そのアクションの filter に合致するか。
-// self 相対BP・バトル敗者参照など「マジック単体では解決できない軸」を含む場合は
-// 判定できないため false（＝絞り込まない＝従来どおりの挙動）にする
-export function redirectTargetMatches(
-    state: GameState,
-    defenderPid: PlayerId,
-    inst: CardInstance,
-    action: EffectAction,
-): boolean {
-    const spec = (action as { filter?: TargetFilter }).filter
-    if (!spec) return true
-    if (spec.maxBp === "selfBp" || spec.minBp === "selfBp" || spec.exactBp === "selfBp") return false
-    if (spec.sameColorAsBattleLoser || spec.sameFamilyAsBattleLoser) return false
-    // ここまでで "selfBp" 系は除外済みなので、数値のみの ResolvedTargetFilter として扱える
-    return matchesTarget(state, defenderPid, inst, spec as unknown as ResolvedTargetFilter)
-}
-
 // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の「対象を相手のみ／自分のみに変更できる」の確認。
 // 出したら true（中断）を返す。**このマジックが実際に両陣営に関わる場合だけ**聞く
 // （相手だけを対象にする大多数のマジックで確認を出さないため）。答えはマジックの解決中ずっと使い回す
@@ -270,35 +166,5 @@ export function applyMagicSideChoice(
         const name = source ? getCard(source.cardId).name : "効果"
         log(state, `${name}：${getCard(info.cardId).name}の効果の対象を変更しなかった。`)
     }
-    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost)
-}
-
-// このマジックが解決する効果のうち、1つでも magicTargetRedirect の絞り込み対象になるものがあるか。
-// あればその発生源を返す（確認を出すかどうかの事前判定。runMagicActions と同じ timing 絞り込みを使う）
-export function findMagicRedirectSourceForCard(
-    state: GameState,
-    casterPid: PlayerId,
-    card: CardData,
-    timing: "main" | "flash",
-    targetInstanceId: string | undefined,
-): CardInstance | null {
-    for (const effect of card.effects) {
-        if (effect.kind !== "magic" || effect.timing !== timing) continue
-        const found = findMagicRedirectSource(state, casterPid, targetInstanceId, effect.action)
-        if (found) return found
-    }
-    return null
-}
-
-// pendingChoice（対象の絞り込みの確認）の後処理。承認・拒否のどちらでも、中断していた解決を続ける。
-// GameEngine.doResolveChoice から呼ぶ
-export function applyMagicRedirectChoice(
-    state: GameState,
-    info: NonNullable<PendingChoice["magicRedirect"]>,
-    approved: boolean,
-): void {
-    state.magicRedirectDecision = { sourceInstanceId: info.sourceInstanceId, approved }
-    // 絞り込みの確認で中断していた場合も、封印された魔導書の確認はここで出す（解決へ直行させない）
-    if (askBothSidesRedirect(state, info.casterPid, getCard(info.cardId), info.timing, info.targetInstanceId, info.paidCost)) return
     resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost)
 }

@@ -166,13 +166,12 @@ export function emitEvent(state: GameState, event: WithoutSeq<GameEvent>): void 
 // このインスタンスが、いま解決中の効果を「受けない」状態か。破壊・コア除去・疲労・バウンス等の各ガードから呼ぶ。
 // **新しい「効果を受けない」ルールはここへ足すこと**。
 // 内訳: ① globalConstraint "battlingEffectImmune"：バトル中の両陣営スピリットはスピリット/マジックの効果を受けない（ネクサスの効果は通る）
-// ② GameState.magicRedirectTo：対象が1体へ絞り込まれている間、同じ持ち主の他のスピリットはそのマジックの効果を受けない
 // 【耐性を見る唯一の入口】この操作が、この対象に、この発生源から通るか。
 // 防がれるなら理由（ResistanceCategory とログ用ラベル）を、通るなら null を返す。
 //
 // **相手のスピリット／ネクサスに何かをするハンドラは、個別の耐性述語を並べずにこれを1回呼ぶこと。**
 // 判定表は shared/rules.boardResistanceAgainst（クライアントの対象ハイライトも同じ表を使う）。
-// ここが上乗せするのは、効果解決中の一時状態で決まる ① 対象の絞り込み（state.magicRedirectTo） ② 相手のスピリットの『召喚時』効果を受けない（state.resolvingSummonTriggerPid）
+// ここが上乗せするのは、効果解決中の一時状態で決まる ① 相手のスピリットの『召喚時』効果を受けない（state.resolvingSummonTriggerPid）
 // と、コストを支払わせる ③【迷彩】④円卓。③④は支払いの副作用があり shared/rules（純粋な述語の層）に置けない。
 // クライアントの対象ハイライトに出ないのは正しい：【迷彩】は払えれば対象になり、円卓も対象にはなってよい
 export function resistanceAgainst(
@@ -181,17 +180,6 @@ export function resistanceAgainst(
     target: CardInstance,
     attempt: EffectAttempt,
 ): Resistance | null {
-    // ① 対象の絞り込み（スピリット/マジックの効果が対象。ネクサスの効果は通る）。絞り込み先の持ち主のスピリットだけが影響を受ける。
-    // 2026-08-14 ユーザー確認でマジック限定からスピリットの効果へ拡張した
-    const redirect = state.magicRedirectTo
-    if (
-        redirect !== undefined &&
-        (attempt.sourceType === "magic" || attempt.sourceType === "spirit") &&
-        target.instanceId !== redirect.instanceId &&
-        state.players[redirect.pid].field.spirits.some((s) => s.instanceId === target.instanceId)
-    ) {
-        return { category: "magicRedirect", label: "効果の対象が絞り込まれている" }
-    }
     // ② 発生源がスピリットで、いま召喚時効果を解決中、かつその持ち主が対象の持ち主と異なるときだけ効く
     const summonPid = state.resolvingSummonTriggerPid
     if (
@@ -1518,7 +1506,7 @@ export function resolveAction(
 
 // ---- イベント発火（server/src/logic/triggers.ts へ分割。2026-08-10）----
 // 呼び出し側（57ファイル）を変えずに済むよう、ここから再エクスポートする。相互 import は GameState.ts ↔ EffectModules.ts と同じ CommonJS の循環 require で安全
-export { isTriggerSuppressed, fireSummonTrigger, fireTrigger, fireCombinedAttackTrigger, battleOpponentConditionedOnBattleStartIds, applyBothSidesRedirectToCandidates, bothSidesPids, bothSidesRedirectKeepPid, notifySpiritCoresRemovedByOpponent, findMagicNegateSource, resolveMagic, applyMagicRedirectChoice, applyMagicSideChoice, applyMagicRepeatChoice, applyMagicNegateChoice, declineMagicNegateChoice, revertOncePerTurn, revertDestroyGroupUsage } from "./triggers"
+export { isTriggerSuppressed, fireSummonTrigger, fireTrigger, fireCombinedAttackTrigger, battleOpponentConditionedOnBattleStartIds, applyBothSidesRedirectToCandidates, bothSidesPids, bothSidesRedirectKeepPid, notifySpiritCoresRemovedByOpponent, findMagicNegateSource, resolveMagic, applyMagicSideChoice, applyMagicRepeatChoice, applyMagicNegateChoice, declineMagicNegateChoice, revertOncePerTurn, revertDestroyGroupUsage } from "./triggers"
 export { applyJugekiCoreToVoid } from "./keywords/jugeki"
 export { fireBattleWonTriggers, fireStepTriggers, fireBpReachedTriggers, ensureBpSeen, battleBp } from "./stepTriggers"
 export { fireFieldEventTriggers, notifyHandGained, notifyNexusDeployed, fireNexusDeployed } from "./fieldEventTriggers"

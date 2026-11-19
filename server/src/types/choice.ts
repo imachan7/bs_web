@@ -271,20 +271,9 @@ export interface PendingChoice {
         sourceType?: CardType
         causingInstanceId?: string // BS15共通器：kind:"deckMillNegate".thenReturnCauseToDeckBottom用。破棄を起こした発生源インスタンスID（GameState.currentEffectSource.instanceIdから確認の時点で控える。BS15-042オリンピアの天使アラトロンLv2）
     }
-    magicRedirect?: {
-        // 対象の絞り込み（kind:"magicTargetRedirect"）の確認待ち。magicNegate と同じく **action は解決しない**。
-        // 選べば GameState.magicRedirectDecision に承認を記録してからマジックの解決へ進み、
-        // 選ばなければ拒否を記録して同じく解決へ進む（どちらも doResolveChoice が resolveMagicEffects を呼ぶ）
-        casterPid: PlayerId
-        cardId: string
-        timing: "main" | "flash"
-        targetInstanceId: string | undefined
-        sourceInstanceId: string // 絞り込み先＝確認を出す側の発生源
-        paidCost: boolean // magicNegate と同じ（BS11-X05 用）
-    }
     magicSideChoice?: {
         // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の対象変更の確認待ち。
-        // magicRedirect と同じく **action は解決しない**（答えを GameState.magicSideDecision に
+        // magicNegate と同じく **action は解決しない**（答えを GameState.magicSideDecision に
         // 記録してからマジックの解決へ進む）。選ぶのは**魔導書の持ち主**で、マジックの使用者とは限らない
         casterPid: PlayerId
         cardId: string
@@ -416,9 +405,6 @@ export type ResumeFrame =
           sourceInstanceId?: string // 発生源の個体。再開時はこの個体の今の色で判定する（集めた時点の色を焼き付けない。#579）。見つからないときだけ sourceColors を使う
           sourceType?: CardType // 発生源の種別（同上）
           sourceCardId?: string // 発生源のカード（同上。名前と召喚時効果の印・「〜の効果で」の記録に使う）
-          // 解決の直前に対象の付け替え（magicTargetRedirect）を掛け直す。誘発を同時発揮の列から解決するとき、
-          // 列を作った時点では掛けられない（付け替えは解決中だけ有効な一時状態）ので印だけ持ち回る
-          redirectTarget?: true
       }
     | {
           // 宣言のあとのバースト判定（アタック後バースト等。TIMING_CHART ＞１-3）。同時発揮の列が選択待ちで中断しても、
