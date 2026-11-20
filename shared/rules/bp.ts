@@ -520,7 +520,7 @@ function eachBpAura(board: Board, ownerPid: PlayerId, inst: CardInstance, onAmou
                     continue
                 }
                 // 相手から当てる常時のBP増減は、【装甲】などで防げる（continuousEffectReaches。2026-11-12）
-                if (!continuousEffectReaches(board, ownerPid, inst, { pid, type: card(source.cardId).type, colors: instColors(source) })) continue
+                if (!continuousEffectReaches(board, ownerPid, inst, { pid, type: card(source.cardId).type, colors: instColors(source), instanceId: source.instanceId })) continue
                 if (effect.uniqueByName) {
                     const key = `${pid}|${card(source.cardId).name}|${effect.id}`
                     if (uniqueSeen.has(key)) continue

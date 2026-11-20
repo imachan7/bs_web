@@ -434,6 +434,8 @@ export function resolveBattle(state: GameState): void {
             (typeof when === "object" &&
                 ("blockerMaxBp" in when
                     ? effectiveBp(state, blockerPid, blocker) <= when.blockerMaxBp
+                    : "blockerMaxLevel" in when
+                    ? currentLevel(blocker).level <= when.blockerMaxLevel
                     : // 発生源が既に場にいなければ効かない（「このスピリットよりBPの低い」のこのスピリットがいないため）
                       (() => {
                           const src = findSpiritAny(state, when.selfInstanceId)

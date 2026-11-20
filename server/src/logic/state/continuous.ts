@@ -519,7 +519,8 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         continue
                     }
-                    for (const spirit of player.field.spirits) {
+                    const nameTargets = effect.target === "anyAll" ? [...player.field.spirits, ...state.players[opponentOf(pid)].field.spirits] : player.field.spirits
+                    for (const spirit of nameTargets) {
                         // 器BK：target:"self"は発生源自身にだけ付与する
                         if (effect.target === "self" && spirit.instanceId !== source.instanceId) continue
                         // 「コストNの自分のスピリット」は付与コスト（道化師クラン）も込みで判定する

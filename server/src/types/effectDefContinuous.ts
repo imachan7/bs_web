@@ -543,7 +543,7 @@ export type EffectDefContinuous =
           id: string
           kind: "nameAsGrant" // 持ち主の対象スピリットに付与
           levels: number[] | null
-          target: "ownAll" | "self"
+          target: "ownAll" | "self" | "anyAll" // anyAll＝両陣営のスピリットすべて
           nameIncludes: string
           costFilter?: number
           colorFilter?: Color

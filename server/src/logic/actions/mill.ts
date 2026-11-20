@@ -53,7 +53,8 @@ export function discardFromDeck(ctx: ActionCtx, action: DeckDiscard): void {
         const scope = currentRecordScope(state)
         const beforeLen = state.players[targetPid].trashCards.length
         const until = action.until
-        const actual = millDeck(state, targetPid, deckDiscardKyokaCount(state, owner, action, count), owner, srcType ? { sourceType: srcType } : undefined, until ? { until: (id) => matchesPick(id, until) } : undefined)
+        const millCount = action.downTo !== undefined ? Math.max(0, state.players[targetPid].deck.length - action.downTo) : deckDiscardKyokaCount(state, owner, action, count)
+        const actual = millDeck(state, targetPid, millCount, owner, srcType ? { sourceType: srcType } : undefined, until ? { until: (id) => matchesPick(id, until) } : undefined)
         recordMoved(state, state.players[targetPid].trashCards.slice(beforeLen, beforeLen + actual), scope)
         if (chimei && actual > 0 && self) fireFieldEventTriggers(state, owner, "ownChimeiMilled", { pid: owner, inst: self }, undefined, undefined, actual)
         return

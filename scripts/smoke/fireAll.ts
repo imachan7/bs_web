@@ -30,6 +30,7 @@ import { attachBrave } from "../../server/src/logic/brave"
 import { activeConstraints, hasGlobalConstraint, instHasColor, lifeDamageLimit, lifeLossAllowed } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
+import { countCards } from "./countCards"
 import { loadAllCards } from "../../data/loadCards"
 import { KEYWORDS } from "../../shared/rules"
 import type { CardData, EffectDef, Phase, TriggerEvent } from "../../server/src/type"
@@ -130,18 +131,8 @@ function putNexus(s: GameState, pid: PlayerId, card: CardData, cores: number): R
 const maxCores = (card: CardData): number =>
     (card.levels ?? []).reduce((max, lv) => Math.max(max, lv.cores), 1)
 
-// カードの総数（保存則の検査用）
-function totalCards(s: GameState): number {
-    let n = 0
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const p = s.players[pid]
-        n += p.deck.length + p.hand.length + p.trashCards.length + p.tegamoto.length
-        n += p.field.spirits.length + p.field.nexuses.length + p.field.combinedBraves.length + (p.burst ? 1 : 0)
-        n += p.field.magics.length + p.field.spirits.reduce((m, sp) => m + (sp.underCards?.length ?? 0), 0) // 場に残るマジック・スピリットの下のカード（BS19）
-    }
-    n += (s.revealedCards?.cardIds.length ?? 0) + (s.magicsInUse?.length ?? 0)
-    return n
-}
+// カードの総数（保存則の検査用）。数え方は countCards（fuzz と共通）に揃える
+const totalCards = countCards
 
 // 立っている選択待ちを候補の先頭で解消する（非対話モードでも一部の効果は選択を立てる）
 export function drain(s: GameState): boolean {

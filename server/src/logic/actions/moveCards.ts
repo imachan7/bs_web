@@ -4,13 +4,15 @@ import { effectMagicUseDenial, useMagicByEffect } from "../magic/effectUse"
 import { coreRemovalAllowed } from "../coreGate"
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
-import { getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "../GameState"
+import { getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, shuffle, suspend } from "../GameState"
+import { braveCombineCandidates } from "../../../../shared/summon"
+import { summonPayPlan } from "../summonCores"
 import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { canPayMagicCost, payMagicCostThenResolve } from "../magic/payThenResolve"
 import { beginMagicUse } from "../magic/inUse"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
-import { summonDenial } from "../summonGate"
+import { placeDenial, summonDenial } from "../summonGate"
 import { handImmuneFor, notifyHandGained, payCost, recordTimed, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
 import { handGainDenial } from "../handGate"
 import { canDiscardHand, instMinLevelCores, isTrashCardProtected, trashCardNameMatches } from "../../../../shared/rules"
@@ -19,9 +21,19 @@ import { COLOR_LABELS } from "../../../../data/constants"
 import { normalCoresOn } from "../soulCore"
 import { countedAmount } from "../counted"
 import { matchesPick } from "./revealAction"
+import { matchesTarget } from "../../../../shared/rules/targetFilter"
+import type { ResolvedTargetFilter } from "../../type"
 import { lastMovedOf, recordMoved } from "../record"
 
 type MoveCards = Extract<EffectAction, { type: "moveCards" }>
+
+function zoneOf(player: PlayerState, from: MoveCards["from"]): string[] {
+    return from === "hand" ? player.hand : from === "deck" ? player.deck : player.trashCards
+}
+
+function zoneLabel(from: MoveCards["from"]): string {
+    return from === "hand" ? "手札" : from === "deck" ? "デッキ" : "トラッシュ"
+}
 
 // 読み替え・再入で、きっかけのカード・発生源の色と種別・選択結果をそのまま渡す（ctx.resolve は省略した値を引き継がない）
 function carry(ctx: ActionCtx): ResolveOpts {
@@ -68,7 +80,7 @@ function destLabel(action: MoveCards): string {
 export function moveCardCandidates(state: GameState, owner: PlayerId, action: MoveCards, targetInstanceId?: string, selfCardId?: string): number[] {
     const zonePid = action.side === "opponent" ? opponentOf(owner) : owner
     const player = state.players[zonePid]
-    const zone = action.from === "hand" ? player.hand : player.trashCards
+    const zone = zoneOf(player, action.from)
     // fromEvent：その回に破棄されたカード（state.lastDeckMill）だけ。同じ cardId が複数あるときは新しい方から枚数ぶん当てる
     const fromEventIdx = action.fromEvent ? millEventIndices(zone, state.lastDeckMill?.pid === zonePid ? state.lastDeckMill.cardIds : []) : undefined
     const lastMoved = action.lastMovedOnly ? lastMovedOf(state) : undefined
@@ -81,9 +93,10 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
             ({ id, j }) =>
                 (matchesPick(id, pickRest, undefined, selfCardId) || fchangeAsCostMatches(state, zonePid, action, id, pickRest, selfCardId)) &&
                 nameOk(id) &&
-                (action.dest !== "summon" || !summonDenial(state, { pid: owner, cardId: id, from: action.from === "hand" ? "hand" : "trash", cause: "effect", mayCombine: true })) &&
+                (action.dest !== "summon" || !summonDenial(state, { pid: owner, cardId: id, from: action.from === "hand" ? "hand" : action.from === "deck" ? "deck" : "trash", cause: "effect", mayCombine: true, ...(action.pay === "cost" ? { paid: true as const } : {}) })) &&
+                (action.dest !== "placeNexus" || placeDenial(id, action.pay !== undefined) === null) &&
                 (!action.onlyEventCard || id === targetInstanceId) &&
-                (action.from === "hand" || !isTrashCardProtected(id, state)) &&
+                (action.from !== "trash" || !isTrashCardProtected(id, state)) &&
                 (fromEventIdx === undefined || fromEventIdx.has(j)) &&
                 (lastMoved === undefined || lastMoved.includes(id)),
         )
@@ -139,10 +152,10 @@ export function fieldCoresSpendable(state: GameState, pid: PlayerId): { inst: Ca
 }
 
 // 1枚を送る。送れたら true（払えない・種別が違うなどで送れなければゾーンに残して false）
-function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number): boolean {
+function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number, hostId?: string): boolean {
     const { state, sourceName } = ctx
     const player = state.players[pid]
-    const zone = action.from === "hand" ? player.hand : player.trashCards
+    const zone = zoneOf(player, action.from)
     const cardId = zone[j]
     if (cardId === undefined) return false
     const card = getCard(cardId)
@@ -159,8 +172,27 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number): b
             ...(action.skipOnSummon ? { skipOnSummon: true as const } : {}),
             summonedBy: action.summonedBy ?? "freeEffect",
             surchargeBatch: true,
+            ...(hostId !== undefined ? { braveTargetInstanceId: hostId } : {}),
         })
         return zone.length < before
+    }
+    // デッキからの召喚は公開ゾーン経由と同じ revealApplyOne に渡す（ブレイヴの合体・コスト支払い・【転召】をそこで持つ）。
+    // summonedBy は引き継がない
+    if (action.dest === "summon" && action.from === "deck") {
+        if (card.type !== "spirit" && card.type !== "brave") return false
+        ctx.resolve({
+            type: "revealApplyOne",
+            cardId,
+            srcPid: pid,
+            fromDeck: true,
+            dest: "summon",
+            ...(action.pay === "cost" ? { pay: "cost" as const } : {}),
+            ...(action.skipOnSummon ? { noSummonEffects: true as const } : {}),
+            ...(action.skipTensho ? { tensho: "none" as const } : {}),
+            ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
+            ...(hostId !== undefined ? { braveTargetInstanceId: hostId } : {}),
+        })
+        return true
     }
     if (action.dest === "summon") {
         if (action.from !== "trash") return false
@@ -170,6 +202,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number): b
             ...(action.pay === "cost" ? { payCost: true as const, ...(ctx.paySources ? { paySources: ctx.paySources } : {}), ...(action.reserveOnly ? { reserveOnly: true as const } : {}) } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: true as const } : {}),
             ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
+            ...(hostId !== undefined ? { braveTargetInstanceId: hostId } : {}),
             surchargeBatch: true,
         })
         return zone.length < before
@@ -263,26 +296,26 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const pid = action.side === "opponent" ? opponentOf(owner) : owner
     const player = state.players[pid]
-    const zone = action.from === "hand" ? player.hand : player.trashCards
+    const zone = zoneOf(player, action.from)
     const done = action.done ?? []
     // 1回の効果で続けて召喚するあいだだけ余分の支払い済みを持つ
-    if (done.length === 0 && action.dest === "summon") {
+    if (done.length === 0 && action.dest === "summon" && action.combineIndex === undefined) {
         delete state.summonSurchargePaid
         if (action.count === "all" || action.count >= 2 || action.costBudget !== undefined) startSummonBatch(state)
     }
     const end = (): void => {
         recordMoved(state, done)
         if (action.dest === "summon") flushSummonBatch(state, pid)
-        if (done.length === 0) log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象がなかった。`)
+        if (done.length === 0) log(state, `${sourceName}：${zoneLabel(action.from)}に対象がなかった。`)
     }
-    const deliver = (j: number): void => {
+    function deliver(j: number, hostId?: string): void {
         const cardId = zone[j]!
         // 召喚の余分の支払い待ちで止まったときは、払ったあとの再開で召喚される（待ちが立っていれば失敗ではない）
-        if (!sendOne(ctx, action, pid, j) && !state.pendingChoice) {
+        if (!sendOne(ctx, action, pid, j, hostId) && !state.pendingChoice) {
             end()
             return
         }
-        const { asked: _a, picked: _p, ...rest } = action
+        const { asked: _a, picked: _p, combineIndex: _c, ...rest } = action
         const next: MoveCards = {
             ...rest,
             count: action.count === "all" ? "all" : action.count - 1,
@@ -293,8 +326,32 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
         if (state.pendingChoice) pushResumeFrames(state, [{ kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: next }])
         else ctx.resolve(next, { ...carry(ctx), chosenCardIndex: undefined })
     }
+    // ブレイヴの合体先の選択待ちからの再開（targetInstanceId＝合体先、無ければスピリット状態。BRAVE.md §12.6）
+    if (action.combineIndex !== undefined) {
+        deliver(action.combineIndex, ctx.targetInstanceId)
+        return
+    }
+    // 効果で召喚するブレイヴは合体先を選べる。非対話はスピリット状態（手札からの効果召喚と同じ）
+    const deliverAskingHost = (j: number): void => {
+        const id = zone[j]!
+        const hosts = action.dest === "summon" && getCard(id).type === "brave" && state.interactiveTargets ? braveCombineCandidates(state, pid, id) : []
+        if (hosts.length === 0) {
+            deliver(j)
+            return
+        }
+        suspend(state, {
+            pid: owner,
+            kind: "target",
+            prompt: `${sourceName}：${getCard(id).name}を合体させるスピリットを選んでください（選ばない場合は単体で召喚します）`,
+            candidates: hosts,
+            optional: true,
+            resolveOnSkip: true,
+            action: { ...action, combineIndex: j },
+            selfInstanceId: self ? self.instanceId : null,
+        })
+    }
     if (chosenCardIndex !== undefined) {
-        deliver(chosenCardIndex)
+        deliverAskingHost(chosenCardIndex)
         return
     }
     // 選択を出したあとスキップされた（resolveOnSkip で cardIndex なしに戻る）
@@ -340,12 +397,13 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
     }
     const pool = choosable.filter((j) => affordable(state, pid, action, zone[j]!, viaSoryo(action)))
     const best = (pool.length > 0 ? pool : choosable).reduce((b, j) => (getCard(zone[j]!).cost >= getCard(zone[b]!).cost ? j : b))
-    deliver(best)
+    deliverAskingHost(best)
 }
 
 function candidatesForAsk(ctx: ActionCtx, action: MoveCards): boolean {
-    const zone = ctx.state.revealedCards
-    return !!zone && zone.cardIds.some((id) => matchesPick(id, action.pick, undefined, ctx.sourceCardId))
+    const p = ctx.state.players[action.side === "opponent" ? ctx.opp : ctx.owner]
+    const ids = action.from === "revealed" ? ctx.state.revealedCards?.cardIds ?? [] : zoneOf(p, action.from)
+    return ids.some((id) => matchesPick(id, action.pick, undefined, ctx.sourceCardId))
 }
 
 // オープン中のカード（GameState.revealedCards）から。pick 無し・count:"all" でデッキ/トラッシュ/手札行きは「残り」（revealRest：デッキへは戻す順番を選ばせる）。
@@ -356,33 +414,17 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     if (!zone) return
     const dest = action.dest
     if (dest === "exMark") return
-    // 承認後の再入は ask を外した同じ action で来るので二度聞かない。断ると確認の解決側が再開スタックの次の手順へ進む
-    if (action.ask && state.interactiveTargets && chosenCardIndex === undefined && candidatesForAsk(ctx, action)) {
-        const { ask: _ask, ...confirmed } = action
-        // requestActivationConfirm は moveCardsPayable（revealed を数えない）で不発扱いにするので、同じ形の確認を直接出す
-        suspend(state, {
-            pid: owner,
-            kind: "option",
-            prompt: `${sourceName}：${destLabel(action).endsWith("する") ? `${destLabel(action).slice(0, -2)}しますか` : `${destLabel(action)}か`}？`,
-            candidates: [],
-            options: ["発動する"],
-            optional: true,
-            confirm: true,
-            action: confirmed,
-            selfInstanceId: self ? self.instanceId : null,
-        })
-        return
-    }
     if (action.pick === undefined && action.count === "all") {
         if (dest !== "deckTop" && dest !== "deckBottom" && dest !== "deckTopOrBottom" && dest !== "trash" && dest !== "hand") return
         ctx.resolve({ type: "revealRest", destPid: zone.pid, rest: dest })
         return
     }
     if (dest === "deckTop" || dest === "deckTopOrBottom") return
-    const applyOne = (cardId: string): EffectAction => ({
+    const applyOne = (cardId: string, hostId?: string): EffectAction => ({
         type: "revealApplyOne",
         cardId,
         srcPid: zone.pid,
+        ...(hostId !== undefined ? { braveTargetInstanceId: hostId } : {}),
         // 自分の番が来るまで公開ゾーンに残す。まとめて抜くと、前のカードの選択待ちの間どのゾーンにも無いカードができる
         fromRevealed: true,
         dest,
@@ -395,24 +437,54 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
         ...(action.pay === "cost" && (dest === "summon" || dest === "summonOrPlace") ? { pay: "cost" as const } : {}),
     })
     // 取り出した順に送る（途中で選択待ちになったら残りは再開スタックへ）
-    const sendAll = (ids: string[], after?: EffectAction): void => {
+    const sendAll = (ids: string[], after?: EffectAction, hostId?: string): void => {
         const together = ids.length >= 2 && (dest === "summon" || dest === "summonOrPlace")
         if (together) startSummonBatch(state)
-        const frames = [...ids.map(applyOne), ...(after ? [after] : []), ...(together ? [{ type: "summonBatchFlush" } as const] : [])]
+        const frames = [...ids.map((id) => applyOne(id, hostId)), ...(after ? [after] : []), ...(together ? [{ type: "summonBatchFlush" } as const] : [])]
         resolveInOrder(state, frames, {
             resolve: (a) => ctx.resolve(a),
             frame: (a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a }),
         })
     }
-    // 通常のコストを支払う召喚は、リザーブだけで払えるカードに限る（オープン中の選択に支払い元を選ぶ場が無い）
-    const reserve = state.players[owner].reserve
-    const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || reserve >= minLevelCores(getCard(id)) + effectiveCost(state, owner, getCard(id), false, [], false, false)
-    const candidates = (): number[] => zone.cardIds.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick, undefined, ctx.sourceCardId) && payable(x.id)).map((x) => x.i)
-    if (chosenCardIndex !== undefined) {
-        const id = zone.cardIds[chosenCardIndex]
+    // 通常のコストを支払う召喚は、リザーブとフィールドのコアで払えるカードに限る（支払い方は revealApplyOne が置くコアの待ちで聞く）
+    const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || summonPayPlan(state, owner, minLevelCores(getCard(id)) + effectiveCost(state, owner, getCard(id), false, [], false, false) + summonVoidToll(state, getCard(id))) !== null
+    // 召喚を禁じられているカード（コストを支払わなければ召喚できない等）は対象にできない＝候補に入れず、残りのカードとして後の手順へ回る
+    const summonable = (id: string): boolean =>
+        (dest !== "summon" && dest !== "summonOrPlace") ||
+        (getCard(id).type !== "spirit" && getCard(id).type !== "brave") ||
+        summonDenial(state, { pid: owner, cardId: id, from: "revealed", cause: "effect", ...(action.pay === "cost" ? { paid: true as const } : {}) }) === null
+    // コストを支払わずに配置する効果では、コストを支払わなければ配置できないネクサス（noFreeSummon）は対象にできない
+    const placeable = (id: string): boolean => (dest !== "placeNexus" && dest !== "summonOrPlace") || placeDenial(id, action.pay !== undefined) === null
+    const candidates = (): number[] => zone.cardIds.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick, undefined, ctx.sourceCardId) && payable(x.id) && summonable(x.id) && placeable(x.id)).map((x) => x.i)
+    // 1枚を送る。効果で召喚するブレイヴは合体先を選べる（BRAVE.md §12.6）。非対話はスピリット状態。
+    // 再開（combineIndex）は選んだ位置のカードを、合体先（無ければスピリット状態）で送る
+    const sendPicked = (i: number, hostId?: string): void => {
+        const id = zone.cardIds[i]
         if (id === undefined) return
         const left = typeof action.count === "number" ? action.count - 1 : 0
-        sendAll([id], left > 0 ? { ...action, count: left, upTo: true } : undefined)
+        const { combineIndex: _c, ...rest } = action
+        const hosts = hostId === undefined && action.combineIndex === undefined && (dest === "summon" || dest === "summonOrPlace") && getCard(id).type === "brave" && state.interactiveTargets ? braveCombineCandidates(state, owner, id) : []
+        if (hosts.length > 0) {
+            suspend(state, {
+                pid: owner,
+                kind: "target",
+                prompt: `${sourceName}：${getCard(id).name}を合体させるスピリットを選んでください（選ばない場合は単体で召喚します）`,
+                candidates: hosts,
+                optional: true,
+                resolveOnSkip: true,
+                action: { ...action, combineIndex: i },
+                selfInstanceId: self ? self.instanceId : null,
+            })
+            return
+        }
+        sendAll([id], left > 0 ? { ...rest, count: left, upTo: true } : undefined, hostId)
+    }
+    if (action.combineIndex !== undefined) {
+        sendPicked(action.combineIndex, ctx.targetInstanceId)
+        return
+    }
+    if (chosenCardIndex !== undefined) {
+        sendPicked(chosenCardIndex)
         return
     }
     const cands = candidates()
@@ -454,7 +526,84 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     }
     let best = cands[0]!
     for (const i of cands) if (getCard(zone.cardIds[i]!).cost > getCard(zone.cardIds[best]!).cost) best = i
-    sendAll([zone.cardIds[best]!])
+    sendPicked(best)
+}
+
+// combineToEach：ホストごとに別のブレイヴを選び、全員ぶん決めてから同時に直接合体で召喚する。
+// 選び途中の組は action.combinePairs に持つ。デッキは選び終えるまで動かさないので deckIdx は再開しても有効。
+// 選ぶのをやめると、そのホストには付けず（action.combineSkipped で運ぶ）次のホストへ進む。選べた組だけを召喚する（「合体させるだけ」）
+function moveCombineToEach(ctx: ActionCtx, action: MoveCards): void {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const deck = state.players[owner].deck
+    const filter = action.combineToEach!.filter as unknown as ResolvedTargetFilter
+    let pairs = action.combinePairs ?? []
+    let skipped = action.combineSkipped ?? []
+    function candidatesFor(hostId: string, taken: { deckIdx: number }[]): number[] {
+        return deck
+            .map((id, i) => ({ id, i }))
+            .filter((x) => !taken.some((t) => t.deckIdx === x.i) && braveCombineCandidates(state, owner, x.id).includes(hostId) && summonDenial(state, { pid: owner, cardId: x.id, from: "deck", cause: "effect" }) === null)
+            .map((x) => x.i)
+    }
+    // 組になっていないホストのうち、最初の「選べるブレイヴがあるもの」
+    function nextHost(taken: { hostId: string; deckIdx: number }[]): { hostId: string; cands: number[] } | undefined {
+        for (const sp of state.players[owner].field.spirits) {
+            if (skipped.includes(sp.instanceId) || taken.some((t) => t.hostId === sp.instanceId) || !matchesTarget(state, owner, sp, filter, self?.instanceId)) continue
+            const cands = candidatesFor(sp.instanceId, taken)
+            if (cands.length > 0) return { hostId: sp.instanceId, cands }
+        }
+        return undefined
+    }
+    function finish(done: { hostId: string; deckIdx: number }[]): void {
+        const ids = done.map((p) => deck[p.deckIdx]!)
+        recordMoved(state, ids)
+        if (done.length === 0) {
+            log(state, `${sourceName}：合体させるブレイヴがなかった。`)
+            return
+        }
+        delete state.summonSurchargePaid
+        if (done.length >= 2) startSummonBatch(state)
+        const frames: EffectAction[] = [
+            ...done.map((p, k) => ({ type: "revealApplyOne", cardId: ids[k]!, srcPid: owner, fromDeck: true, dest: "summon", braveTargetInstanceId: p.hostId }) as EffectAction),
+            ...(done.length >= 2 ? [{ type: "summonBatchFlush" } as EffectAction] : []),
+        ]
+        resolveInOrder(state, frames, {
+            resolve: (a) => ctx.resolve(a),
+            frame: (a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a }),
+        })
+    }
+    if (chosenCardIndex !== undefined) {
+        const host = nextHost(pairs)
+        if (host) pairs = [...pairs, { hostId: host.hostId, deckIdx: chosenCardIndex }]
+    } else if (action.asked) {
+        const host = nextHost(pairs)
+        if (host) skipped = [...skipped, host.hostId]
+    }
+    for (;;) {
+        const host = nextHost(pairs)
+        if (!host) {
+            finish(pairs)
+            return
+        }
+        if (state.interactiveTargets) {
+            const { asked: _a, ...rest } = action
+            const hostName = getCard(state.players[owner].field.spirits.find((s) => s.instanceId === host.hostId)!.cardId).name
+            suspend(state, {
+                pid: owner,
+                kind: "card",
+                prompt: `${sourceName}：${hostName}に合体させるブレイヴを選んでください（選ばない場合はこのスピリットには付けず次へ進みます）`,
+                candidates: [],
+                cardZone: "deck",
+                cardOwner: owner,
+                cardIndices: host.cands,
+                optional: true,
+                resolveOnSkip: true,
+                action: { ...rest, combinePairs: pairs, combineSkipped: skipped, asked: true },
+                selfInstanceId: self ? self.instanceId : null,
+            })
+            return
+        }
+        pairs = [...pairs, { hostId: host.hostId, deckIdx: host.cands[0]! }]
+    }
 }
 
 // ⚠️ 選び終わるまでゾーンから抜かない（インデックスで控える）。途中で抜くと「どのゾーンにも無いカード」ができ、保存則の検査に引っかかる。
@@ -462,6 +611,27 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
 // upTo 指定時は0〜count枚を選べる（2026-09-28ユーザー決定。途中で1枚も選ばずに終えられる）
 const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, chosenCardIndex } = ctx
+    // 承認後の再入は ask を外した同じ action で来るので二度聞かない。断ると確認の解決側が再開スタックの次の手順へ進む
+    if (action.ask && state.interactiveTargets && chosenCardIndex === undefined && candidatesForAsk(ctx, action)) {
+        const { ask: _ask, ...confirmed } = action
+        // requestActivationConfirm は moveCardsPayable（revealed を数えない）で不発扱いにするので、同じ形の確認を直接出す
+        suspend(state, {
+            pid: owner,
+            kind: "option",
+            prompt: `${sourceName}：${destLabel(action).endsWith("する") ? `${destLabel(action).slice(0, -2)}しますか` : `${destLabel(action)}か`}？`,
+            candidates: [],
+            options: ["発動する"],
+            optional: true,
+            confirm: true,
+            action: confirmed,
+            selfInstanceId: self ? self.instanceId : null,
+        })
+        return
+    }
+    if (action.combineToEach) {
+        moveCombineToEach(ctx, action)
+        return
+    }
     if (action.from === "revealed") {
         moveRevealed(ctx, action)
         return
@@ -509,7 +679,7 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
     }
     const zonePid = action.side === "opponent" ? opp : owner
     const player = state.players[zonePid]
-    const zone = action.from === "hand" ? player.hand : player.trashCards
+    const zone = zoneOf(player, action.from)
     const picked = action.picked ?? []
     const chooser = action.chooserIsTarget ? zonePid : owner
     const toDeck = action.dest === "deckTop" || action.dest === "deckBottom"
@@ -527,7 +697,7 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
         const order = action.exact && inOrder.length < count ? [] : inOrder
         if (order.length === 0) {
             recordMoved(state, []) // 「戻したなら」が前の記録を拾わないように
-            log(state, `${sourceName}：${toDeck ? "デッキに戻せるカードがなかった。" : `${action.from === "hand" ? "手札" : "トラッシュ"}に対象がなかった。`}`)
+            log(state, `${sourceName}：${toDeck ? "デッキに戻せるカードがなかった。" : `${zoneLabel(action.from)}に対象がなかった。`}`)
             return
         }
         const movedIds = order.map((j) => zone[j]!)
@@ -662,6 +832,21 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
     finish([...picked, ...candidates.reverse().slice(0, count - picked.length)])
 }
 
+const shuffleDeckHandler: ActionHandler<"shuffleDeck"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    shuffle(state.players[owner].deck)
+    log(state, `${sourceName}：${state.players[owner].name}はデッキをシャッフルした。`)
+}
+
+const removeDeckFromGameHandler: ActionHandler<"removeDeckFromGame"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const n = player.deck.length
+    player.excludedCards.push(...player.deck)
+    player.deck = []
+    log(state, `${sourceName}：${player.name}はデッキ${n}枚をゲームから取り除いた。`)
+}
+
 const skipDrawStepHandler: ActionHandler<"skipDrawStep"> = (ctx) => {
     ctx.state.drawStepSkipped = true
 }
@@ -669,6 +854,8 @@ const skipDrawStepHandler: ActionHandler<"skipDrawStep"> = (ctx) => {
 const handlers = {
     moveCards: moveCardsHandler,
     skipDrawStep: skipDrawStepHandler,
+    shuffleDeck: shuffleDeckHandler,
+    removeDeckFromGame: removeDeckFromGameHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

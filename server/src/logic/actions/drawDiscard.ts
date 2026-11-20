@@ -29,8 +29,11 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
             log(state, `${sourceName}：手札がすでに${action.fillTo}枚以上のためドローしなかった。`)
             return
         }
+        // nth は1枚だけ（デッキの nth 枚目）。count は見ない
         const count =
-            action.fillTo !== undefined
+            action.nth !== undefined
+                ? 1
+                : action.fillTo !== undefined
                 ? action.fillTo - state.players[owner].hand.length
                 : action.countCounter !== undefined
                 ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType, action.countMax)
@@ -46,10 +49,10 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
             const pids = bothSidesPids(state, srcType, true)
             for (const pid of [owner, opp]) {
                 if (!pids.includes(pid)) continue
-                draw(state, pid, count * drawDoubleMultiplier(state, pid))
+                draw(state, pid, count * drawDoubleMultiplier(state, pid), undefined, action.nth)
             }
         } else {
-            draw(state, owner, count * drawDoubleMultiplier(state, owner))
+            draw(state, owner, count * drawDoubleMultiplier(state, owner), undefined, action.nth)
         }
         // 「ドローしたカード1枚につき」が読む（自分が引いたカードだけ）
         recordDrawn(state, state.players[owner].hand.length - handBefore)

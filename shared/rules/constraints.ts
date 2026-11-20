@@ -91,7 +91,7 @@ export function activeConstraintsWithSource(
         // 条件を満たさなければ制約自体を外す
         .filter((c) => {
             const whileCount =
-                (c.type === "cantAttack" || c.type === "immuneToOpponentEffects") ? c.whileOwnNexusCount : undefined
+                (c.type === "cantAttack" || c.type === "immuneToEffects") ? c.whileOwnNexusCount : undefined
             if (whileCount === undefined) return true
             return board.players[pid].field.nexuses.length === whileCount
         })
@@ -179,7 +179,7 @@ export function activeConstraintsWithSource(
             if (effect.turn === "opponent" && oppPid === board.turnPlayer) continue
             if (!combinedBraveColorsOk(board.players[oppPid], source, effect.combinedBraveColors)) continue
             // 【装甲】などで防げる（天眼機神ディアリーン Lv3 の強制アタック。Q686 と同じ形）
-            if (!continuousEffectReaches(board, pid, inst, { pid: oppPid, type: card(source.cardId).type, colors: instColors(source) })) continue
+            if (!continuousEffectReaches(board, pid, inst, { pid: oppPid, type: card(source.cardId).type, colors: instColors(source), instanceId: source.instanceId })) continue
             noteCoverage(effect, "constraintGrant")
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }
@@ -258,24 +258,22 @@ export function hasFullEffectImmunity(
     pid: PlayerId,
     inst: CardInstance,
     srcType: CardType | undefined,
+    actor: "opponent" | "own" = "opponent",
+    sourceInstanceId?: string,
 ): boolean {
-    // ブレイヴの効果（合体中のブレイヴが発生源）も対象にする。
-    // ⚠️ against 未指定の「相手の効果を受けない」は**従来どおりスピリット/マジックだけ**を止める
-    // （既存カードの範囲を広げないため）。ブレイヴを止めるのは against:"brave" を書いたときだけ
-    if (srcType === "brave") {
-        return activeConstraints(board, pid, inst, false).some(
-            (c) => c.type === "immuneToOpponentEffects" && againstIncludes(c.against, "brave"),
-        )
-    }
-    if (srcType === "nexus") {
-        return activeConstraints(board, pid, inst, false).some((c) => c.type === "immuneToOpponentEffects" && againstIncludes(c.against, "nexus"))
-    }
-    if (srcType !== "spirit" && srcType !== "magic") return false
     // activeConstraints は自前の kind:"constraint" だけでなく constraintGrant による範囲付与も含む
-    // （BS10-091シャボンの湖畔Lv2＝「自分のコスト2のスピリットすべては」）。against指定時はそのsrcTypeのみ絞る
-    return activeConstraints(board, pid, inst, false).some(
-        (c) => c.type === "immuneToOpponentEffects" && (c.against === undefined || againstIncludes(c.against, srcType)),
-    )
+    // （BS10-091シャボンの湖畔Lv2＝「自分のコスト2のスピリットすべては」）。
+    // ⚠️ against 未指定の from:"opponent" は**従来どおりスピリット/マジックだけ**を止める（既存カードの範囲を広げないため）。
+    // ブレイヴ・ネクサスを止めるのは against に書いたときだけ。from:"own"/"any" の against 未指定は発生源を問わず止める
+    return activeConstraints(board, pid, inst, false).some((c) => {
+        if (c.type !== "immuneToEffects") return false
+        if (c.from !== "any" && c.from !== actor) return false
+        if (c.exceptSelf === true && sourceInstanceId === inst.instanceId) return false
+        if (c.from !== "opponent" && c.against === undefined) return true
+        if (srcType === "brave" || srcType === "nexus") return againstIncludes(c.against, srcType)
+        if (srcType !== "spirit" && srcType !== "magic") return false
+        return c.against === undefined || againstIncludes(c.against, srcType)
+    })
 }
 
 // against が単発／配列どちらでも書けることの吸収（BS17-072：spirit/braveの2種指定）
@@ -1427,7 +1425,7 @@ export function mustBeAttackTargetIds(board: Board, attackerPid: PlayerId, attac
                 (c) => c.type === "mustBeAttackTarget" && instMatchesCostFilter(attacker, { min: c.attackerMinCost }),
             ) &&
             // アタッカーに向けた効果なので、アタッカーの【装甲】などで防げる（バッファロング・ビル。Q683 の指定アタックと同じ形）
-            continuousEffectReaches(board, attackerPid, attacker, { pid: opp, type: card(s.cardId).type, colors: instColors(s) }),
+            continuousEffectReaches(board, attackerPid, attacker, { pid: opp, type: card(s.cardId).type, colors: instColors(s), instanceId: s.instanceId }),
         )
         .map((s) => s.instanceId)
 }

@@ -148,6 +148,9 @@ let failedCards = 0
 let okCards = 0
 for (const e of entries) {
     const s = createGame(`flashbp-${e.cardId}`, { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "purple" })
+    // onlyUsableBy のカードはその名前のプレイヤーでないと使えない
+    const onlyBy = loadAllCards().find((c) => c.cardId === e.cardId)?.onlyUsableBy
+    if (onlyBy !== undefined && onlyBy.length > 0) s.players.p1.name = onlyBy[0]!
     runTurnStart(s)
     // コスト最大8のマジックを軽減なしで払えるだけのリザーブを積む
     s.players.p1.reserve = 20

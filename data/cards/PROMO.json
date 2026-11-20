@@ -6859,7 +6859,8 @@
           3
         ],
         "constraint": {
-          "type": "immuneToOpponentEffects",
+          "type": "immuneToEffects",
+          "from": "opponent",
           "against": "spirit"
         }
       },
@@ -7469,7 +7470,8 @@
           3
         ],
         "constraint": {
-          "type": "immuneToOpponentEffects",
+          "type": "immuneToEffects",
+          "from": "opponent",
           "against": "spirit"
         }
       },

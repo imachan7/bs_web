@@ -1,7 +1,7 @@
 // 召喚を止める禁止の問い合わせ。召喚の制限は効果文に「通常の召喚」と書かれていなければ、効果による召喚にも効く
 // （2026-10-29 ユーザー確認。docs/design/EFFECT_GATE.md §4 PR 2a）。新しい禁止はここへ足す
 import { noteCoverage } from "../../../shared/coverage"
-import { effectSources, isVanillaCard, timedPlayerRules, trashFrozen } from "../../../shared/rules"
+import { onlyUsableDenial, effectSources, isVanillaCard, timedPlayerRules, trashFrozen } from "../../../shared/rules"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { braveCombineCandidates } from "../../../shared/summon"
 import type { GameState, PlayerId } from "../type"
@@ -15,7 +15,20 @@ export interface SummonAttempt {
     flash?: true
     braveTargetInstanceId?: string | undefined // ダイレクトブレイヴは体数が増えない
     viaBurstAction?: true // summon{from:"burst"} はバースト効果そのものなので currentEffectSource.burst を見ない
+    paid?: true // コストを支払う召喚（noFreeSummon が見る）
     mayCombine?: true // 合体先をまだ決めていない段階（候補判定・バーストの自動合体）。ブレイヴは合体先があれば体数が増えずに出られる
+}
+
+// ネクサスを場へ出す入口の禁止の問い合わせ（コストを支払わずに配置する効果が、配置の前に呼ぶ）。
+// 「コストを支払わなければ配置できない」（noFreeSummon）のネクサスは、コストを支払って配置するもの（paid）だけが成り立つ
+export function placeDenial(cardId: string, paid: boolean): string | null {
+    if (paid) return null
+    const card = getCard(cardId)
+    if (card.type !== "nexus") return null
+    const noFree = card.effects.find((e) => e.kind === "noFreeSummon")
+    if (!noFree) return null
+    noteCoverage(noFree, "noFreeSummon")
+    return "コストを支払わなければ配置できません"
 }
 
 function globalConstraintsOf(state: GameState, pid: PlayerId, type: string, withBraves = false) {
@@ -37,6 +50,9 @@ export function summonDenial(state: GameState, a: SummonAttempt): string | null 
     const card = getCard(a.cardId)
     const both: PlayerId[] = ["p1", "p2"]
 
+    const onlyBy = onlyUsableDenial(state, a.pid, a.cardId)
+    if (onlyBy) return onlyBy
+
     if (a.cause === "effect") {
         // BS12-072：効果による召喚が両陣営で禁じられている間
         for (const p of both) {
@@ -54,6 +70,15 @@ export function summonDenial(state: GameState, a: SummonAttempt): string | null 
         if (needs) {
             noteCoverage(needs, "summonNeedsCost")
             return "1コスト以上支払わなければ召喚できません"
+        }
+    }
+
+    // 効果による召喚はコストを支払うものだけが成り立つ（0コストを払う通常の召喚は止めない）。ネクサスの配置の入口は別（placeDenial）
+    if (a.cause === "effect" && !a.paid) {
+        const noFree = card.effects.find((e) => e.kind === "noFreeSummon")
+        if (noFree) {
+            noteCoverage(noFree, "noFreeSummon")
+            return "コストを支払わなければ召喚できません"
         }
     }
 

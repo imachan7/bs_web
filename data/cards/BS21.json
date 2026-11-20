@@ -6432,7 +6432,8 @@
      "keyword": "kyoka"
     },
     "constraint": {
-     "type": "immuneToOpponentEffects",
+     "type": "immuneToEffects",
+     "from": "opponent",
      "against": "spirit"
     }
    },

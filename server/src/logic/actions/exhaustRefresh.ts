@@ -772,6 +772,8 @@ const refreshOneHandler = (ctx: ActionCtx, action: Extract<EffectAction, { type:
             for (const pid of action.anySide ? bothSidesPids(state, srcType, true) : [owner]) {
                 for (const s of [...state.players[pid].field.spirits]) {
                     if (!s.isRested || !matchesTarget(state, pid, s, filter, self?.instanceId)) continue
+                    // 回復は相手側には耐性を見ない（得な効果）。自分側だけ「自分の効果も受けない」を見る
+                    if (pid === owner && isResisted(state, pid, s, attemptOf(ctx, "other", "area"))) continue
                     if (refreshSpirit(state, pid, s, srcType)) ids.push(s.instanceId)
                     refreshed++
                 }

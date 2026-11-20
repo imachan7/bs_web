@@ -48,7 +48,7 @@ export interface ScenarioSpec {
     name: string
     // interactive：選択を PendingChoice で止める（順番選択・対象選択を steps で答える）。既定は自動で選ぶ
     // manualCoreLevel：効果召喚の「置くコアの数（Lv）」の待ちを自動で答えない（その待ちで支払い元を選ぶ場面用）
-    start: { turn?: Side; phase?: "main" | "attack"; interactive?: boolean; manualCoreLevel?: true; me?: SideSpec; opp?: SideSpec }
+    start: { names?: { me: string; opp: string }; turn?: Side; phase?: "main" | "attack"; interactive?: boolean; manualCoreLevel?: true; me?: SideSpec; opp?: SideSpec }
     steps: (t: ScenarioCtx) => void
     // 1行＝「キー: 前 → 後」。キーは写像のもの（例「自分.レオ.疲労」）。並びは問わない
     expect: string[]
@@ -173,7 +173,9 @@ function runOnce(spec: ScenarioSpec, me: PlayerId): void {
     const opp: PlayerId = me === "p1" ? "p2" : "p1"
     const pidOf = (side: Side) => (side === "me" ? me : opp)
     const tag = `[${spec.name}｜自分=${me}]`
-    const s = createGame(`scenario-${spec.name}-${me}`, { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    // names：onlyUsableBy のカードのように、プレイヤー名で使えるかが変わる場面用
+    const nm = spec.start.names ?? { me: "アキラ", opp: "ユウキ" }
+    const s = createGame(`scenario-${spec.name}-${me}`, { p1: me === "p1" ? nm.me : nm.opp, p2: me === "p1" ? nm.opp : nm.me }, { p1: "red", p2: "red" })
     s.turn = 3
     s.turnPlayer = pidOf(spec.start.turn ?? "me")
     s.priorityPlayer = s.turnPlayer

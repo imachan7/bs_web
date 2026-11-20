@@ -343,11 +343,11 @@ function timedTargetsExist(board: Board, pid: PlayerId, source: CardInstance, ac
     if (action.target !== undefined || !action.content.some((c) => TIMED_TARGETED.has(c.type))) return true
     const opp: PlayerId = pid === "p1" ? "p2" : "p1"
     const src = card(source.cardId)
-    const attempt: EffectAttempt = { op: "other", scope: "targeted", actorPid: pid, sourceType: src.type, sourceColors: src.colors, probing: true }
+    const attempt: EffectAttempt = { op: "other", scope: "targeted", actorPid: pid, sourceType: src.type, sourceColors: src.colors, sourceInstanceId: source.instanceId, probing: true }
     const filter = action.filter as unknown as Parameters<typeof matchesTarget>[3]
     const pids: PlayerId[] = action.side === "own" ? [pid] : action.side === "both" ? [pid, opp] : [opp]
     const n = pids.flatMap((p) =>
-        board.players[p].field.spirits.filter((s) => matchesTarget(board, p, s, filter, source.instanceId) && (p === pid || (!isWaiting(s) && boardResistanceAgainst(board, p, s, attempt) === null))),
+        board.players[p].field.spirits.filter((s) => matchesTarget(board, p, s, filter, source.instanceId) && ((p === pid || !isWaiting(s)) && boardResistanceAgainst(board, p, s, attempt) === null)),
     ).length
     return n >= (action.all || typeof action.count !== "number" ? 1 : action.count)
 }

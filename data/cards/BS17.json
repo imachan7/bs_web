@@ -2417,7 +2417,8 @@
      "combined": true
     },
     "constraint": {
-     "type": "immuneToOpponentEffects",
+     "type": "immuneToEffects",
+     "from": "opponent",
      "against": "spirit"
     }
    },
@@ -2439,7 +2440,8 @@
      "combined": true
     },
     "constraint": {
-     "type": "immuneToOpponentEffects",
+     "type": "immuneToEffects",
+     "from": "opponent",
      "against": "magic"
     }
    }
@@ -3635,7 +3637,8 @@
      ]
     },
     "constraint": {
-     "type": "immuneToOpponentEffects",
+     "type": "immuneToEffects",
+     "from": "opponent",
      "against": "magic"
     }
    },
@@ -5047,7 +5050,8 @@
      ]
     },
     "constraint": {
-     "type": "immuneToOpponentEffects",
+     "type": "immuneToEffects",
+     "from": "opponent",
      "against": [
       "spirit",
       "brave"

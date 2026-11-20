@@ -52,7 +52,7 @@ console.log("=== §B BS11-027：ネクサスが1つだけある間、アタッ�
     refreshLevelAsOverrides(s)
     const cs = activeConstraints(s, "p1", njord)
     assert(cs.some((c) => c.type === "cantAttack"), "ネクサス1つのときはアタック不可")
-    assert(cs.some((c) => c.type === "immuneToOpponentEffects"), "効果を受けない制約も出る")
+    assert(cs.some((c) => c.type === "immuneToEffects"), "効果を受けない制約も出る")
     s.players.p1.field.nexuses.push(createInstance(anyNexus!.cardId, s.turn, 1))
     refreshLevelAsOverrides(s)
     assert(
