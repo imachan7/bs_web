@@ -204,6 +204,8 @@ export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
         case "activateAbility":
             return scoreSpell(view, me, move, undefined, 70, 70)
         case "moveCore": {
+            // 外す手は計画（levelPick）だけが打つ。点数で選ぶ方針には打たせない
+            if (action.direction === "remove") return 0
             const inst =
                 my.field.spirits.find((s) => s.instanceId === action.instanceId) ??
                 my.field.nexuses.find((n) => n.instanceId === action.instanceId)

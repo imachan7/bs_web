@@ -2,7 +2,7 @@
 import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import { decideAiAction } from "../../server/src/ai/index"
-import { DEFAULT_POLICY, KEEP_GUARD_POLICY } from "../../server/src/ai/policy"
+import { SUMMON_POLICY as DEFAULT_POLICY, KEEP_GUARD_POLICY } from "../../server/src/ai/policy"
 
 const ROKU = "BS01-002" // ロクケラトプス（2コア=BP3000）
 const BEET = "BS01-050" // ビートビートル（1コア=BP1000）
