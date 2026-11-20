@@ -207,7 +207,7 @@ if (inst.cores < instMinLevelCores(inst)) destroySpirit(state, ownerPid, inst.in
 ⚠️ **保存則の検査に注意**：選択待ちの間、召喚するカードは手札からもフィールドからも消えている。
 `scripts/smoke/helpers.ts` と `scripts/fuzz.ts` のカード総数はこの1枚を数に入れている。
 
-**【バースト転召】（BS18-X01）も同じ順**（2026-11-21。#664）：summonBurstCardFreeHandler（control.ts）は「転召 → 置くコアの数を選んで払う → 場に出す → 召喚時効果」。転召済みは再開の action の `tenshoDone` で運ぶ。summoningInstanceId は立てず（バースト札が burst に残り、保存則の検査が二重に数える）、転召は仮の個体で解いて『転召したとき』もその場で発火する（【バースト転召】持ちに ownTensho は無い）。転召の後に Lv1 の維持コアも置けないときは、従来どおり召喚できずバースト札は伏せたまま残る（未決）
+**【バースト転召】（BS18-X01）も同じ順**（2026-11-21。#664）：summonBurstCardFreeHandler（control.ts）は「転召 → 置くコアの数を選んで払う → 場に出す → 召喚時効果」。転召済みは再開の action の `tenshoDone` で運ぶ。summoningInstanceId は立てず（バースト札が burst に残り、保存則の検査が二重に数える）、転召は仮の個体で解いて『転召したとき』もその場で発火する（【バースト転召】持ちに ownTensho は無い）。転召の後に Lv1 の維持コアも置けないときは、召喚せずにカードはトラッシュへ行く（発動したバーストは効果を発揮し終えたら行き先へ。BURST.md §5.5・burst.ts の finishBurstActivation）。ただし転召は済んでいて対象は消滅する。転召の前に置けるかを確かめて転召ごとしない（【転召】の「転召できない場合は巻き戻す」・Q712 からの類推）べきかは未決
 
 ⚠️ **未対応**：入れ替え召喚（`battleSwapSummon`。BS07ブラックカラカロッサム）と
 効果による召喚（`summonFreeFromHandIndex` 等）は、**まだ先に場へ出してから転召を解決する**。
