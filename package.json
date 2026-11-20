@@ -14,6 +14,7 @@
     "smoke": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts",
     "smoke:quiet": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet",
     "smoke:interactive": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet --interactive",
+    "ai:bench": "tsx scripts/ai-bench.ts",
     "chatbox": "tsx scripts/chatbox.ts",
     "codemap": "tsx scripts/codemap.ts",
     "codemap:check": "tsx scripts/codemap.ts --check",

@@ -7,6 +7,7 @@ import type { GameState, PlayerId } from "../type"
 import { viewFor } from "../logic/GameState"
 import { enumerateLegalMoves, type AiMove } from "./legalMoves"
 import { pickBestMove } from "./evaluate"
+import { pruneMoves } from "./moveTags"
 
 export type { AiMove } from "./legalMoves"
 
@@ -25,5 +26,6 @@ export function decideAiAction(
     const moves = enumerateLegalMoves(state, pid).filter((m) => !exclude.has(moveKey(m)))
     if (moves.length === 0) return null
     // 評価に渡すのは AI 自身の視点（相手の手札を持たない GameView）。evaluate.ts の冒頭を参照
-    return pickBestMove(viewFor(state, pid), pid, moves)
+    const view = viewFor(state, pid)
+    return pickBestMove(view, pid, pruneMoves(view, pid, moves))
 }
