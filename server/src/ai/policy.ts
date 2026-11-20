@@ -5,6 +5,7 @@ import { pickBestMove } from "./evaluate"
 import { lookaheadPick } from "./lookahead"
 import { planPick } from "./attackPlan"
 import { blockPick } from "./blockPlan"
+import { keepGuardPick } from "./keepGuard"
 
 // pickState は先読み用（GameState を要る）。手を返したらそれを使い、null なら pick に任せる。
 // pick の入力は GameView のまま（評価に GameState を渡さない原則）
@@ -38,8 +39,12 @@ export const PLAN_POLICY: AiPolicy = { pick: planPick }
 // PLAN_POLICY に構築済み 4800局 50.8%（49.4〜52.2）・2400局 52.1%、色デッキ 52.0%。勝率の差は小さいが、受けると負けるのにライフで受ける手が消える（2026-11-20 ユーザー指示で採用）
 export const BLOCK_POLICY: AiPolicy = { pick: blockPick }
 
+// アタックステップ・バトルを終わらせる守りのマジックを自分のターンに撃たない（keepGuard.ts）。構築済み 4800局 50.2%（48.8〜51.6）で勝率の差は見えないが、
+// 相手のアタック中に撃った回数が 106→144 に増え、自分のメインステップで撃つ 49回が 0 になった（同じ組の 1200局。2026-11-20）
+export const KEEP_GUARD_POLICY: AiPolicy = { pick: keepGuardPick }
+
 // 本番の既定。ai:bench --vs-old の旧側（基準）もこれ（BS_AI_OLD=stage1 で段階1の OLD_POLICY）
-export const DEFAULT_POLICY: AiPolicy = BLOCK_POLICY
+export const DEFAULT_POLICY: AiPolicy = KEEP_GUARD_POLICY
 
 // ai:bench --vs-old の新側（試す案）。基準を動かさないため、案は既存の pick 関数を書き換えず、新しい関数で手を足し引きしてここに差す
-export const CANDIDATE_POLICY: AiPolicy = BLOCK_POLICY
+export const CANDIDATE_POLICY: AiPolicy = KEEP_GUARD_POLICY
