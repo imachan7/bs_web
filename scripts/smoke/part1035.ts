@@ -3,7 +3,8 @@ import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, r
 import type { GameState, PlayerId } from "./helpers"
 import { enumerateLegalMoves } from "../../server/src/ai/legalMoves"
 import { evaluateBoard } from "../../server/src/ai/boardEval"
-import { LOOKAHEAD_MARGIN, lookaheadPick, trialMove } from "../../server/src/ai/lookahead"
+import { pickBestMove } from "../../server/src/ai/evaluate"
+import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, lookaheadPick, trialMove } from "../../server/src/ai/lookahead"
 import { LOOKAHEAD_POLICY } from "../../server/src/ai/policy"
 
 const VANILLA = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）
@@ -69,14 +70,32 @@ console.log("=== 3. 採否：基準値＋MARGIN 以上のときだけ上書き =
     const vOwn = trialMove(cs, cp, own)!
     const vOpp = trialMove(cs, cp, opp)!
     assert(vOwn > vOpp, "自分にBPを足す選択のほうが試行値が高い")
-    const base = evaluateBoard(viewFor(cs, cp), cp)
+    const view = viewFor(cs, cp)
+    const old = pickBestMove(view, cp, moves)!
+    const vOld = trialMove(cs, cp, old)!
+    // 既定の対象はアタックだけなので、この場面のためだけに resolveChoice を足す
+    const kinds = LOOKAHEAD_KINDS as Set<string>
+    kinds.add("resolveChoice")
     const pick = lookaheadPick(cs, cp, moves)
-    // BP+2000 の差は評価で MARGIN（10）に届かないので上書きしない。届くときは自分の選択を返す
-    assert(vOwn - base >= LOOKAHEAD_MARGIN ? pick !== null && JSON.stringify(pick.action) === JSON.stringify(own.action) : pick === null, "上書きは基準値+MARGIN以上のときだけ")
+    // 旧の手と同じ値の手（同じ action の別オブジェクト）しか無ければ旧に任せる
+    const tie = lookaheadPick(cs, cp, [old, { ...old }])
+    kinds.delete("resolveChoice")
+    assert(pick === null || trialMove(cs, cp, pick)! >= vOld + LOOKAHEAD_MARGIN, "上書きした手は旧の手の試行値＋MARGIN 以上")
+    assert(tie === null, "旧の手と同点なら旧に任せる（null）")
     // 選択待ち以外の種類は既定では試さない
     const { s, pid } = mainScene
     assert(lookaheadPick(s, pid, enumerateLegalMoves(s, pid).filter((m) => m.action.type !== "resolveChoice")) === null, "既定の対象外の手には null")
     assert(LOOKAHEAD_MARGIN > 0 && LOOKAHEAD_POLICY.pickState !== undefined, "MARGIN と pickState がある")
+}
+
+console.log("=== 4. 召喚して場に出す手は、何もしない手（nextPhase）より試行値が高い ===")
+{
+    const { s, pid } = mainScene
+    const moves = enumerateLegalMoves(s, pid)
+    const summon = moves.find((m) => m.action.type === "summon")!
+    const idle = moves.find((m) => m.action.type === "nextPhase")!
+    assert(summon !== undefined && idle !== undefined, "召喚と nextPhase が列挙される")
+    assert(trialMove(s, pid, summon)! > evaluateBoard(viewFor(s, pid), pid), "召喚して場に出すと、払った手札・コアより評価が上がる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part1035）")

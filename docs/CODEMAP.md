@@ -393,6 +393,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/ai/boardEval.ts
 
 - `BOARD_WEIGHTS`（const）
+- `evaluateBreakdown`（fn）：項目ごとの（自分 − 相手）。勝敗が決まっていれば null
 - `evaluateBoard`（fn）：pid 視点の盤面の良さ（自分 − 相手）。大きいほど pid に有利
 
 ## server/src/ai/determinize.ts
@@ -419,8 +420,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `LOOKAHEAD_MARGIN`（const）
 - `LOOKAHEAD_BUDGET_MS`（const）
-- `LOOKAHEAD_KINDS`（const）：先読みを使う手の種類（action.type）。種類ごとに ai:bench で測って足す
+- `LOOKAHEAD_KINDS`（const）：先読みを使う手の種類（action.type）。構築済みデッキ 1200局の新旧対戦（2026-11-20）：アタック 53.5%（50.7〜56.3）、のち再測 52.7%（49…
 - `trialMove`（fn）：手を1つ打って採点する。拒否・上限・例外のときは null。state は変えない
+- `OverrideTrace`（型）：ai:bench の分析用。設定されているときだけ、旧方針を上書きした決断を渡す（本番では未設定で何もしない）
+- `setLookaheadTrace`（fn）
 - `lookaheadPick`（fn）：先読みで旧方針を上書きするときだけ手を返す。null なら旧方針に任せる
 
 ## server/src/ai/moveTags.ts
@@ -431,13 +434,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `magicTags`（fn）：マジックを timing の側の効果で使うときのタグ
 - `opponentHasTargets`（fn）：相手の場に removal の的になりうるものがいるか
 - `pruneMoves`（fn）：打っても何も起きない手を合法手から落とす。タグの無い手（pass・nextPhase・endTurn・選択）は触らない。
+- `FieldEffectTag`（型）：場のカードが今のレベルで持つ効果の分類（評価の「場の効果の価値」用）。誘発・起動・場のイベント・バトル勝利・ステップの
+- `fieldEffectTags`（fn）
 
 ## server/src/ai/policy.ts
 
 - `AiPolicy`（型）：pickState は先読み用（GameState を要る）。手を返したらそれを使い、null なら pick に任せる。
 - `OLD_POLICY`（const）：段階1完了時点の選び方。段階2で点を変えても、これは pickBestMove を呼び続ける（新しい点は別関数に足す）
 - `LOOKAHEAD_POLICY`（const）：旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
-- `DEFAULT_POLICY`（const）：本番の既定。先読みを選択待ちだけに使った新旧対戦は勝率の区間が50%を跨いだ（2026-11-20）ので、種類を足して測るまで旧のまま
+- `DEFAULT_POLICY`（const）：本番の既定。先読みをアタックだけに使う（根拠は lookahead.ts の LOOKAHEAD_KINDS）
 
 ## server/src/ai/runner.ts
 

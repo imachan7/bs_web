@@ -17,5 +17,5 @@ export const OLD_POLICY: AiPolicy = { pick: pickBestMove }
 // 旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
 export const LOOKAHEAD_POLICY: AiPolicy = { pick: pickBestMove, pickState: lookaheadPick }
 
-// 本番の既定。先読みを選択待ちだけに使った新旧対戦は勝率の区間が50%を跨いだ（2026-11-20）ので、種類を足して測るまで旧のまま
-export const DEFAULT_POLICY: AiPolicy = OLD_POLICY
+// 本番の既定。先読みをアタックだけに使う（根拠は lookahead.ts の LOOKAHEAD_KINDS）
+export const DEFAULT_POLICY: AiPolicy = LOOKAHEAD_POLICY
