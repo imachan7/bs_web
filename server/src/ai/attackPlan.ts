@@ -13,14 +13,16 @@ const EXTRA_SUMMON = env.BS_AI_PLAN_SUMMON === undefined ? 2 : Number(env.BS_AI_
 const other = (pid: PlayerId): PlayerId => (pid === "p1" ? "p2" : "p1")
 
 // 大きい順に並べた数の列から上 k 個を除いた合計
-function restAfterTop(values: number[], k: number): number {
+export function restAfterTop(values: number[], k: number): number {
     return [...values].sort((a, b) => b - a).slice(k).reduce((s, v) => s + v, 0)
 }
 
 export type AttackPlan = { lethal: boolean; allowed: Set<string> }
 
 // ponytail: 相手の手札の守り・伏せたバースト・自分の守り手と相手のアタッカーの BP の比較は数えない（§9.v の後回し）
-export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[]): AttackPlan {
+export type PlanOptions = { desperate?: boolean }
+
+export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[], opts: PlanOptions = {}): AttackPlan {
     const opp = other(me)
     const mine = view.players[me]
     const theirs = view.players[opp]
@@ -40,6 +42,8 @@ export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[])
     let need = 0
     while (need < threats.length && restAfterTop(threats, need) >= mine.life) need++
     const idle = mine.field.spirits.filter((s) => !s.isRested).length
+    // 全員残しても相手の場の個体だけで次のターンに削り切られるなら、守っても負けるので全員で行く（召喚の見込みは入れない）
+    if (opts.desperate && restAfterTop(theirs.field.spirits.map(instanceSymbolCount), idle) >= mine.life) return { lethal, allowed: new Set(attackerIds) }
     const allowed = new Set<string>()
     if (idle - 1 < need) return { lethal, allowed }
     for (const a of attackers) {
@@ -51,11 +55,11 @@ export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[])
 
 const passesAttackStep = (m: AiMove | null): boolean => m?.action.type === "endTurn" || m?.action.type === "nextPhase"
 
-export function planPick(view: GameView, me: PlayerId, moves: AiMove[]): AiMove | null {
+export function planPick(view: GameView, me: PlayerId, moves: AiMove[], opts: PlanOptions = {}): AiMove | null {
     const attacks = moves.filter((m) => m.action.type === "attack")
     if (attacks.length === 0 || view.turnPlayer !== me) return pickBestMove(view, me, moves)
     const ids = attacks.map((m) => (m.action as { instanceId: string }).instanceId)
-    const plan = planAttacks(view, me, ids)
+    const plan = planAttacks(view, me, ids, opts)
     const isAllowed = (m: AiMove) => m.action.type !== "attack" || plan.allowed.has((m.action as { instanceId: string }).instanceId)
     // アタックしなければならない効果（強制アタック）があると endTurn が合法手に無く、計画で全部引くと手が無くなる。そのときは引かない
     const kept = moves.filter(isAllowed)
