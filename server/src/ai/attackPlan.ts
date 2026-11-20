@@ -2,8 +2,9 @@
 // バトルが1つ終わるたびに見直しになる。基準（BURST_POLICY）を動かさないため、scoreMove は変えずに手を引いてから pickBestMove に渡す
 import type { CardInstance, GameView, PlayerId } from "../type"
 import { canBlock } from "../../../shared/block"
-import { effectiveBp } from "../../../shared/rules"
+import { effectiveBp, instLevels } from "../../../shared/rules"
 import { instanceSymbolCount } from "../../../shared/rules/symbols"
+import { instMinLevelCores } from "../../../shared/rules/level"
 import { pickBestMove } from "./evaluate"
 import type { AiMove } from "./legalMoves"
 
@@ -20,7 +21,7 @@ export function restAfterTop(values: number[], k: number): number {
 export type AttackPlan = { lethal: boolean; allowed: Set<string> }
 
 // ponytail: 相手の手札の守り・伏せたバースト・自分の守り手と相手のアタッカーの BP の比較は数えない（§9.v の後回し）
-export type PlanOptions = { desperate?: boolean }
+export type PlanOptions = { desperate?: boolean; coreSummon?: number }
 
 export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[], opts: PlanOptions = {}): AttackPlan {
     const opp = other(me)
@@ -31,14 +32,17 @@ export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[],
         .filter((s): s is CardInstance => s !== undefined)
     const blockersOf = (a: CardInstance) => theirs.field.spirits.filter((b) => canBlock(view, opp, b, me, a) === null)
     const blockerCount = theirs.field.spirits.filter((b) => attackers.some((a) => canBlock(view, opp, b, me, a) === null)).length
-    const lethal = restAfterTop(attackers.map(instanceSymbolCount), blockerCount) >= theirs.life
+    const through = restAfterTop(attackers.map(instanceSymbolCount), blockerCount)
+    const lethal = through >= theirs.life
     if (lethal) return { lethal, allowed: new Set(attackerIds) }
 
     // 次の相手のターンは相手の全スピリットが回復してアタックしてくる。上から k 体止めれば残りがライフ未満になる最小の k
     const threats = theirs.field.spirits.map(instanceSymbolCount)
     // 相手が次のターンに出す分を「手札の枚数まで最大2体・シンボル1つずつ」と見積もる。基準との 1200局：0体 49.9%・1体 52.0〜53.5%・2体 54.5〜57.9%・3体 56.3%・上限なし 52.3%（2026-11-20）
     // ponytail: 手札とコアからは数えない。BS_AI_PLAN_SUMMON で体数を上書きして測る
-    for (let i = 0; i < Math.min(EXTRA_SUMMON, theirs.handCount ?? 0); i++) threats.push(1)
+    // coreSummon：相手が次のターンに使えるコア（リザーブ＋トラッシュ＋コアステップの1＋このターンこちらが取りうるライフ）を1体あたりのコアで割った数が多ければ見込みを増やす。下限は EXTRA_SUMMON
+    const byCores = opts.coreSummon ? Math.floor((theirs.reserve + theirs.trashCores + 1 + through) / opts.coreSummon) : 0
+    for (let i = 0; i < Math.min(Math.max(EXTRA_SUMMON, byCores), theirs.handCount ?? 0); i++) threats.push(1)
     let need = 0
     while (need < threats.length && restAfterTop(threats, need) >= mine.life) need++
     const idle = mine.field.spirits.filter((s) => !s.isRested).length
@@ -69,3 +73,49 @@ export function planPick(view: GameView, me: PlayerId, moves: AiMove[], opts: Pl
     return pickBestMove(view, me, attacks.filter(isAllowed)) ?? pick
 }
 
+
+const planScore = (p: AttackPlan): number => (p.lethal ? 1000 : p.allowed.size)
+
+// アタックステップに入る前のレベルの調整（§9.v）。リザーブと、ほかのスピリットの Lv1 を超える余りのコアを1体に集めると、計画（取り切れる・行ける個体の数）が
+// 良くなるなら、その移し替えの1手目を返す（リザーブにあれば置く、無ければ余りのある個体から外す）。手を選ぶたびに今の盤面から計算し直すので、続けて打たれる。
+// 召喚などを打ち終えて、基の方針が「アタックステップへ」かコアを置く手を選んだときだけ見る（召喚の邪魔をしない）。
+// ponytail: 外した個体の BP が下がって次の相手のターンの守りが弱くなる分は数えない
+export function levelPick(view: GameView, me: PlayerId, moves: AiMove[], inner: (v: GameView, m: PlayerId, mv: AiMove[]) => AiMove | null, opts: PlanOptions = {}): AiMove | null {
+    const pick = inner(view, me, moves)
+    if (view.phase !== "main" || view.turnPlayer !== me || (pick?.action.type !== "nextPhase" && pick?.action.type !== "moveCore")) return pick
+    const mine = view.players[me]
+    const idleIds = mine.field.spirits.filter((s) => !s.isRested).map((s) => s.instanceId)
+    if (idleIds.length === 0) return pick
+    const spare = (s: CardInstance) => Math.max(0, s.cores - instMinLevelCores(s))
+    const base = planScore(planAttacks(view, me, idleIds, opts))
+    let best: { target: string; donor: string | null; score: number; n: number } | null = null
+    for (const target of idleIds) {
+        const donors = mine.field.spirits.filter((s) => s.instanceId !== target && spare(s) > 0).sort((a, b) => Number(b.isRested) - Number(a.isRested) || spare(b) - spare(a))
+        const supply = mine.reserve + donors.reduce((n, s) => n + spare(s), 0)
+        const t = mine.field.spirits.find((s) => s.instanceId === target)!
+        // 試すのは、目的の個体が上のレベルにちょうど届く数だけ（レベルが変わらない数は BP も変わらない）
+        const steps = instLevels(t).map((l) => l.cores - t.cores).filter((n) => n > 0 && n <= supply)
+        for (const n of steps) {
+            const v = structuredClone(view)
+            const p = v.players[me]
+            let left = n
+            const fromReserve = Math.min(left, p.reserve)
+            p.reserve -= fromReserve
+            left -= fromReserve
+            let firstDonor: string | null = null
+            for (const d of donors) {
+                if (left === 0) break
+                const take = Math.min(left, spare(d))
+                p.field.spirits.find((s) => s.instanceId === d.instanceId)!.cores -= take
+                firstDonor ??= d.instanceId
+                left -= take
+            }
+            p.field.spirits.find((s) => s.instanceId === target)!.cores += n
+            const score = planScore(planAttacks(v, me, idleIds, opts))
+            if (score > base && (!best || score > best.score || (score === best.score && n < best.n))) best = { target, donor: mine.reserve > 0 ? null : firstDonor, score, n }
+        }
+    }
+    if (!best) return pick
+    const want = best.donor === null ? { id: best.target, dir: "add" } : { id: best.donor, dir: "remove" }
+    return moves.find((m) => m.action.type === "moveCore" && m.action.instanceId === want.id && m.action.direction === want.dir) ?? pick
+}

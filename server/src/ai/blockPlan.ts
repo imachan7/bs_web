@@ -4,13 +4,13 @@ import type { GameView, PlayerId } from "../type"
 import { effectiveBp } from "../../../shared/rules"
 import { instanceSymbolCount } from "../../../shared/rules/symbols"
 import type { AiMove } from "./legalMoves"
-import { planPick, restAfterTop } from "./attackPlan"
+import { planPick, restAfterTop, type PlanOptions } from "./attackPlan"
 
 const other = (pid: PlayerId): PlayerId => (pid === "p1" ? "p2" : "p1")
 
 // ponytail: 相手の手札・バースト・【激突】などの効果、ブロッカーが勝てるかは残りの打点の計算に入れない
-export function blockPick(view: GameView, me: PlayerId, moves: AiMove[]): AiMove | null {
-    const pick = planPick(view, me, moves, { desperate: true })
+export function blockPick(view: GameView, me: PlayerId, moves: AiMove[], opts: PlanOptions = { desperate: true }): AiMove | null {
+    const pick = planPick(view, me, moves, opts)
     const battle = view.battle
     if (!battle || view.turnPlayer === me || (pick?.action.type !== "block" && pick?.action.type !== "takeLife")) return pick
     const opp = other(me)

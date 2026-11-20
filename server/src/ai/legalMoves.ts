@@ -265,8 +265,8 @@ function abilityMoves(state: GameState, pid: PlayerId): AiMove[] {
     return moves
 }
 
-// コアを置いてレベルを上げる手。取り除く方向は AI では扱わない
-// （レベルを下げて得をする場面は限られており、誤って自滅する手を候補に入れたくないため）
+// コアを置いてレベルを上げる手と、スピリットのコアをリザーブへ外す手（Lv1 を割らない範囲。消滅させる手は出さない）。
+// 外す手は scoreMove が 0 点にするので点数だけで選ぶ方針は打たず、アタックの計画（attackPlan.ts の levelPick）がスピリット間の移し替えに使う
 function coreMoves(state: GameState, pid: PlayerId): AiMove[] {
     const moves: AiMove[] = []
     const field = state.players[pid].field
@@ -275,6 +275,13 @@ function coreMoves(state: GameState, pid: PlayerId): AiMove[] {
         moves.push({
             action: { type: "moveCore", instanceId: inst.instanceId, direction: "add" },
             reason: `${getCard(inst.cardId).name}にコアを置く`,
+        })
+    }
+    for (const inst of field.spirits) {
+        if (validateMoveCore(state, pid, inst.instanceId, "remove") !== null) continue
+        moves.push({
+            action: { type: "moveCore", instanceId: inst.instanceId, direction: "remove" },
+            reason: `${getCard(inst.cardId).name}のコアをリザーブへ外す`,
         })
     }
     return moves
