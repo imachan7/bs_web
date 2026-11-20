@@ -408,3 +408,4 @@
 - 指定アタック＋【暴風】：【暴風】はブロックが確定したときに発揮し、その時点で指定されたスピリットはブロックして疲労している。疲労させるのはそれ以外のスピリット（いまのエンジンの挙動どおり）
 - 「その後コストを支払うことで」のフラッシュが何もできないときも、対戦者には払う選択肢を出してよい。AI は払わない
 - GX12-01 のデッキ downTo に【強化】は乗らない
+- 部品 #11 は1つの器 `immuneToEffects { from: "opponent" | "own" | "any"; exceptSelf?: true; against? }` にする（X015＝any＋exceptSelf、アマテラス＝any、味方から＝own）。既存の `immuneToOpponentEffects`（17枚）は `from:"opponent"` へ移す（2026-11-20 ユーザー決定。判定は resistance.ts の1か所）
