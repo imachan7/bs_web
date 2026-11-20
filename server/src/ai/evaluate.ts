@@ -162,6 +162,8 @@ export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
     const my = view.players[me]
     const opp = view.players[opponentOf(me)]
 
+    // 何も起きないバーストの発動は断る（断る手のほうが点が高くなるように）
+    if (move.futile) return 0
     switch (action.type) {
         case "attack": {
             const attacker = my.field.spirits.find((s) => s.instanceId === action.instanceId)
@@ -194,6 +196,9 @@ export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
         }
         case "setNexus":
             return 60
+        // パス(40)より上・召喚(80〜)より下。良いバーストほど高い
+        case "setBurst":
+            return 42 + (move.burstRank ?? 0) * 4
         case "castMagic":
             return scoreSpell(view, me, move, action.type === "castMagic" ? action.targetInstanceId : undefined, 65, 45)
         case "activateAbility":

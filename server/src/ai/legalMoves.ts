@@ -19,6 +19,7 @@ import {
     validateEndTurn,
     validateMoveCore,
     validatePass,
+    validateSetBurst,
     validateSetNexus,
     validateSummon,
     validateTakeLife,
@@ -26,7 +27,7 @@ import {
 import { activatableAbility, activatedActionResolvable, bravesOf, mustBeAttackTargetIds } from "../../../shared/rules"
 import { mandatoryDirectAttackTargetIds } from "../../../shared/block"
 import { braveCombineCandidates } from "../../../shared/summon"
-import { magicTags, tagsOfAction, type MoveTags } from "./moveTags"
+import { burstRank, magicTags, tagsOfAction, type MoveTags } from "./moveTags"
 
 // 1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
 export interface AiMove {
@@ -34,6 +35,10 @@ export interface AiMove {
     reason: string
     // マジック・起動能力だけが持つ。足切りと点数付けに使う（moveTags.ts）
     tags?: MoveTags | undefined
+    // setBurst だけが持つ。burstRank の値
+    burstRank?: number
+    // バーストの発動確認で「発動」を選ぶ手のうち、効果が何もできないもの。新しい方針だけが避ける（policy.ts）
+    futile?: true
 }
 
 function opponentOf(pid: PlayerId): PlayerId {
@@ -43,6 +48,18 @@ function opponentOf(pid: PlayerId): PlayerId {
 // 条件判定だけに使う ActionCtx（resolve は呼ばれない）
 function stubCtx(state: GameState, pid: PlayerId): ActionCtx {
     return { state, owner: pid, opp: pid === "p1" ? "p2" : "p1", self: null, sourceName: "", srcColors: undefined, srcType: "magic", sourceCardId: undefined, destroyContext: {}, targetInstanceId: undefined, chosenOption: undefined, chosenCardIndex: undefined, paySources: undefined, resolve: () => {} }
+}
+
+// 発動確認を出しているバーストが、いま発動しても何も起きないか。
+// 効果の頭が if で条件が成り立たない／相手の場に除去の的がいない。召喚するバーストなどはタグが unknown なので「意味あり」に倒す
+function burstFutile(state: GameState, pid: PlayerId, cardId: string, event: unknown): boolean {
+    const effect = getCard(cardId).effects.find((e) => e.kind === "burst" && e.event === event)
+    if (effect?.kind !== "burst") return false
+    const action = effect.action
+    const head = action.type === "sequence" ? action.actions[0] : action
+    if (head?.type === "if" && !ifCondMet(stubCtx(state, pid), head.cond)) return true
+    const opp = state.players[opponentOf(pid)].field
+    return tagsOfAction([action]).tags.every((t) => t === "removal") && opp.spirits.length + opp.nexuses.length === 0
 }
 
 // 選択待ち（pendingChoice）への応答を列挙する。
@@ -62,7 +79,9 @@ function choiceMoves(state: GameState, pid: PlayerId): AiMove[] {
         const head = choice.action?.type === "sequence" ? choice.action.actions[0] : choice.action
         const wasteful = choice.burstThenPay !== undefined && head?.type === "if" && !ifCondMet(stubCtx(state, pid), head.cond)
         for (const option of wasteful ? [] : choice.options ?? []) {
-            moves.push({ action: { type: "resolveChoice", option }, reason: `選択：${option}` })
+            const ba = choice.burstActivate
+            const futile = ba !== undefined && burstFutile(state, pid, ba.cardId, ba.event)
+            moves.push({ action: { type: "resolveChoice", option }, reason: `選択：${option}`, ...(futile ? { futile: true as const } : {}) })
         }
     } else {
         for (const cardIndex of choice.cardIndices ?? []) {
@@ -157,6 +176,22 @@ function handMoves(state: GameState, pid: PlayerId): AiMove[] {
     return moves
 }
 
+// バーストのセット。入れ替え（旧カードはトラッシュへ行く）は、いまより良いものがあるときだけ候補にする
+function burstMoves(state: GameState, pid: PlayerId): AiMove[] {
+    const player = state.players[pid]
+    const current = player.burst ? burstRank(player.burst) : -1
+    const moves: AiMove[] = []
+    const seen = new Set<string>()
+    player.hand.forEach((cardId, handIndex) => {
+        if (seen.has(cardId) || validateSetBurst(state, pid, handIndex) !== null) return
+        const rank = burstRank(cardId)
+        if (rank <= current) return
+        seen.add(cardId)
+        moves.push({ action: { type: "setBurst", handIndex }, reason: `${getCard(cardId).name}をバーストにセット`, burstRank: rank })
+    })
+    return moves
+}
+
 // 起動能力。発動可否は共有層の activatableAbility が一手に判定する（サーバーの受理条件と同じ実装）
 function abilityMoves(state: GameState, pid: PlayerId): AiMove[] {
     const moves: AiMove[] = []
@@ -198,6 +233,7 @@ function mainStepMoves(state: GameState, pid: PlayerId): AiMove[] {
         ...handMoves(state, pid),
         ...abilityMoves(state, pid),
         ...coreMoves(state, pid),
+        ...burstMoves(state, pid),
     ]
     // 第2メインステップ中と先攻1ターン目にはアタックステップが無い（サーバーに弾られるので候補に出さない）
     if (!state.extraMainStep && state.secondMainStep !== true && state.turn !== 1) moves.push({ action: { type: "nextPhase" }, reason: "アタックステップへ進む" })

@@ -429,6 +429,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `MoveTags`（型）
 - `tagsOfAction`（fn）
 - `magicTags`（fn）：マジックを timing の側の効果で使うときのタグ
+- `BurstKind`（型）：セットするバーストの種類。守り＝ライフを増やす（placeCores の行き先が life）か、同じカードのフラッシュ効果が
+- `burstKind`（fn）
+- `burstRank`（fn）
 - `opponentHasTargets`（fn）：相手の場に removal の的になりうるものがいるか
 - `pruneMoves`（fn）：打っても何も起きない手を合法手から落とす。タグの無い手（pass・nextPhase・endTurn・選択）は触らない。
 
@@ -438,6 +441,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `OLD_POLICY`（const）：段階1完了時点の選び方。段階2で点を変えても、これは pickBestMove を呼び続ける（新しい点は別関数に足す）
 - `LOOKAHEAD_POLICY`（const）：旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
 - `DEFAULT_POLICY`（const）：本番の既定。先読みを選択待ちだけに使った新旧対戦は勝率の区間が50%を跨いだ（2026-11-20）ので、種類を足して測るまで旧のまま
+- `BURST_POLICY`（const）：バーストをセットし、意味のない発動は断る。構築済みデッキの新旧対戦で区間の下限が50%に届かなかった（2026-11-20）ので既定にしていない
 
 ## server/src/ai/runner.ts
 

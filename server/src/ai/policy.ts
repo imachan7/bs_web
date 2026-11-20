@@ -12,10 +12,21 @@ export type AiPolicy = {
 }
 
 // 段階1完了時点の選び方。段階2で点を変えても、これは pickBestMove を呼び続ける（新しい点は別関数に足す）
-export const OLD_POLICY: AiPolicy = { pick: pickBestMove }
+// 旧は、バーストをセットせず、発動確認には（意味がなくても）従来どおり答える（段階1の手の集合）
+export const OLD_POLICY: AiPolicy = {
+    pick: (view, me, moves) =>
+        pickBestMove(
+            view,
+            me,
+            moves.filter((m) => m.action.type !== "setBurst").map(({ futile: _f, ...m }) => m),
+        ),
+}
 
 // 旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
 export const LOOKAHEAD_POLICY: AiPolicy = { pick: pickBestMove, pickState: lookaheadPick }
 
 // 本番の既定。先読みを選択待ちだけに使った新旧対戦は勝率の区間が50%を跨いだ（2026-11-20）ので、種類を足して測るまで旧のまま
 export const DEFAULT_POLICY: AiPolicy = OLD_POLICY
+
+// バーストをセットし、意味のない発動は断る。構築済みデッキの新旧対戦で区間の下限が50%に届かなかった（2026-11-20）ので既定にしていない
+export const BURST_POLICY: AiPolicy = { pick: pickBestMove }

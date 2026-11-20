@@ -105,6 +105,35 @@ export function magicTags(cardId: string, timing: "main" | "flash"): MoveTags {
     return tagsOfAction(actions)
 }
 
+// アクションの木のどこかが条件に合うか（葉の type と行き先を効果データから読む）
+function anyNode(a: unknown, pred: (x: Record<string, any>) => boolean): boolean {
+    if (Array.isArray(a)) return a.some((v) => anyNode(v, pred))
+    if (a === null || typeof a !== "object") return false
+    const x = a as Record<string, any>
+    return pred(x) || Object.values(x).some((v) => anyNode(v, pred))
+}
+
+// セットするバーストの種類。守り＝ライフを増やす（placeCores の行き先が life）か、同じカードのフラッシュ効果が
+// アタックステップを終える（thenPay で追加発揮できる）。判定は効果データの type と行き先だけで、カード ID は見ない
+export type BurstKind = "removal" | "guard" | "buffOwn" | "draw" | "other"
+export function burstKind(cardId: string): BurstKind {
+    const effects = getCard(cardId).effects
+    const burst = effects.filter((e) => e.kind === "burst")
+    const tags = burst.flatMap((e) => tagsOfAction([e.action]).tags)
+    if (tags.includes("removal")) return "removal"
+    const guard =
+        burst.some((e) => anyNode(e.action, (x) => x.type === "placeCores" && x.to === "life")) ||
+        (burst.some((e) => e.thenPay === "flash") && effects.some((e) => e.kind === "magic" && e.timing === "flash" && anyNode(e.action, (x) => x.type === "endAttackStepAfterBattle")))
+    if (guard) return "guard"
+    return tags.includes("buffOwn") ? "buffOwn" : tags.includes("draw") ? "draw" : "other"
+}
+
+// セットするバーストの良し悪し（除去 > 自分を強く > ドロー > その他）。守りの位置は BURST_RANK で決める
+const BURST_RANK: Record<BurstKind, number> = { removal: 3, guard: 3, buffOwn: 2, draw: 1, other: 0 }
+export function burstRank(cardId: string): number {
+    return BURST_RANK[burstKind(cardId)]
+}
+
 function opponentOf(pid: PlayerId): PlayerId {
     return pid === "p1" ? "p2" : "p1"
 }

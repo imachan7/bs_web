@@ -6,8 +6,12 @@ import { runTurnStart } from "../server/src/logic/PhaseManager"
 import type { Color, DeckSpec, GameState, PlayerId } from "../server/src/type"
 import { pumpAiSync } from "../server/src/ai/runner"
 import { magicTags } from "../server/src/ai/moveTags"
-import { DEFAULT_POLICY, LOOKAHEAD_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
+import { BURST_POLICY, DEFAULT_POLICY, LOOKAHEAD_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
 import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, LOOKAHEAD_BUDGET_MS } from "../server/src/ai/lookahead"
+import { enumerateLegalMoves } from "../server/src/ai/legalMoves"
+import { burstKind, pruneMoves } from "../server/src/ai/moveTags"
+import { viewFor, getCard } from "../server/src/logic/GameState"
+import { validateCastMagic, validateSummon } from "../server/src/logic/RuleValidator"
 import { DECK_RECIPES } from "../data/constants"
 
 const args = process.argv.slice(2)
@@ -44,10 +48,38 @@ const MATCHUPS = matchups()
 // 新（本番の既定）対 旧（OLD_POLICY）。先後を入れ替えて同数回し、色の偏りと先手有利を消す。
 // 引き分け＝手数上限・詰まり・例外で決着しなかった局
 function vsOld(): void {
-    const NEW: AiPolicy = process.env.BS_AI_LOOKAHEAD_KINDS ? LOOKAHEAD_POLICY : DEFAULT_POLICY
+    const NEW: AiPolicy = process.env.BS_AI_BURST ? BURST_POLICY : process.env.BS_AI_LOOKAHEAD_KINDS ? LOOKAHEAD_POLICY : DEFAULT_POLICY
+    const burstCount = { セット: 0, 発動: 0, 断った: 0 }
+    // BS_AI_TRACE=1：新側のバーストの決断（セット・入れ替え・断り）を局ごとに記録し、勝敗と並べて出す
+    type Dec = { bk: string; turn: number; kind: string; card: string; ctype: string; usable: boolean; altOld: string; summonsAvail: number; replaced: boolean }
+    let decs: Dec[] = []
+    const allGames: { decs: Dec[]; won: boolean; label: string; log: string[] }[] = []
+    const burstHook = (pid: PlayerId) => (move: { action: { type: string; option?: string; handIndex?: number } }, state: GameState): void => {
+        const a = move.action
+        const decide = (kind: string, cardId: string, usable: boolean, replaced: boolean): void => {
+            const view = viewFor(state, pid)
+            const moves = pruneMoves(view, pid, enumerateLegalMoves(state, pid))
+            const alt = OLD_POLICY.pick(view, pid, moves)
+            decs.push({ bk: burstKind(cardId), turn: state.turn, kind, card: getCard(cardId).name, ctype: getCard(cardId).type, usable, altOld: alt?.reason ?? "-", summonsAvail: moves.filter((m) => m.action.type === "summon").length, replaced })
+        }
+        if (a.type === "setBurst") {
+            burstCount.セット++
+            const p = state.players[pid]
+            const cardId = p.hand[a.handIndex!]!
+            const c = getCard(cardId)
+            const usable = c.type === "magic" ? validateCastMagic(state, pid, a.handIndex!) === null : c.type === "spirit" || c.type === "brave" ? c.levels.some((l) => validateSummon(state, pid, a.handIndex!, undefined, l.level) === null) : false
+            decide(p.burst ? "入れ替え" : "セット", cardId, usable, !!p.burst)
+        } else if (a.type === "resolveChoice" && state.pendingChoice?.burstActivate) {
+            if (a.option !== undefined) burstCount.発動++
+            else {
+                burstCount.断った++
+                decide("断り", state.pendingChoice.burstActivate.cardId, false, false)
+            }
+        }
+    }
     let win = 0, lose = 0, draw = 0, errs = 0, turnSum = 0, played = 0
     const t0 = Date.now()
-    console.log(`新側: ${NEW === LOOKAHEAD_POLICY ? "LOOKAHEAD_POLICY" : "DEFAULT_POLICY"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
+    console.log(`新側: ${NEW === BURST_POLICY ? "BURST_POLICY" : NEW === LOOKAHEAD_POLICY ? "LOOKAHEAD_POLICY" : "DEFAULT_POLICY"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
     for (let i = 0; i < MATCHUPS.length; i++) {
         {
             for (let n = 0; n < N; n++) {
@@ -60,8 +92,9 @@ function vsOld(): void {
                     s.interactiveTargets = true
                     let total = 0
                     let stuck = false
+                    decs = []
                     while (!s.winner && total < MAX_ACTIONS) {
-                        const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, undefined, policies), 0)
+                        const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, pid === newPid ? burstHook(pid) : undefined, policies), 0)
                         if (acted === 0) {
                             stuck = true
                             break
@@ -69,6 +102,8 @@ function vsOld(): void {
                         total += acted
                     }
                     played++
+                    allGames.push({ decs, won: s.winner === newPid, log: s.log.map((l) => (typeof l === "string" ? l : JSON.stringify(l))).filter((l) => /バースト|ライフ/.test(l)).slice(-40), label: `${MATCHUPS[i]!.label}#${n}(${newPid})` })
+                    decs = []
                     turnSum += s.turn
                     if (!s.winner || stuck) draw++
                     else if (s.winner === newPid) win++
@@ -92,6 +127,21 @@ function vsOld(): void {
     console.log(`| 新の勝率（引き分け除く） | ${pct(p)}（95%区間 ${pct(Math.max(0, p - 1.96 * se))}〜${pct(Math.min(1, p + 1.96 * se))}） |`)
     console.log(`| 平均ターン | ${(turnSum / Math.max(1, played)).toFixed(1)} |`)
     console.log(`| 例外 | ${errs} |`)
+    console.log(`| 新のバースト（セット／発動／断った） | ${burstCount.セット} / ${burstCount.発動} / ${burstCount.断った} |`)
+    if (process.env.BS_AI_TRACE) {
+        const rate = (g: typeof allGames): string => `${g.filter((x) => x.won).length}/${g.length}（${((100 * g.filter((x) => x.won).length) / Math.max(1, g.length)).toFixed(1)}%）`
+        const withSet = allGames.filter((g) => g.decs.some((d) => d.kind !== "断り"))
+        console.log(`セットした局 ${rate(withSet)} / しなかった局 ${rate(allGames.filter((g) => !withSet.includes(g)))}`)
+        const sets = allGames.flatMap((g) => g.decs.filter((d) => d.kind !== "断り"))
+        const by = (f: (d: Dec) => string): string => Object.entries(sets.reduce<Record<string, number>>((m, d) => ((m[f(d)] = (m[f(d)] ?? 0) + 1), m), {})).map(([k, v]) => `${k}=${v}`).join(" ")
+        for (const k of ["removal", "guard", "buffOwn", "draw", "other"]) {
+            const g = allGames.filter((x) => x.decs.some((d) => d.kind !== "断り" && d.bk === k))
+            console.log(`バーストの種類 ${k}: セット ${sets.filter((d) => d.bk === k).length}回 / 局の勝率 ${rate(g)}`)
+        }
+        console.log("種類:", by((d) => d.ctype), "| 手札で使えた:", by((d) => String(d.usable)), "| 入れ替え:", by((d) => String(d.replaced)), "| ターン:", by((d) => String(d.turn)))
+        console.log("旧が打った手:", by((d) => d.altOld.replace(/^.*?を/, "…を").replace(/Lv\d/, "Lv")), "| 召喚できたのにセット:", sets.filter((d) => d.summonsAvail > 0).length)
+        for (const g of allGames.filter((x) => !x.won && x.decs.length > 0).slice(0, Number(process.env.BS_AI_TRACE_N) || 3)) console.log("負け", g.label, JSON.stringify(g.decs), "\n  " + g.log.join("\n  "))
+    }
     console.log(`| 所要時間 | ${((Date.now() - t0) / 1000).toFixed(0)}秒 |`)
 }
 if (VS_OLD) {
