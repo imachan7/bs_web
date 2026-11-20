@@ -25,9 +25,8 @@ export const OLD_POLICY: AiPolicy = {
 // 旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
 export const LOOKAHEAD_POLICY: AiPolicy = { pick: pickBestMove, pickState: lookaheadPick }
 
-// バーストをセットし、意味のない発動は断る。全体の新旧対戦では差が出ない（構築済み 4800局 50.8%）が、ライフ2で守りのバーストを持つ局面では
-// 勝率が旧の約2倍（19.8% 対 9.8%）になったので既定にする（2026-11-20）
+// バーストをセットし、意味のない発動は断る。場のコアも消滅させない範囲で支払いに使う。ライフ2の局面で旧の約2倍（2026-11-20）
 export const BURST_POLICY: AiPolicy = { pick: pickBestMove }
 
-// 本番の既定
-export const DEFAULT_POLICY: AiPolicy = BURST_POLICY
+// 本番の既定。手の候補と点は BURST_POLICY と同じ（pickBestMove）で、アタックだけ先読みで上書きする（根拠は lookahead.ts の LOOKAHEAD_KINDS）
+export const DEFAULT_POLICY: AiPolicy = LOOKAHEAD_POLICY

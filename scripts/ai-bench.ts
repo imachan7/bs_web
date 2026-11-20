@@ -6,8 +6,9 @@ import { runTurnStart } from "../server/src/logic/PhaseManager"
 import type { Color, DeckSpec, GameState, PlayerId } from "../server/src/type"
 import { pumpAiSync } from "../server/src/ai/runner"
 import { magicTags } from "../server/src/ai/moveTags"
-import { BURST_POLICY, DEFAULT_POLICY, LOOKAHEAD_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
-import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, LOOKAHEAD_BUDGET_MS } from "../server/src/ai/lookahead"
+import { BURST_POLICY, DEFAULT_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
+import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, LOOKAHEAD_BUDGET_MS, setLookaheadTrace, type OverrideTrace } from "../server/src/ai/lookahead"
+import { appendFileSync, writeFileSync } from "node:fs"
 import { enumerateLegalMoves } from "../server/src/ai/legalMoves"
 import { anyNode, burstKind, pruneMoves } from "../server/src/ai/moveTags"
 import { viewFor, getCard } from "../server/src/logic/GameState"
@@ -53,9 +54,9 @@ const MATCHUPS = matchups()
 // 新（本番の既定）対 旧（OLD_POLICY）。先後を入れ替えて同数回し、色の偏りと先手有利を消す。
 // 引き分け＝手数上限・詰まり・例外で決着しなかった局
 function vsOld(): void {
-    const NEW: AiPolicy = process.env.BS_AI_BURST ? BURST_POLICY : process.env.BS_AI_LOOKAHEAD_KINDS ? LOOKAHEAD_POLICY : DEFAULT_POLICY
+    const NEW: AiPolicy = process.env.BS_AI_BURST ? BURST_POLICY : DEFAULT_POLICY
     const burstCount = { セット: 0, 発動: 0, 断った: 0 }
-    // BS_AI_TRACE=1：新側のバーストの決断（セット・入れ替え・断り）を局ごとに記録し、勝敗と並べて出す
+    // BS_AI_BURST_TRACE=1：新側のバーストの決断（セット・入れ替え・断り）を局ごとに記録し、勝敗と並べて出す
     type Dec = { bk: string; turn: number; kind: string; card: string; ctype: string; usable: boolean; altOld: string; summonsAvail: number; replaced: boolean }
     let decs: Dec[] = []
     const allGames: { decs: Dec[]; won: boolean; label: string; log: string[] }[] = []
@@ -84,7 +85,14 @@ function vsOld(): void {
     }
     let win = 0, lose = 0, draw = 0, errs = 0, turnSum = 0, played = 0
     const t0 = Date.now()
-    console.log(`新側: ${NEW === BURST_POLICY ? "BURST_POLICY" : NEW === LOOKAHEAD_POLICY ? "LOOKAHEAD_POLICY" : "DEFAULT_POLICY"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
+    // BS_AI_TRACE=path：先読みが旧方針を上書きした決断と対局の結果・ログを1局1行の JSON Lines で書く
+    const tracePath = process.env.BS_AI_TRACE
+    let overrides: OverrideTrace[] = []
+    if (tracePath) {
+        writeFileSync(tracePath, "")
+        setLookaheadTrace((t) => overrides.push(t))
+    }
+    console.log(`新側: ${NEW === BURST_POLICY ? "BURST_POLICY（先読みなし）" : "DEFAULT_POLICY（アタックの先読みあり）"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
     for (let i = 0; i < MATCHUPS.length; i++) {
         {
             for (let n = 0; n < N; n++) {
@@ -112,6 +120,11 @@ function vsOld(): void {
                     allGames.push({ decs, won: s.winner === newPid, log: s.log.map((l) => (typeof l === "string" ? l : JSON.stringify(l))).filter((l) => /バースト|ライフ/.test(l)).slice(-40), label: `${MATCHUPS[i]!.label}#${n}(${newPid})` })
                     decs = []
                     turnSum += s.turn
+                    if (tracePath) {
+                        const result = !s.winner || stuck ? "draw" : s.winner === newPid ? "newWin" : "oldWin"
+                        appendFileSync(tracePath, JSON.stringify({ game: `${i}-${n}`, matchup: MATCHUPS[i]!.label, newPid, result, turns: s.turn, overrides, log: s.log }) + "\n")
+                        overrides = []
+                    }
                     if (!s.winner || stuck) draw++
                     else if (s.winner === newPid) win++
                     else lose++
@@ -135,7 +148,7 @@ function vsOld(): void {
     console.log(`| 平均ターン | ${(turnSum / Math.max(1, played)).toFixed(1)} |`)
     console.log(`| 例外 | ${errs} |`)
     console.log(`| 新のバースト（セット／発動／断った） | ${burstCount.セット} / ${burstCount.発動} / ${burstCount.断った} |`)
-    if (process.env.BS_AI_TRACE) {
+    if (process.env.BS_AI_BURST_TRACE) {
         const rate = (g: typeof allGames): string => `${g.filter((x) => x.won).length}/${g.length}（${((100 * g.filter((x) => x.won).length) / Math.max(1, g.length)).toFixed(1)}%）`
         const withSet = allGames.filter((g) => g.decs.some((d) => d.kind !== "断り"))
         console.log(`セットした局 ${rate(withSet)} / しなかった局 ${rate(allGames.filter((g) => !withSet.includes(g)))}`)
@@ -147,7 +160,7 @@ function vsOld(): void {
         }
         console.log("種類:", by((d) => d.ctype), "| 手札で使えた:", by((d) => String(d.usable)), "| 入れ替え:", by((d) => String(d.replaced)), "| ターン:", by((d) => String(d.turn)))
         console.log("旧が打った手:", by((d) => d.altOld.replace(/^.*?を/, "…を").replace(/Lv\d/, "Lv")), "| 召喚できたのにセット:", sets.filter((d) => d.summonsAvail > 0).length)
-        for (const g of allGames.filter((x) => !x.won && x.decs.length > 0).slice(0, Number(process.env.BS_AI_TRACE_N) || 3)) console.log("負け", g.label, JSON.stringify(g.decs), "\n  " + g.log.join("\n  "))
+        for (const g of allGames.filter((x) => !x.won && x.decs.length > 0).slice(0, Number(process.env.BS_AI_BURST_TRACE_N) || 3)) console.log("負け", g.label, JSON.stringify(g.decs), "\n  " + g.log.join("\n  "))
     }
     console.log(`| 所要時間 | ${((Date.now() - t0) / 1000).toFixed(0)}秒 |`)
 }

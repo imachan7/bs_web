@@ -2,8 +2,9 @@
 //
 // タグはカードの構造化された効果（action の木）の形だけから付ける。カード ID では分岐しない。
 // 木の読み方は粗く、迷ったら unknown に倒す（unknown は低い点で打つだけで、足切りはしない）。
-import type { EffectAction, GameView, PlayerId } from "../type"
+import type { CardInstance, EffectAction, GameView, PlayerId } from "../type"
 import { getCard } from "../logic/GameState"
+import { currentLevel } from "../../../shared/rules"
 import type { AiMove } from "./legalMoves"
 
 export type MoveTag = "battleOnly" | "removal" | "buffOwn" | "draw" | "unknown"
@@ -158,4 +159,22 @@ export function pruneMoves(view: GameView, me: PlayerId, moves: AiMove[]): AiMov
     // 複数のタグを持つ手は、すべてのタグが空振りのときだけ落とす
     const kept = moves.filter((m) => !m.tags || !m.tags.tags.every(dead))
     return kept.length > 0 ? kept : moves
+}
+
+// 場のカードが今のレベルで持つ効果の分類（評価の「場の効果の価値」用）。誘発・起動・場のイベント・バトル勝利・ステップの
+// action を手のタグと同じ読み方で分類し、BP+ の継続効果は buffOwn とする。バースト・マジックは場で働かないので数えない
+export type FieldEffectTag = "removal" | "buffOwn" | "draw"
+export function fieldEffectTags(inst: CardInstance): Set<FieldEffectTag> {
+    const out = new Set<FieldEffectTag>()
+    const level = currentLevel(inst).level
+    for (const e of getCard(inst.cardId).effects as Record<string, any>[]) {
+        if (e.levels && !e.levels.includes(level)) continue
+        if (e.kind === "aura") {
+            if (e.aura?.type === "bp" && e.aura.target === "self" && (e.aura.amount ?? e.aura.amountPer ?? 0) > 0) out.add("buffOwn")
+            continue
+        }
+        if (!["triggered", "activated", "fieldEvent", "battleWon", "step"].includes(e.kind) || !e.action) continue
+        for (const t of tagsOfAction([e.action]).tags) if (t === "removal" || t === "buffOwn" || t === "draw") out.add(t)
+    }
+    return out
 }
