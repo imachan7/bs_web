@@ -423,6 +423,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `moveKey`（fn）：アクションを一意の文字列にする。ランナーが「サーバーに弾かれた手」を覚えて避けるのに使う
 - `decideAiAction`（fn）：AI が次に打つ手を決める。null は「今は AI の手番ではない」（相手の入力待ち）。
 
+## server/src/ai/keepGuard.ts
+
+- `isStopFlash`（const）
+- `keepGuardPick`（fn）
+
 ## server/src/ai/legalMoves.ts
 
 - `AiMove`（型）：1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
@@ -463,6 +468,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `BURST_POLICY`（const）：バーストをセットし、意味のない発動は断る。場のコアも消滅させない範囲で支払いに使う。ライフ2の局面で旧の約2倍（2026-11-20）
 - `PLAN_POLICY`（const）：アタックの計画（attackPlan.ts）：取り切れる盤面だけ全員で行き、それ以外は BP で勝てて守り手が残る個体だけで行く。
 - `BLOCK_POLICY`（const）：ブロックかライフかを、アタッカーのシンボル数と残りのアタックで決める（blockPlan.ts）＋守っても負けるなら全員で行く。
+- `KEEP_GUARD_POLICY`（const）：無駄撃ちのマジックを撃たない（keepGuard.ts・spellFilter.ts）：守りのマジックを自分のターンに撃たない＋的のいない除去・自分だけ失うお互いの破壊を撃たない。
 - `DEFAULT_POLICY`（const）：本番の既定。ai:bench --vs-old の旧側（基準）もこれ（BS_AI_OLD=stage1 で段階1の OLD_POLICY）
 - `CANDIDATE_POLICY`（const）：ai:bench --vs-old の新側（試す案）。基準を動かさないため、案は既存の pick 関数を書き換えず、新しい関数で手を足し引きしてここに差す
 
@@ -472,6 +478,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `AiPumpOptions`（型）
 - `pumpAi`（fn）：AI が打てる手が無くなるまで1手ずつ進める。すでに走っていれば何もしない
 - `pumpAiSync`（fn）：テスト用：間隔を空けずに、AI が打てなくなるまでその場で進める。
+
+## server/src/ai/spellFilter.ts
+
+- `wastedSpell`（fn）
 
 ## server/src/assetVersions.ts
 

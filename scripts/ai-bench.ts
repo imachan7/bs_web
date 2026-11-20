@@ -6,7 +6,7 @@ import { runTurnStart } from "../server/src/logic/PhaseManager"
 import type { Color, DeckSpec, GameState, PlayerId } from "../server/src/type"
 import { pumpAiSync } from "../server/src/ai/runner"
 import { magicTags } from "../server/src/ai/moveTags"
-import { CANDIDATE_POLICY, DEFAULT_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
+import { BLOCK_POLICY, CANDIDATE_POLICY, DEFAULT_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
 import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, LOOKAHEAD_BUDGET_MS, setLookaheadTrace, type OverrideTrace } from "../server/src/ai/lookahead"
 import { appendFileSync, writeFileSync } from "node:fs"
 import { enumerateLegalMoves } from "../server/src/ai/legalMoves"
@@ -51,8 +51,8 @@ function matchups(): Matchup[] {
 }
 const MATCHUPS = matchups()
 
-// 旧側（基準）は本番の既定 DEFAULT_POLICY。BS_AI_OLD=stage1 で段階1の OLD_POLICY と比べる
-const OLD_SIDE: AiPolicy = process.env.BS_AI_OLD === "stage1" ? OLD_POLICY : DEFAULT_POLICY
+// 旧側（基準）は本番の既定 DEFAULT_POLICY。BS_AI_OLD=stage1 で段階1の OLD_POLICY、=block で BLOCK_POLICY（既定を替える PR を、替える前と比べる）
+const OLD_SIDE: AiPolicy = process.env.BS_AI_OLD === "stage1" ? OLD_POLICY : process.env.BS_AI_OLD === "block" ? BLOCK_POLICY : DEFAULT_POLICY
 // 新（CANDIDATE_POLICY）対 旧（基準）。先後を入れ替えて同数回し、色の偏りと先手有利を消す。
 // 引き分け＝手数上限・詰まり・例外で決着しなかった局
 function vsOld(): void {
@@ -95,7 +95,7 @@ function vsOld(): void {
         writeFileSync(tracePath, "")
         setLookaheadTrace((t) => overrides.push(t))
     }
-    console.log(`新側: CANDIDATE_POLICY / 旧側: ${OLD_SIDE === OLD_POLICY ? "OLD_POLICY（段階1）" : "DEFAULT_POLICY（基準）"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
+    console.log(`新側: CANDIDATE_POLICY / 旧側: ${OLD_SIDE === OLD_POLICY ? "OLD_POLICY（段階1）" : OLD_SIDE === BLOCK_POLICY ? "BLOCK_POLICY" : "DEFAULT_POLICY（基準）"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
     for (let i = 0; i < MATCHUPS.length; i++) {
         {
             for (let n = 0; n < N; n++) {
