@@ -1006,6 +1006,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tenshoSpecOf`（fn）：【転召】の解決：spirit が現在レベルで転召を持つなら、召喚コスト支払い後（doSummonの末尾）に呼ぶ。
 - `tenshoCandidates`（fn）：【転召】でコアを置く対象になれる自分のスピリット。
 - `hasBurstTensho`（fn）：【バースト転召】持ちは、転召の生贄を払えないとバースト効果で召喚できない（「コアをボイドに置くことで召喚する」）
+- `burstTenshoTargets`（fn）：【バースト転召】の対象にできる個体。「コアすべてをボイドに置くことで召喚する」なので、転召した後でも召喚（Lv1 の維持コアと余分の支払い）が
 - `burstTenshoUnpayable`（fn）
 - `resolveTensho`（fn）
 - `tenshoSelfCostBonus`（fn）：kind:"tenshoSelfCostBonus"：【転召】の生贄候補列挙でだけ、その候補のコストに+amountする。

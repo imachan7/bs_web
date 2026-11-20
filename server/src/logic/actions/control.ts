@@ -6,7 +6,7 @@ import { payMagicCostThenResolve } from "../magic/payThenResolve"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
-import { burstTenshoUnpayable, hasBurstTensho } from "../keywords/tensho"
+import { burstTenshoTargets, hasBurstTensho } from "../keywords/tensho"
 import { rensaIgnoresCondition } from "../../../../shared/rules/rensa"
 import { fireRensaActivated, markRensa } from "../keywords/rensa"
 import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
@@ -397,13 +397,15 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action0: Extract<Effe
     // 転召を先に済ませるのは、対象が置くコアの支払い元として枯れて召喚できなくなるのを避けるため（#664）。
     // 以降の再実行（転召の選択待ち・置くコアの待ち）には action.tenshoDone で済んだことを運ぶ
     if (action.tenshoDone !== true && hasBurstTensho(card)) {
-        if (burstTenshoUnpayable(state, owner, card)) {
-            log(state, `${sourceName}：【バースト転召】でコアを置く自分のスピリットがいないため、${card.name}を召喚できなかった。`)
+        // 転召した後に召喚（Lv1 の維持コア）ができる対象がいなければ、転召もしない。カードは発動したバーストとしてトラッシュへ行く
+        const targets = burstTenshoTargets(state, owner, card)
+        if (targets.length === 0) {
+            log(state, `${sourceName}：【バースト転召】で、コアをボイドに置いた後も召喚できる自分のスピリットがいないため、${card.name}を召喚できなかった。`)
             return
         }
         // 転召の解決だけに使う仮の個体（Lv1）。場には出さず、実体は維持コアを払った後に作り直す
         const provisional = createInstance(cardId, state.turn, minLevelCores(card))
-        resolveTensho(state, owner, provisional, true)
+        resolveTensho(state, owner, provisional, true, false, new Set(targets.map((t) => t.instanceId)))
         if (state.pendingChoice) {
             pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, actorPid: owner, action: { ...action, tenshoDone: true } }])
             return

@@ -2,6 +2,7 @@
 // 転召（対象のコアすべてをボイドへ）→ 置くコアを選んで払う → 場に出す → 召喚時効果
 import { act, assert, createGame, createInstance, getCard, placeBurst, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
+import { burstTenshoTargets, burstTenshoUnpayable } from "../../server/src/logic/keywords/tensho"
 
 const SABER = "BS18-X01"
 const WORLD = "X022" // 覇王ロード・ドラゴン・ザ・ワールド（Lv3＝6コア）
@@ -89,6 +90,17 @@ console.log("=== (c) 対象を選んだ後に置くコアを選ぶ。対象の�
     const pc = s.pendingChoice
     assert(pc?.effectCostPay !== undefined || s.players.p1.field.spirits.some((x) => x.cardId === SABER), "転召の後に置くコアの選択か、自動で召喚")
     assert(s.players.p1.field.spirits.find((x) => x.instanceId === ids[0])?.cores === 0 || !onField(s, ids[0]!), "置くコアの選択時、対象のコアはすでにボイドへ（コア0）")
+}
+
+console.log("=== (d) 「コアをボイドに置くことで召喚する」：転召した後に召喚できない個体は対象にしない（〜することでの一般則） ===")
+{
+    // リザーブ0・ロード・ドラゴン1コアだけ：転召するとコアが1個も残らず、Lv1 の維持コアを置けない
+    const none = scene("d-none", [[LORD, 1]], 0)
+    assert(burstTenshoTargets(none.s, "p1", getCard(SABER)).length === 0, "対象にできる個体がいない")
+    assert(burstTenshoUnpayable(none.s, "p1", getCard(SABER)), "発動しても召喚できない扱い")
+    // リザーブ1があれば、ロード・ドラゴンを転召してもリザーブから1個置ける
+    const one = scene("d-one", [[LORD, 1]], 1)
+    assert(burstTenshoTargets(one.s, "p1", getCard(SABER)).length === 1, "リザーブ1なら対象にできる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part1044）")

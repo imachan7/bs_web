@@ -10,6 +10,8 @@ import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { activeConstraintsWithSource, effectActiveAtLevel, zoneSpiritEffectsDisabled, effectSources, instMatchesCostFilter, matchesFamilyFilter } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
 import { requestChoice } from "../EffectModules"
+import { canPayFreeSummonSurcharge } from "../summonSurcharge"
+import { minLevelCores } from "../../../../shared/rules/activation"
 
 // 【転召】置換（tenshoCoreSubstitute）の選択肢ラベル。cores.ts の tenshoSubstituteChoice ハンドラと共有する
 export const TENSHO_SUBSTITUTE_REST = "疲労してコアを維持する"
@@ -73,9 +75,24 @@ export function hasBurstTensho(card: CardData): boolean {
     return card.effects.some((e) => e.kind === "keyword" && e.keyword === "burstTensho")
 }
 
-export function burstTenshoUnpayable(state: GameState, ownerPid: PlayerId, card: CardData): boolean {
+// 【バースト転召】の対象にできる個体。「コアすべてをボイドに置くことで召喚する」なので、転召した後でも召喚（Lv1 の維持コアと余分の支払い）が
+// できる個体だけ（COST_MODEL の「〜することで」の一般則。2026-11-21 ユーザー指摘。#664）。その個体のコアを0とみなして払えるかを見る
+export function burstTenshoTargets(state: GameState, ownerPid: PlayerId, card: CardData): CardInstance[] {
     const spec = tenshoSpecOf(card, 1, true)
-    return spec !== null && hasBurstTensho(card) && tenshoCandidates(state, ownerPid, spec.minCost, undefined, spec.familyFilter).length === 0
+    if (spec === null || !hasBurstTensho(card)) return []
+    return tenshoCandidates(state, ownerPid, spec.minCost, undefined, spec.familyFilter).filter((t) => {
+        const cores = t.cores
+        t.cores = 0
+        try {
+            return canPayFreeSummonSurcharge(state, ownerPid, card, minLevelCores(card), true)
+        } finally {
+            t.cores = cores
+        }
+    })
+}
+
+export function burstTenshoUnpayable(state: GameState, ownerPid: PlayerId, card: CardData): boolean {
+    return hasBurstTensho(card) && tenshoSpecOf(card, 1, true) !== null && burstTenshoTargets(state, ownerPid, card).length === 0
 }
 
 export function resolveTensho(
@@ -85,6 +102,8 @@ export function resolveTensho(
     viaBurst = false,
     // 手札・トラッシュから召喚されたときに true。BS18-052 下では【転召】も止まる
     fromHandOrTrash = false,
+    // 対象にできる個体を絞る（【バースト転召】は転召した後でも召喚できる個体だけ。burstTenshoTargets）
+    allowedIds?: ReadonlySet<string>,
 ): void {
     if (fromHandOrTrash && zoneSpiritEffectsDisabled(state, spirit.cardId)) return
     const level = currentLevel(spirit).level
@@ -92,7 +111,7 @@ export function resolveTensho(
     if (!spec) return
     noteCoverage(spec.entry, "keyword")
     const { minCost, familyFilter, dest } = spec
-    const candidates = tenshoCandidates(state, ownerPid, minCost, spirit.instanceId, familyFilter)
+    const candidates = tenshoCandidates(state, ownerPid, minCost, spirit.instanceId, familyFilter).filter((c) => allowedIds === undefined || allowedIds.has(c.instanceId))
     if (candidates.length === 0) {
         log(state, `【転召】${getCard(spirit.cardId).name}：対象がいなかった。`)
         return
