@@ -393,6 +393,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/ai/boardEval.ts
 
 - `BOARD_WEIGHTS`（const）
+- `evaluateBreakdown`（fn）：項目ごとの（自分 − 相手）。勝敗が決まっていれば null
 - `evaluateBoard`（fn）：pid 視点の盤面の良さ（自分 − 相手）。大きいほど pid に有利
 
 ## server/src/ai/determinize.ts
@@ -421,6 +422,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `LOOKAHEAD_BUDGET_MS`（const）
 - `LOOKAHEAD_KINDS`（const）：先読みを使う手の種類（action.type）。種類ごとに ai:bench で測って足す
 - `trialMove`（fn）：手を1つ打って採点する。拒否・上限・例外のときは null。state は変えない
+- `OverrideTrace`（型）：ai:bench の分析用。設定されているときだけ、旧方針を上書きした決断を渡す（本番では未設定で何もしない）
+- `setLookaheadTrace`（fn）
 - `lookaheadPick`（fn）：先読みで旧方針を上書きするときだけ手を返す。null なら旧方針に任せる
 
 ## server/src/ai/moveTags.ts

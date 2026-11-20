@@ -7,7 +7,8 @@ import type { Color, DeckSpec, GameState, PlayerId } from "../server/src/type"
 import { pumpAiSync } from "../server/src/ai/runner"
 import { magicTags } from "../server/src/ai/moveTags"
 import { DEFAULT_POLICY, LOOKAHEAD_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
-import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, LOOKAHEAD_BUDGET_MS } from "../server/src/ai/lookahead"
+import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, LOOKAHEAD_BUDGET_MS, setLookaheadTrace, type OverrideTrace } from "../server/src/ai/lookahead"
+import { appendFileSync, writeFileSync } from "node:fs"
 import { DECK_RECIPES } from "../data/constants"
 
 const args = process.argv.slice(2)
@@ -47,6 +48,13 @@ function vsOld(): void {
     const NEW: AiPolicy = process.env.BS_AI_LOOKAHEAD_KINDS ? LOOKAHEAD_POLICY : DEFAULT_POLICY
     let win = 0, lose = 0, draw = 0, errs = 0, turnSum = 0, played = 0
     const t0 = Date.now()
+    // BS_AI_TRACE=path：先読みが旧方針を上書きした決断と対局の結果・ログを1局1行の JSON Lines で書く
+    const tracePath = process.env.BS_AI_TRACE
+    let overrides: OverrideTrace[] = []
+    if (tracePath) {
+        writeFileSync(tracePath, "")
+        setLookaheadTrace((t) => overrides.push(t))
+    }
     console.log(`新側: ${NEW === LOOKAHEAD_POLICY ? "LOOKAHEAD_POLICY" : "DEFAULT_POLICY"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
     for (let i = 0; i < MATCHUPS.length; i++) {
         {
@@ -70,6 +78,11 @@ function vsOld(): void {
                     }
                     played++
                     turnSum += s.turn
+                    if (tracePath) {
+                        const result = !s.winner || stuck ? "draw" : s.winner === newPid ? "newWin" : "oldWin"
+                        appendFileSync(tracePath, JSON.stringify({ game: `${i}-${n}`, matchup: MATCHUPS[i]!.label, newPid, result, turns: s.turn, overrides, log: s.log }) + "\n")
+                        overrides = []
+                    }
                     if (!s.winner || stuck) draw++
                     else if (s.winner === newPid) win++
                     else lose++
