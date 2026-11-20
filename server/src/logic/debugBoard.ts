@@ -142,6 +142,7 @@ export function applyDebugBoard(state: GameState, board: DebugBoard): string | n
         }
         // このターン限定の効果は盤面と噛み合わなくなるので落とす
         p.turnVirtualInstances = []
+        p.gameVirtualInstances = []
         delete p.tempHandKeywordGrants
     }
     refreshLevelAsOverrides(state)

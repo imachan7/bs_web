@@ -48,7 +48,7 @@ export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
 // ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
 // 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
 export type CardType = "spirit" | "nexus" | "magic" | "brave"
-export type ImmuneSource = "spirit" | "brave" | "magic" | "nexus" | "burst" // immuneToOpponentEffects/immune の against が絞る発生源種別
+export type ImmuneSource = "spirit" | "brave" | "magic" | "nexus" | "burst" // immuneToEffects/immune の against が絞る発生源種別
 
 // **効果の発生源の種別は CardType をそのまま流す**（sourceType / srcType）。
 // ⚠️ ブレイヴを "spirit" に丸めないこと（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
@@ -235,6 +235,7 @@ export interface CardData {
     limited: boolean // 禁止カードか
     limitCount?: number // 制限カード（同名の最大投入数。3枚未満に制限する場合のみ指定。省略時は通常の3枚まで）
     effect: string // 表示用テキスト（原文）
+    onlyUsableBy?: string[] // 対戦画面のプレイヤー名がどれかと一致するときだけ使える（召喚・使用・配置・バースト。判定は shared/rules/onlyUsableBy.ts）
     effects: EffectDef[] // 構造化された効果（未対応の効果は含まれない）
     // ---- type === "brave" のときだけ持つ（docs/design/BRAVE.md §2.2）----
     braveLevels?: LevelDef[] // 合体状態のレベル表。bp は「合体時BP+」の加算値、cores は**合体スピリット上の**コア数で判定する。
@@ -268,7 +269,7 @@ export interface BattleState {
     directedTargetInstanceId?: string // 指定アタックで指定された相手スピリット。**アタック宣言の時点ではまだブロックは確定しない**（アタック時効果と【バースト】をすべて解決した後に確定する。2026-09-06 ユーザー確認）。GameEngine.doPass がフラッシュ①を閉じる時点で finishBlockDeclaration へ渡し、正規のブロック宣言として成立させる（疲労状態でも成立する＝『ブロック時』効果は発揮する）。指定先が場を離れた／耐性を得た／アタッカーが効果を失った場合は何もせず、通常のアタックに戻る
     skipBpCompare?: true // 器AV：バトル解決時にBP比較（とその結果の破壊）自体を飛ばす。outcomeが"none"になり、勝敗判定・onBattleWin/onBattleLose・fireBattleWonTriggersは発火しない。【呪撃】・endBattleDestroy等のBP比較に依らない処理はそのまま動く（BS13-082ペガサスフラップ）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
-    treatAsUnblocked?: ("always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } | { blockerBpBelowSelf: true; selfInstanceId: string })[] // バトルの解決で条件を満たせば、BPを比べずブロックされなかったものとして扱う（action treatAsUnblocked）。blockerBpBelowSelf の selfInstanceId は置くときに発生源を埋める
+    treatAsUnblocked?: ("always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } | { blockerMaxLevel: number } | { blockerBpBelowSelf: true; selfInstanceId: string })[] // バトルの解決で条件を満たせば、BPを比べずブロックされなかったものとして扱う（action treatAsUnblocked）。blockerBpBelowSelf の selfInstanceId は置くときに発生源を埋める
     // oncePerBattle 指定の magicFreeGrant / magicRepeatGrant を、このバトルで既に使い切った発生源のinstanceId
     // （BS07大天使イスフィール＝無償で使えるのは「1枚」だけ）。**無償化と再発揮で別リストに分ける**のは
     // 消費点が違うため: 無償化は resolveMagic の冒頭（コスト判定はその手前で済んでいる）、
@@ -321,6 +322,7 @@ export type TimedRecord = {
 export type PlayerRuleDef =
     | CantRefreshDef
     | { type: "cantUseHandCardsForPid"; allowedColor?: Color; bannedColors?: Color[] | "last"; cardType?: CardType; minCost?: number } // minCost＝印刷コストがこれ以上のカードだけ使えない。手札のカードを使えない（召喚・配置・マジック）。allowedColor＝その色だけ使える、bannedColors＝その色だけ使えない（配列）、cardType＝その種別だけ使えない。"last"は置く時点で直前に動いたカードの色の和集合に解決する（timedEffect.ts）
+    | { type: "skipSteps"; steps: ("core" | "draw")[] } // 寿命 nextRefresh 専用：行わないステップは開始・終了の誘発も発揮されない。コア・ドローは前のリフレッシュより先に来るので消費せず、リフレッシュステップが使い切る
     | { type: "skipMainStep" } // 寿命 nextRefresh 専用：次の自分のターンのメインステップを行わずアタックステップへ進む（リフレッシュステップで使い切り、そのターンのメインステップ区間で消費）
     | { type: "handCostSetForPid"; value: number } // 手札にあるカードすべてのコストを value にする（後から手札に入ったカードにも効く。軽減はそのコストから適用。複数なら最小）
     | { type: "summonCostSetOnceForPid"; counter: "ownLife"; nameContains: string; cardType: CardType } // 手札の該当カード**1枚**の召喚コストを counter の値にする。対象は召喚するときに宣言する（Q4458）ので、最初に召喚した該当カードで使い切る（summonCostRules.ts）
@@ -372,6 +374,7 @@ export interface PlayerView {
     peekedOpponentCardIds?: string[] // 自分のみ。相手の手札で内容を見たカード（BS09-039探偵ペンタン）。相手には常に省略する
     turnVirtualInstances: CardInstance[] // 公開情報のため自分/相手とも常に配信する（TURN_EFFECT_SOURCES.md §2.1）
     battleVirtualInstances: CardInstance[] // 同上（lendSelfThisBattle で貸した「このバトルの間」の発生源）
+    gameVirtualInstances: CardInstance[] // 同上（lendSelfThisGame で貸した「このゲームの間」の発生源）
     burst: string | null // 自分のみ。相手は必ず null（伏せているため内容は見えない。docs/design/BURST.md）
     burstSet: boolean // 両者に見える（伏せてあるか否かは公開情報）
     burstRevealed: boolean // 発動を宣言してから場を離れるまでは公開（相手にも cardId を返す）

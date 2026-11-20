@@ -1,5 +1,6 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { placeDenial } from "../summonGate"
 import { targetableSpirits, targetableNexuses } from "../targeting"
 import { canBeTargeted, destroyContextOf, isTrashWaiting } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
@@ -1027,6 +1028,7 @@ export function reviveLastDestroyedNexusBlockReason(
     if (!fromFieldOrReserve && (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost))) return "支払えるコアがない"
     if (!fromFieldOrReserve && self && coreRemovalAllowed(state, { ownerPid: owner, target: self, amount: requiredCost ?? self.cores, cause: "cost", actorPid: owner }) < (requiredCost ?? self.cores)) return "支払えるコアがない"
     if (!last || last.pid !== owner) return "戻せるネクサスがない"
+    if (placeDenial(last.cardId, false) !== null) return "コストを支払わなければ配置できない"
     const player = state.players[owner]
     if (!player.field.nexuses.some((n) => isTrashWaiting(n)) && player.trashCards.lastIndexOf(last.cardId) === -1) return "戻せるネクサスがない"
     if (fromFieldOrReserve && player.reserve + player.field.spirits.reduce((n, sp) => n + coreRemovalAllowed(state, { ownerPid: owner, target: sp, amount: sp.cores, cause: "cost", actorPid: owner }), 0) < (requiredCost ?? 1)) return "支払えるコアがない"

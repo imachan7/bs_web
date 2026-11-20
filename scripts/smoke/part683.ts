@@ -14,7 +14,7 @@ const findByEffect = (pred: (e: Record<string, unknown>) => boolean): CardRow =>
 }
 const lv1 = (e: Record<string, unknown>) => (((e["levels"] as number[] | null) ?? [1])[0] === 1)
 const ARMORED = findByEffect((e) => e["kind"] === "keyword" && e["keyword"] === "armor" && ((e["colors"] as string[] | undefined) ?? []).includes("red") && lv1(e))
-const FULL_IMMUNE = findByEffect((e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "immuneToOpponentEffects" && lv1(e))
+const FULL_IMMUNE = findByEffect((e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "immuneToEffects" && lv1(e))
 const UNTARGETABLE = findByEffect((e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "untargetableByOpponent")
 
 function put(seed: string, cardId: string): { s: GameState; t: ReturnType<typeof createInstance> } {

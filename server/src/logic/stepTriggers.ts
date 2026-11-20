@@ -362,9 +362,10 @@ export function fireStepTriggers(
         }
     }
     if (step === "end" && timing === "enter") firing.push(...collectTrashReturns(state), ...collectAtEndStepActions(state))
+    const restartsAtStart = state.gameRestartCount ?? 0
     resolveInOrder(state, firing, {
-        // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）
-        skip: (e) => e.kind === "atEndStep" ? false : e.kind === "trashReturn" ? !state.players[e.pid].trashCards.includes(e.cardId) : !isStillOnField(state, e.pid, e.inst.instanceId) || !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id }),
+        // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。ゲームが再開されたら残りはすべて飛ばす
+        skip: (e) => (state.gameRestartCount ?? 0) !== restartsAtStart ? true : e.kind === "atEndStep" ? false : e.kind === "trashReturn" ? !state.players[e.pid].trashCards.includes(e.cardId) : !isStillOnField(state, e.pid, e.inst.instanceId) || !levelStillMet(state, { instanceId: e.inst.instanceId, effectId: e.effect.id }),
         resolve: (e) => withWaitingEvent(state, undefined, () => {
             if (e.kind === "trashReturn") {
                 resolveTrashReturn(state, e)

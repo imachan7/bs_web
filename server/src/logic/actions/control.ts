@@ -22,7 +22,7 @@ import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "../summonSurcharge"
 import { askSummonCores } from "../summonCores"
 import { braveCombineCandidates } from "../../../../shared/summon"
-import { summonDenial } from "../summonGate"
+import { placeDenial, summonDenial } from "../summonGate"
 import { stayOnFieldRevived } from "../revive"
 import { combinedSpiritSymbolColors, effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -199,13 +199,10 @@ const openAwakenModeHandler: ActionHandler<"openAwakenMode"> = (ctx) => {
     log(state, `${sourceName}：覚醒モードを開いた。（覚醒は覚醒UIから個別に宣言してください）`)
 }
 
-// 「〜とき／〜なら B（他のときは C）」。条件は解決する時点の盤面・記録で判定する
-// （中断して再開スタックから来た場合も、前のアクションを解決した後に判定される＝IF_UNIFY.md Q3）
-const ifHandler: ActionHandler<"if"> = (ctx, action) => {
-    const { state, owner, self, srcColors, srcType, sourceName } = ctx
-    const cond = action.cond
-    // cond を省いた if は then を必ず解決する（oncePerTurn の枠だけを付けたいとき。BS22-X04）
-    const met = cond === undefined
+// if の条件判定。ifHandler と、AI の「払って発揮するか」の判断（server/src/ai/legalMoves.ts）が共用する
+export function ifCondMet(ctx: ActionCtx, cond: Extract<EffectAction, { type: "if" }>["cond"]): boolean {
+    const { state, owner, self, srcType } = ctx
+    return cond === undefined
         ? true
         : "lastEmptied" in cond
         ? lastEmptiedSpiritsOf(state) > 0
@@ -300,6 +297,15 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
         : ((n) => (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost))(
               countEffectCounter(state, owner, self, cond.count, srcType),
           )
+}
+
+// 「〜とき／〜なら B（他のときは C）」。条件は解決する時点の盤面・記録で判定する
+// （中断して再開スタックから来た場合も、前のアクションを解決した後に判定される＝IF_UNIFY.md Q3）
+const ifHandler: ActionHandler<"if"> = (ctx, action) => {
+    const { state, owner, self, srcColors, srcType, sourceName } = ctx
+    const cond = action.cond
+    // cond を省いた if は then を必ず解決する（oncePerTurn の枠だけを付けたいとき。BS22-X04）
+    const met = ifCondMet(ctx, cond)
     if (met && action.oncePerTurn !== undefined && self !== null && !claimOnce(state, owner, self, { id: action.oncePerTurn }, "triggeredUsedTurn")) {
         log(state, `${sourceName}：このターンはすでに使っている。`)
         return
@@ -358,6 +364,10 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     }
     const card = getCard(cardId)
     if (card.type === "nexus") {
+        if (placeDenial(cardId, false) !== null) {
+            log(state, `${sourceName}：${card.name}はコストを支払わなければ配置できない。`)
+            return
+        }
         player.burst = null
         player.burstSet = false
         const inst = createInstance(cardId, state.turn, 0)
@@ -372,7 +382,7 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     }
     // BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない。
     // バーストの発動自体は止めず、召喚だけ不発にしてトラッシュへ送る（ブレイヴは対象外）
-    const denial = summonDenial(state, { pid: owner, cardId, from: "burst", cause: "effect", viaBurstAction: true, mayCombine: true })
+    const denial = summonDenial(state, { pid: owner, cardId, from: "burst", cause: "effect", viaBurstAction: true, mayCombine: true, ...(action.payCost ? { paid: true as const } : {}) })
     if (denial) {
         player.burst = null
         player.burstSet = false

@@ -4,6 +4,7 @@ import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, matchesTarget, refreshBlockedByRule, refreshRestrictionsFor } from "../../../shared/rules"
+import { timedPlayerRules } from "../../../shared/rules/constraints"
 import { activeConstraints, coreStepBonusFor, coreStepToLifeActive, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 const SECOND_MAIN_STEP = false
@@ -78,6 +79,11 @@ function endStepScoped(state: GameState): void {
     refreshLevelAsOverrides(state)
 }
 
+// skipSteps の記録は次のリフレッシュステップが消費するので、コア・ドローの区間では読むだけ
+function stepSkippedByRule(state: GameState, pid: PlayerId, step: "core" | "draw"): boolean {
+    return timedPlayerRules(state, pid).some((r) => r.type === "skipSteps" && r.steps.includes(step))
+}
+
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
 // 各ステップは内部で fireStepTriggers を呼ぶ。ステップ誘発が pendingChoice を立てた場合、
 // driveTurnStart がそのステップの次から再開できるようステップ単位に分割してある。
@@ -113,6 +119,7 @@ function turnStartSegments(state: GameState): (() => void)[] {
             state.phase = "core"
             state.coreStepSkipped = false
             if (state.turn === 1) return
+            if (stepSkippedByRule(state, pid, "core")) return
             fireStepTriggers(state, "core", undefined, "enter", "before")
         },
         // コアステップ②：コア置き本体（coreStepBonus持ち＝ベル・ダンディア等で+amount）と、
@@ -120,6 +127,10 @@ function turnStartSegments(state: GameState): (() => void)[] {
         () => {
             if (state.turn === 1) {
                 log(state, `先攻1ターン目のためコアステップなし。`)
+                return
+            }
+            if (stepSkippedByRule(state, pid, "core")) {
+                log(state, `${player.name}はコアステップを行えない。`)
                 return
             }
             if (state.coreStepSkipped) {
@@ -149,11 +160,16 @@ function turnStartSegments(state: GameState): (() => void)[] {
         () => {
             state.phase = "draw"
             state.drawStepSkipped = false
+            if (stepSkippedByRule(state, pid, "draw")) return
             fireStepTriggers(state, "draw", undefined, "enter", "before")
         },
         // ドローステップ②：ドロー本体（先攻1ターン目も通常通りドローする。公式ルール）と、
         // ドローの後に発火する効果（引いたカードを破棄の対象にできる百識の谷Lv1など）
         () => {
+            if (stepSkippedByRule(state, pid, "draw")) {
+                log(state, `${player.name}はドローステップを行えない。`)
+                return
+            }
             if (state.drawStepSkipped) {
                 log(state, `${player.name}は効果のコストとしてドローしなかった。`)
             } else {
@@ -346,6 +362,18 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
         endStepScoped(state)
         if (state.winner) return
 
+        // GX08：アタックステップ終了後に、コア〜メインを順に行い、メインの後にもう1回アタックステップを行う。
+        // 追加のメインは通常のメイン（runExtraStep と違い extraMainStep を立てないので、アタックステップへ進める）。
+        // 戻ってきた2回目のアタックステップの後は予約が無いので、そのままエンドステップへ進む
+        if (state.phase === "attack" && state.extraTurnStepsPending === true) {
+            delete state.extraTurnStepsPending
+            state.endAttackStepAfterBattle = false
+            delete state.endAttackStepLifeCheck
+            log(state, `${state.players[state.turnPlayer].name}はコア・ドロー・リフレッシュ・メイン・アタックの各ステップを、もう1回ずつ行う。`)
+            driveTurnStart(state, 1, MAIN_SEGMENT)
+            return
+        }
+
         // BS15-X04 Lv2：アタックステップ終了後・エンドステップの前に、ステップを1つ行う（ターンに1回・断れない）。
         // phase が attack＝アタックステップを経由したときだけ（行った後に戻ってきたときは draw/refresh/main）
         if (state.phase === "attack" && !state.extraStepAfterAttackUsed) {
@@ -390,8 +418,10 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
         }
 
         state.phase = "end"
+        const restartsBefore = state.gameRestartCount ?? 0
         fireStepTriggers(state, "end")
         if (state.winner) return
+        if ((state.gameRestartCount ?? 0) !== restartsBefore) return // ゲームが再開された（新しい1ターン目は開始済み）。ターン終了の残りは行わない
         if (state.pendingChoice) {
             pushResumeFrames(state, [{ kind: "endTurn", from: "afterEndStep" }])
             return
@@ -523,6 +553,7 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
     delete state.extraMainStep
     delete state.secondMainStep
     delete state.oweSecondMain
+    delete state.extraTurnStepsPending
     delete state.secondMainDone
     // このターン限りのトリガー抑止（ユーサネイジア）もリセット
     // このターンのアタック回数（「最初のアタック」判定用）もリセット

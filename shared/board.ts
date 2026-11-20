@@ -19,6 +19,7 @@ import type {
 
 export interface BoardPlayer {
     id: PlayerId
+    name: string // 対戦画面のプレイヤー名（CardData.onlyUsableBy が読む）
     life: number
     reserve: number
     trashCores: number
@@ -37,6 +38,7 @@ export interface BoardPlayer {
     field: { spirits: CardInstance[]; nexuses: CardInstance[]; combinedBraves: CardInstance[]; magics: CardInstance[] }
     turnVirtualInstances: CardInstance[] // このターンの間だけ有効な仮想の効果発生源（マジックが貸した継続効果）。effectSources() が参照する
     battleVirtualInstances: CardInstance[] // 上のバトル限定版（lendSelfThisBattle）。同じく effectSources() が参照し、clearBattle で消える
+    gameVirtualInstances: CardInstance[] // 上の「このゲームの間」版（lendSelfThisGame）。どこでも消さない
     // バーストをセットしているか（docs/design/BURST.md）。**公開情報**（伏せてあるか否かは両者に見える）。
     // カードの中身（PlayerState.burst / PlayerView.burst）は隠匿情報のためここには置かない
     burstSet: boolean

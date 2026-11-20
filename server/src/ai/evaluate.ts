@@ -99,7 +99,7 @@ function scoreChoice(view: GameView, me: PlayerId, action: GameAction): number {
                 : zone === "trash"
                   ? view.players[owner].trashCards
                   : (view.revealedCards?.cardIds ?? [])
-        const cardId = cards[action.cardIndex]
+        const cardId = zone === "deck" ? choice.cardIds?.[(choice.cardIndices ?? []).indexOf(action.cardIndex)] : cards[action.cardIndex]
         const cost = cardId ? getCard(cardId).cost : 0
         // 手札から選ぶ場面は破棄・コストであることが多いので**軽いカード**を出す。
         // トラッシュ・公開ゾーンから選ぶ場面は回収・召喚が多いので**重いカード**を取る

@@ -97,7 +97,7 @@ const VALID_KINDS = new Set([
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard", "exhaustPreventByPay",
     "kyoshuSelfExhaustGrant", "coresAs", "colorlessGrant",
-    "summonNeedsCost", "summonExtraDiscard", "braveFreeSummonByCoreTrash",
+    "summonNeedsCost", "noFreeSummon", "summonExtraDiscard", "braveFreeSummonByCoreTrash",
     "sokuFreeSummon",
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
@@ -594,8 +594,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                     prevCores = lv.cores
                 }
             }
-            // ブレイヴは「シンボル：なし」が実在する（BS10-062 砲凰竜フェニック・キャノン。BRAVE.md §1.5）
-            if (c.symbol.length === 0 && c.type !== "brave") add(id, `${c.type} なのに symbol が空`)
+            // ブレイヴは「シンボル：なし」が実在する（BS10-062 砲凰竜フェニック・キャノン。BRAVE.md §1.5）。
+            // ネクサスでは PB13-05 グラウンド・オブ・ロロが「シンボル：なし」（公式 Q24445）
+            if (c.symbol.length === 0 && c.type !== "brave" && !SYMBOLLESS_VERIFIED.has(c.cardId)) add(id, `${c.type} なのに symbol が空`)
         }
 
         // --- ブレイヴ（docs/design/BRAVE.md §9）---
@@ -775,7 +776,6 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
     ["grantedTriggerAskInternal", "期間つきで与えた任意の誘発（timedEffect の grantTrigger.optional）を発火時に「発動しますか？」と聞いてから解決する包み（triggers.ts が作る。カードデータは grantTrigger に optional を書く）"],
     ["trashReturnToHandInternal", "kind:\"trashReturnOnOwnSpiritDestroyed\"／\"trashReturnOnOwnHeavyExhaust\" の「手札に戻しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。26RSD05-012・26RBS02-032）"],
-    ["directAttack", "イリテバンが借りた指定アタック（constraint canDirectAttack）を、効果の解決の途中で立てる（borrowCombinedAttackEffect が組む。カードの指定アタックは constraint で書く。#583）"],
     ["summonFreeFromTrashIndexInternal", "kind:\"trashSummonOnNameSummoned\" の「召喚しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。BS11-004 プロミネンスワイバーン）"],
     ["summonFreeIndexInternal", "無償召喚の余分（転召の祭壇など）の支払い待ちから再開する内部専用（カードデータには書かない）"],
     ["resshinsokuFinishInternal", "【烈神速】の余分の支払い待ちから再開する内部専用（カードデータには書かない）"],
@@ -800,6 +800,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
+const SYMBOLLESS_VERIFIED = new Set<string>(["PB13-05"])
 const AWAITING_MIGRATION = new Set<string>([])
 // standard 版（26系カード）から持ち込んだエンジンの語彙で、旧カードからは呼ばれないもの（2026-10-15 に bs_web_standard から持ち込み）
 const STANDARD_POOL_ONLY = new Set<string>([

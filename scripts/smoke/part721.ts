@@ -85,11 +85,14 @@ console.log("=== 前提: カードの機械確認 ===")
     for (const id of [ROKU, METAL, HERA, HATCH, AIBURN, HYDRAM, HUMP, DARKLAYS, WINGAL, BIANCO, ANT, PAN]) assert(getCard(id).effects.length === 0 || id === PAN, `${id}は効果なしのスピリット（PANは召喚時効果なし）`)
 }
 
-function resolveAll(t: ScenarioCtx, prefer: string[] = [], who: "me" | "opp" | "auto" = "auto"): void {
+// skipOptionalTargets：任意の対象選択（効果召喚したブレイヴの合体先など）は選ばずに終える
+function resolveAll(t: ScenarioCtx, prefer: string[] = [], who: "me" | "opp" | "auto" = "auto", skipOptionalTargets = false): void {
     for (let i = 0; i < 30 && t.state.pendingChoice; i++) {
         const pc = t.state.pendingChoice
         const side = who === "auto" ? (pc.pid === t.me ? "me" : "opp") : who
-        if (pc.kind === "target") {
+        if (pc.kind === "target" && skipOptionalTargets && pc.optional) {
+            t.act(side, { type: "resolveChoice" })
+        } else if (pc.kind === "target") {
             const hit = prefer.map((l) => t.id(l)).find((id) => pc.candidates.includes(id))
             t.act(side, { type: "resolveChoice", instanceId: hit ?? pc.candidates[0]! })
         } else if (pc.kind === "option") {
@@ -119,15 +122,15 @@ function battle(t: ScenarioCtx, attacker: string, blocker: string | null, prefer
     resolveAll(t, prefer)
 }
 // 相手のターンのアタック宣言から、自分がブロックして（または受けて）バトルを終える
-function oppBattle(t: ScenarioCtx, attacker: string, blocker: string | null, prefer: string[] = []): void {
+function oppBattle(t: ScenarioCtx, attacker: string, blocker: string | null, prefer: string[] = [], skipOptionalTargets = false): void {
     t.act("opp", { type: "attack", instanceId: t.id(attacker) })
-    resolveAll(t, prefer)
+    resolveAll(t, prefer, "auto", skipOptionalTargets)
     t.closeFlash()
     if (blocker) t.act("me", { type: "block", instanceId: t.id(blocker) })
     else t.act("me", { type: "takeLife" })
-    resolveAll(t, prefer)
+    resolveAll(t, prefer, "auto", skipOptionalTargets)
     t.closeFlash()
-    resolveAll(t, prefer)
+    resolveAll(t, prefer, "auto", skipOptionalTargets)
 }
 const tired = (label: string) => `${label}.疲労: false → true`
 // ブレイヴを手札から召喚して合体させたときの行（軽減後のコストと、ホストのBP加算）
@@ -699,7 +702,8 @@ console.log("=== 46. P073【不死：コスト6/7】で召喚されたとき、�
 scenario({
     name: "p073-fushi",
     start: { turn: "opp", phase: "attack", interactive: true, me: { spirits: [{ card: HYDRAM }], trash: [P073, FENRIR] }, opp: { spirits: [{ card: WINGAL }] } },
-    steps: (t) => oppBattle(t, "ウィンガル", "双蛇ヒュドラム", ["闇騎士トリスタン", "フェンリルキャノンType-B"]),
+    // 効果で無償召喚したブレイヴも合体先を選べる（BRAVE §12.6）。ここでは選ばずスピリット状態で出す
+    steps: (t) => oppBattle(t, "ウィンガル", "双蛇ヒュドラム", ["闇騎士トリスタン", "フェンリルキャノンType-B"], true),
     expect: [
         tired("相手.ウィンガル"),
         left("自分.双蛇ヒュドラム"),

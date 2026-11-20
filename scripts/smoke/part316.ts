@@ -188,12 +188,12 @@ console.log("=== BS14-044 氷河竜グレイセウス：バースト中は相手
         "コスト8以外のスピリットからブロックされない",
     )
     assert(
-        !activeConstraints(s, "p1", dragon).some((c) => c.type === "immuneToOpponentEffects"),
+        !activeConstraints(s, "p1", dragon).some((c) => c.type === "immuneToEffects"),
         "バースト未セット時は相手スピリット効果への免疫を持たない",
     )
     placeBurst(s, "p1", "BS14-104")
     assert(
-        activeConstraints(s, "p1", dragon).some((c) => c.type === "immuneToOpponentEffects" && c.against === "spirit"),
+        activeConstraints(s, "p1", dragon).some((c) => c.type === "immuneToEffects" && c.against === "spirit"),
         "バーストをセットしている間、相手のスピリットの効果を受けない",
     )
 }

@@ -56,6 +56,7 @@ export interface PlayerState {
     // **未指定は true（払う）＝従来どおり**。耐性の判定は装甲と同じ同期の述語なので、その場で選択を挟めない。
     // 代わりにこの方針をプレイヤーがあらかじめ切り替えておき（GameAction "setPayToNegate"）、判定はそれを読むだけにする
 
+    gameVirtualInstances: CardInstance[] // 「このゲームの間」版（lendSelfThisGame）。寿命がゲーム終了までなので、どの消去処理にも足さない（debugBoard の盤面差し替えだけ空にする）
     battleVirtualInstances: CardInstance[] // 上の「このバトルの間」版（lendSelfThisBattle）。effectSources が turnVirtualInstances と一緒に返すので、
     // 効果エントリ側（lentOnly / levels:null）の書き方は同じ。違いは寿命だけで、こちらは clearBattle でリセットされる（同じターンの2回目のバトルには効かない）
     onceByNameUsed?: Record<string, number> // 「同名で1回」。キー=名前+効果ID末尾

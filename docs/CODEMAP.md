@@ -302,6 +302,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lifeGuardBounds`（fn）：当たった lifeGuard 全部を畳んだ「減らせる量」の上限と、下回れない値
 - `noteLifeGuardTotal`（fn）：アタックで実際に減ったぶんを、記録してからの合計（total）の lifeGuard に足す。通常のアタック以外の減少で total を使うカードは無いので、呼ぶのはアタックの解決…
 
+## shared/rules/onlyUsableBy.ts
+
+- `onlyUsableDenial`（fn）
+
 ## shared/rules/rensa.ts
 
 - `rensaIgnoresCondition`（fn）：【連鎖】の条件無視（SD11-X02【合体時】「このスピリットの【連鎖】は、条件を無視して発揮する」）。
@@ -481,6 +485,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `CARD_DB`（const）
 - `getCard`（fn）
 - `createInstance`（fn）
+- `shuffle`（fn）
 - `validateDeckCards`（fn）：カスタムデッキの内容を検証する。問題があれば日本語のエラーメッセージ、なければ null を返す
 - `buildDeck`（fn）：レシピのキーまたはカスタムカードリストからデッキ（cardId の配列）を構築する
 - `createGame`（fn）：first＝先攻。実対戦は index.ts の startGame がランダムに決めて渡す（テストは既定の p1）
@@ -559,6 +564,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/control.ts
 
+- `ifCondMet`（fn）：if の条件判定。ifHandler と、AI の「払って発揮するか」の判断（server/src/ai/legalMoves.ts）が共用する
 - `summonBurstCardFreeHandler`（fn）：バースト専用（docs/design/BURST.md）：発動中のバーストのカード自身をコストを支払わずに召喚する。
 
 ## server/src/logic/actions/cores.ts
@@ -838,6 +844,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/forcedBlock.ts
 
 - `resolveForcedBlock`（fn）
+
+## server/src/logic/gameRestart.ts
+
+- `restartGame`（fn）：除外ゾーン（excludedCards）とライフのコアは動かさない。
 
 ## server/src/logic/handBurstEffect.ts
 
@@ -1236,6 +1246,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/summonGate.ts
 
 - `SummonAttempt`（型）
+- `placeDenial`（fn）：ネクサスを場へ出す入口の禁止の問い合わせ（コストを支払わずに配置する効果が、配置の前に呼ぶ）。
 - `summonDenial`（fn）
 
 ## server/src/logic/summonSurcharge.ts

@@ -86,6 +86,11 @@ export type EffectDefCost =
       }
     | {
           id: string
+          kind: "noFreeSummon" // このカード自身の召喚条件：コストを支払わなければ召喚・配置できない。軽減で0になる通常の召喚は支払ったことになる＝成り立つ。「コストを支払わずに」の効果での召喚・配置が不可（summonNeedsCost は1コスト以上の読み）
+          levels: null
+      }
+    | {
+          id: string
           kind: "summonExtraDiscard" // このカード自身の召喚の追加コスト：手札のcardType（省略時は種別不問）のカードcount枚を破棄しなければ召喚できない
           levels: null
           count: number

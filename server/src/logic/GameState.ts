@@ -95,7 +95,7 @@ export function createInstance(
     }
 }
 
-function shuffle<T>(array: T[]): T[] {
+export function shuffle<T>(array: T[]): T[] {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1))
         const a = array[i] as T
@@ -191,6 +191,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         field: { spirits: [], nexuses: [], combinedBraves: [], magics: [] },
         turnVirtualInstances: [],
         battleVirtualInstances: [],
+        gameVirtualInstances: [],
         burst: null,
         burstSet: false,
         burstSetThisTurn: false,
@@ -564,7 +565,8 @@ export function clearBattle(state: GameState): void {
 // fromDrawStep: PhaseManagerのドローステップからの呼び出しだけtrueを渡す。
 // globalConstraint "noDrawOutsideDrawStep"（BS08豚人チョウハッカイ）は、この引数がfalseの
 // すべてのドロー（効果によるドロー）をここで一律に無効化する（draw 等の共通経路）
-export function draw(state: GameState, pid: PlayerId, count: number, fromDrawStep?: boolean): void {
+// nth（2026-11-20）：デッキの上から nth 枚目を引く（上の nth-1 枚は残す）。デッキが nth 枚未満なら引かない
+export function draw(state: GameState, pid: PlayerId, count: number, fromDrawStep?: boolean, nth?: number): void {
     // BS11-065 満天の牧草地：『お互いのメインステップ』お互いドローできない
     if (state.phase === "main" && hasGlobalConstraint(state, "noDrawInMain")) {
         log(state, `${state.players[pid].name}は、効果によりメインステップにドローできない。`)
@@ -580,8 +582,12 @@ export function draw(state: GameState, pid: PlayerId, count: number, fromDrawSte
         return
     }
     const player = state.players[pid]
+    if (nth !== undefined && player.deck.length < nth) {
+        log(state, `${player.name}はデッキが${nth}枚に満たないため、${nth}枚目を引けなかった。`)
+        return
+    }
     for (let i = 0; i < count; i++) {
-        const cardId = player.deck.shift()
+        const cardId = nth !== undefined ? player.deck.splice(nth - 1, 1)[0] : player.deck.shift()
         // デッキが0枚なら引けないだけ（負けはスタートステップで判定する。PhaseManager.ts）。引けた枚数で後を続ける
         if (cardId === undefined) {
             log(state, `${player.name}はデッキが0枚のため、カードを${count - i}枚引けなかった。`)
@@ -775,6 +781,7 @@ function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState,
         },
         turnVirtualInstances: player.turnVirtualInstances.map((s) => ({ ...s })),
         battleVirtualInstances: player.battleVirtualInstances.map((s) => ({ ...s })),
+        gameVirtualInstances: player.gameVirtualInstances.map((s) => ({ ...s })),
         // バーストの内容は自分にだけ見せる（相手は常にnull＝伏せている）。セット済みか否かは公開情報
         burst: isSelf || burstRevealed ? player.burst : null,
         burstSet: player.burstSet,
@@ -820,7 +827,8 @@ function maskPendingChoiceForOpponent(pc: NonNullable<GameState["pendingChoice"]
 function withChoiceSourceCard(state: GameState, pc: NonNullable<GameState["pendingChoice"]>): NonNullable<GameState["pendingChoice"]> {
     const self = pc.selfInstanceId ? findInstanceAnywhere(state, pc.selfInstanceId) : undefined
     const cardId = pc.sourceCardId ?? pc.fushiSummon?.cardId ?? pc.burstActivate?.cardId ?? pc.effectCostPay?.sourceCardId ?? self?.cardId
-    return cardId !== undefined ? { ...pc, sourceCardId: cardId } : { ...pc }
+    const deck = pc.cardZone === "deck" ? state.players[pc.cardOwner ?? pc.pid].deck : undefined
+    return { ...pc, ...(cardId !== undefined ? { sourceCardId: cardId } : {}), ...(deck ? { cardIds: (pc.cardIndices ?? []).map((i) => deck[i]!) } : {}) }
 }
 
 export function viewFor(state: GameState, viewer: PlayerId): GameView {

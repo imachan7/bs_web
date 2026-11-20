@@ -26,7 +26,7 @@ CARD_DB.set(SHIELD_ID, {
     limited: false,
     effect: "",
     effects: [
-        { id: "AS-e1", kind: "constraintGrant", levels: null, target: "ownAll", constraint: { type: "immuneToOpponentEffects" } },
+        { id: "AS-e1", kind: "constraintGrant", levels: null, target: "ownAll", constraint: { type: "immuneToEffects", from: "opponent" } },
         { id: "AS-e2", kind: "globalConstraint", levels: null, constraint: { type: "handImmuneForPid", includeNexus: true } },
         { id: "AS-e3", kind: "globalConstraint", levels: null, constraint: { type: "noDeckMill", side: "own", by: "any" } },
     ],

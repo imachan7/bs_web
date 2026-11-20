@@ -100,6 +100,7 @@ console.log("=== パート196：effectGrant で付与された効果が、付与
         for (const entry of (src.effects ?? []).filter((e) => e["kind"] === "effectGrant")) {
             const granted = entry["granted"] as Record<string, unknown> | undefined
             const trigger = granted?.["trigger"] as string | undefined
+            const keywordBody = granted?.["keywordBody"] as string | undefined
             if (!trigger) continue
             // 【合体時】の付与（BS19-033）は付与元を合体させる場面が要るので、この総当たりでは組まない（part734 が見る）
             if (entry["whileCombined"] === true) continue
@@ -123,6 +124,9 @@ console.log("=== パート196：effectGrant で付与された効果が、付与
                     (wantColors.length === 0 || wantColors.some((col) => (c.colors ?? []).includes(col))) &&
                     fltFams.every((f) => (c.family ?? []).includes(f)) &&
                     (c.cost ?? 0) >= (flt?.cost?.min ?? 0) &&
+                    // keywordBody の付与は、そのキーワードを元から持つ個体には付かない（仕様）ので、持たない個体を選ぶ
+                    (keywordBody === undefined ||
+                        !(c.effects ?? []).some((e2) => e2["kind"] === "keyword" && e2["keyword"] === keywordBody)) &&
                     (wantKeyword === undefined ||
                         (c.effects ?? []).some((e2) => e2["kind"] === "keyword" && e2["keyword"] === wantKeyword)),
             )

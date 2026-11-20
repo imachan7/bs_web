@@ -29,6 +29,7 @@ const summonFreeIndexInternalHandler: ActionHandler<"summonFreeIndexInternal"> =
         summonFreeFromTrashIndex(state, owner, sourceName, action.index, {
             ...opts,
             ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
+            ...(action.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: action.braveTargetInstanceId } : {}),
         })
     }
 }

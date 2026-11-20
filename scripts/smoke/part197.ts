@@ -146,7 +146,11 @@ console.log("=== パート197：fieldEvent が、条件を満たした盤面で�
             collectFamilies(entry["action"], actFams)
             for (const f of actFams) {
                 const helper = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(f))
-                if (helper) put(s, "p1", helper, coresFor(helper, topLevel(helper)))
+                if (helper) {
+                    put(s, "p1", helper, coresFor(helper, topLevel(helper)))
+                    // 手札から召喚する効果は、手札に候補が無いと何も起きない
+                    if ((entry["action"] as Record<string, unknown> | undefined)?.["from"] === "hand") s.players.p1.hand.push(helper.cardId)
+                }
             }
             const anyNexus = CARDS.find((c) => c.type === "nexus")!
             putNexus(s, "p1", anyNexus, coresFor(anyNexus, 1))

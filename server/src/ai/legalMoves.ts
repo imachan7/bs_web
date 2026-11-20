@@ -6,6 +6,8 @@
 // （クライアントUIが共有層の activatableAbility を通してボタンを出すのと同じ考え方）。
 //
 // ここは「合法かどうか」だけを見る。どれを選ぶかは evaluate.ts が決める。
+import { ifCondMet } from "../logic/actions/control"
+import type { ActionCtx } from "../logic/actions/types"
 import type { GameAction, GameState, PlayerId } from "../type"
 import { getCard } from "../logic/GameState"
 import { magicTimingChoosable } from "../../../shared/magicTiming"
@@ -38,6 +40,11 @@ function opponentOf(pid: PlayerId): PlayerId {
     return pid === "p1" ? "p2" : "p1"
 }
 
+// 条件判定だけに使う ActionCtx（resolve は呼ばれない）
+function stubCtx(state: GameState, pid: PlayerId): ActionCtx {
+    return { state, owner: pid, opp: pid === "p1" ? "p2" : "p1", self: null, sourceName: "", srcColors: undefined, srcType: "magic", sourceCardId: undefined, destroyContext: {}, targetInstanceId: undefined, chosenOption: undefined, chosenCardIndex: undefined, paySources: undefined, resolve: () => {} }
+}
+
 // 選択待ち（pendingChoice）への応答を列挙する。
 // 候補は pendingChoice がすでに絞り込んで持っているので、ここでは形に変換するだけでよい
 function choiceMoves(state: GameState, pid: PlayerId): AiMove[] {
@@ -51,7 +58,10 @@ function choiceMoves(state: GameState, pid: PlayerId): AiMove[] {
     } else if (choice.kind === "option") {
         // confirm（「〜できる」の発動確認）でもラベルはそのまま送る。
         // 受け取り側が confirm を見てラベルを捨てるので、クライアントと同じ送り方でよい
-        for (const option of choice.options ?? []) {
+        // バーストの「コストを払ってフラッシュ効果を発揮」：効果の頭が if で条件を満たさない（何も起きない）なら払わない（2026-11-20 ユーザー決定。対戦者には払う選択肢を出す）
+        const head = choice.action?.type === "sequence" ? choice.action.actions[0] : choice.action
+        const wasteful = choice.burstThenPay !== undefined && head?.type === "if" && !ifCondMet(stubCtx(state, pid), head.cond)
+        for (const option of wasteful ? [] : choice.options ?? []) {
             moves.push({ action: { type: "resolveChoice", option }, reason: `選択：${option}` })
         }
     } else {

@@ -1,4 +1,5 @@
 // デッキ破棄（mill）の上限とデッキ破棄の実行
+import { placeDenial } from "../summonGate"
 import { takeFromTrash } from "./trash"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
@@ -500,6 +501,7 @@ export function resolveMilledFromDeck(
                 resolveAction(state, pid, null, { type: "lifeCrush", count: 1, dest: "void" }, undefined, getCard(cardId).colors, "spirit")
                 break
             }
+            if (effect.then === "deployThisNexusFree" && placeDenial(cardId, false) !== null) break
             if (takeFromTrash(state, pid, idx, "effect") === null) break
             noteCoverage(effect, "onMilledFromDeck")
             const name = getCard(cardId).name

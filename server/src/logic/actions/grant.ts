@@ -363,7 +363,7 @@ function pushVirtualSource(
     state: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["state"],
     owner: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["owner"],
     sourceCardId: string | undefined,
-    scope: "turn" | "battle" = "turn",
+    scope: "turn" | "battle" | "game" = "turn",
 ): CardInstance | null {
     if (sourceCardId === undefined) {
         log(state, "効果：貸し出す発生源のカードIDが特定できなかった。")
@@ -373,6 +373,7 @@ function pushVirtualSource(
     inst.instanceId = `virtual-${inst.instanceId}`
     const player = state.players[owner]
     if (scope === "battle") player.battleVirtualInstances.push(inst)
+    else if (scope === "game") player.gameVirtualInstances.push(inst)
     else player.turnVirtualInstances.push(inst)
     return inst
 }
@@ -450,6 +451,13 @@ function doTargetChoiceLendThisTurn(
         state,
         `${getCard(sourceCardId!).name}：このターンの間、${targetInst ? getCard(targetInst.cardId).name : "対象"}へ効果を与えた。`,
     )
+}
+
+// 「このゲームの間」版（GX05・GX20）。積む先が gameVirtualInstances になるだけで、どこでも消さない
+const lendSelfThisGameHandler: ActionHandler<"lendSelfThisGame"> = (ctx) => {
+    const { state, owner, sourceCardId } = ctx
+    if (!pushVirtualSource(state, owner, sourceCardId, "game")) return
+    log(state, `${getCard(sourceCardId!).name}：このゲームの間、自分の仮想発生源としてこの効果を貸し出した。`)
 }
 
 // 上の「このバトルの間」版（BS07ダーティフィスト／ニードルショット／ブルームフルート）。
@@ -616,6 +624,7 @@ const handlers = {
     lendSelfThisTurn: lendSelfThisTurnHandler,
     targetChoiceLendThisTurn: targetChoiceLendThisTurnHandler,
     lendSelfThisBattle: lendSelfThisBattleHandler,
+    lendSelfThisGame: lendSelfThisGameHandler,
     grantHostUnblockableThisTurn: grantHostUnblockableThisTurnHandler,
     grantedTriggerAskInternal: grantedTriggerAskInternalHandler,
 } satisfies Partial<ActionRegistry>

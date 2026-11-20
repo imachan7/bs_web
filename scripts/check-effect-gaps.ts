@@ -311,8 +311,10 @@ for (const card of cards) {
             .map((e) => e.keyword)
     )
 
+    // 意図して効果を1つも実装しないカード（card-notes が unimplemented）は、キーワードも書かないのが正しい
+    const wholeCardUnimplemented = cardNotes.notes[card.cardId]?.status === "unimplemented"
     for (const kw of selfKeywords) {
-        if (!implKeywords.has(kw)) {
+        if (!implKeywords.has(kw) && !wholeCardUnimplemented) {
             const jpName =
                 Object.entries(KEYWORD_MAP).find(
                     ([, v]) => v === kw

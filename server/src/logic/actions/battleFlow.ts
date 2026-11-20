@@ -12,7 +12,7 @@ import { summonFromHandFreeCandidateMatches } from "../summon"
 import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { summonBurstCardFreeHandler } from "./control"
-import { summonDenial } from "../summonGate"
+import { placeDenial, summonDenial } from "../summonGate"
 import { askSummonCores } from "../summonCores"
 import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
@@ -89,7 +89,7 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { affectableBraves, gateBraveTargets } from "../braveTargetGate"
 import { redirectReentryId, settleOne } from "../designation"
 import { countedAmount } from "../counted"
-import { currentRecordScope, lastTargetsOf, recordMoved } from "../record"
+import { currentRecordScope, lastTargetsOf, recordDestroyedCount, recordMoved } from "../record"
 
 const funsaiOnBlockHandler: ActionHandler<"funsaiOnBlock"> = (ctx) => {
     const { state, owner, self } = ctx
@@ -196,6 +196,16 @@ const extraAttackStepHandler: ActionHandler<"extraAttackStep"> = (ctx) => {
     }
     state.extraAttackStepPending = true
     log(state, `${sourceName}：アタックステップとエンドステップを、順番にもう1回ずつ行う。`)
+}
+
+const extraTurnStepsHandler: ActionHandler<"extraTurnSteps"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    if (owner !== state.turnPlayer) {
+        log(state, `${sourceName}：自分のターンではないため、追加のステップは行われない。`)
+        return
+    }
+    state.extraTurnStepsPending = true
+    log(state, `${sourceName}：このターンのアタックステップ終了後に、コア・ドロー・リフレッシュ・メイン・アタックの各ステップを1回ずつ行う。`)
 }
 
 const endAttackStepHandler: ActionHandler<"endAttackStep"> = (ctx, action) => {
@@ -376,7 +386,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
         const isMatch = (cardId: string): boolean => {
             const c = getCard(cardId)
             // colors 省略時は色を問わない（SD02-006 鼬の暗殺者ウィゼーブ）
-            if (c.type !== "nexus") return false
+            if (c.type !== "nexus" || placeDenial(cardId, false) !== null) return false
             if (action.from === "trash" && !trashTakeableByEffect(state, cardId)) return false
             if (action.nameContains !== undefined && !c.name.includes(action.nameContains)) return false
             return action.colors === undefined || action.colors.some((col) => cardHasColor(c, col))
@@ -1016,7 +1026,7 @@ const summonBatchPaidInternalHandler: ActionHandler<"summonBatchPaidInternal"> =
         }
         const cf = action.costFilter
         if (!matchesCostFilter(candidate.cost, typeof cf === "number" ? { in: [cf] } : cf)) return false
-        return summonDenial(state, { pid: owner, cardId: candidateId, from: "hand", cause: "effect" }) === null
+        return summonDenial(state, { pid: owner, cardId: candidateId, from: "hand", cause: "effect", paid: true }) === null
     }
     resolveSummonRepeatPaid(ctx, action, matchesCardId)
 }
@@ -1057,8 +1067,13 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
         return
     }
     const oppPlayer = state.players[opp]
+    recordDestroyedCount(state, 0)
     const scope = action.allHosts ? "area" : "targeted"
-    const hosts = targetableSpirits(state, opp, (sp) => affectableBraves(ctx, opp, sp, "destroy", scope).length > 0)
+    const braveFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
+    if (braveFilter === SELF_REQUIRED) return
+    const candidates = (host: CardInstance): CardInstance[] =>
+        affectableBraves(ctx, opp, host, "destroy", scope, bravesOf(oppPlayer, host).filter((b) => braveFilter === undefined || matchesTarget(state, opp, b, braveFilter, self?.instanceId)))
+    const hosts = targetableSpirits(state, opp, (sp) => candidates(sp).length > 0)
     if (hosts.length === 0) {
         log(state, `${sourceName}：ブレイヴを破壊できる相手の合体スピリットがいなかった。`)
         return
@@ -1068,10 +1083,10 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
         // 1つの効果で破壊するので同時破壊（PENDING_STATE §3 C8）
         const targets: { host: CardInstance; brave: CardInstance }[] = []
         for (const host of [...hosts]) {
-            const brave = affectableBraves(ctx, opp, host, "destroy", scope)[0]
-            const passed = brave ? gateBraveTargets(ctx, opp, host, [brave], "destroy", scope, action) : []
+            const picked = action.allBraves ? candidates(host) : candidates(host).slice(0, 1)
+            const passed = picked.length > 0 ? gateBraveTargets(ctx, opp, host, picked, "destroy", scope, action) : []
             if (state.pendingChoice || state.winner) return
-            if (passed?.[0]) targets.push({ host, brave: passed[0] })
+            for (const brave of passed ?? []) targets.push({ host, brave })
         }
         destroyCombinedBraves(state, opp, targets, destroyContext)
         return
@@ -1095,7 +1110,14 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    const brave = affectableBraves(ctx, opp, host, "destroy", scope)[0]
+    const options = candidates(host)
+    // 対象にできるブレイヴが2つ以上なら使用者が選ぶ。再開時は targetInstanceId がそのブレイヴ
+    const picked = options.find((b) => b.instanceId === targetInstanceId)
+    if (picked === undefined && options.length >= 2 && state.interactiveTargets) {
+        requestChoice(state, owner, `${sourceName}：破壊するブレイヴを選んでください`, options.map((b) => b.instanceId), false, action, self)
+        return
+    }
+    const brave = picked ?? options[0]
     if (!brave) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
@@ -1728,10 +1750,12 @@ const TREAT_AS_UNBLOCKED_LABEL = {
     levelAtLeastBlocker: "ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。",
 } as const
 
-const treatAsUnblockedLabel = (when: "always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } | { blockerBpBelowSelf: true }): string =>
+const treatAsUnblockedLabel = (when: "always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } | { blockerMaxLevel: number } | { blockerBpBelowSelf: true }): string =>
     typeof when === "object"
         ? "blockerMaxBp" in when
             ? `BP${when.blockerMaxBp}以下のスピリットにブロックされても、ブロックされなかったものとして扱う。`
+            : "blockerMaxLevel" in when
+            ? `Lv${when.blockerMaxLevel}以下のスピリットにブロックされても、ブロックされなかったものとして扱う。`
             : "このスピリットよりBPの低いスピリットにブロックされても、ブロックされなかったものとして扱う。"
         : TREAT_AS_UNBLOCKED_LABEL[when]
 
@@ -1758,6 +1782,7 @@ const handlers = {
     endStepLock: endStepLockHandler,
     skipBpCompare: skipBpCompareHandler,
     extraAttackStep: extraAttackStepHandler,
+    extraTurnSteps: extraTurnStepsHandler,
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,

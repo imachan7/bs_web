@@ -23,6 +23,7 @@ import {
 import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../shared/coverage"
 import { currentLevel } from "./GameState"
+import { recordDestroyedCount } from "./record"
 
 import {
     emitEvent,
@@ -155,6 +156,7 @@ export function destroyCombinedBraves(state: GameState, ownerPid: PlayerId, targ
         log(state, `${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」は破壊されない。`)
         return false
     })
+    recordDestroyedCount(state, passed.length)
     const first = passed[0]
     if (!first) return
     const event = passed.length === 1 ? first.brave.instanceId : crypto.randomUUID()
