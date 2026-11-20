@@ -4792,5 +4792,272 @@
     }
    }
   ]
+ },
+ {
+  "cardId": "P14-01",
+  "name": "ストーンエイジ・ドラグマン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nBP3000以下の相手のスピリット1体を破壊する。\n自分のアルティメットがいるとき、かわりに、BP5000以下の相手のスピリット1体を破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "P14-02",
+  "name": "デスデーモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコスト3以下の相手のスピリットすべてのコア1個ずつを相手のリザーブに置く。\n自分のアルティメットがいるとき、この効果でリザーブに置かれるコアすべては相手のトラッシュに置かれる。",
+  "effects": []
+ },
+ {
+  "cardId": "P14-03",
+  "name": "リーフブレイガー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nボイドからコア1個を自分のアルティメットに置く。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：BP4000以下の相手のスピリット1体を破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "P14-04",
+  "name": "爆撃兵ミッチェル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nBP合計5000まで相手のスピリットを好きなだけ手札に戻す。\nLv2\n自分のアルティメットがいる間、このスピリットは相手のスピリットの効果を受けない。",
+  "effects": []
+ },
+ {
+  "cardId": "P14-05",
+  "name": "天使プロティエル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『相手によるこのスピリットの破壊時』\n自分はデッキから1枚ドローする。\n自分のアルティメットがいるとき、さらに、このスピリットは手札に戻る。",
+  "effects": []
+ },
+ {
+  "cardId": "P14-06",
+  "name": "ローラー・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv1･Lv2･Lv3\n自分のアルティメットがいる間、【粉砕】を持つ自分のスピリットが相手によって破壊されたとき、相手のデッキを上から、破壊されたスピリットのコストと同じ枚数破棄する。",
+  "effects": []
+ },
+ {
+  "cardId": "P14-08",
+  "name": "最強銀河究極ゼロ",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "P",
+  "limited": false,
+  "effect": "Lv1･Lv2『このネクサスの配置時』\nBP2000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n自分のアルティメットすべてをBP+3000する。",
+  "effects": []
  }
 ]
