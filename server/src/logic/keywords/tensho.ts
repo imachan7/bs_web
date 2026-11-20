@@ -69,9 +69,13 @@ export function tenshoCandidates(
 }
 
 // 【バースト転召】持ちは、転召の生贄を払えないとバースト効果で召喚できない（「コアをボイドに置くことで召喚する」）
+export function hasBurstTensho(card: CardData): boolean {
+    return card.effects.some((e) => e.kind === "keyword" && e.keyword === "burstTensho")
+}
+
 export function burstTenshoUnpayable(state: GameState, ownerPid: PlayerId, card: CardData): boolean {
     const spec = tenshoSpecOf(card, 1, true)
-    return spec !== null && card.effects.some((e) => e.kind === "keyword" && e.keyword === "burstTensho") && tenshoCandidates(state, ownerPid, spec.minCost, undefined, spec.familyFilter).length === 0
+    return spec !== null && hasBurstTensho(card) && tenshoCandidates(state, ownerPid, spec.minCost, undefined, spec.familyFilter).length === 0
 }
 
 export function resolveTensho(

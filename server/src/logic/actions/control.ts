@@ -6,10 +6,10 @@ import { payMagicCostThenResolve } from "../magic/payThenResolve"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
-import { burstTenshoUnpayable } from "../keywords/tensho"
+import { burstTenshoUnpayable, hasBurstTensho } from "../keywords/tensho"
 import { rensaIgnoresCondition } from "../../../../shared/rules/rensa"
 import { fireRensaActivated, markRensa } from "../keywords/rensa"
-import { createInstance, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
+import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice, requestCardChoice } from "../EffectModules"
 import { matchesPick } from "./revealAction"
 import { destroyAllTargetList, destroyTargetList, ownSideDestroyCandidates } from "./destroy"
@@ -352,7 +352,8 @@ const forceEndMainStepHandler: ActionHandler<"forceEndMainStep"> = (ctx, action)
 // スピリット/ネクサスのみ（マジックには書かない。validate:cardsが検査する）。
 // **バースト発動の確認応答は self=null で解決される**ため、対象カードは state.players[owner].burst
 // から読む（burst は承認された時点でもまだ非公開のまま残っている＝この関数がここで空にする）
-export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<EffectAction, { type: "summon"; from: "burst" }>): void {
+export function summonBurstCardFreeHandler(ctx: ActionCtx, action0: Extract<EffectAction, { type: "summon"; from: "burst" }>): void {
+    let action = action0
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
     const cardId = player.burst
@@ -390,14 +391,29 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
         log(state, `${sourceName}：${denial}：${card.name}をトラッシュへ置いた。`)
         return
     }
+    // 手順は「転召（対象のコアをボイドへ）→ 置くコアを選んで払う → 場に出す → 召喚時効果」（RESUME_STACK.md §6。2026-08-13 ユーザー確認）。
+    // summoningInstanceId は立てない（バースト札は burst に残っており、保存則の検査が二重に数える）。
+    // 『転召したとき』の保留も使わず、その場で発火する（【バースト転召】持ちは BS18-X01 だけで、自身の ownTensho 誘発は無い）。
+    // 転召を先に済ませるのは、対象が置くコアの支払い元として枯れて召喚できなくなるのを避けるため（#664）。
+    // 以降の再実行（転召の選択待ち・置くコアの待ち）には action.tenshoDone で済んだことを運ぶ
+    if (action.tenshoDone !== true && hasBurstTensho(card)) {
+        if (burstTenshoUnpayable(state, owner, card)) {
+            log(state, `${sourceName}：【バースト転召】でコアを置く自分のスピリットがいないため、${card.name}を召喚できなかった。`)
+            return
+        }
+        // 転召の解決だけに使う仮の個体（Lv1）。場には出さず、実体は維持コアを払った後に作り直す
+        const provisional = createInstance(cardId, state.turn, minLevelCores(card))
+        resolveTensho(state, owner, provisional, true)
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, actorPid: owner, action: { ...action, tenshoDone: true } }])
+            return
+        }
+        action = { ...action, tenshoDone: true }
+    }
     // 器BS16（P069/P070）：ブレイヴカードのバースト召喚は、合体条件を満たすホストが自分のフィールドに
     // いれば**直接合体するように**召喚する（ダイレクトブレイヴ＝維持コア0。summonFreeFromHandIndexの
     // braveTargetInstanceId経路と同じ考え方）。候補が無ければ通常どおりスピリット状態で召喚する。
     // 候補が複数あっても選択UIは設けず先頭を自動選択する（バーストは確認1回で完結させる簡略化）
-    if (burstTenshoUnpayable(state, owner, card)) {
-        log(state, `${sourceName}：【バースト転召】でコアを置く自分のスピリットがいないため、${card.name}を召喚できなかった。`)
-        return
-    }
     const combineHostId =
         card.type === "brave" ? braveCombineCandidates(state, owner, cardId)[0] : undefined
     // placeCores が付いていれば、置くコアの選択待ちで payCost のコストと余分は払い済み（summonCores.ts）
@@ -434,8 +450,9 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
         `${player.name}はバーストとして${combineHost !== undefined ? `${getCard(combineHost.cardId).name}に合体させて` : ""}${card.name}を` +
             (action.payCost ? `コスト${fullCost}を支払って召喚した。` : "召喚した。"),
     )
-    if (!state.winner) resolveTensho(state, owner, inst, true)
-    if (!state.winner) fireSummonSequence(state, owner, inst)
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
+    } else if (!state.winner) fireSummonSequence(state, owner, inst)
     recordMoved(state, [cardId])
     // 「その後、このターンの間、このスピリットをBP+」（BS15-X01）
     if (action.thenBuffSelf !== undefined && !state.winner && combineHost === undefined) {

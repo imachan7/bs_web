@@ -1005,7 +1005,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `TENSHO_SUBSTITUTE_HAND_DUMP`（const）
 - `tenshoSpecOf`（fn）：【転召】の解決：spirit が現在レベルで転召を持つなら、召喚コスト支払い後（doSummonの末尾）に呼ぶ。
 - `tenshoCandidates`（fn）：【転召】でコアを置く対象になれる自分のスピリット。
-- `burstTenshoUnpayable`（fn）：【バースト転召】持ちは、転召の生贄を払えないとバースト効果で召喚できない（「コアをボイドに置くことで召喚する」）
+- `hasBurstTensho`（fn）：【バースト転召】持ちは、転召の生贄を払えないとバースト効果で召喚できない（「コアをボイドに置くことで召喚する」）
+- `burstTenshoUnpayable`（fn）
 - `resolveTensho`（fn）
 - `tenshoSelfCostBonus`（fn）：kind:"tenshoSelfCostBonus"：【転召】の生贄候補列挙でだけ、その候補のコストに+amountする。
 - `fireTenshoEvent`（fn）：フィールドイベント誘発「自分の【転召】が解決したとき」（BS08関将龍皇ドラグロン）。

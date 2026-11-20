@@ -63,7 +63,7 @@ export type EffectAction =
 
  | { type: "destroyDuplicateNames"; choosing?: true; keptIds?: string[] } // カード名1つにつき1体だけ残して残りを破壊する。**どれを残すかは持ち主が選ぶ**（効果文に主語が無いので発生源の持ち主。2026-08-24）。choosing / keptIds は内部フィールド
  | { type: "activateBurstIgnoringCondition"; from: "set" | "revealed"; filter?: CardPick; optional?: true; confirmed?: true } // バースト条件を無視してバーストを発動する（BS18）。きっかけの出来事に依存する参照は不発。confirmed は確認済みの再入印で内部用
- | { type: "summon"; from: "burst"; payCost?: true; thenBuffSelf?: number; surchargePrepaid?: true; placeCores?: number } // placeCores＝置くコアの選択待ちで選ばれた数（内部用。付いていれば payCost のコストと余分は待ちで払い済み）。 payCost＝通常の召喚コストも支払う（リザーブのみ）。バースト専用：発動中のバーストのカード自身を召喚する（スピリット/ネクサスのみ）。維持コア不足なら不発
+ | { type: "summon"; from: "burst"; payCost?: true; thenBuffSelf?: number; surchargePrepaid?: true; placeCores?: number; tenshoDone?: true } // tenshoDone＝【バースト転召】の転召（対象のコアをボイドへ）まで済んだ印。再開で頭から再実行されても転召とゲートを繰り返さない（内部用）。 placeCores＝置くコアの選択待ちで選ばれた数（内部用。付いていれば payCost のコストと余分は待ちで払い済み）。 payCost＝通常の召喚コストも支払う（リザーブのみ）。バースト専用：発動中のバーストのカード自身を召喚する（スピリット/ネクサスのみ）。維持コア不足なら不発
 
 
 
