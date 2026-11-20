@@ -390,6 +390,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `RoomStatus`（型）
 - `registerAdmin`（fn）
 
+## server/src/ai/attackPlan.ts
+
+- `AttackPlan`（型）
+- `planAttacks`（fn）：ponytail: 相手の手札の守り・伏せたバースト・自分の守り手と相手のアタッカーの BP の比較は数えない（§9.v の後回し）
+- `planPick`（fn）
+
 ## server/src/ai/boardEval.ts
 
 - `BOARD_WEIGHTS`（const）
@@ -449,8 +455,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `OLD_POLICY`（const）：段階1完了時点の選び方。段階2で点を変えても、これは pickBestMove を呼び続ける（新しい点は別関数に足す）
 - `LOOKAHEAD_POLICY`（const）：旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
 - `BURST_POLICY`（const）：バーストをセットし、意味のない発動は断る。場のコアも消滅させない範囲で支払いに使う。ライフ2の局面で旧の約2倍（2026-11-20）
-- `DEFAULT_POLICY`（const）：本番の既定。場のコアの支払い・Lv1 召喚・バーストが入った後は、アタックの先読みを足しても先読みなしと差が出なかった
-- `CANDIDATE_POLICY`（const）：ai:bench --vs-old の新側（試す案）。基準（旧側）は既定で BURST_POLICY に固定してある（2026-11-20 ユーザーと合意）。
+- `PLAN_POLICY`（const）：アタックの計画（attackPlan.ts）：取り切れる盤面だけ全員で行き、それ以外は BP で勝てて守り手が残る個体だけで行く。
+- `DEFAULT_POLICY`（const）：本番の既定。ai:bench --vs-old の旧側（基準）もこれ（BS_AI_OLD=stage1 で段階1の OLD_POLICY）
+- `CANDIDATE_POLICY`（const）：ai:bench --vs-old の新側（試す案）。基準を動かさないため、案は既存の pick 関数を書き換えず、新しい関数で手を足し引きしてここに差す
 
 ## server/src/ai/runner.ts
 

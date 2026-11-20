@@ -3,6 +3,7 @@ import type { GameState, GameView, PlayerId } from "../type"
 import type { AiMove } from "./legalMoves"
 import { pickBestMove } from "./evaluate"
 import { lookaheadPick } from "./lookahead"
+import { planPick } from "./attackPlan"
 
 // pickState は先読み用（GameState を要る）。手を返したらそれを使い、null なら pick に任せる。
 // pick の入力は GameView のまま（評価に GameState を渡さない原則）
@@ -28,10 +29,12 @@ export const LOOKAHEAD_POLICY: AiPolicy = { pick: pickBestMove, pickState: looka
 // バーストをセットし、意味のない発動は断る。場のコアも消滅させない範囲で支払いに使う。ライフ2の局面で旧の約2倍（2026-11-20）
 export const BURST_POLICY: AiPolicy = { pick: pickBestMove }
 
-// 本番の既定。場のコアの支払い・Lv1 召喚・バーストが入った後は、アタックの先読みを足しても先読みなしと差が出なかった
-// （構築済み 2400局で 50.9%、48.9〜52.9。2026-11-20）ので、計算の軽い先読みなしにする。先読みは LOOKAHEAD_POLICY に残す
-export const DEFAULT_POLICY: AiPolicy = BURST_POLICY
+// アタックの計画（attackPlan.ts）：取り切れる盤面だけ全員で行き、それ以外は BP で勝てて守り手が残る個体だけで行く。
+// 基準 BURST_POLICY に構築済み 1200局 54.5〜57.9%、色デッキ 525局 57.9%（53.6〜62.2）（2026-11-20）
+export const PLAN_POLICY: AiPolicy = { pick: planPick }
 
-// ai:bench --vs-old の新側（試す案）。基準（旧側）は既定で BURST_POLICY に固定してある（2026-11-20 ユーザーと合意）。
-// 基準を動かさないため、案の変更は pickBestMove・enumerateLegalMoves を書き換えず、この方針の中で手を足し引きする
-export const CANDIDATE_POLICY: AiPolicy = BURST_POLICY
+// 本番の既定。ai:bench --vs-old の旧側（基準）もこれ（BS_AI_OLD=stage1 で段階1の OLD_POLICY）
+export const DEFAULT_POLICY: AiPolicy = PLAN_POLICY
+
+// ai:bench --vs-old の新側（試す案）。基準を動かさないため、案は既存の pick 関数を書き換えず、新しい関数で手を足し引きしてここに差す
+export const CANDIDATE_POLICY: AiPolicy = PLAN_POLICY
