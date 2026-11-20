@@ -406,6 +406,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `AiMove`（型）：1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
 - `enumerateLegalMoves`（fn）：今このプレイヤーが打てる手をすべて返す。空配列＝相手の手番待ち（AIは何もしない）
 
+## server/src/ai/moveTags.ts
+
+- `MoveTag`（型）
+- `MoveTags`（型）
+- `tagsOfAction`（fn）
+- `magicTags`（fn）：マジックを timing の側の効果で使うときのタグ
+- `opponentHasTargets`（fn）：相手の場に removal の的になりうるものがいるか
+- `pruneMoves`（fn）：打っても何も起きない手を合法手から落とす。タグの無い手（pass・nextPhase・endTurn・選択）は触らない。
+
 ## server/src/ai/runner.ts
 
 - `AI_STEP_DELAY_MS`（const）

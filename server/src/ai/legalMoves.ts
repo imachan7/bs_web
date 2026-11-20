@@ -26,11 +26,14 @@ import {
 import { activatableAbility, activatedActionResolvable, bravesOf, mustBeAttackTargetIds } from "../../../shared/rules"
 import { mandatoryDirectAttackTargetIds } from "../../../shared/block"
 import { braveCombineCandidates } from "../../../shared/summon"
+import { magicTags, tagsOfAction, type MoveTags } from "./moveTags"
 
 // 1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
 export interface AiMove {
     action: GameAction
     reason: string
+    // マジック・起動能力だけが持つ。足切りと点数付けに使う（moveTags.ts）
+    tags?: MoveTags | undefined
 }
 
 function opponentOf(pid: PlayerId): PlayerId {
@@ -130,10 +133,10 @@ function handMoves(state: GameState, pid: PlayerId): AiMove[] {
             // 対象を取らない形で通るならそれを使う（対象が要る効果は解決中に選択待ちが立つ）。
             // 通らない場合だけ、盤面のスピリット・ネクサスを1つずつ対象に当ててみる
             if (validateCastMagic(state, pid, handIndex) === null) {
-                moves.push({ action: { type: "castMagic", handIndex }, reason: `${card.name}を使用` })
+                moves.push({ action: { type: "castMagic", handIndex }, reason: `${card.name}を使用`, tags: magicTags(cardId, state.battle ? "flash" : "main") })
                 // メインステップではフラッシュ効果も選べる（既定はメイン効果）
                 if (!state.battle && magicTimingChoosable(card) && validateCastMagic(state, pid, handIndex, undefined, undefined, undefined, undefined, undefined, undefined, "flash") === null) {
-                    moves.push({ action: { type: "castMagic", handIndex, timing: "flash" }, reason: `${card.name}のフラッシュ効果を使用` })
+                    moves.push({ action: { type: "castMagic", handIndex, timing: "flash" }, reason: `${card.name}のフラッシュ効果を使用`, tags: magicTags(cardId, "flash") })
                 }
             } else {
                 for (const side of ["p1", "p2"] as const) {
@@ -143,6 +146,7 @@ function handMoves(state: GameState, pid: PlayerId): AiMove[] {
                             moves.push({
                                 action: { type: "castMagic", handIndex, targetInstanceId: inst.instanceId },
                                 reason: `${card.name}を${getCard(inst.cardId).name}に使用`,
+                                tags: magicTags(cardId, state.battle ? "flash" : "main"),
                             })
                         }
                     }
@@ -167,6 +171,7 @@ function abilityMoves(state: GameState, pid: PlayerId): AiMove[] {
         moves.push({
             action: { type: "activateAbility", instanceId: inst.instanceId, effectId: ability.effectId },
             reason: `${getCard(inst.cardId).name}の効果を発動`,
+            tags: effect?.kind === "activated" ? tagsOfAction([effect.action]) : undefined,
         })
     }
     return moves
