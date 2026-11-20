@@ -7,16 +7,33 @@ import { applyBothSidesRedirectToCandidates, bothSidesRedirectKeepPid } from "./
 import { currentRecordScope } from "./record"
 import { markPays, skipUnpayablePay } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
-import { effectiveBp } from "../../../shared/rules"
+import { boardResistanceAgainst, effectiveBp } from "../../../shared/rules"
+
+// 効果の解決中、自分側の候補から「自分の効果も受けない」（immuneToEffects from:"own"/"any"）を除く。
+// 発生源の持ち主が pid のときだけ見る＝相手側の候補は従来どおり resistanceAgainst（pickEnemy*）が見る
+function ownEffectImmune(state: GameState, pid: PlayerId, inst: CardInstance): boolean {
+    const src = state.currentEffectSource
+    if (src === undefined || src.pid !== pid) return false
+    return (
+        boardResistanceAgainst(state, pid, inst, {
+            op: "other",
+            scope: "area",
+            actorPid: pid,
+            ...(src.type !== undefined ? { sourceType: src.type } : {}),
+            ...(src.instanceId !== undefined ? { sourceInstanceId: src.instanceId } : {}),
+        }) !== null
+    )
+}
 
 // 対象の候補にするスピリット・ネクサス。待機中のカードは待機の出来事で誘発した効果の対象にだけなる（waiting.ts canBeTargeted）。
-// 数える・条件を見る用途には使わない（待機中も場にいるので数える）。候補を列挙するときは field.spirits.filter を直接書かずここを通す
+// 数える・条件を見る用途には使わない（待機中も場にいるので数える）。候補を列挙するときは field.spirits.filter を直接書かずここを通す。
+// 自分の効果が自分側を選ぶときの効果耐性（ownEffectImmune）もここで除く。「すべて」に効く自分側の処理も、この入口から集める
 export function targetableSpirits(state: GameState, pid: PlayerId, pred: (s: CardInstance) => boolean = () => true): CardInstance[] {
-    return state.players[pid].field.spirits.filter((s) => canBeTargeted(state, s) && pred(s))
+    return state.players[pid].field.spirits.filter((s) => canBeTargeted(state, s) && !ownEffectImmune(state, pid, s) && pred(s))
 }
 
 export function targetableNexuses(state: GameState, pid: PlayerId, pred: (n: CardInstance) => boolean = () => true): CardInstance[] {
-    return state.players[pid].field.nexuses.filter((n) => canBeTargeted(state, n) && pred(n))
+    return state.players[pid].field.nexuses.filter((n) => canBeTargeted(state, n) && !ownEffectImmune(state, pid, n) && pred(n))
 }
 
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める

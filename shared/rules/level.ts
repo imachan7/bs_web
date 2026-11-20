@@ -254,6 +254,7 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         ),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
         ...player.battleVirtualInstances, // 同上のこのバトル限定版（lendSelfThisBattle。clearBattle で消える）
+        ...player.gameVirtualInstances, // 同上のこのゲーム限定版（lendSelfThisGame。消えない）
         ...player.field.magics, // 場に残るマジック（BS19-099 等。中身の継続効果・fieldEvent がこの行だけで効く。手札/トラッシュでは発生源でない
     ]
 }
@@ -293,6 +294,7 @@ export function nexusEffectsDisabledFor(
         ...opp.field.nexuses,
         ...opp.turnVirtualInstances,
         ...opp.battleVirtualInstances,
+        ...opp.gameVirtualInstances,
     ]
     for (const source of sources) {
         for (const effect of card(source.cardId).effects) {
@@ -315,6 +317,7 @@ export function nexusEffectsDisabledFor(
         ...own.field.nexuses,
         ...own.turnVirtualInstances,
         ...own.battleVirtualInstances,
+        ...own.gameVirtualInstances,
     ]
     for (const source of ownSources) {
         for (const effect of card(source.cardId).effects) {

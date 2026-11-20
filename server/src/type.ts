@@ -374,6 +374,7 @@ export interface PlayerView {
     peekedOpponentCardIds?: string[] // 自分のみ。相手の手札で内容を見たカード（BS09-039探偵ペンタン）。相手には常に省略する
     turnVirtualInstances: CardInstance[] // 公開情報のため自分/相手とも常に配信する（TURN_EFFECT_SOURCES.md §2.1）
     battleVirtualInstances: CardInstance[] // 同上（lendSelfThisBattle で貸した「このバトルの間」の発生源）
+    gameVirtualInstances: CardInstance[] // 同上（lendSelfThisGame で貸した「このゲームの間」の発生源）
     burst: string | null // 自分のみ。相手は必ず null（伏せているため内容は見えない。docs/design/BURST.md）
     burstSet: boolean // 両者に見える（伏せてあるか否かは公開情報）
     burstRevealed: boolean // 発動を宣言してから場を離れるまでは公開（相手にも cardId を返す）

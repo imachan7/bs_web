@@ -89,7 +89,7 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { affectableBraves, gateBraveTargets } from "../braveTargetGate"
 import { redirectReentryId, settleOne } from "../designation"
 import { countedAmount } from "../counted"
-import { currentRecordScope, lastTargetsOf, recordMoved } from "../record"
+import { currentRecordScope, lastTargetsOf, recordDestroyedCount, recordMoved } from "../record"
 
 const funsaiOnBlockHandler: ActionHandler<"funsaiOnBlock"> = (ctx) => {
     const { state, owner, self } = ctx
@@ -1067,8 +1067,13 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
         return
     }
     const oppPlayer = state.players[opp]
+    recordDestroyedCount(state, 0)
     const scope = action.allHosts ? "area" : "targeted"
-    const hosts = targetableSpirits(state, opp, (sp) => affectableBraves(ctx, opp, sp, "destroy", scope).length > 0)
+    const braveFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
+    if (braveFilter === SELF_REQUIRED) return
+    const candidates = (host: CardInstance): CardInstance[] =>
+        affectableBraves(ctx, opp, host, "destroy", scope, bravesOf(oppPlayer, host).filter((b) => braveFilter === undefined || matchesTarget(state, opp, b, braveFilter, self?.instanceId)))
+    const hosts = targetableSpirits(state, opp, (sp) => candidates(sp).length > 0)
     if (hosts.length === 0) {
         log(state, `${sourceName}：ブレイヴを破壊できる相手の合体スピリットがいなかった。`)
         return
@@ -1078,10 +1083,10 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
         // 1つの効果で破壊するので同時破壊（PENDING_STATE §3 C8）
         const targets: { host: CardInstance; brave: CardInstance }[] = []
         for (const host of [...hosts]) {
-            const brave = affectableBraves(ctx, opp, host, "destroy", scope)[0]
-            const passed = brave ? gateBraveTargets(ctx, opp, host, [brave], "destroy", scope, action) : []
+            const picked = action.allBraves ? candidates(host) : candidates(host).slice(0, 1)
+            const passed = picked.length > 0 ? gateBraveTargets(ctx, opp, host, picked, "destroy", scope, action) : []
             if (state.pendingChoice || state.winner) return
-            if (passed?.[0]) targets.push({ host, brave: passed[0] })
+            for (const brave of passed ?? []) targets.push({ host, brave })
         }
         destroyCombinedBraves(state, opp, targets, destroyContext)
         return
@@ -1105,7 +1110,14 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    const brave = affectableBraves(ctx, opp, host, "destroy", scope)[0]
+    const options = candidates(host)
+    // 対象にできるブレイヴが2つ以上なら使用者が選ぶ。再開時は targetInstanceId がそのブレイヴ
+    const picked = options.find((b) => b.instanceId === targetInstanceId)
+    if (picked === undefined && options.length >= 2 && state.interactiveTargets) {
+        requestChoice(state, owner, `${sourceName}：破壊するブレイヴを選んでください`, options.map((b) => b.instanceId), false, action, self)
+        return
+    }
+    const brave = picked ?? options[0]
     if (!brave) {
         log(state, `${sourceName}：対象がいなかった。`)
         return

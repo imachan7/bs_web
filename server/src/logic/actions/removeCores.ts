@@ -214,7 +214,7 @@ export function removeCoresAchievableCountForPay(
         if (from.includes("spirit")) {
             for (const s of player.field.spirits) {
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
-                if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
+                if (!canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
                 const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: s, amount: s.cores, cause: "effect", actorPid: owner, sourceType: srcType, ...(action.to === "trash" || action.to === "void" || action.to === "life" ? {} : { toReserve: true as const }) })
                 perInst.push(Math.max(0, Math.min(allowed, s.cores - (action.leaveAtLeast ?? 0))))
             }
@@ -304,7 +304,7 @@ const resolveAllTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
                 if (s.cores <= 0) continue
                 if (action.leaveAtLeast !== undefined && s.cores <= action.leaveAtLeast) continue
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
-                if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
+                if (!canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
                 list.push({ pid, inst: s })
             }
         }
@@ -381,7 +381,7 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
                 if (excludeIds.includes(s.instanceId)) continue
                 if (action.leaveAtLeast !== undefined && s.cores <= action.leaveAtLeast) continue
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
-                if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
+                if (!canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
                 list.push({ pid, inst: s })
             }
             if (wantsNexus) {
@@ -545,7 +545,7 @@ function spreadCandidatesFor(
                 for (const s of player.field.spirits) {
                     if (s.cores <= floor) continue
                     if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
-                    if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
+                    if (!canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
                     out.push({ pid, kind: "spirit", inst: s })
                 }
             } else if (zone === "nexus") {

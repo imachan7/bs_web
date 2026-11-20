@@ -21,6 +21,8 @@ import { COLOR_LABELS } from "../../../../data/constants"
 import { normalCoresOn } from "../soulCore"
 import { countedAmount } from "../counted"
 import { matchesPick } from "./revealAction"
+import { matchesTarget } from "../../../../shared/rules/targetFilter"
+import type { ResolvedTargetFilter } from "../../type"
 import { lastMovedOf, recordMoved } from "../record"
 
 type MoveCards = Extract<EffectAction, { type: "moveCards" }>
@@ -525,6 +527,83 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     sendPicked(best)
 }
 
+// combineToEach：ホストごとに別のブレイヴを選び、全員ぶん決めてから同時に直接合体で召喚する。
+// 選び途中の組は action.combinePairs に持つ。デッキは選び終えるまで動かさないので deckIdx は再開しても有効。
+// 選ぶのをやめると、そのホストには付けず（action.combineSkipped で運ぶ）次のホストへ進む。選べた組だけを召喚する（「合体させるだけ」）
+function moveCombineToEach(ctx: ActionCtx, action: MoveCards): void {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const deck = state.players[owner].deck
+    const filter = action.combineToEach!.filter as unknown as ResolvedTargetFilter
+    let pairs = action.combinePairs ?? []
+    let skipped = action.combineSkipped ?? []
+    function candidatesFor(hostId: string, taken: { deckIdx: number }[]): number[] {
+        return deck
+            .map((id, i) => ({ id, i }))
+            .filter((x) => !taken.some((t) => t.deckIdx === x.i) && braveCombineCandidates(state, owner, x.id).includes(hostId) && summonDenial(state, { pid: owner, cardId: x.id, from: "deck", cause: "effect" }) === null)
+            .map((x) => x.i)
+    }
+    // 組になっていないホストのうち、最初の「選べるブレイヴがあるもの」
+    function nextHost(taken: { hostId: string; deckIdx: number }[]): { hostId: string; cands: number[] } | undefined {
+        for (const sp of state.players[owner].field.spirits) {
+            if (skipped.includes(sp.instanceId) || taken.some((t) => t.hostId === sp.instanceId) || !matchesTarget(state, owner, sp, filter, self?.instanceId)) continue
+            const cands = candidatesFor(sp.instanceId, taken)
+            if (cands.length > 0) return { hostId: sp.instanceId, cands }
+        }
+        return undefined
+    }
+    function finish(done: { hostId: string; deckIdx: number }[]): void {
+        const ids = done.map((p) => deck[p.deckIdx]!)
+        recordMoved(state, ids)
+        if (done.length === 0) {
+            log(state, `${sourceName}：合体させるブレイヴがなかった。`)
+            return
+        }
+        delete state.summonSurchargePaid
+        if (done.length >= 2) startSummonBatch(state)
+        const frames: EffectAction[] = [
+            ...done.map((p, k) => ({ type: "revealApplyOne", cardId: ids[k]!, srcPid: owner, fromDeck: true, dest: "summon", braveTargetInstanceId: p.hostId }) as EffectAction),
+            ...(done.length >= 2 ? [{ type: "summonBatchFlush" } as EffectAction] : []),
+        ]
+        resolveInOrder(state, frames, {
+            resolve: (a) => ctx.resolve(a),
+            frame: (a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a }),
+        })
+    }
+    if (chosenCardIndex !== undefined) {
+        const host = nextHost(pairs)
+        if (host) pairs = [...pairs, { hostId: host.hostId, deckIdx: chosenCardIndex }]
+    } else if (action.asked) {
+        const host = nextHost(pairs)
+        if (host) skipped = [...skipped, host.hostId]
+    }
+    for (;;) {
+        const host = nextHost(pairs)
+        if (!host) {
+            finish(pairs)
+            return
+        }
+        if (state.interactiveTargets) {
+            const { asked: _a, ...rest } = action
+            const hostName = getCard(state.players[owner].field.spirits.find((s) => s.instanceId === host.hostId)!.cardId).name
+            suspend(state, {
+                pid: owner,
+                kind: "card",
+                prompt: `${sourceName}：${hostName}に合体させるブレイヴを選んでください（選ばない場合はこのスピリットには付けず次へ進みます）`,
+                candidates: [],
+                cardZone: "deck",
+                cardOwner: owner,
+                cardIndices: host.cands,
+                optional: true,
+                resolveOnSkip: true,
+                action: { ...rest, combinePairs: pairs, combineSkipped: skipped, asked: true },
+                selfInstanceId: self ? self.instanceId : null,
+            })
+            return
+        }
+        pairs = [...pairs, { hostId: host.hostId, deckIdx: host.cands[0]! }]
+    }
+}
+
 // ⚠️ 選び終わるまでゾーンから抜かない（インデックスで控える）。途中で抜くと「どのゾーンにも無いカード」ができ、保存則の検査に引っかかる。
 // 「count枚まで」でも upTo が無ければ途中でやめられず、候補が尽きるか count 枚まで選ばせる。
 // upTo 指定時は0〜count枚を選べる（2026-09-28ユーザー決定。途中で1枚も選ばずに終えられる）
@@ -545,6 +624,10 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
             action: confirmed,
             selfInstanceId: self ? self.instanceId : null,
         })
+        return
+    }
+    if (action.combineToEach) {
+        moveCombineToEach(ctx, action)
         return
     }
     if (action.from === "revealed") {
@@ -753,6 +836,15 @@ const shuffleDeckHandler: ActionHandler<"shuffleDeck"> = (ctx) => {
     log(state, `${sourceName}：${state.players[owner].name}はデッキをシャッフルした。`)
 }
 
+const removeDeckFromGameHandler: ActionHandler<"removeDeckFromGame"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const n = player.deck.length
+    player.excludedCards.push(...player.deck)
+    player.deck = []
+    log(state, `${sourceName}：${player.name}はデッキ${n}枚をゲームから取り除いた。`)
+}
+
 const skipDrawStepHandler: ActionHandler<"skipDrawStep"> = (ctx) => {
     ctx.state.drawStepSkipped = true
 }
@@ -761,6 +853,7 @@ const handlers = {
     moveCards: moveCardsHandler,
     skipDrawStep: skipDrawStepHandler,
     shuffleDeck: shuffleDeckHandler,
+    removeDeckFromGame: removeDeckFromGameHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

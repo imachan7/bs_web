@@ -3627,6 +3627,23 @@
       "count": 1
      }
     }
+   },
+   {
+    "id": "PB13-01-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroyBrave",
+     "filter": {
+      "cost": {
+       "max": 4
+      }
+     }
+    }
    }
   ]
  },
@@ -4353,6 +4370,426 @@
      }
     },
     "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "GX16",
+  "name": "ブレイヴドミネーション",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n相手の合体スピリットすべてのブレイヴすべてを破壊し、破壊したブレイヴ1つにつき、相手のライフのコア1個をボイドに置く。\nこのカードは「獄将デュック」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+6000する。\nこのカードは「獄将デュック」しか使用できない。",
+  "onlyUsableBy": [
+   "獄将デュック"
+  ],
+  "effects": [
+   {
+    "id": "GX16-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroyBrave",
+       "allHosts": true,
+       "allBraves": true
+      },
+      {
+       "type": "lifeCrush",
+       "count": 1,
+       "countCounter": "lastDestroyedCount",
+       "dest": "void"
+      }
+     ]
+    }
+   },
+   {
+    "id": "GX16-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 6000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX01",
+  "name": "ギャラクシードロー",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分はデッキから7枚ドローする。その後、自分のデッキすべてをゲームから取り除く。\nこのカードは「ギャラクシー」と認められたカードバトラーしか使用できない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+7000する。\nこのカードは「ギャラクシー」と認められたカードバトラーしか使用できない。",
+  "onlyUsableBy": [
+   "ギャラクシー渡辺"
+  ],
+  "effects": [
+   {
+    "id": "GX01-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "draw",
+       "count": 7
+      },
+      {
+       "type": "removeDeckFromGame"
+      }
+     ]
+    }
+   },
+   {
+    "id": "GX01-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 7000
+      }
+     ],
+     "duration": "turn",
+     "side": "both",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX05",
+  "name": "パーフェクトバリア",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのゲームの間、自分のスピリットすべてに“【装甲：赤/紫/緑/白/黄/青】このスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない”という効果を与える。\nこのカードは「コアの光主」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+4000する。\nこのカードは「コアの光主」しか使用できない。",
+  "onlyUsableBy": [
+   "馬神弾",
+   "馬神ダン",
+   "ヴィオレ魔ゐ",
+   "紫乃宮まゐ",
+   "兵堂剣蔵",
+   "百瀬勇貴",
+   "硯秀斗",
+   "クラッキー・レイ"
+  ],
+  "effects": [
+   {
+    "id": "GX05-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisGame"
+    }
+   },
+   {
+    "id": "GX05-e2",
+    "kind": "keywordGrant",
+    "levels": null,
+    "keyword": "armor",
+    "target": "ownAll",
+    "lentOnly": true,
+    "colors": [
+     "red",
+     "purple",
+     "green",
+     "white",
+     "yellow",
+     "blue"
+    ]
+   },
+   {
+    "id": "GX05-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 4000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX07",
+  "name": "エックスクラッシュ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのターンの間、自分のXレアのスピリットがアタックしたとき、相手のデッキを上から10枚破棄する。\nこのカードは「コアの光主」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+6000する。\nこのカードは「コアの光主」しか使用できない。",
+  "onlyUsableBy": [
+   "馬神弾",
+   "馬神ダン",
+   "ヴィオレ魔ゐ",
+   "紫乃宮まゐ",
+   "兵堂剣蔵",
+   "百瀬勇貴",
+   "硯秀斗",
+   "クラッキー・レイ"
+  ],
+  "effects": [
+   {
+    "id": "GX07-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "GX07-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": null,
+    "lentOnly": true,
+    "ownOnly": true,
+    "subjectFilter": {
+     "rarity": "X"
+    },
+    "action": {
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
+     "count": 10
+    }
+   },
+   {
+    "id": "GX07-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 6000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX20",
+  "name": "ゾディアックプレッシャー",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\nこのゲームの間、系統：「光導」を持つスピリットが召喚されたとき、相手のデッキを上から12枚破棄する。\nこのカードは「硯秀斗」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+1000する。\nこのカードは「硯秀斗」しか使用できない。",
+  "onlyUsableBy": [
+   "硯秀斗"
+  ],
+  "effects": [
+   {
+    "id": "GX20-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisGame"
+    }
+   },
+   {
+    "id": "GX20-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritSummoned",
+    "levels": null,
+    "lentOnly": true,
+    "subjectFilter": {
+     "family": "光導"
+    },
+    "action": {
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
+     "count": 12
+    },
+    "selfMode": "source"
+   },
+   {
+    "id": "GX20-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "GX15",
+  "name": "ブレイヴホライゾン",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "GX",
+  "limited": true,
+  "effect": "メイン：\n自分のデッキすべてを見て、その中のブレイヴカードを、カード名に「アポロ」と入っている自分のスピリットすべてに合体させるだけ選び、コストを支払わずに直接合体するように召喚する。\nその後、自分のデッキをシャッフルする。\nこのカードは「馬神弾」しか使用できない。\nフラッシュ：\nこのターンの間、自分のスピリット1体をBP+3000する。\nこのカードは「馬神弾」しか使用できない。",
+  "onlyUsableBy": [
+   "馬神弾"
+  ],
+  "effects": [
+   {
+    "id": "GX15-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "deck",
+       "count": "all",
+       "dest": "summon",
+       "pick": {
+        "cardType": "brave"
+       },
+       "combineToEach": {
+        "filter": {
+         "nameContains": "アポロ"
+        }
+       }
+      },
+      {
+       "type": "shuffleDeck"
+      }
+     ]
+    }
+   },
+   {
+    "id": "GX15-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
    }
   ]
  }
