@@ -212,4 +212,26 @@ console.log("=== 11. 勝敗が決まっている局面は ±WIN ===")
     assert(evaluateBoard(lose, "p1") === -W.WIN, "自分の負けは −WIN")
 }
 
+console.log("=== 12. 場のカードの効果の価値（効果を持つスピリットが場にあると上がる・相手側なら下がる） ===")
+{
+    const FX = "SD06-005" // 攻撃時にドローする（Lv1〜3）
+    assert(getCard(FX).type === "spirit", "FXはスピリット")
+    const put = (pid: PlayerId): GameState => {
+        const s = base("fx" + pid)
+        const inst = createInstance(FX, s.turn, 1)
+        s.players[pid].field.spirits.push(inst)
+        refreshLevelAsOverrides(s)
+        return s
+    }
+    const own = put("p1")
+    const opp = put("p2")
+    const withFx = evalP1(own)
+    assert(evalP1(opp) === -withFx, "相手側に置くと符号が反転する")
+    const saved = getCard(FX).effects
+    ;(getCard(FX) as { effects: unknown }).effects = []
+    const withoutFx = evalP1(own)
+    ;(getCard(FX) as { effects: unknown }).effects = saved
+    assert(withFx - withoutFx >= W.FIELD_FX_DRAW - 1e-9 && withFx > withoutFx, `効果を持つと点が上がる（${withoutFx} → ${withFx}）`)
+}
+
 console.log("すべてのチェックに合格しました 🎉（part1032）")

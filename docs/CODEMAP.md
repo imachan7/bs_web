@@ -431,6 +431,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `magicTags`（fn）：マジックを timing の側の効果で使うときのタグ
 - `opponentHasTargets`（fn）：相手の場に removal の的になりうるものがいるか
 - `pruneMoves`（fn）：打っても何も起きない手を合法手から落とす。タグの無い手（pass・nextPhase・endTurn・選択）は触らない。
+- `FieldEffectTag`（型）：場のカードが今のレベルで持つ効果の分類（評価の「場の効果の価値」用）。誘発・起動・場のイベント・バトル勝利・ステップの
+- `fieldEffectTags`（fn）
 
 ## server/src/ai/policy.ts
 

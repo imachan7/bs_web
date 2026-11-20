@@ -5,6 +5,10 @@
 import type { GameView, PlayerId } from "../type"
 import { currentLevel, instanceSymbolCount } from "../../../shared/rules"
 import { bpScore } from "./evaluate"
+import { fieldEffectTags } from "./moveTags"
+
+// ai:bench で重みの段階を測るための倍率（ブラウザのワーカーには process が無い）
+const fxScale = typeof process === "undefined" || process.env.BS_AI_FIELD_FX === undefined ? 1 : Number(process.env.BS_AI_FIELD_FX)
 
 export const BOARD_WEIGHTS = {
     WIN: 100000, // 勝敗が決まっている局面の値（自分の勝ちが +、負けが −）
@@ -22,6 +26,10 @@ export const BOARD_WEIGHTS = {
     RESERVE_CORE: 6, // リザーブのコア1個あたり（上限なし。3＋上限8 から上げて新旧対戦が 41.9%→約51%）
     HAND_CARD: 5, // 手札1枚あたり
     HAND_CARD_CAP: 6, // 手札を数える上限
+    // 場のスピリット・ネクサスが今のレベルで持つ効果1分類あたり（置き値。相手の場なら引かれる）。unknown・バトル限定は数えない
+    FIELD_FX_REMOVAL: 10 * (Number.isFinite(fxScale) ? fxScale : 1),
+    FIELD_FX_BUFF: 6 * (Number.isFinite(fxScale) ? fxScale : 1),
+    FIELD_FX_DRAW: 10 * (Number.isFinite(fxScale) ? fxScale : 1),
     DECK_LOW_THRESHOLD: 5, // デッキ残りがこの枚数以下でデッキ切れの減点が始まる
     DECK_LOW_PER: 15, // デッキ切れまでの1枚あたりの減点
 } as const
@@ -62,6 +70,14 @@ function sideValue(view: GameView, pid: PlayerId): number {
     // ネクサス
     for (const inst of nexuses) {
         value += W.NEXUS_BASE + W.NEXUS_PER_LEVEL * currentLevel(inst).level
+    }
+
+    // 場のカードの効果の価値
+    for (const inst of [...spirits, ...nexuses]) {
+        const tags = fieldEffectTags(inst)
+        if (tags.has("removal")) value += W.FIELD_FX_REMOVAL
+        if (tags.has("buffOwn")) value += W.FIELD_FX_BUFF
+        if (tags.has("draw")) value += W.FIELD_FX_DRAW
     }
 
     // 場のコア（スピリット・ネクサスの上）
