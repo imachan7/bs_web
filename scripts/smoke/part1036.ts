@@ -87,4 +87,31 @@ console.log("=== 4. 守りのバーストは効果データから分類し、ド
     assert(has(s, "setBurst"), "ドローのバーストを伏せていても、守りのバーストには入れ替える")
 }
 
+console.log("=== 5. 守りの価値はライフで上がる／アタックを終える thenPay は相手に回復スピリットがいるときだけ払う ===")
+{
+    const lifeOf = (life: number, hand: string[], burst?: string): GameState => {
+        const s = scene(hand)
+        s.players.p1.life = life
+        if (burst) s.players.p1.burst = burst
+        return s
+    }
+    const sets = (s: GameState) => enumerateLegalMoves(s, "p1").some((m) => m.action.type === "setBurst" && m.reason.includes(getCard(GUARD).name))
+    assert(!sets(lifeOf(5, [GUARD], REMOVAL)), "ライフ5では守りは除去と同格なので入れ替えない")
+    assert(sets(lifeOf(4, [GUARD], REMOVAL)), "ライフ4なら守りは除去より上なので入れ替える")
+    const both = lifeOf(2, [REMOVAL, GUARD])
+    const pick = decideAiAction(both, "p1", new Set(), BURST_POLICY)?.action as { type: string; handIndex?: number }
+    assert(pick.type === "setBurst" && both.players.p1.hand[pick.handIndex!] === GUARD, "ライフ2で手札に守りと除去があれば守りをセットする")
+
+    const flash = getCard(GUARD).effects.find((e) => e.kind === "magic" && e.timing === "flash")
+    const pay = (oppReady: boolean): boolean => {
+        const s = scene([])
+        s.players.p2.field.spirits.push(createInstance(VANILLA, s.turn, 1))
+        s.players.p2.field.spirits[0]!.isRested = !oppReady
+        s.pendingChoice = { pid: "p1", kind: "option", prompt: "", candidates: [], options: ["発動する"], optional: true, confirm: true, action: flash!.kind === "magic" ? flash.action : { type: "noop" }, selfInstanceId: null, burstThenPay: { pid: "p1", cost: 1, cardId: GUARD } } as never
+        return (decideAiAction(s, "p1", new Set(), BURST_POLICY)?.action as { option?: string }).option !== undefined
+    }
+    assert(pay(true), "相手に回復スピリットがいれば払う")
+    assert(!pay(false), "相手のスピリットがみな疲労ならコアを温存して払わない")
+}
+
 console.log("すべてのチェックに合格しました 🎉（part1036）")

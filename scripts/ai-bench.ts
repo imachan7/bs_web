@@ -9,9 +9,11 @@ import { magicTags } from "../server/src/ai/moveTags"
 import { BURST_POLICY, DEFAULT_POLICY, LOOKAHEAD_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
 import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, LOOKAHEAD_BUDGET_MS } from "../server/src/ai/lookahead"
 import { enumerateLegalMoves } from "../server/src/ai/legalMoves"
-import { burstKind, pruneMoves } from "../server/src/ai/moveTags"
+import { anyNode, burstKind, pruneMoves } from "../server/src/ai/moveTags"
 import { viewFor, getCard } from "../server/src/logic/GameState"
 import { validateCastMagic, validateSummon } from "../server/src/logic/RuleValidator"
+import { loadAllCards } from "../data/loadCards"
+import { createInstance } from "./smoke/helpers"
 import { DECK_RECIPES } from "../data/constants"
 
 const args = process.argv.slice(2)
@@ -110,7 +112,7 @@ function vsOld(): void {
                     else lose++
                 } catch (e) {
                     errs++
-                    console.error(`例外 ${MATCHUPS[i]!.label}#${n}:`, (e as Error).message)
+                    console.error(`例外 ${MATCHUPS[i]!.label}#${n}:`, (e as Error).stack?.split("\n").slice(0, 5).join(" | "))
                 }
             }
         }
@@ -143,6 +145,89 @@ function vsOld(): void {
         for (const g of allGames.filter((x) => !x.won && x.decs.length > 0).slice(0, Number(process.env.BS_AI_TRACE_N) || 3)) console.log("負け", g.label, JSON.stringify(g.decs), "\n  " + g.log.join("\n  "))
     }
     console.log(`| 所要時間 | ${((Date.now() - t0) / 1000).toFixed(0)}秒 |`)
+}
+// --scenario low-life：開始局面を固定した計測（局面の組み方は lowLife のコメント）。--vs-old と同じ新旧の組
+function lowLife(): void {
+    const NEW: AiPolicy = process.env.BS_AI_BURST ? BURST_POLICY : DEFAULT_POLICY
+    // thenPay でアタックステップを終える守りのバースト（効果データから選ぶ）。手札に1枚持たせる
+    const guard = loadAllCards().find((c) => c.type === "magic" && burstKind(c.cardId) === "guard" && c.effects.some((e) => e.kind === "burst" && e.thenPay === "flash") && c.effects.some((e) => e.kind === "magic" && e.timing === "flash" && anyNode(e.action, (x) => x.type === "endAttackStepAfterBattle")))
+    if (!guard) throw new Error("守りのバーストが見つからない")
+    type Row = { lowIsNew: boolean; won: boolean; set: boolean; fired: boolean; paid: number; declinedReady: number; declinedIdle: number; paidIdle: number }
+    const rows: Row[] = []
+    const t0 = Date.now()
+    console.log(`新側: ${NEW === BURST_POLICY ? "BURST_POLICY" : "DEFAULT_POLICY"} / 守りのバースト=${guard.name} / 組=${MATCHUPS.length} × N=${N}`)
+    for (let i = 0; i < MATCHUPS.length; i++) {
+        for (let n = 0; n < N; n++) {
+            // 偶数＝新がライフ2の側。ライフ2の側が先攻（ターン4）。ライフ2の側の色デッキは組の a／b を交互に
+            const lowIsNew = n % 2 === 0
+            const lowPid: PlayerId = (n >> 1) % 2 === 0 ? "p1" : "p2"
+            const newPid: PlayerId = lowIsNew ? lowPid : lowPid === "p1" ? "p2" : "p1"
+            const oppPid: PlayerId = lowPid === "p1" ? "p2" : "p1"
+            const policies: Record<PlayerId, AiPolicy> = { p1: newPid === "p1" ? NEW : OLD_POLICY, p2: newPid === "p2" ? NEW : OLD_POLICY }
+            const row: Row = { lowIsNew, won: false, set: false, fired: false, paid: 0, declinedReady: 0, declinedIdle: 0, paidIdle: 0 }
+            try {
+                const decks = { p1: MATCHUPS[i]!.a, p2: MATCHUPS[i]!.b }
+                const s: GameState = createGame(`low-${i}-${n}`, { p1: "A", p2: "B" }, decks, lowPid)
+                s.turn = 4
+                runTurnStart(s)
+                s.interactiveTargets = true
+                const low = s.players[lowPid]
+                low.life = 2
+                low.reserve = 10
+                low.hand = [guard.cardId, ...low.hand.filter((c) => getCard(c).type !== "magic").slice(0, 2)]
+                low.burst = null
+                const oppDeck = Object.keys(DECK_RECIPES[decks[oppPid] as string]?.cards ?? {}).filter((c) => getCard(c).type === "spirit" && getCard(c).cost <= 3)
+                for (let k = 0; k < 3 && oppDeck.length > 0; k++) s.players[oppPid].field.spirits.push(createInstance(oppDeck[k % oppDeck.length]!, 1, 1))
+                // ライフ2の側にもスピリットを2体（相手の攻撃を受け止めうる・反撃しうる）
+                const lowDeck = Object.keys(DECK_RECIPES[decks[lowPid] as string]?.cards ?? {}).filter((c) => getCard(c).type === "spirit" && getCard(c).cost <= 3)
+                for (let k = 0; k < 2 && lowDeck.length > 0; k++) low.field.spirits.push(createInstance(lowDeck[k % lowDeck.length]!, 1, 1))
+                const hook = (move: { action: { type: string; option?: string; handIndex?: number } }, st: GameState): void => {
+                    const a = move.action
+                    if (a.type === "setBurst" && a.handIndex !== undefined && st.players[newPid].hand[a.handIndex] === guard.cardId) row.set = true
+                    if (a.type !== "resolveChoice") return
+                    const pc = st.pendingChoice
+                    if (pc?.burstActivate?.cardId === guard.cardId && a.option !== undefined) row.fired = true
+                    if (pc?.burstThenPay) {
+                        const ready = st.players[oppPid].field.spirits.some((sp) => !sp.isRested)
+                        if (a.option !== undefined) (ready ? (row.paid++, 0) : row.paidIdle++)
+                        else ready ? row.declinedReady++ : row.declinedIdle++
+                    }
+                }
+                let total = 0
+                while (!s.winner && total < MAX_ACTIONS) {
+                    const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, pid === lowPid && lowIsNew ? hook : undefined, policies), 0)
+                    if (acted === 0) break
+                    total += acted
+                }
+                row.won = s.winner === lowPid
+                if (s.winner) rows.push(row)
+            } catch (e) {
+                console.error(`例外 ${MATCHUPS[i]!.label}#${n}:`, (e as Error).stack?.split("\n").slice(0, 5).join(" | "))
+            }
+        }
+    }
+    const pct = (w: number, n: number): string => {
+        const p = n ? w / n : 0, se = n ? Math.sqrt((p * (1 - p)) / n) : 0
+        return `${(100 * p).toFixed(1)}%（95%区間 ${(100 * Math.max(0, p - 1.96 * se)).toFixed(1)}〜${(100 * Math.min(1, p + 1.96 * se)).toFixed(1)}、${w}/${n}）`
+    }
+    const newLow = rows.filter((r) => r.lowIsNew), oldLow = rows.filter((r) => !r.lowIsNew)
+    console.log(`| 項目 | 値 |\n| :-- | --: |`)
+    console.log(`| 決着した局 | ${rows.length} |`)
+    console.log(`| ライフ2の側が新のとき、ライフ2の側の勝率 | ${pct(newLow.filter((r) => r.won).length, newLow.length)} |`)
+    console.log(`| ライフ2の側が旧のとき、ライフ2の側の勝率 | ${pct(oldLow.filter((r) => r.won).length, oldLow.length)} |`)
+    console.log(`| 新が守りをセットした局 | ${newLow.filter((r) => r.set).length}/${newLow.length} |`)
+    console.log(`| 守りのバーストを発動した局 | ${newLow.filter((r) => r.fired).length} |`)
+    console.log(`| 発動した局の勝率／しなかった局の勝率 | ${pct(newLow.filter((r) => r.fired && r.won).length, newLow.filter((r) => r.fired).length)} ／ ${pct(newLow.filter((r) => !r.fired && r.won).length, newLow.filter((r) => !r.fired).length)} |`)
+    const sum = (f: (r: Row) => number): number => newLow.reduce((a, r) => a + f(r), 0)
+    console.log(`| thenPay を払った（相手に回復スピリットあり） | ${sum((r) => r.paid)} |`)
+    console.log(`| 払えたのに払わなかった（相手に回復スピリットあり） | ${sum((r) => r.declinedReady)} |`)
+    console.log(`| 払わなかった（相手の回復スピリットなし） | ${sum((r) => r.declinedIdle)} |`)
+    console.log(`| 払った（相手の回復スピリットなし） | ${sum((r) => r.paidIdle)} |`)
+    console.log(`| 所要時間 | ${((Date.now() - t0) / 1000).toFixed(0)}秒 |`)
+}
+if (args.includes("--scenario") && args[args.indexOf("--scenario") + 1] === "low-life") {
+    lowLife()
+    process.exit(0)
 }
 if (VS_OLD) {
     vsOld()
@@ -206,7 +291,7 @@ for (let i = 0; i < MATCHUPS.length; i++) {
                 turns += s.turn
             } catch (e) {
                 errors++
-                console.error(`例外 ${MATCHUPS[i]!.label}#${n}:`, (e as Error).message)
+                console.error(`例外 ${MATCHUPS[i]!.label}#${n}:`, (e as Error).stack?.split("\n").slice(0, 5).join(" | "))
             }
         }
         }

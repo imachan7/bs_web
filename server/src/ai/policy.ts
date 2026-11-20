@@ -25,8 +25,9 @@ export const OLD_POLICY: AiPolicy = {
 // 旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
 export const LOOKAHEAD_POLICY: AiPolicy = { pick: pickBestMove, pickState: lookaheadPick }
 
-// 本番の既定。先読みを選択待ちだけに使った新旧対戦は勝率の区間が50%を跨いだ（2026-11-20）ので、種類を足して測るまで旧のまま
-export const DEFAULT_POLICY: AiPolicy = OLD_POLICY
-
-// バーストをセットし、意味のない発動は断る。構築済みデッキの新旧対戦で区間の下限が50%に届かなかった（2026-11-20）ので既定にしていない
+// バーストをセットし、意味のない発動は断る。全体の新旧対戦では差が出ない（構築済み 4800局 50.8%）が、ライフ2で守りのバーストを持つ局面では
+// 勝率が旧の約2倍（19.8% 対 9.8%）になったので既定にする（2026-11-20）
 export const BURST_POLICY: AiPolicy = { pick: pickBestMove }
+
+// 本番の既定
+export const DEFAULT_POLICY: AiPolicy = BURST_POLICY

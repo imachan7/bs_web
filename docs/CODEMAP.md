@@ -429,8 +429,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `MoveTags`（型）
 - `tagsOfAction`（fn）
 - `magicTags`（fn）：マジックを timing の側の効果で使うときのタグ
+- `anyNode`（fn）：アクションの木のどこかが条件に合うか（葉の type と行き先を効果データから読む）
 - `BurstKind`（型）：セットするバーストの種類。守り＝ライフを増やす（placeCores の行き先が life）か、同じカードのフラッシュ効果が
 - `burstKind`（fn）
+- `GUARD_RANK_LOW_LIFE`（const）：守りは自分のライフが少ないほど価値が上がる（ライフ5以上で除去と同格、4以下で除去の上、2以下でほかのどの種類よりも上）
+- `GUARD_RANK_CRITICAL_LIFE`（const）
 - `burstRank`（fn）
 - `opponentHasTargets`（fn）：相手の場に removal の的になりうるものがいるか
 - `pruneMoves`（fn）：打っても何も起きない手を合法手から落とす。タグの無い手（pass・nextPhase・endTurn・選択）は触らない。

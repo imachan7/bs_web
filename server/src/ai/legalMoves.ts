@@ -27,7 +27,7 @@ import {
 import { activatableAbility, activatedActionResolvable, bravesOf, mustBeAttackTargetIds } from "../../../shared/rules"
 import { mandatoryDirectAttackTargetIds } from "../../../shared/block"
 import { braveCombineCandidates } from "../../../shared/summon"
-import { burstRank, magicTags, tagsOfAction, type MoveTags } from "./moveTags"
+import { anyNode, burstRank, magicTags, tagsOfAction, type MoveTags } from "./moveTags"
 
 // 1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
 export interface AiMove {
@@ -77,7 +77,12 @@ function choiceMoves(state: GameState, pid: PlayerId): AiMove[] {
         // 受け取り側が confirm を見てラベルを捨てるので、クライアントと同じ送り方でよい
         // バーストの「コストを払ってフラッシュ効果を発揮」：効果の頭が if で条件を満たさない（何も起きない）なら払わない（2026-11-20 ユーザー決定。対戦者には払う選択肢を出す）
         const head = choice.action?.type === "sequence" ? choice.action.actions[0] : choice.action
-        const wasteful = choice.burstThenPay !== undefined && head?.type === "if" && !ifCondMet(stubCtx(state, pid), head.cond)
+        const oppReady = state.players[opponentOf(pid)].field.spirits.some((sp) => !sp.isRested)
+        const wasteful =
+            choice.burstThenPay !== undefined &&
+            ((head?.type === "if" && !ifCondMet(stubCtx(state, pid), head.cond)) ||
+                // アタックステップを終える効果は、相手にまだアタックできる回復状態のスピリットがいなければコアを温存する
+                (!oppReady && anyNode(choice.action, (x) => x.type === "endAttackStepAfterBattle")))
         for (const option of wasteful ? [] : choice.options ?? []) {
             const ba = choice.burstActivate
             const futile = ba !== undefined && burstFutile(state, pid, ba.cardId, ba.event)
@@ -179,12 +184,12 @@ function handMoves(state: GameState, pid: PlayerId): AiMove[] {
 // バーストのセット。入れ替え（旧カードはトラッシュへ行く）は、いまより良いものがあるときだけ候補にする
 function burstMoves(state: GameState, pid: PlayerId): AiMove[] {
     const player = state.players[pid]
-    const current = player.burst ? burstRank(player.burst) : -1
+    const current = player.burst ? burstRank(player.burst, player.life) : -1
     const moves: AiMove[] = []
     const seen = new Set<string>()
     player.hand.forEach((cardId, handIndex) => {
         if (seen.has(cardId) || validateSetBurst(state, pid, handIndex) !== null) return
-        const rank = burstRank(cardId)
+        const rank = burstRank(cardId, player.life)
         if (rank <= current) return
         seen.add(cardId)
         moves.push({ action: { type: "setBurst", handIndex }, reason: `${getCard(cardId).name}をバーストにセット`, burstRank: rank })
