@@ -2042,7 +2042,8 @@
      2
     ],
     "constraint": {
-     "type": "immuneToOpponentEffects",
+     "type": "immuneToEffects",
+     "from": "opponent",
      "against": "spirit"
     }
    }
@@ -5215,7 +5216,8 @@
      "turn": "both"
     },
     "constraint": {
-     "type": "immuneToOpponentEffects",
+     "type": "immuneToEffects",
+     "from": "opponent",
      "against": [
       "spirit",
       "nexus"

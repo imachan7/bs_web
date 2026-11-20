@@ -1,4 +1,4 @@
-// smoke パート443（BS17部品バッチ2：免疫まわり。immuneToOpponentEffects.against配列／constraintGrantのcombinedBraveColors・symbolCount／timedImmuneのagainst）
+// smoke パート443（BS17部品バッチ2：免疫まわり。immuneToEffects.against配列／constraintGrantのcombinedBraveColors・symbolCount／timedImmuneのagainst）
 import {
     assert,
     createGame,
@@ -48,7 +48,7 @@ registerCard({
     cardId: "ZTEST443-SELFIMM",
     type: "spirit",
     effects: [
-        { id: "t1", kind: "constraint", levels: [1], constraint: { type: "immuneToOpponentEffects", against: ["spirit", "brave"] } },
+        { id: "t1", kind: "constraint", levels: [1], constraint: { type: "immuneToEffects", from: "opponent", against: ["spirit", "brave"] } },
     ],
 })
 registerCard({
@@ -87,7 +87,7 @@ function put(s: GameState, pid: PlayerId, cardId: string, cores = 1): ReturnType
     return inst
 }
 
-console.log("=== 1. immuneToOpponentEffects.against配列：スピリット/ブレイヴは止まりマジックは通る ===")
+console.log("=== 1. immuneToEffects.against配列：スピリット/ブレイヴは止まりマジックは通る ===")
 {
     const s = game("case1")
     const me = put(s, "p2", "ZTEST443-SELFIMM", 1)

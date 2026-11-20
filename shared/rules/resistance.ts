@@ -31,7 +31,7 @@ import { KEYWORDS, currentLevel, effectActiveAtLevel } from "./level"
 export type ResistanceCategory =
     | "armor" // 【装甲：色】＝発生源の色で決まる（keyword:"armor"）
     | "braveImmune" // 相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"。装甲/重装甲とは別枠の第3の耐性軸。BS12初出）
-    | "fullImmune" // 相手の効果を受けない（constraint:"immuneToOpponentEffects"／このターンの間の immuneToOpponentThisTurn）
+    | "fullImmune" // 相手の効果を受けない（constraint:"immuneToEffects"／このターンの間の immuneToOpponentThisTurn）
     | "magicImmune" // 相手のマジックの効果を受けない（immunityGrant against:"magic"）
     | "untargetable" // 相手の効果の**対象にならない**（constraint:"untargetableByOpponent"）。範囲効果は防がない
     | "battlingImmune" // バトル中は効果を受けない（globalConstraint:"battlingEffectImmune"）
@@ -54,6 +54,7 @@ export interface EffectAttempt {
     scope: "targeted" | "area"
     actorPid: PlayerId // この効果を行っている側。targetOwnerPid と同じなら「自分の効果」＝相手限定の耐性は効かない
     sourceType?: CardType
+    sourceInstanceId?: string // 発生源インスタンス。immuneToEffects の exceptSelf だけが読む。サーバーの resistanceAgainst が currentEffectSource から補う
     sourceColors?: Color[] // 装甲の判定に必要。**渡さないと装甲を判定できない**（不明時は防がない側に倒す）
     burst?: true // バースト効果の解決中（against:"burst"の一時耐性が読む。発生源の種別とは別の軸）。サーバーの resistanceAgainst が currentEffectSource から入れる
     // 「候補を数えているだけで、まだ適用しない」問い合わせ。**候補列挙（pickEnemy* / pickAnySide*）だけが立てる。**
@@ -103,8 +104,13 @@ export function boardResistanceAgainst(
     ) {
         return { category: "battlingImmune", label: "バトル中の効果免疫" }
     }
+    // 自分側の効果も止める耐性（immuneToEffects from:"own"/"any"）。これ以外の耐性は相手の効果限定
+    if (attempt.actorPid === targetOwnerPid) {
+        return hasFullEffectImmunity(board, targetOwnerPid, target, attempt.sourceType, "own", attempt.sourceInstanceId)
+            ? { category: "fullImmune", label: "自分の効果も受けない状態" }
+            : null
+    }
     // ここから下はすべて「相手の効果」限定
-    if (attempt.actorPid === targetOwnerPid) return null
 
     // 【装甲】。ただしこのターン「装甲を無いものとして扱う」効果を受けていれば働かない
     //（すでに持っている分も、このターンに付与された分もまとめて落とす。SD01-040 アーマーパージ）
@@ -127,10 +133,10 @@ export function boardResistanceAgainst(
     if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(board, target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
     }
-    if (attempt.burst === true && activeConstraints(board, targetOwnerPid, target, false).some((c) => c.type === "immuneToOpponentEffects" && (Array.isArray(c.against) ? c.against.includes("burst") : c.against === "burst"))) {
+    if (attempt.burst === true && activeConstraints(board, targetOwnerPid, target, false).some((c) => c.type === "immuneToEffects" && (Array.isArray(c.against) ? c.against.includes("burst") : c.against === "burst"))) {
         return { category: "fullImmune", label: "相手のバースト効果を受けない" }
     }
-    if (hasFullEffectImmunity(board, targetOwnerPid, target, attempt.sourceType)) {
+    if (hasFullEffectImmunity(board, targetOwnerPid, target, attempt.sourceType, "opponent", attempt.sourceInstanceId)) {
         return { category: "fullImmune", label: "相手の効果を受けない" }
     }
     if (attempt.sourceType === "magic" && hasMagicImmunity(board, targetOwnerPid, target)) {
@@ -214,13 +220,17 @@ export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, i
 // 相手の継続効果（相手に与える制約・常時のBP増減・期間つきの範囲効果・指定アタック）が、この個体に届くか。
 // こちらのスピリットに向けた効果は、継続していても【装甲】などで防げる（Q682・Q683・Q686・【装甲】の項「途中で装甲が付けば受けていた効果は消える」。2026-11-12 ユーザー確認）。
 // 自分のアタッカーに付く「ブロックされない」のような、相手のスピリットを受け手にしない効果はここを通さない（Q689）
-export function continuousEffectReaches(board: Board, targetPid: PlayerId, target: CardInstance, source: { pid: PlayerId; type?: CardType | undefined; colors?: Color[] | undefined }): boolean {
-    if (source.pid === targetPid) return true
+export function continuousEffectReaches(board: Board, targetPid: PlayerId, target: CardInstance, source: { pid: PlayerId; type?: CardType | undefined; colors?: Color[] | undefined; instanceId?: string | undefined }): boolean {
+    // 自分側の継続効果は通る。ただし immuneToEffects from:"own"/"any" は自分のほかの発生源のものを止める（発生源が自分自身なら自身の定義なので通す）
+    if (source.pid === targetPid) {
+        return source.instanceId === target.instanceId || !hasFullEffectImmunity(board, targetPid, target, source.type, "own", source.instanceId)
+    }
     return (
         boardResistanceAgainst(board, targetPid, target, {
             op: "other",
             scope: "area",
             actorPid: source.pid,
+            ...(source.instanceId !== undefined ? { sourceInstanceId: source.instanceId } : {}),
             ...(source.type !== undefined ? { sourceType: source.type } : {}),
             ...(source.colors !== undefined ? { sourceColors: source.colors } : {}),
         }) === null

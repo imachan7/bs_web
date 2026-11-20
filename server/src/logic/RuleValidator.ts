@@ -310,6 +310,11 @@ export function validateSummon(
               0,
               (altSummon !== null ? summonSurcharge(state, pid, card) : payOff !== undefined ? summonCostWithPayOff(state, pid, cardId, payOff, exReductionSymbols) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
           )
+    const noFree = card.effects.find((e) => e.kind === "noFreeSummon")
+    if (noFree && sokuFree) {
+        noteCoverage(noFree, "noFreeSummon")
+        return "コストを支払わなければ召喚できません"
+    }
     // kind:"summonNeedsCost"：肩代わり（ネクサスの疲労）は払ったものとして数えるが、軽減で0になるコスト・無償化は払ったことにならない
     const needsCost = card.effects.find((e) => e.kind === "summonNeedsCost")
     if (needsCost) {

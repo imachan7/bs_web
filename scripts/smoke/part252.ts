@@ -3,7 +3,7 @@
 //   - action return{to:"deckBottom"}（相手スピリット1体を持ち主のデッキの下に戻す）
 //   - fieldEvent "ownSpiritDestroyed" の vanillaOnly を実際にカードで使用（既存の軸）
 //   - constraintGrant の costFilter / turn / combinedFilter（AuraDefの同名軸をconstraintGrantにも追加）
-//   - ConstraintDef "immuneToOpponentEffects" の against:"spirit"（マジックは通す絞り込み）
+//   - ConstraintDef "immuneToEffects" の against:"spirit"（マジックは通す絞り込み）
 //   - action "lifeImmuneThisTurn" ＋ playerRule の lifeGuard{max:0}（あらゆる原因でライフが減らない全面ロック）
 import {
     act,

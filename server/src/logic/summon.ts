@@ -310,7 +310,7 @@ export function summonFreeFromHandIndex(
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    const denial = summonDenial(state, { pid: owner, cardId, from: "hand", cause: "effect", braveTargetInstanceId: opts?.braveTargetInstanceId })
+    const denial = summonDenial(state, { pid: owner, cardId, from: "hand", cause: "effect", braveTargetInstanceId: opts?.braveTargetInstanceId, ...(opts?.payCost ? { paid: true as const } : {}) })
     if (denial) {
         log(state, `${sourceName}：${denial}：${getCard(cardId).name}を召喚できなかった。`)
         return
@@ -422,7 +422,7 @@ export function summonFreeFromTrashIndex(
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    const denial = summonDenial(state, { pid: owner, cardId, from: "trash", cause: "effect", braveTargetInstanceId: opts?.braveTargetInstanceId })
+    const denial = summonDenial(state, { pid: owner, cardId, from: "trash", cause: "effect", braveTargetInstanceId: opts?.braveTargetInstanceId, ...(opts?.payCost ? { paid: true as const } : {}) })
     if (denial) {
         log(state, `${sourceName}：${denial}：${getCard(cardId).name}を召喚できなかった。`)
         return
@@ -510,7 +510,7 @@ export function summonFromHandFreeCandidateMatches(
     const player = state.players[owner]
     const selfFamily = action.sameFamilyAsSelf && self ? getCard(self.cardId).family : null
     const candidate = getCard(candidateId)
-    if (summonDenial(state, { pid: owner, cardId: candidateId, from: zone, cause: "effect", mayCombine: true })) return false
+    if (summonDenial(state, { pid: owner, cardId: candidateId, from: zone, cause: "effect", mayCombine: true, ...(action.payCost ? { paid: true as const } : {}) })) return false
     // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
     // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
     if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false

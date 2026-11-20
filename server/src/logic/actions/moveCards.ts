@@ -91,7 +91,8 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
             ({ id, j }) =>
                 (matchesPick(id, pickRest, undefined, selfCardId) || fchangeAsCostMatches(state, zonePid, action, id, pickRest, selfCardId)) &&
                 nameOk(id) &&
-                (action.dest !== "summon" || !summonDenial(state, { pid: owner, cardId: id, from: action.from === "hand" ? "hand" : action.from === "deck" ? "deck" : "trash", cause: "effect", mayCombine: true })) &&
+                (action.dest !== "summon" || !summonDenial(state, { pid: owner, cardId: id, from: action.from === "hand" ? "hand" : action.from === "deck" ? "deck" : "trash", cause: "effect", mayCombine: true, ...(action.pay === "cost" ? { paid: true as const } : {}) })) &&
+                (action.dest !== "placeNexus" || action.pay !== undefined || !getCard(id).effects.some((e) => e.kind === "noFreeSummon")) && // 無償の配置は不可（noFreeSummon）
                 (!action.onlyEventCard || id === targetInstanceId) &&
                 (action.from !== "trash" || !isTrashCardProtected(id, state)) &&
                 (fromEventIdx === undefined || fromEventIdx.has(j)) &&
@@ -445,7 +446,12 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     }
     // 通常のコストを支払う召喚は、リザーブとフィールドのコアで払えるカードに限る（支払い方は revealApplyOne が置くコアの待ちで聞く）
     const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || summonPayPlan(state, owner, minLevelCores(getCard(id)) + effectiveCost(state, owner, getCard(id), false, [], false, false) + summonVoidToll(state, getCard(id))) !== null
-    const candidates = (): number[] => zone.cardIds.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick, undefined, ctx.sourceCardId) && payable(x.id)).map((x) => x.i)
+    // 召喚を禁じられているカード（コストを支払わなければ召喚できない等）は対象にできない＝候補に入れず、残りのカードとして後の手順へ回る
+    const summonable = (id: string): boolean =>
+        (dest !== "summon" && dest !== "summonOrPlace") ||
+        (getCard(id).type !== "spirit" && getCard(id).type !== "brave") ||
+        summonDenial(state, { pid: owner, cardId: id, from: "revealed", cause: "effect", ...(action.pay === "cost" ? { paid: true as const } : {}) }) === null
+    const candidates = (): number[] => zone.cardIds.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick, undefined, ctx.sourceCardId) && payable(x.id) && summonable(x.id)).map((x) => x.i)
     // 1枚を送る。効果で召喚するブレイヴは合体先を選べる（BRAVE.md §12.6）。非対話はスピリット状態。
     // 再開（combineIndex）は選んだ位置のカードを、合体先（無ければスピリット状態）で送る
     const sendPicked = (i: number, hostId?: string): void => {

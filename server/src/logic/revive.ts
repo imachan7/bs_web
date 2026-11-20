@@ -1411,17 +1411,21 @@ function tryReviveOnDestroy(
     // ownAll由来（持ち主フィールドの発生源から）。levelsは発生源のレベル条件のため、
     // instのlevelを見るtryEffectは使わず発生源のsourceLevelで判定する。
     // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。BS05リアニメイト）も含める
-    const sources = effectSources(state, ownerPid)
-    for (const source of sources) {
+    // opponentAll は相手側の発生源だけが持つ（発生源の持ち主の相手のスピリットが対象）
+    const sources = [
+        ...effectSources(state, ownerPid).map((source) => ({ source, sourcePid: ownerPid })),
+        ...effectSources(state, opponentOf(ownerPid)).map((source) => ({ source, sourcePid: opponentOf(ownerPid) })),
+    ]
+    for (const { source, sourcePid } of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "reviveOnDestroy") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (forced && effect.id !== forced.effectId) continue
-            if (effect.scope !== "ownAll" && effect.scope !== "chosenInstance") continue
+            if (sourcePid === ownerPid ? effect.scope !== "ownAll" && effect.scope !== "chosenInstance" : effect.scope !== "opponentAll") continue
             // chosenInstance（BS21-077）：targetChoiceLendThisTurn で選んだ1体だけ
             if (effect.scope === "chosenInstance" && source.lentChoiceInstanceId !== inst.instanceId) continue
-            if (!entryActive(state, ownerPid, source, effect, sourceLevel)) continue
+            if (!entryActive(state, sourcePid, source, effect, sourceLevel)) continue
             if (!matchesTarget(state, ownerPid, inst, effect.filter, source.instanceId)) continue
             // pickMany：グループの先頭で戻す体が選ばれていれば、選ばれた体だけが確認・コストなしで戻る
             const pickedBodies = effect.pickMany ? state.destroyGroup?.pickMany?.[`${source.instanceId}:${effect.id}`] : undefined

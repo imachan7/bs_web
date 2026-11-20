@@ -555,6 +555,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/control.ts
 
+- `ifCondMet`（fn）：if の条件判定。ifHandler と、AI の「払って発揮するか」の判断（server/src/ai/legalMoves.ts）が共用する
 - `summonBurstCardFreeHandler`（fn）：バースト専用（docs/design/BURST.md）：発動中のバーストのカード自身をコストを支払わずに召喚する。
 
 ## server/src/logic/actions/cores.ts

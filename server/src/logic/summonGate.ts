@@ -15,6 +15,7 @@ export interface SummonAttempt {
     flash?: true
     braveTargetInstanceId?: string | undefined // ダイレクトブレイヴは体数が増えない
     viaBurstAction?: true // summon{from:"burst"} はバースト効果そのものなので currentEffectSource.burst を見ない
+    paid?: true // コストを支払う召喚（noFreeSummon が見る）
     mayCombine?: true // 合体先をまだ決めていない段階（候補判定・バーストの自動合体）。ブレイヴは合体先があれば体数が増えずに出られる
 }
 
@@ -57,6 +58,15 @@ export function summonDenial(state: GameState, a: SummonAttempt): string | null 
         if (needs) {
             noteCoverage(needs, "summonNeedsCost")
             return "1コスト以上支払わなければ召喚できません"
+        }
+    }
+
+    // 効果による召喚はコストを支払うものだけが成り立つ（0コストを払う通常の召喚は止めない）。ネクサスの配置の入口は別（placeDenial）
+    if (a.cause === "effect" && !a.paid) {
+        const noFree = card.effects.find((e) => e.kind === "noFreeSummon")
+        if (noFree) {
+            noteCoverage(noFree, "noFreeSummon")
+            return "コストを支払わなければ召喚できません"
         }
     }
 

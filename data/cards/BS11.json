@@ -1635,7 +1635,8 @@
      2
     ],
     "constraint": {
-     "type": "immuneToOpponentEffects",
+     "type": "immuneToEffects",
+     "from": "opponent",
      "whileOwnNexusCount": 1
     }
    },
@@ -1888,7 +1889,8 @@
      3
     ],
     "constraint": {
-     "type": "immuneToOpponentEffects"
+     "type": "immuneToEffects",
+     "from": "opponent"
     }
    },
    {
@@ -3454,7 +3456,8 @@
     "levels": null,
     "whileCombined": true,
     "constraint": {
-     "type": "immuneToOpponentEffects",
+     "type": "immuneToEffects",
+     "from": "opponent",
      "against": "brave"
     }
    },

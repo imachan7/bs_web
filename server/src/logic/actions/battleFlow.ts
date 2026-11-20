@@ -198,6 +198,16 @@ const extraAttackStepHandler: ActionHandler<"extraAttackStep"> = (ctx) => {
     log(state, `${sourceName}：アタックステップとエンドステップを、順番にもう1回ずつ行う。`)
 }
 
+const extraTurnStepsHandler: ActionHandler<"extraTurnSteps"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    if (owner !== state.turnPlayer) {
+        log(state, `${sourceName}：自分のターンではないため、追加のステップは行われない。`)
+        return
+    }
+    state.extraTurnStepsPending = true
+    log(state, `${sourceName}：このターンのアタックステップ終了後に、コア・ドロー・リフレッシュ・メイン・アタックの各ステップを1回ずつ行う。`)
+}
+
 const endAttackStepHandler: ActionHandler<"endAttackStep"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 妖機妃ソール：破壊時に相手ターンのアタックステップを終了させる（onlyOpponentTurn）。
@@ -1016,7 +1026,7 @@ const summonBatchPaidInternalHandler: ActionHandler<"summonBatchPaidInternal"> =
         }
         const cf = action.costFilter
         if (!matchesCostFilter(candidate.cost, typeof cf === "number" ? { in: [cf] } : cf)) return false
-        return summonDenial(state, { pid: owner, cardId: candidateId, from: "hand", cause: "effect" }) === null
+        return summonDenial(state, { pid: owner, cardId: candidateId, from: "hand", cause: "effect", paid: true }) === null
     }
     resolveSummonRepeatPaid(ctx, action, matchesCardId)
 }
@@ -1728,10 +1738,12 @@ const TREAT_AS_UNBLOCKED_LABEL = {
     levelAtLeastBlocker: "ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。",
 } as const
 
-const treatAsUnblockedLabel = (when: "always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } | { blockerBpBelowSelf: true }): string =>
+const treatAsUnblockedLabel = (when: "always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } | { blockerMaxLevel: number } | { blockerBpBelowSelf: true }): string =>
     typeof when === "object"
         ? "blockerMaxBp" in when
             ? `BP${when.blockerMaxBp}以下のスピリットにブロックされても、ブロックされなかったものとして扱う。`
+            : "blockerMaxLevel" in when
+            ? `Lv${when.blockerMaxLevel}以下のスピリットにブロックされても、ブロックされなかったものとして扱う。`
             : "このスピリットよりBPの低いスピリットにブロックされても、ブロックされなかったものとして扱う。"
         : TREAT_AS_UNBLOCKED_LABEL[when]
 
@@ -1758,6 +1770,7 @@ const handlers = {
     endStepLock: endStepLockHandler,
     skipBpCompare: skipBpCompareHandler,
     extraAttackStep: extraAttackStepHandler,
+    extraTurnSteps: extraTurnStepsHandler,
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,

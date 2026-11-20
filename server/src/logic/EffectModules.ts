@@ -192,7 +192,9 @@ export function resistanceAgainst(
         return { category: "summonEffectImmune", label: "相手のスピリットの召喚時効果を受けない" }
     }
     // バースト効果の解決中は burst を立てる（against:"burst"の耐性が読む。発生源の種別とは別の軸）
-    const burstAware = state.currentEffectSource?.burst === true && attempt.burst === undefined ? { ...attempt, burst: true as const } : attempt
+    const withBurst = state.currentEffectSource?.burst === true && attempt.burst === undefined ? { ...attempt, burst: true as const } : attempt
+    const srcInstanceId = state.currentEffectSource?.instanceId
+    const burstAware = withBurst.sourceInstanceId === undefined && srcInstanceId !== undefined ? { ...withBurst, sourceInstanceId: srcInstanceId } : withBurst
     const boardResisted = boardResistanceAgainst(state, targetOwnerPid, target, burstAware)
     if (boardResisted) return boardResisted
     // ③ 【迷彩：N】（26系）。**盤面だけで決まる耐性を全部見たあと**に判定する（装甲などで元々対象に取れない個体にコストを請求しない）

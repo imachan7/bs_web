@@ -594,7 +594,7 @@ function resolvePlayerRuleContent(state: GameState, c: Extract<Content, { type: 
 // プレイヤーに掛かる制約を置く（ライフが減らない・手札を使えない など）。効くプレイヤーは side（既定は相手）
 function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, opp, sourceName } = ctx
-    if (action.duration !== "turn" && action.duration !== "battle" && action.duration !== "step" && action.duration !== "beforeBlock" && !(action.duration === "nextRefresh" && action.content.every((c) => c.type === "playerRule" && c.rule.type === "skipMainStep"))) {
+    if (action.duration !== "turn" && action.duration !== "battle" && action.duration !== "step" && action.duration !== "beforeBlock" && !(action.duration === "nextRefresh" && action.content.every((c) => c.type === "playerRule" && (c.rule.type === "skipMainStep" || c.rule.type === "skipSteps")))) {
         log(state, `${sourceName}：この期間の制約は未対応のため発揮しなかった。`)
         return
     }
@@ -1090,7 +1090,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     }
     // cantRefresh は「このターンの間」でも書ける（個体に付き、効果による回復も止める）。次のリフレッシュ専用の扱いは nextRefresh だけ
     const nextOnly = (c: Content): boolean => (ONLY_NEXT_REFRESH as readonly string[]).includes(c.type) && !(c.type === "cantRefresh" && action.duration === "turn")
-    if ((action.duration === "nextRefresh") !== action.content.every((c) => nextOnly(c) || (c.type === "playerRule" && c.rule.type === "skipMainStep"))) {
+    if ((action.duration === "nextRefresh") !== action.content.every((c) => nextOnly(c) || (c.type === "playerRule" && (c.rule.type === "skipMainStep" || c.rule.type === "skipSteps")))) {
         log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
         return
     }

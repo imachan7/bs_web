@@ -214,7 +214,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 return
             }
             const hostId = action.braveTargetInstanceId
-            const denial = summonDenial(state, { pid: owner, cardId, from: "revealed", cause: "effect", braveTargetInstanceId: hostId })
+            const denial = summonDenial(state, { pid: owner, cardId, from: "revealed", cause: "effect", braveTargetInstanceId: hostId, ...(action.pay === "cost" ? { paid: true as const } : {}) })
             if (denial) {
                 log(state, `${sourceName}：${denial}：${card.name}を召喚できなかった。`)
                 failDest(ctx, action.orHand, cardId, action.fromDeck)
