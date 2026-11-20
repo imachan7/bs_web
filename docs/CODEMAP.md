@@ -468,7 +468,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `BURST_POLICY`（const）：バーストをセットし、意味のない発動は断る。場のコアも消滅させない範囲で支払いに使う。ライフ2の局面で旧の約2倍（2026-11-20）
 - `PLAN_POLICY`（const）：アタックの計画（attackPlan.ts）：取り切れる盤面だけ全員で行き、それ以外は BP で勝てて守り手が残る個体だけで行く。
 - `BLOCK_POLICY`（const）：ブロックかライフかを、アタッカーのシンボル数と残りのアタックで決める（blockPlan.ts）＋守っても負けるなら全員で行く。
-- `KEEP_GUARD_POLICY`（const）：アタックステップ・バトルを終わらせる守りのマジックを自分のターンに撃たない（keepGuard.ts）。構築済み 4800局 50.2%（48.8〜51.6）で勝率の差は見えないが…
+- `KEEP_GUARD_POLICY`（const）：無駄撃ちのマジックを撃たない（keepGuard.ts・spellFilter.ts）：守りのマジックを自分のターンに撃たない＋的のいない除去・自分だけ失うお互いの破壊を撃たない。
 - `DEFAULT_POLICY`（const）：本番の既定。ai:bench --vs-old の旧側（基準）もこれ（BS_AI_OLD=stage1 で段階1の OLD_POLICY）
 - `CANDIDATE_POLICY`（const）：ai:bench --vs-old の新側（試す案）。基準を動かさないため、案は既存の pick 関数を書き換えず、新しい関数で手を足し引きしてここに差す
 
@@ -478,6 +478,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `AiPumpOptions`（型）
 - `pumpAi`（fn）：AI が打てる手が無くなるまで1手ずつ進める。すでに走っていれば何もしない
 - `pumpAiSync`（fn）：テスト用：間隔を空けずに、AI が打てなくなるまでその場で進める。
+
+## server/src/ai/spellFilter.ts
+
+- `wastedSpell`（fn）
 
 ## server/src/assetVersions.ts
 

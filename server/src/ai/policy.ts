@@ -39,8 +39,8 @@ export const PLAN_POLICY: AiPolicy = { pick: planPick }
 // PLAN_POLICY に構築済み 4800局 50.8%（49.4〜52.2）・2400局 52.1%、色デッキ 52.0%。勝率の差は小さいが、受けると負けるのにライフで受ける手が消える（2026-11-20 ユーザー指示で採用）
 export const BLOCK_POLICY: AiPolicy = { pick: blockPick }
 
-// アタックステップ・バトルを終わらせる守りのマジックを自分のターンに撃たない（keepGuard.ts）。構築済み 4800局 50.2%（48.8〜51.6）で勝率の差は見えないが、
-// 相手のアタック中に撃った回数が 106→144 に増え、自分のメインステップで撃つ 49回が 0 になった（同じ組の 1200局。2026-11-20）
+// 無駄撃ちのマジックを撃たない（keepGuard.ts・spellFilter.ts）：守りのマジックを自分のターンに撃たない＋的のいない除去・自分だけ失うお互いの破壊を撃たない。
+// BLOCK_POLICY に構築済み 4800局 49.5%（48.0〜50.9）で勝率の差は見えない。手が変わった局は 400局中 53局で、その局の勝率は約 64%（2026-11-20）
 export const KEEP_GUARD_POLICY: AiPolicy = { pick: keepGuardPick }
 
 // 本番の既定。ai:bench --vs-old の旧側（基準）もこれ（BS_AI_OLD=stage1 で段階1の OLD_POLICY）
