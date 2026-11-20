@@ -6,7 +6,7 @@ import { runTurnStart } from "../server/src/logic/PhaseManager"
 import type { Color, GameState, PlayerId } from "../server/src/type"
 import { pumpAiSync } from "../server/src/ai/runner"
 import { magicTags } from "../server/src/ai/moveTags"
-import { DEFAULT_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
+import { DEFAULT_POLICY, LOOKAHEAD_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
 
 const args = process.argv.slice(2)
 const VS_OLD = args.includes("--vs-old")
@@ -17,7 +17,7 @@ const MAX_ACTIONS = 6000
 // 新（本番の既定）対 旧（OLD_POLICY）。先後を入れ替えて同数回し、色の偏りと先手有利を消す。
 // 引き分け＝手数上限・詰まり・例外で決着しなかった局
 function vsOld(): void {
-    const NEW: AiPolicy = DEFAULT_POLICY
+    const NEW: AiPolicy = process.env.BS_AI_LOOKAHEAD_KINDS ? LOOKAHEAD_POLICY : DEFAULT_POLICY
     let win = 0, lose = 0, draw = 0, errs = 0, turnSum = 0, played = 0
     for (let i = 0; i < COLORS.length; i++) {
         for (let j = i; j < COLORS.length; j++) {

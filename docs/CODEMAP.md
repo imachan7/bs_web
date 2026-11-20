@@ -415,6 +415,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `AiMove`（型）：1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
 - `enumerateLegalMoves`（fn）：今このプレイヤーが打てる手をすべて返す。空配列＝相手の手番待ち（AIは何もしない）
 
+## server/src/ai/lookahead.ts
+
+- `LOOKAHEAD_MARGIN`（const）
+- `LOOKAHEAD_BUDGET_MS`（const）
+- `LOOKAHEAD_KINDS`（const）：先読みを使う手の種類（action.type）。種類ごとに ai:bench で測って足す
+- `trialMove`（fn）：手を1つ打って採点する。拒否・上限・例外のときは null。state は変えない
+- `lookaheadPick`（fn）：先読みで旧方針を上書きするときだけ手を返す。null なら旧方針に任せる
+
 ## server/src/ai/moveTags.ts
 
 - `MoveTag`（型）
@@ -426,9 +434,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/ai/policy.ts
 
-- `AiPolicy`（型）
+- `AiPolicy`（型）：pickState は先読み用（GameState を要る）。手を返したらそれを使い、null なら pick に任せる。
 - `OLD_POLICY`（const）：段階1完了時点の選び方。段階2で点を変えても、これは pickBestMove を呼び続ける（新しい点は別関数に足す）
-- `DEFAULT_POLICY`（const）：本番の既定。段階2の新しい選び方が採用されたらここを差し替える
+- `LOOKAHEAD_POLICY`（const）：旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
+- `DEFAULT_POLICY`（const）：本番の既定。先読みを選択待ちだけに使った新旧対戦は勝率の区間が50%を跨いだ（2026-11-20）ので、種類を足して測るまで旧のまま
 
 ## server/src/ai/runner.ts
 

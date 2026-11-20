@@ -28,5 +28,6 @@ export function decideAiAction(
     if (moves.length === 0) return null
     // 評価に渡すのは AI 自身の視点（相手の手札を持たない GameView）。evaluate.ts の冒頭を参照
     const view = viewFor(state, pid)
-    return policy.pick(view, pid, pruneMoves(view, pid, moves))
+    const pruned = pruneMoves(view, pid, moves)
+    return policy.pickState?.(state, pid, pruned) ?? policy.pick(view, pid, pruned)
 }
