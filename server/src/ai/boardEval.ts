@@ -16,15 +16,18 @@ export const BOARD_WEIGHTS = {
     // ライフ L の価値。残りが少ないほど1点が重い（最後の1つ＝60、5→4＝12）。減ったライフのコアは相手のリザーブへ入り資源になるため、
     // 1点ずつ削るより、取り切れるときにまとめて取るほうを高く見る（ユーザーの指摘 2026-11-20、AI_OPPONENT §9.y）
     LIFE_TABLE: [0, 60, 95, 120, 138, 150] as readonly number[],
+    // 場に出したものが、払ったもの（手札1枚＋コア）より高く評価されるようにする（置き値）。
+    // 以前は召喚が手札−5・コア1個−6 で、場に置いても +2 しか戻らず、moveCore のような何もしない手が最高点になった（AI_LOSS_ANALYSIS_2026-11-20）
+    SPIRIT_BASE: 12, // スピリット1体あたり（存在そのもの。ブロッカー・アタッカーとしての頭数）
     SPIRIT_BP: 3, // スピリットのBP（千単位）1あたり
     SPIRIT_SYMBOL: 8, // スピリットのシンボル数1あたり（1回のアタックで削る数）
     SPIRIT_UNTAPPED: 6, // 回復状態（次の相手ターンのブロッカー）のスピリットへの加点
     NO_UNTAPPED_THREAT: -25, // 回復状態のスピリットが0で、相手にスピリットがいるときの減点
-    NEXUS_BASE: 10, // ネクサス1つあたり
+    NEXUS_BASE: 16, // ネクサス1つあたり
     NEXUS_PER_LEVEL: 4, // ネクサスのレベル1あたり
-    FIELD_CORE: 2, // スピリット・ネクサスの上のコア1個あたり（BP・レベルの項と二重にならないよう低く）
+    FIELD_CORE: 5, // スピリット・ネクサスの上のコア1個あたり（RESERVE_CORE との差を小さくし、レベルアップ・維持のためにコアを動かす手が損にならないようにする）
     RESERVE_CORE: 6, // リザーブのコア1個あたり（上限なし。3＋上限8 から上げて新旧対戦が 41.9%→約51%）
-    HAND_CARD: 5, // 手札1枚あたり
+    HAND_CARD: 3, // 手札1枚あたり
     HAND_CARD_CAP: 6, // 手札を数える上限
     // 場のスピリット・ネクサスが今のレベルで持つ効果1分類あたり（置き値。相手の場なら引かれる）。unknown・バトル限定は数えない
     FIELD_FX_REMOVAL: 10 * (Number.isFinite(fxScale) ? fxScale : 1),
@@ -55,7 +58,7 @@ function sideParts(view: GameView, pid: PlayerId): Record<string, number> {
     // 場のスピリット
     let untapped = 0
     for (const inst of spirits) {
-        parts.bp! += W.SPIRIT_BP * bpScore(view, pid, inst)
+        parts.bp! += W.SPIRIT_BASE + W.SPIRIT_BP * bpScore(view, pid, inst)
         parts.symbol! += W.SPIRIT_SYMBOL * instanceSymbolCount(inst)
         if (!inst.isRested) {
             parts.untapped! += W.SPIRIT_UNTAPPED

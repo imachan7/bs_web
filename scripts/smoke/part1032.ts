@@ -234,4 +234,18 @@ console.log("=== 12. 場のカードの効果の価値（効果を持つスピ�
     assert(withFx - withoutFx >= W.FIELD_FX_DRAW - 1e-9 && withFx > withoutFx, `効果を持つと点が上がる（${withoutFx} → ${withFx}）`)
 }
 
+console.log("=== 資源を払って場に出す手は損にならない ===")
+{
+    // コスト1のスピリットを、手札1枚とリザーブのコア2個（1個は上に載せる）で出した前後
+    const before = base("pay1")
+    before.players.p1.reserve = 4
+    before.players.p1.hand = [VANILLA, VANILLA]
+    const after = base("pay2")
+    after.players.p1.reserve = 2
+    after.players.p1.hand = [VANILLA]
+    putSpirit(after, "p1", 1)
+    assert(evalP1(after) > evalP1(before), "手札1枚＋コア2個を払って場に出すと評価が上がる")
+    assert(W.RESERVE_CORE - W.FIELD_CORE <= 1, "リザーブのコアとスピリット上のコアの差は小さい")
+}
+
 console.log("すべてのチェックに合格しました 🎉（part1032）")

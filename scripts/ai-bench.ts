@@ -6,7 +6,7 @@ import { runTurnStart } from "../server/src/logic/PhaseManager"
 import type { Color, DeckSpec, GameState, PlayerId } from "../server/src/type"
 import { pumpAiSync } from "../server/src/ai/runner"
 import { magicTags } from "../server/src/ai/moveTags"
-import { DEFAULT_POLICY, LOOKAHEAD_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
+import { DEFAULT_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
 import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, LOOKAHEAD_BUDGET_MS, setLookaheadTrace, type OverrideTrace } from "../server/src/ai/lookahead"
 import { appendFileSync, writeFileSync } from "node:fs"
 import { DECK_RECIPES } from "../data/constants"
@@ -45,7 +45,7 @@ const MATCHUPS = matchups()
 // 新（本番の既定）対 旧（OLD_POLICY）。先後を入れ替えて同数回し、色の偏りと先手有利を消す。
 // 引き分け＝手数上限・詰まり・例外で決着しなかった局
 function vsOld(): void {
-    const NEW: AiPolicy = process.env.BS_AI_LOOKAHEAD_KINDS ? LOOKAHEAD_POLICY : DEFAULT_POLICY
+    const NEW: AiPolicy = DEFAULT_POLICY
     let win = 0, lose = 0, draw = 0, errs = 0, turnSum = 0, played = 0
     const t0 = Date.now()
     // BS_AI_TRACE=path：先読みが旧方針を上書きした決断と対局の結果・ログを1局1行の JSON Lines で書く
@@ -55,7 +55,7 @@ function vsOld(): void {
         writeFileSync(tracePath, "")
         setLookaheadTrace((t) => overrides.push(t))
     }
-    console.log(`新側: ${NEW === LOOKAHEAD_POLICY ? "LOOKAHEAD_POLICY" : "DEFAULT_POLICY"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
+    console.log(`新側: ${NEW === OLD_POLICY ? "OLD_POLICY" : "DEFAULT_POLICY"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
     for (let i = 0; i < MATCHUPS.length; i++) {
         {
             for (let n = 0; n < N; n++) {

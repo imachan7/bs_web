@@ -25,14 +25,11 @@ export const LOOKAHEAD_MARGIN = Number.isFinite(configuredMargin) ? configuredMa
 const configuredBudget = Number(env.BS_AI_LOOKAHEAD_MS)
 export const LOOKAHEAD_BUDGET_MS = Number.isFinite(configuredBudget) && configuredBudget > 0 ? configuredBudget : 50
 
-// 分析用の測定口。設定すると「旧方針の手の試行値＋この値」を超えたときだけ上書きする（未設定なら従来どおり base 比較のみ）
-const configuredOldMargin = env.BS_AI_LOOKAHEAD_OLD_MARGIN === undefined ? NaN : Number(env.BS_AI_LOOKAHEAD_OLD_MARGIN)
-const OLD_MARGIN = Number.isFinite(configuredOldMargin) ? configuredOldMargin : null
-
-// 先読みを使う手の種類（action.type）。種類ごとに ai:bench で測って足す
+// 先読みを使う手の種類（action.type）。構築済みデッキ 1200局の新旧対戦（2026-11-20）：アタック 53.5%（50.7〜56.3）、のち再測 52.7%（49.8〜55.5）。
+// 召喚・配置・コア 45.1%、マジック・起動 52.7%、全部 51.5% は区間が50%を跨ぐか下回った
 // BS_AI_LOOKAHEAD_KINDS（カンマ区切り）は ai:bench で種類を足して測るための上書き
 export const LOOKAHEAD_KINDS: ReadonlySet<string> = new Set(
-    env.BS_AI_LOOKAHEAD_KINDS ? env.BS_AI_LOOKAHEAD_KINDS.split(",") : ["resolveChoice"],
+    env.BS_AI_LOOKAHEAD_KINDS ? env.BS_AI_LOOKAHEAD_KINDS.split(",") : ["attack"],
 )
 
 // 決め手を持つ側（選択待ちの回答者・フラッシュの優先権者・ブロック側）を旧方針で1手進める。進められなければ false
@@ -101,17 +98,16 @@ function summarize(view: GameView, me: PlayerId): unknown {
 export function lookaheadPick(state: GameState, me: PlayerId, moves: AiMove[]): AiMove | null {
     const targets = moves.filter((m) => LOOKAHEAD_KINDS.has(m.action.type))
     if (targets.length === 0) return null
-    // BS_AI_LOOKAHEAD_BASE=sim：分析用。基準値も決定化した複製（相手の手札が空）で測り、試行値と条件をそろえる
-    const base = env.BS_AI_LOOKAHEAD_BASE === "sim" ? evaluateBoard(viewFor(determinize(state, me), me), me) : evaluateBoard(viewFor(state, me), me)
+    // 試行値は相手の手札が空の複製で測るので、基準も同じ複製で測る（実局面で測ると試行側だけ手札の項で +15〜20 有利になる。分析 2026-11-20）。
+    // 旧方針の手は先読みの対象外の種類でも必ず試行し、上書きは旧の手の試行値＋MARGIN 以上のときだけ（同点・僅差は旧に任せる）
+    const old = pickBestMove(viewFor(state, me), me, moves)
+    const oldValue = old ? trialMove(state, me, old) : null
+    const base = oldValue ?? evaluateBoard(viewFor(determinize(state, me), me), me)
     const started = Date.now()
     let best: AiMove | null = null
     let bestValue = base + LOOKAHEAD_MARGIN - 1
-    if (OLD_MARGIN !== null) {
-        const old = pickBestMove(viewFor(state, me), me, moves)
-        const oldValue = old ? trialMove(state, me, old) : null
-        if (oldValue !== null) bestValue = Math.max(bestValue, oldValue + OLD_MARGIN - 1)
-    }
     for (const m of targets) {
+        if (m === old) continue
         if (Date.now() - started > LOOKAHEAD_BUDGET_MS) break
         const v = trialMove(state, me, m)
         if (v !== null && v > bestValue) {
@@ -122,7 +118,6 @@ export function lookaheadPick(state: GameState, me: PlayerId, moves: AiMove[]): 
     if (best && traceSink) {
         try {
             const view = viewFor(state, me)
-            const old = pickBestMove(view, me, moves)
             const info = (m: AiMove) => {
                 const v = trialView(state, me, m)
                 return { type: m.action.type, reason: m.reason, trial: v ? evaluateBoard(v, me) : null, parts: v ? evaluateBreakdown(v, me) : null }
