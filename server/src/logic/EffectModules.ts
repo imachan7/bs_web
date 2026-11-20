@@ -22,6 +22,7 @@ import type {
     PlayerId,
     ResolvedTargetFilter,
 } from "../type"
+import { instLevels } from "../../../shared/rules"
 import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, noteMissedPayAsk, opponentOf, suspend } from "./GameState"
 // shared/ の純粋述語。外部が EffectModules 経由で import しているため、再エクスポートで名前を残す
 // triggers.ts とは相互 import になる（CommonJS の循環 require で安全）
@@ -252,7 +253,8 @@ export function meisaiTollOf(target: CardInstance): number | undefined {
 // 通常コアのリザーブ → ネクサス → コアの多いスピリット の順、最後にリザーブの[ソウルコア]。払えなければ null。
 // ponytail: 支払い元スピリットの維持コア割れ（消滅）も避けない単純な貪欲法。AI が賢く払う必要が出たら見直す
 // keepLevel1：スピリットの維持コア（Lv1）は残す（効果のコスト用。消滅させてまで払わない）
-export function autoPayPlan(state: GameState, pid: PlayerId, need: number, keepLevel1 = false): { paySources: PaySource[]; soulFromReserve: boolean } | null {
+// keepAlive：ネクサスにも維持を掛け、"current"＝いまのレベルを保つぶんは残す・"lv1"＝Lv1を保つぶんだけ残す（レベルが下がるのは構わない）。AI の支払い計画用
+export function autoPayPlan(state: GameState, pid: PlayerId, need: number, keepLevel1 = false, keepAlive?: "current" | "lv1"): { paySources: PaySource[]; soulFromReserve: boolean } | null {
     const player = state.players[pid]
     let rest = need - Math.max(0, normalReserveOf(player))
     const paySources: PaySource[] = []
@@ -261,7 +263,8 @@ export function autoPayPlan(state: GameState, pid: PlayerId, need: number, keepL
         if (rest <= 0) break
         const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: inst.cores, cause: "cost", actorPid: pid })
         // 破壊待機の個体は場を離れるので維持コアも払える（2026-10-15 ユーザー確認）
-        const spare = keepLevel1 && player.field.spirits.includes(inst) && !isTrashWaiting(inst) ? inst.cores - instMinLevelCores(inst) : Infinity
+        const keepFloor = keepAlive === "current" ? instLevels(inst).reduce((m, l) => (l.cores <= inst.cores ? Math.max(m, l.cores) : m), 0) : instMinLevelCores(inst)
+        const spare = keepAlive !== undefined && !isTrashWaiting(inst) ? inst.cores - keepFloor : keepLevel1 && player.field.spirits.includes(inst) && !isTrashWaiting(inst) ? inst.cores - instMinLevelCores(inst) : Infinity
         const take = Math.min(rest, normalCoresOn(player, inst), spare, allowed)
         if (take <= 0) continue
         paySources.push({ instanceId: inst.instanceId, count: take })

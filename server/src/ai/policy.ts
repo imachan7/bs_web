@@ -12,13 +12,13 @@ export type AiPolicy = {
 }
 
 // 段階1完了時点の選び方。段階2で点を変えても、これは pickBestMove を呼び続ける（新しい点は別関数に足す）
-// 旧は、バーストをセットせず、発動確認には（意味がなくても）従来どおり答える（段階1の手の集合）
+// 旧は、バーストをセットせず、発動確認には（意味がなくても）従来どおり答える。リザーブだけで払う手だけを使う（場のコアを払う手と最低レベルの追加候補は落とす。段階1の手の集合）
 export const OLD_POLICY: AiPolicy = {
     pick: (view, me, moves) =>
         pickBestMove(
             view,
             me,
-            moves.filter((m) => m.action.type !== "setBurst").map(({ futile: _f, ...m }) => m),
+            moves.filter((m) => m.action.type !== "setBurst" && !m.added).map(({ futile: _f, ...m }) => m),
         ),
 }
 
