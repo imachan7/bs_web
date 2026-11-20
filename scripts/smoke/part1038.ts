@@ -3,6 +3,9 @@ import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, r
 import type { GameState } from "./helpers"
 import { decideAiAction } from "../../server/src/ai/index"
 import { CANDIDATE_POLICY } from "../../server/src/ai/policy"
+import { planPick } from "../../server/src/ai/attackPlan"
+import { enumerateLegalMoves } from "../../server/src/ai/legalMoves"
+import { viewFor } from "../../server/src/logic/GameState"
 
 const ROKU = "BS01-002" // ロクケラトプス（1コア=BP1000・2コア=BP3000）
 const HERA = "BS01-058" // ヘラクレス・ジオ（3コア=BP6000）
@@ -63,5 +66,13 @@ assert(!attacks(scene({ life: 5, units: [u(ROKU, 2), u(ROKU, 2)] }, { life: 5, u
 
 console.log("=== 6. 相打ち ===")
 assert(!attacks(scene({ life: 5, units: [u(ROKU, 2), u(ROKU, 2)] }, { life: 5, units: [u(ROKU, 2)] })), "同じBPは相打ちなのでアタックしない")
+
+console.log("=== 7. アタックしか合法手が無いとき（強制アタック）は、計画で引いても手を返す ===")
+{
+    const s = scene({ life: 5, units: [u(ROKU, 2), u(ROKU, 2)] }, { life: 5, units: [u(HERA, 3)] })
+    const view = viewFor(s, "p1")
+    const onlyAttacks = enumerateLegalMoves(s, "p1").filter((m) => m.action.type === "attack")
+    assert(onlyAttacks.length > 0 && planPick(view, "p1", onlyAttacks)?.action.type === "attack", "返り討ちの盤面でも、アタックだけなら null にせずアタックを返す（null だと対戦が止まる）")
+}
 
 console.log("すべてのチェックに合格しました 🎉（part1038）")

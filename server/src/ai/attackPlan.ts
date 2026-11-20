@@ -57,7 +57,11 @@ export function planPick(view: GameView, me: PlayerId, moves: AiMove[]): AiMove 
     const ids = attacks.map((m) => (m.action as { instanceId: string }).instanceId)
     const plan = planAttacks(view, me, ids)
     const isAllowed = (m: AiMove) => m.action.type !== "attack" || plan.allowed.has((m.action as { instanceId: string }).instanceId)
-    const pick = pickBestMove(view, me, moves.filter(isAllowed))
+    // アタックしなければならない効果（強制アタック）があると endTurn が合法手に無く、計画で全部引くと手が無くなる。そのときは引かない
+    const kept = moves.filter(isAllowed)
+    if (kept.length === 0) return pickBestMove(view, me, moves)
+    const pick = pickBestMove(view, me, kept)
     if (!passesAttackStep(pick)) return pick
     return pickBestMove(view, me, attacks.filter(isAllowed)) ?? pick
 }
+
