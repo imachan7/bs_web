@@ -86,6 +86,7 @@ function vsOld(): void {
         }
     }
     let win = 0, lose = 0, draw = 0, errs = 0, turnSum = 0, played = 0
+    const breakdown: Record<string, [number, number]> = {}
     const t0 = Date.now()
     // BS_AI_TRACE=path：先読みが旧方針を上書きした決断と対局の結果・ログを1局1行の JSON Lines で書く
     const tracePath = process.env.BS_AI_TRACE
@@ -104,6 +105,7 @@ function vsOld(): void {
                 try {
                     const s: GameState = createGame(`vs-${i}-${n}`, { p1: "A", p2: "B" }, { p1: MATCHUPS[i]!.a, p2: MATCHUPS[i]!.b })
                     runTurnStart(s)
+                    const firstPid = s.turnPlayer
                     s.interactiveTargets = true
                     const rec = KIFU?.start({ id: `${MATCHUPS[i]!.label}#${n}`, decks: MATCHUPS[i]!.label, first: s.turnPlayer, newPid }, policies)
                     let total = 0
@@ -128,8 +130,18 @@ function vsOld(): void {
                         overrides = []
                     }
                     if (!s.winner || stuck) draw++
-                    else if (s.winner === newPid) win++
-                    else lose++
+                    else {
+                        // 内訳：新のデッキ別・先後別（新が勝った数／決着した数）
+                        const won = s.winner === newPid
+                        const newDeck = newIsP1 ? MATCHUPS[i]!.a : MATCHUPS[i]!.b
+                        for (const k of [`新が${newPid === firstPid ? "先攻" : "後攻"}`, `新のデッキ ${newDeck}`]) {
+                            breakdown[k] ??= [0, 0]
+                            breakdown[k]![1]++
+                            if (won) breakdown[k]![0]++
+                        }
+                        if (won) win++
+                        else lose++
+                    }
                 } catch (e) {
                     errs++
                     console.error(`例外 ${MATCHUPS[i]!.label}#${n}:`, (e as Error).stack?.split("\n").slice(0, 5).join(" | "))
@@ -148,6 +160,10 @@ function vsOld(): void {
     console.log(`| 引き分け（未決着・詰まり） | ${draw} |`)
     console.log(`| 新の勝率（引き分け除く） | ${pct(p)}（95%区間 ${pct(Math.max(0, p - 1.96 * se))}〜${pct(Math.min(1, p + 1.96 * se))}） |`)
     console.log(`| 平均ターン | ${(turnSum / Math.max(1, played)).toFixed(1)} |`)
+    if (args.includes("--breakdown")) {
+        console.log(`\n| 内訳 | 新の勝ち／決着 | 勝率 |\n| :-- | --: | --: |`)
+        for (const [k, [w, n]] of Object.entries(breakdown).sort()) console.log(`| ${k} | ${w}／${n} | ${pct(w / Math.max(1, n))} |`)
+    }
     console.log(`| 例外 | ${errs} |`)
     console.log(`| 新のバースト（セット／発動／断った） | ${burstCount.セット} / ${burstCount.発動} / ${burstCount.断った} |`)
     if (process.env.BS_AI_BURST_TRACE) {
