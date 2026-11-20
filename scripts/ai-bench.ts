@@ -6,10 +6,68 @@ import { runTurnStart } from "../server/src/logic/PhaseManager"
 import type { Color, GameState, PlayerId } from "../server/src/type"
 import { pumpAiSync } from "../server/src/ai/runner"
 import { magicTags } from "../server/src/ai/moveTags"
+import { DEFAULT_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
 
-const N = Number(process.argv[2] ?? 3) || 3
+const args = process.argv.slice(2)
+const VS_OLD = args.includes("--vs-old")
+const N = Number(args.find((a) => !a.startsWith("--")) ?? 3) || 3
 const COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
 const MAX_ACTIONS = 6000
+
+// 新（本番の既定）対 旧（OLD_POLICY）。先後を入れ替えて同数回し、色の偏りと先手有利を消す。
+// 引き分け＝手数上限・詰まり・例外で決着しなかった局
+function vsOld(): void {
+    const NEW: AiPolicy = DEFAULT_POLICY
+    let win = 0, lose = 0, draw = 0, errs = 0, turnSum = 0, played = 0
+    for (let i = 0; i < COLORS.length; i++) {
+        for (let j = i; j < COLORS.length; j++) {
+            for (let n = 0; n < N; n++) {
+                const newIsP1 = n % 2 === 0
+                const policies: Record<PlayerId, AiPolicy> = newIsP1 ? { p1: NEW, p2: OLD_POLICY } : { p1: OLD_POLICY, p2: NEW }
+                const newPid: PlayerId = newIsP1 ? "p1" : "p2"
+                try {
+                    const s: GameState = createGame(`vs-${i}-${j}-${n}`, { p1: "A", p2: "B" }, { p1: COLORS[i]!, p2: COLORS[j]! })
+                    runTurnStart(s)
+                    s.interactiveTargets = true
+                    let total = 0
+                    let stuck = false
+                    while (!s.winner && total < MAX_ACTIONS) {
+                        const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, undefined, policies), 0)
+                        if (acted === 0) {
+                            stuck = true
+                            break
+                        }
+                        total += acted
+                    }
+                    played++
+                    turnSum += s.turn
+                    if (!s.winner || stuck) draw++
+                    else if (s.winner === newPid) win++
+                    else lose++
+                } catch (e) {
+                    errs++
+                    console.error(`例外 ${COLORS[i]}-${COLORS[j]}#${n}:`, (e as Error).message)
+                }
+            }
+        }
+    }
+    const decided = win + lose
+    const p = decided ? win / decided : 0.5
+    const se = decided ? Math.sqrt((p * (1 - p)) / decided) : 0
+    const pct = (x: number) => `${(100 * x).toFixed(1)}%`
+    console.log(`| 項目 | 値 |\n| :-- | --: |`)
+    console.log(`| 局数 | ${played + errs} |`)
+    console.log(`| 新の勝ち | ${win} |`)
+    console.log(`| 旧の勝ち | ${lose} |`)
+    console.log(`| 引き分け（未決着・詰まり） | ${draw} |`)
+    console.log(`| 新の勝率（引き分け除く） | ${pct(p)}（95%区間 ${pct(Math.max(0, p - 1.96 * se))}〜${pct(Math.min(1, p + 1.96 * se))}） |`)
+    console.log(`| 平均ターン | ${(turnSum / Math.max(1, played)).toFixed(1)} |`)
+    console.log(`| 例外 | ${errs} |`)
+}
+if (VS_OLD) {
+    vsOld()
+    process.exit(0)
+}
 
 const counts: Record<string, number> = {}
 const bump = (k: string): void => {

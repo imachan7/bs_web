@@ -9,6 +9,7 @@
 import type { GameState, PlayerId } from "../type"
 import { handleAction } from "../logic/GameEngine"
 import { decideAiAction, moveKey, type AiMove } from "./index"
+import type { AiPolicy } from "./policy"
 
 // 1手ごとの間隔。人間側が AI の動きを1手ずつ追えるだけの間を空ける。
 // BS_AI_DELAY_MS で上書きできる（E2E を待たせないため。0 にすれば間を空けずに指す）
@@ -103,11 +104,12 @@ export function pumpAiSync(
     aiPid: PlayerId,
     maxActions = MAX_ACTIONS_PER_PUMP,
     onMove?: (move: AiMove, state: GameState) => ((error: string | null) => void) | void,
+    policies?: Partial<Record<PlayerId, AiPolicy>>,
 ): number {
     let acted = 0
     const rejected = new Set<string>()
     while (acted < maxActions && !state.winner) {
-        const move = decideAiAction(state, aiPid, rejected)
+        const move = decideAiAction(state, aiPid, rejected, policies?.[aiPid])
         if (!move) break
         const after = onMove?.(move, state)
         const error = handleAction(state, aiPid, move.action)
