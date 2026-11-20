@@ -15,12 +15,15 @@ import { validateCastMagic, validateSummon } from "../server/src/logic/RuleValid
 import { loadAllCards } from "../data/loadCards"
 import { createInstance } from "./smoke/helpers"
 import { DECK_RECIPES } from "../data/constants"
+import { KifuSet } from "./ai-kifu"
 
 const args = process.argv.slice(2)
 const VS_OLD = args.includes("--vs-old")
 const N = Number(args.find((a) => /^\d+$/.test(a)) ?? 3) || 3
 const COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
 const MAX_ACTIONS = 6000
+// --kifu <dir>：1局ごとの棋譜（scripts/ai-kifu.ts）。どのモードとも併用できる
+const KIFU = args.includes("--kifu") ? new KifuSet(args[args.indexOf("--kifu") + 1]!) : null
 
 // --decks sd：構築済みデッキ（DECK_RECIPES の SD10 以降）で測る。既定は色デッキ6つの総当たり（同色を含む21組）。
 // sd は乱数を固定してデッキを並べ、並びの上で d=1..K 個先のデッキと対戦させる（--k=K、既定4）。
@@ -92,17 +95,19 @@ function vsOld(): void {
                     const s: GameState = createGame(`vs-${i}-${n}`, { p1: "A", p2: "B" }, { p1: MATCHUPS[i]!.a, p2: MATCHUPS[i]!.b })
                     runTurnStart(s)
                     s.interactiveTargets = true
+                    const rec = KIFU?.start({ id: `${MATCHUPS[i]!.label}#${n}`, decks: MATCHUPS[i]!.label, first: s.turnPlayer, newPid }, policies)
                     let total = 0
                     let stuck = false
                     decs = []
                     while (!s.winner && total < MAX_ACTIONS) {
-                        const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, pid === newPid ? burstHook(pid) : undefined, policies), 0)
+                        const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, rec ? rec.hook(pid, pid === newPid ? burstHook(pid) : undefined) : pid === newPid ? burstHook(pid) : undefined, policies), 0)
                         if (acted === 0) {
                             stuck = true
                             break
                         }
                         total += acted
                     }
+                    rec?.finish(s)
                     played++
                     allGames.push({ decs, won: s.winner === newPid, log: s.log.map((l) => (typeof l === "string" ? l : JSON.stringify(l))).filter((l) => /バースト|ライフ/.test(l)).slice(-40), label: `${MATCHUPS[i]!.label}#${n}(${newPid})` })
                     decs = []
@@ -172,6 +177,7 @@ function lowLife(): void {
                 runTurnStart(s)
                 s.interactiveTargets = true
                 const low = s.players[lowPid]
+                const rec = KIFU?.start({ id: `low-${MATCHUPS[i]!.label}#${n}`, decks: MATCHUPS[i]!.label, first: lowPid, newPid }, policies)
                 low.life = 2
                 low.reserve = 10
                 low.hand = [guard.cardId, ...low.hand.filter((c) => getCard(c).type !== "magic").slice(0, 2)]
@@ -195,10 +201,11 @@ function lowLife(): void {
                 }
                 let total = 0
                 while (!s.winner && total < MAX_ACTIONS) {
-                    const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, pid === lowPid && lowIsNew ? hook : undefined, policies), 0)
+                    const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, rec ? rec.hook(pid, pid === lowPid && lowIsNew ? hook : undefined) : pid === lowPid && lowIsNew ? hook : undefined, policies), 0)
                     if (acted === 0) break
                     total += acted
                 }
+                rec?.finish(s)
                 row.won = s.winner === lowPid
                 if (s.winner) rows.push(row)
             } catch (e) {
@@ -227,10 +234,12 @@ function lowLife(): void {
 }
 if (args.includes("--scenario") && args[args.indexOf("--scenario") + 1] === "low-life") {
     lowLife()
+    KIFU?.writeIndex()
     process.exit(0)
 }
 if (VS_OLD) {
     vsOld()
+    KIFU?.writeIndex()
     process.exit(0)
 }
 
@@ -255,6 +264,7 @@ for (let i = 0; i < MATCHUPS.length; i++) {
                 const s: GameState = createGame(`bench-${i}-${n}`, { p1: "A", p2: "B" }, { p1: MATCHUPS[i]!.a, p2: MATCHUPS[i]!.b })
                 runTurnStart(s)
                 s.interactiveTargets = true
+                const rec = KIFU?.start({ id: `bench-${MATCHUPS[i]!.label}#${n}`, decks: MATCHUPS[i]!.label, first: s.turnPlayer })
                 let total = 0
                 const hook = (move: { action: { type: string; timing?: "main" | "flash"; handIndex?: number } }, state: GameState) => {
                     const a = move.action
@@ -280,13 +290,14 @@ for (let i = 0; i < MATCHUPS.length; i++) {
                     }
                 }
                 while (!s.winner && total < MAX_ACTIONS) {
-                    const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, hook), 0)
+                    const acted = (["p1", "p2"] as PlayerId[]).reduce((sum, pid) => sum + pumpAiSync(s, pid, 60, rec ? rec.hook(pid, hook) : hook), 0)
                     if (acted === 0) {
                         stalled++
                         break
                     }
                     total += acted
                 }
+                rec?.finish(s)
                 if (!s.winner && total >= MAX_ACTIONS) unfinished++
                 turns += s.turn
             } catch (e) {
@@ -304,5 +315,6 @@ console.log(`| 平均ターン | ${(turns / Math.max(1, games - errors)).toFixed
 console.log(`| 詰まり | ${stalled} |`)
 console.log(`| 手数上限で未決着 | ${unfinished} |`)
 console.log(`| 例外 | ${errors} |`)
+KIFU?.writeIndex()
 console.log(`| 所要時間 | ${((Date.now() - t1) / 1000).toFixed(0)}秒 |`)
 for (const k of Object.keys(counts).sort()) console.log(`| ${k} | ${counts[k]} |`)
