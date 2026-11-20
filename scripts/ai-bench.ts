@@ -6,7 +6,7 @@ import { runTurnStart } from "../server/src/logic/PhaseManager"
 import type { Color, DeckSpec, GameState, PlayerId } from "../server/src/type"
 import { pumpAiSync } from "../server/src/ai/runner"
 import { magicTags } from "../server/src/ai/moveTags"
-import { BURST_POLICY, DEFAULT_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
+import { BURST_POLICY, CANDIDATE_POLICY, OLD_POLICY, type AiPolicy } from "../server/src/ai/policy"
 import { LOOKAHEAD_KINDS, LOOKAHEAD_MARGIN, LOOKAHEAD_BUDGET_MS, setLookaheadTrace, type OverrideTrace } from "../server/src/ai/lookahead"
 import { appendFileSync, writeFileSync } from "node:fs"
 import { enumerateLegalMoves } from "../server/src/ai/legalMoves"
@@ -51,12 +51,12 @@ function matchups(): Matchup[] {
 }
 const MATCHUPS = matchups()
 
-// BS_AI_OLD=burst：旧側を BURST_POLICY（先読みなし）にして、先読みだけの差を測る
-const OLD_SIDE: AiPolicy = process.env.BS_AI_OLD === "burst" ? BURST_POLICY : OLD_POLICY
-// 新（本番の既定）対 旧（OLD_POLICY）。先後を入れ替えて同数回し、色の偏りと先手有利を消す。
+// 旧側（基準）は BURST_POLICY（2026-11-20 から）。BS_AI_OLD=stage1 で段階1の OLD_POLICY と比べる
+const OLD_SIDE: AiPolicy = process.env.BS_AI_OLD === "stage1" ? OLD_POLICY : BURST_POLICY
+// 新（CANDIDATE_POLICY）対 旧（基準）。先後を入れ替えて同数回し、色の偏りと先手有利を消す。
 // 引き分け＝手数上限・詰まり・例外で決着しなかった局
 function vsOld(): void {
-    const NEW: AiPolicy = process.env.BS_AI_BURST ? BURST_POLICY : DEFAULT_POLICY
+    const NEW: AiPolicy = CANDIDATE_POLICY
     const burstCount = { セット: 0, 発動: 0, 断った: 0 }
     // BS_AI_BURST_TRACE=1：新側のバーストの決断（セット・入れ替え・断り）を局ごとに記録し、勝敗と並べて出す
     type Dec = { bk: string; turn: number; kind: string; card: string; ctype: string; usable: boolean; altOld: string; summonsAvail: number; replaced: boolean }
@@ -94,7 +94,7 @@ function vsOld(): void {
         writeFileSync(tracePath, "")
         setLookaheadTrace((t) => overrides.push(t))
     }
-    console.log(`新側: ${NEW === BURST_POLICY ? "BURST_POLICY（先読みなし）" : "DEFAULT_POLICY（アタックの先読みあり）"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
+    console.log(`新側: CANDIDATE_POLICY / 旧側: ${OLD_SIDE === OLD_POLICY ? "OLD_POLICY（段階1）" : "BURST_POLICY（基準）"} / KINDS=${[...LOOKAHEAD_KINDS].join(",")} / MARGIN=${LOOKAHEAD_MARGIN} / BUDGET_MS=${LOOKAHEAD_BUDGET_MS} / 組=${MATCHUPS.length} × N=${N}`)
     for (let i = 0; i < MATCHUPS.length; i++) {
         {
             for (let n = 0; n < N; n++) {
@@ -168,14 +168,14 @@ function vsOld(): void {
 }
 // --scenario low-life：開始局面を固定した計測（局面の組み方は lowLife のコメント）。--vs-old と同じ新旧の組
 function lowLife(): void {
-    const NEW: AiPolicy = process.env.BS_AI_BURST ? BURST_POLICY : DEFAULT_POLICY
+    const NEW: AiPolicy = CANDIDATE_POLICY
     // thenPay でアタックステップを終える守りのバースト（効果データから選ぶ）。手札に1枚持たせる
     const guard = loadAllCards().find((c) => c.type === "magic" && burstKind(c.cardId) === "guard" && c.effects.some((e) => e.kind === "burst" && e.thenPay === "flash") && c.effects.some((e) => e.kind === "magic" && e.timing === "flash" && anyNode(e.action, (x) => x.type === "endAttackStepAfterBattle")))
     if (!guard) throw new Error("守りのバーストが見つからない")
     type Row = { lowIsNew: boolean; won: boolean; set: boolean; fired: boolean; paid: number; declinedReady: number; declinedIdle: number; paidIdle: number }
     const rows: Row[] = []
     const t0 = Date.now()
-    console.log(`新側: ${NEW === BURST_POLICY ? "BURST_POLICY" : "DEFAULT_POLICY"} / 守りのバースト=${guard.name} / 組=${MATCHUPS.length} × N=${N}`)
+    console.log(`新側: CANDIDATE_POLICY / 守りのバースト=${guard.name} / 組=${MATCHUPS.length} × N=${N}`)
     for (let i = 0; i < MATCHUPS.length; i++) {
         for (let n = 0; n < N; n++) {
             // 偶数＝新がライフ2の側。ライフ2の側が先攻（ターン4）。ライフ2の側の色デッキは組の a／b を交互に

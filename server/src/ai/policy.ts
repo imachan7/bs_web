@@ -31,3 +31,7 @@ export const BURST_POLICY: AiPolicy = { pick: pickBestMove }
 // 本番の既定。場のコアの支払い・Lv1 召喚・バーストが入った後は、アタックの先読みを足しても先読みなしと差が出なかった
 // （構築済み 2400局で 50.9%、48.9〜52.9。2026-11-20）ので、計算の軽い先読みなしにする。先読みは LOOKAHEAD_POLICY に残す
 export const DEFAULT_POLICY: AiPolicy = BURST_POLICY
+
+// ai:bench --vs-old の新側（試す案）。基準（旧側）は既定で BURST_POLICY に固定してある（2026-11-20 ユーザーと合意）。
+// 基準を動かさないため、案の変更は pickBestMove・enumerateLegalMoves を書き換えず、この方針の中で手を足し引きする
+export const CANDIDATE_POLICY: AiPolicy = BURST_POLICY
