@@ -2,7 +2,7 @@
 import { effectiveCost } from "../../../shared/cost"
 import { burstActivationCostActive } from "../../../shared/rules/constraints"
 import type { GameState, PlayerId } from "../type"
-import { autoPayPlan, payCost } from "./EffectModules"
+import { costPayPlan, payCost } from "./EffectModules"
 import { getCard, log } from "./GameState"
 
 export function burstActivationFee(state: GameState, holderPid: PlayerId, cardId: string): number {
@@ -11,14 +11,14 @@ export function burstActivationFee(state: GameState, holderPid: PlayerId, cardId
 
 export function burstFeeUnpayable(state: GameState, holderPid: PlayerId, cardId: string): boolean {
     const fee = burstActivationFee(state, holderPid, cardId)
-    return fee > 0 && autoPayPlan(state, holderPid, fee, true) === null
+    return fee > 0 && costPayPlan(state, holderPid, fee) === null
 }
 
-// ponytail: 支払い元は自動（リザーブ→ネクサス→コアの多いスピリット）。支払い元を選ばせるなら askCostPay（summonSurcharge.ts）へ載せ替える
+// ponytail: 支払い元は自動（costPayPlan：維持コアを残して払えなければ消滅させて払う）。支払い元を選ばせるなら askCostPay（summonSurcharge.ts）へ載せ替える
 export function payBurstActivationFee(state: GameState, holderPid: PlayerId, cardId: string): void {
     const fee = burstActivationFee(state, holderPid, cardId)
     if (fee <= 0) return
-    const plan = autoPayPlan(state, holderPid, fee, true)
+    const plan = costPayPlan(state, holderPid, fee)
     if (plan === null) return
     payCost(state, holderPid, fee, plan.paySources, 0, plan.soulFromReserve)
     log(state, `${state.players[holderPid].name}は${getCard(cardId).name}の発動のためコスト${fee}を支払った。`)

@@ -61,15 +61,14 @@ console.log("=== 2. 対話：支払いの選択が出て、選んだコアから
     assert(s.pendingChoice?.kind === "target", "使用されて対象選択が出る")
 }
 
-console.log("=== 3. フィールドを合わせても足りない：使用されない ===")
+console.log("=== 3. リザーブ0でも、発揮しているミカファール自身を消滅させてコストを払える：候補に出る（#662・#665。COST_MODEL §13） ===")
 {
     const s = game("short", true)
     put(s, "p2", "BS01-005", 3)
-    const mika = put(s, "p1", "BS08-X33", 2) // Lv2の維持コアぶんしか持たない
+    const mika = put(s, "p1", "BS08-X33", 2) // Lv2の維持コアぶんしか持たない。払うと消滅する
     s.players.p1.trashCards.push(MAGIC)
     s.players.p1.reserve = 0
     fireTrigger(s, "p1", mika, "onAttack")
-    assert(s.pendingChoice?.kind !== "card" || (s.pendingChoice.cardIndices ?? []).length === 0, `候補に出ない（実際: ${String(s.pendingChoice?.kind)}）`)
-    assert(s.players.p1.trashCards.includes(MAGIC), "マジックはトラッシュに残る")
+    assert(s.pendingChoice?.kind === "card" && (s.pendingChoice.cardIndices ?? []).length > 0, `候補に出る（実際: ${String(s.pendingChoice?.kind)}）`)
 }
 console.log("すべてのチェックに合格しました 🎉（part986）")

@@ -4154,7 +4154,8 @@
        "reserve"
       ],
       "to": "trash",
-      "count": 3
+      "count": 3,
+      "reserveOnly": true
      },
      "then": {
       "type": "refresh",
