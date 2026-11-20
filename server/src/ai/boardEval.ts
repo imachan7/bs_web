@@ -8,8 +8,10 @@ import { bpScore } from "./evaluate"
 
 export const BOARD_WEIGHTS = {
     WIN: 100000, // 勝敗が決まっている局面の値（自分の勝ちが +、負けが −）
-    LIFE_PER: 20, // ライフ1つあたり
-    LIFE_LOW_PENALTY: 40, // ライフ1以下のときの追加の減点（最後の1つは落ちやすい）
+    LIFE_PER: 20, // LIFE_TABLE を超えるぶんのライフ1つあたり
+    // ライフ L の価値。残りが少ないほど1点が重い（最後の1つ＝60、5→4＝12）。減ったライフのコアは相手のリザーブへ入り資源になるため、
+    // 1点ずつ削るより、取り切れるときにまとめて取るほうを高く見る（ユーザーの指摘 2026-11-20、AI_OPPONENT §9.y）
+    LIFE_TABLE: [0, 60, 95, 120, 138, 150] as readonly number[],
     SPIRIT_BP: 3, // スピリットのBP（千単位）1あたり
     SPIRIT_SYMBOL: 8, // スピリットのシンボル数1あたり（1回のアタックで削る数）
     SPIRIT_UNTAPPED: 6, // 回復状態（次の相手ターンのブロッカー）のスピリットへの加点
@@ -17,8 +19,7 @@ export const BOARD_WEIGHTS = {
     NEXUS_BASE: 10, // ネクサス1つあたり
     NEXUS_PER_LEVEL: 4, // ネクサスのレベル1あたり
     FIELD_CORE: 2, // スピリット・ネクサスの上のコア1個あたり（BP・レベルの項と二重にならないよう低く）
-    RESERVE_CORE: 3, // リザーブのコア1個あたり
-    RESERVE_CORE_CAP: 8, // リザーブのコアを数える上限（これ以上は頭打ち）
+    RESERVE_CORE: 6, // リザーブのコア1個あたり（上限なし。3＋上限8 から上げて新旧対戦が 41.9%→約51%）
     HAND_CARD: 5, // 手札1枚あたり
     HAND_CARD_CAP: 6, // 手札を数える上限
     DECK_LOW_THRESHOLD: 5, // デッキ残りがこの枚数以下でデッキ切れの減点が始まる
@@ -40,8 +41,9 @@ function sideValue(view: GameView, pid: PlayerId): number {
     let value = 0
 
     // ライフ
-    value += W.LIFE_PER * player.life
-    if (player.life <= 1) value -= W.LIFE_LOW_PENALTY
+    const table = W.LIFE_TABLE
+    const last = table.length - 1
+    value += player.life <= last ? table[player.life]! : table[last]! + W.LIFE_PER * (player.life - last)
 
     // 場のスピリット
     let untapped = 0
@@ -66,8 +68,8 @@ function sideValue(view: GameView, pid: PlayerId): number {
     const fieldCores = [...spirits, ...nexuses].reduce((sum, inst) => sum + inst.cores, 0)
     value += W.FIELD_CORE * fieldCores
 
-    // リザーブのコア（上限で頭打ち）・トラッシュのコアは 0
-    value += W.RESERVE_CORE * Math.min(player.reserve, W.RESERVE_CORE_CAP)
+    // リザーブのコア・トラッシュのコアは 0
+    value += W.RESERVE_CORE * player.reserve
 
     // 手札は枚数だけ（相手の中身は見えない。自分も釣り合わせるため枚数で揃える）
     value += W.HAND_CARD * Math.min(player.handCount, W.HAND_CARD_CAP)

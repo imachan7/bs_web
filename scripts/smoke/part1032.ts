@@ -80,19 +80,20 @@ console.log("=== 2. 同じ盤面を両側に置き換えると符号が反転す
     assert(evalP1(a) === -evalP1(b), `自分に置いた盤面と相手に置いた盤面は符号が反転（${evalP1(a)} / ${evalP1(b)}）`)
 }
 
-console.log("=== 3. ライフ（ライフが多いほど高い。1以下で追加の減点） ===")
+console.log("=== 3. ライフ（ライフが多いほど高い。残りが少ないほど1点が重い） ===")
 {
     const more = base("life1")
     more.players.p1.life = 5
     const less = base("life2")
     less.players.p1.life = 4
-    assert(evalP1(more) - evalP1(less) === W.LIFE_PER, "ライフ1つ分は LIFE_PER")
+    assert(evalP1(more) - evalP1(less) === W.LIFE_TABLE[5]! - W.LIFE_TABLE[4]!, "ライフ5→4は表の差")
 
     const two = base("life3")
     two.players.p1.life = 2
     const one = base("life4")
     one.players.p1.life = 1
-    assert(evalP1(two) - evalP1(one) === W.LIFE_PER + W.LIFE_LOW_PENALTY, "ライフ2→1は LIFE_PER＋LIFE_LOW_PENALTY")
+    assert(evalP1(two) - evalP1(one) === W.LIFE_TABLE[2]! - W.LIFE_TABLE[1]!, "ライフ2→1は表の差")
+    assert(W.LIFE_TABLE[1]! - W.LIFE_TABLE[0]! > W.LIFE_TABLE[5]! - W.LIFE_TABLE[4]!, "最後の1点は5→4より重い")
 }
 
 console.log("=== 4. スピリット（BP・シンボル・回復状態） ===")
@@ -158,7 +159,7 @@ console.log("=== 7. 場のコア（スピリット・ネクサスの上） ===")
     assert(evalP1(more) > evalP1(less), "場のコアが多いほど高い")
 }
 
-console.log("=== 8. リザーブのコア（上限で頭打ち） ===")
+console.log("=== 8. リザーブのコア（上限なし） ===")
 {
     const more = base("res1")
     more.players.p1.reserve = 5
@@ -166,11 +167,11 @@ console.log("=== 8. リザーブのコア（上限で頭打ち） ===")
     less.players.p1.reserve = 3
     assert(evalP1(more) - evalP1(less) === 2 * W.RESERVE_CORE, "リザーブ2個ぶんは RESERVE_CORE×2")
 
-    const capped = base("res3")
-    capped.players.p1.reserve = W.RESERVE_CORE_CAP
-    const over = base("res4")
-    over.players.p1.reserve = W.RESERVE_CORE_CAP + 3
-    assert(evalP1(capped) === evalP1(over), "上限を超えたリザーブは増えても値が変わらない")
+    const many = base("res3")
+    many.players.p1.reserve = 20
+    const fewer = base("res4")
+    fewer.players.p1.reserve = 19
+    assert(evalP1(many) - evalP1(fewer) === W.RESERVE_CORE, "リザーブは多くても頭打ちにならない")
 }
 
 console.log("=== 9. 手札（枚数のみ。上限で頭打ち） ===")
