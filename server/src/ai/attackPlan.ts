@@ -20,7 +20,7 @@ export function restAfterTop(values: number[], k: number): number {
 export type AttackPlan = { lethal: boolean; allowed: Set<string> }
 
 // ponytail: 相手の手札の守り・伏せたバースト・自分の守り手と相手のアタッカーの BP の比較は数えない（§9.v の後回し）
-export type PlanOptions = { desperate?: boolean }
+export type PlanOptions = { desperate?: boolean; coreSummon?: number }
 
 export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[], opts: PlanOptions = {}): AttackPlan {
     const opp = other(me)
@@ -31,14 +31,17 @@ export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[],
         .filter((s): s is CardInstance => s !== undefined)
     const blockersOf = (a: CardInstance) => theirs.field.spirits.filter((b) => canBlock(view, opp, b, me, a) === null)
     const blockerCount = theirs.field.spirits.filter((b) => attackers.some((a) => canBlock(view, opp, b, me, a) === null)).length
-    const lethal = restAfterTop(attackers.map(instanceSymbolCount), blockerCount) >= theirs.life
+    const through = restAfterTop(attackers.map(instanceSymbolCount), blockerCount)
+    const lethal = through >= theirs.life
     if (lethal) return { lethal, allowed: new Set(attackerIds) }
 
     // 次の相手のターンは相手の全スピリットが回復してアタックしてくる。上から k 体止めれば残りがライフ未満になる最小の k
     const threats = theirs.field.spirits.map(instanceSymbolCount)
     // 相手が次のターンに出す分を「手札の枚数まで最大2体・シンボル1つずつ」と見積もる。基準との 1200局：0体 49.9%・1体 52.0〜53.5%・2体 54.5〜57.9%・3体 56.3%・上限なし 52.3%（2026-11-20）
     // ponytail: 手札とコアからは数えない。BS_AI_PLAN_SUMMON で体数を上書きして測る
-    for (let i = 0; i < Math.min(EXTRA_SUMMON, theirs.handCount ?? 0); i++) threats.push(1)
+    // coreSummon：相手が次のターンに使えるコア（リザーブ＋トラッシュ＋コアステップの1＋このターンこちらが取りうるライフ）を1体あたりのコアで割った数が多ければ見込みを増やす。下限は EXTRA_SUMMON
+    const byCores = opts.coreSummon ? Math.floor((theirs.reserve + theirs.trashCores + 1 + through) / opts.coreSummon) : 0
+    for (let i = 0; i < Math.min(Math.max(EXTRA_SUMMON, byCores), theirs.handCount ?? 0); i++) threats.push(1)
     let need = 0
     while (need < threats.length && restAfterTop(threats, need) >= mine.life) need++
     const idle = mine.field.spirits.filter((s) => !s.isRested).length

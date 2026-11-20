@@ -43,8 +43,12 @@ export const BLOCK_POLICY: AiPolicy = { pick: blockPick }
 // BLOCK_POLICY に構築済み 4800局 49.5%（48.0〜50.9）で勝率の差は見えない。手が変わった局は 400局中 53局で、その局の勝率は約 64%（2026-11-20）
 export const KEEP_GUARD_POLICY: AiPolicy = { pick: keepGuardPick }
 
+// 相手の召喚の見込みを、相手が次のターンに使えるコア（リザーブ＋トラッシュ＋1＋このターンこちらが取りうるライフ）÷3体まで増やす（下限は従来の2体）。
+// 手が変わるのは「相手のコアが多い盤面でアタックを控える」だけで、1600局中 110局。その局の勝率 61.8%（変わらなかった局 48.9%）。全体は 4800局 50.5%（2026-11-21）
+export const SUMMON_POLICY: AiPolicy = { pick: (v, m, mv) => keepGuardPick(v, m, mv, { desperate: true, coreSummon: 3 }) }
+
 // 本番の既定。ai:bench --vs-old の旧側（基準）もこれ（BS_AI_OLD=stage1 で段階1の OLD_POLICY）
-export const DEFAULT_POLICY: AiPolicy = KEEP_GUARD_POLICY
+export const DEFAULT_POLICY: AiPolicy = SUMMON_POLICY
 
 // ai:bench --vs-old の新側（試す案）。基準を動かさないため、案は既存の pick 関数を書き換えず、新しい関数で手を足し引きしてここに差す
-export const CANDIDATE_POLICY: AiPolicy = KEEP_GUARD_POLICY
+export const CANDIDATE_POLICY: AiPolicy = SUMMON_POLICY
