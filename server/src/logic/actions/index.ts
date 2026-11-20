@@ -19,6 +19,7 @@ import exhaustRefresh from "./exhaustRefresh"
 import grant from "./grant"
 import life from "./life"
 import loseGame from "./loseGame"
+import gameRestart from "./gameRestart"
 import mill from "./mill"
 import pay from "./pay"
 import peekHand from "./peekHand"
@@ -62,6 +63,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...grant,
     ...life,
     ...loseGame,
+    ...gameRestart,
     settleDerived: settleDerivedHandler,
     magicMirrorRepeat: magicMirrorRepeatHandler,
     resumeMagicEntry: resumeMagicEntryHandler,

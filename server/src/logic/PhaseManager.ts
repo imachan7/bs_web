@@ -418,8 +418,10 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
         }
 
         state.phase = "end"
+        const restartsBefore = state.gameRestartCount ?? 0
         fireStepTriggers(state, "end")
         if (state.winner) return
+        if ((state.gameRestartCount ?? 0) !== restartsBefore) return // ゲームが再開された（新しい1ターン目は開始済み）。ターン終了の残りは行わない
         if (state.pendingChoice) {
             pushResumeFrames(state, [{ kind: "endTurn", from: "afterEndStep" }])
             return

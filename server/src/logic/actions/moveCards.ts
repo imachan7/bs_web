@@ -12,7 +12,7 @@ import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { canPayMagicCost, payMagicCostThenResolve } from "../magic/payThenResolve"
 import { beginMagicUse } from "../magic/inUse"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
-import { summonDenial } from "../summonGate"
+import { placeDenial, summonDenial } from "../summonGate"
 import { handImmuneFor, notifyHandGained, payCost, recordTimed, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
 import { handGainDenial } from "../handGate"
 import { canDiscardHand, instMinLevelCores, isTrashCardProtected, trashCardNameMatches } from "../../../../shared/rules"
@@ -94,7 +94,7 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
                 (matchesPick(id, pickRest, undefined, selfCardId) || fchangeAsCostMatches(state, zonePid, action, id, pickRest, selfCardId)) &&
                 nameOk(id) &&
                 (action.dest !== "summon" || !summonDenial(state, { pid: owner, cardId: id, from: action.from === "hand" ? "hand" : action.from === "deck" ? "deck" : "trash", cause: "effect", mayCombine: true, ...(action.pay === "cost" ? { paid: true as const } : {}) })) &&
-                (action.dest !== "placeNexus" || action.pay !== undefined || !getCard(id).effects.some((e) => e.kind === "noFreeSummon")) && // 無償の配置は不可（noFreeSummon）
+                (action.dest !== "placeNexus" || placeDenial(id, action.pay !== undefined) === null) &&
                 (!action.onlyEventCard || id === targetInstanceId) &&
                 (action.from !== "trash" || !isTrashCardProtected(id, state)) &&
                 (fromEventIdx === undefined || fromEventIdx.has(j)) &&
@@ -453,7 +453,9 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
         (dest !== "summon" && dest !== "summonOrPlace") ||
         (getCard(id).type !== "spirit" && getCard(id).type !== "brave") ||
         summonDenial(state, { pid: owner, cardId: id, from: "revealed", cause: "effect", ...(action.pay === "cost" ? { paid: true as const } : {}) }) === null
-    const candidates = (): number[] => zone.cardIds.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick, undefined, ctx.sourceCardId) && payable(x.id) && summonable(x.id)).map((x) => x.i)
+    // コストを支払わずに配置する効果では、コストを支払わなければ配置できないネクサス（noFreeSummon）は対象にできない
+    const placeable = (id: string): boolean => (dest !== "placeNexus" && dest !== "summonOrPlace") || placeDenial(id, action.pay !== undefined) === null
+    const candidates = (): number[] => zone.cardIds.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick, undefined, ctx.sourceCardId) && payable(x.id) && summonable(x.id) && placeable(x.id)).map((x) => x.i)
     // 1枚を送る。効果で召喚するブレイヴは合体先を選べる（BRAVE.md §12.6）。非対話はスピリット状態。
     // 再開（combineIndex）は選んだ位置のカードを、合体先（無ければスピリット状態）で送る
     const sendPicked = (i: number, hostId?: string): void => {

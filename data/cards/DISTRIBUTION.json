@@ -4628,7 +4628,11 @@
     "lentOnly": true,
     "ownOnly": true,
     "subjectFilter": {
-     "rarity": "X"
+     "rarity": [
+      "X",
+      "PX",
+      "XX"
+     ]
     },
     "action": {
      "type": "discard",
@@ -5059,5 +5063,118 @@
   "limited": false,
   "effect": "Lv1･Lv2『このネクサスの配置時』\nBP2000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n自分のアルティメットすべてをBP+3000する。",
   "effects": []
+ },
+ {
+  "cardId": "PB13-05",
+  "name": "グラウンド・オブ・ロロ",
+  "type": "nexus",
+  "colors": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "このネクサスカードは6コストを支払わなければ配置できない。\nLv1『自分のエンドステップ』\n自分の赤/紫/緑/白/黄/青のスピリットがそれぞれ1体ずついるとき、お互い、カードすべてをデッキに戻してシャッフルし、ライフ以外のコアすべてをボイドに戻す。\nその後、お互い、ボイドからコア6個をリザーブに置き、手札2枚を引いてから、ジャンケンで先攻を決め、1ターン目からゲームを再開する。\nこの効果は、ゲーム中に、自分か相手どちらか1回しか使えない。",
+  "effects": [
+   {
+    "id": "PB13-05-e1",
+    "kind": "noFreeSummon",
+    "levels": null
+   },
+   {
+    "id": "PB13-05-e2",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownSpirits": {
+        "color": "red"
+       }
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "if",
+      "cond": {
+       "count": {
+        "ownSpirits": {
+         "color": "purple"
+        }
+       },
+       "atLeast": 1
+      },
+      "then": {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownSpirits": {
+          "color": "green"
+         }
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "if",
+        "cond": {
+         "count": {
+          "ownSpirits": {
+           "color": "white"
+          }
+         },
+         "atLeast": 1
+        },
+        "then": {
+         "type": "if",
+         "cond": {
+          "count": {
+           "ownSpirits": {
+            "color": "yellow"
+           }
+          },
+          "atLeast": 1
+         },
+         "then": {
+          "type": "if",
+          "cond": {
+           "count": {
+            "ownSpirits": {
+             "color": "blue"
+            }
+           },
+           "atLeast": 1
+          },
+          "then": {
+           "type": "restartGame"
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  ]
  }
 ]

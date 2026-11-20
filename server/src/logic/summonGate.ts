@@ -19,6 +19,18 @@ export interface SummonAttempt {
     mayCombine?: true // 合体先をまだ決めていない段階（候補判定・バーストの自動合体）。ブレイヴは合体先があれば体数が増えずに出られる
 }
 
+// ネクサスを場へ出す入口の禁止の問い合わせ（コストを支払わずに配置する効果が、配置の前に呼ぶ）。
+// 「コストを支払わなければ配置できない」（noFreeSummon）のネクサスは、コストを支払って配置するもの（paid）だけが成り立つ
+export function placeDenial(cardId: string, paid: boolean): string | null {
+    if (paid) return null
+    const card = getCard(cardId)
+    if (card.type !== "nexus") return null
+    const noFree = card.effects.find((e) => e.kind === "noFreeSummon")
+    if (!noFree) return null
+    noteCoverage(noFree, "noFreeSummon")
+    return "コストを支払わなければ配置できません"
+}
+
 function globalConstraintsOf(state: GameState, pid: PlayerId, type: string, withBraves = false) {
     const out: { effect: any; inst: ReturnType<typeof effectSources>[number] }[] = []
     const owners = state.players[pid].field

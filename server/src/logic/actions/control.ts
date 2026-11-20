@@ -22,7 +22,7 @@ import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "../summonSurcharge"
 import { askSummonCores } from "../summonCores"
 import { braveCombineCandidates } from "../../../../shared/summon"
-import { summonDenial } from "../summonGate"
+import { placeDenial, summonDenial } from "../summonGate"
 import { stayOnFieldRevived } from "../revive"
 import { combinedSpiritSymbolColors, effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -364,6 +364,10 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     }
     const card = getCard(cardId)
     if (card.type === "nexus") {
+        if (placeDenial(cardId, false) !== null) {
+            log(state, `${sourceName}：${card.name}はコストを支払わなければ配置できない。`)
+            return
+        }
         player.burst = null
         player.burstSet = false
         const inst = createInstance(cardId, state.turn, 0)

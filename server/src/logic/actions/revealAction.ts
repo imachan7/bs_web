@@ -13,7 +13,7 @@ import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFr
 import { emitEvent, payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, requestChoice, resolveTensho } from "../EffectModules"
 import { fireNexusDeployed } from "../fieldEventTriggers"
 import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
-import { summonDenial } from "../summonGate"
+import { placeDenial, summonDenial } from "../summonGate"
 import { hasKeyword, instHasColor, countSymbols } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { activateBurstCard } from "../keywords/burst"
@@ -162,6 +162,11 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             return
         case "placeNexus": {
             if (card.type !== "nexus") {
+                player.trashCards.push(cardId)
+                return
+            }
+            if (placeDenial(cardId, action.pay === "cost") !== null) {
+                log(state, `${sourceName}：${card.name}はコストを支払わなければ配置できないため配置できなかった。`)
                 player.trashCards.push(cardId)
                 return
             }

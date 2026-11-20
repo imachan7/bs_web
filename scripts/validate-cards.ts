@@ -594,8 +594,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                     prevCores = lv.cores
                 }
             }
-            // ブレイヴは「シンボル：なし」が実在する（BS10-062 砲凰竜フェニック・キャノン。BRAVE.md §1.5）
-            if (c.symbol.length === 0 && c.type !== "brave") add(id, `${c.type} なのに symbol が空`)
+            // ブレイヴは「シンボル：なし」が実在する（BS10-062 砲凰竜フェニック・キャノン。BRAVE.md §1.5）。
+            // ネクサスでは PB13-05 グラウンド・オブ・ロロが「シンボル：なし」（公式 Q24445）
+            if (c.symbol.length === 0 && c.type !== "brave" && !SYMBOLLESS_VERIFIED.has(c.cardId)) add(id, `${c.type} なのに symbol が空`)
         }
 
         // --- ブレイヴ（docs/design/BRAVE.md §9）---
@@ -799,6 +800,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
+const SYMBOLLESS_VERIFIED = new Set<string>(["PB13-05"])
 const AWAITING_MIGRATION = new Set<string>([])
 // standard 版（26系カード）から持ち込んだエンジンの語彙で、旧カードからは呼ばれないもの（2026-10-15 に bs_web_standard から持ち込み）
 const STANDARD_POOL_ONLY = new Set<string>([

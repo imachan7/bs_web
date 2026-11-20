@@ -12,7 +12,7 @@ import { summonFromHandFreeCandidateMatches } from "../summon"
 import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { summonBurstCardFreeHandler } from "./control"
-import { summonDenial } from "../summonGate"
+import { placeDenial, summonDenial } from "../summonGate"
 import { askSummonCores } from "../summonCores"
 import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
@@ -386,7 +386,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
         const isMatch = (cardId: string): boolean => {
             const c = getCard(cardId)
             // colors 省略時は色を問わない（SD02-006 鼬の暗殺者ウィゼーブ）
-            if (c.type !== "nexus") return false
+            if (c.type !== "nexus" || placeDenial(cardId, false) !== null) return false
             if (action.from === "trash" && !trashTakeableByEffect(state, cardId)) return false
             if (action.nameContains !== undefined && !c.name.includes(action.nameContains)) return false
             return action.colors === undefined || action.colors.some((col) => cardHasColor(c, col))

@@ -27,6 +27,7 @@ export interface GameState {
     skipMainStepNow?: true // リフレッシュステップで skipMainStep を使い切った＝このターンのメインステップ区間を飛ばす（区間が消費する）
     oweSecondMain?: true // このターンにアタックステップを経由した＝第2メインステップがまだ残っている（toAttackPhase で立て、第2メインステップへ入るときに消す）
     secondMainDone?: true // このターンに第2メインステップを既に行った（BS10-008 の追加アタックステップの後には第2メインをもう行わない。ターン終了でリセット）
+    gameRestartCount?: number // restartGame の実行回数。0超＝使用済み（どちらのプレイヤーが使っても）。再開で消さない。stepTriggers・endTurn が「この誘発の解決中に再開したか」を前後の比較で見る
     extraTurnStepsPending?: true // GX08：アタックステップ終了後にコア〜アタックの各ステップを1回ずつ行う予約（PhaseManager.endTurn が消費。ターン終了で消える）
     extraAttackStepPending?: true // **アタックステップとエンドステップをもう1回ずつ行う**（BS10-008 火星神龍アレス・ドラグーン）。
     // PhaseManager.endTurn が「エンドステップの誘発を解決した直後・一時状態のリセット群の前」でこれを見て、

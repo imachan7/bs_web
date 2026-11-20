@@ -6,6 +6,7 @@ const VAN = "BS01-002" // ロクケラトプス（赤・コスト1）
 const RARE_X = "BS13-X05" // 麒麟星獣リーン（黄・X）
 const RARE_PX = "PX01" // 獅龍王レオン・ハウル（赤・PX）
 const RARE_R = "BS22-003" // プロフェット・ドラゴン（赤・R）
+const RARE_EX = "EX004" // 煌星龍ジークヴルム・アルター（赤・EX）
 const KOUDOU = "BS10-X06" // 天蠍神騎スコル・スピア（青・コスト5・系統「光導」）
 
 console.log("=== 前提: カードの機械確認 ===")
@@ -16,6 +17,7 @@ assert(getCard("GX01").name === "ギャラクシードロー" && getCard("GX01")
 assert(getCard(RARE_X).name === "麒麟星獣リーン" && getCard(RARE_X).rarity === "X", "RARE_XはXレア")
 assert(getCard(RARE_PX).name === "獅龍王レオン・ハウル" && getCard(RARE_PX).rarity === "PX", "RARE_PXはPXレア")
 assert(getCard(RARE_R).name === "プロフェット・ドラゴン" && getCard(RARE_R).rarity === "R", "RARE_RはRレア")
+assert(getCard(RARE_EX).name === "煌星龍ジークヴルム・アルター" && getCard(RARE_EX).rarity === "EX", "RARE_EXはEXレア")
 assert(getCard(KOUDOU).name === "天蠍神騎スコル・スピア" && getCard(KOUDOU).family.includes("光導"), "KOUDOUは光導")
 
 function game(seed: string, name: string): GameState {
@@ -95,6 +97,7 @@ console.log("=== 3. GX07：このターンの間、自分のXレア（X・PX）�
     assert(attackDelta(RARE_X) === 10, "Xレアのアタックで10枚")
     assert(attackDelta(RARE_PX) === 10, "PXレアのアタックでも10枚")
     assert(attackDelta(RARE_R) === 0, "Rレアには効かない")
+    assert(attackDelta(RARE_EX) === 0, "EXレアには効かない（X の文字を含んでも Xレアではない。2026-11-20 ユーザー決定）")
     assert(attackDelta(RARE_X, false) === 0, "マジックを使っていなければ破棄しない")
     // 相手のXレアのアタックでは発揮しない
     const s = game("gx07-opp", "馬神弾")

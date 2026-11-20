@@ -836,6 +836,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `resolveForcedBlock`（fn）
 
+## server/src/logic/gameRestart.ts
+
+- `restartGame`（fn）：除外ゾーン（excludedCards）とライフのコアは動かさない。
+
 ## server/src/logic/handBurstEffect.ts
 
 - `doUseHandBurstEffect`（fn）：発動でも使用でもないので、効果税（on:"burst"）・usedMagicCardIds・【光芒】の回収・ownBurstActivated は通らない。
@@ -1233,6 +1237,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/summonGate.ts
 
 - `SummonAttempt`（型）
+- `placeDenial`（fn）：ネクサスを場へ出す入口の禁止の問い合わせ（コストを支払わずに配置する効果が、配置の前に呼ぶ）。
 - `summonDenial`（fn）
 
 ## server/src/logic/summonSurcharge.ts

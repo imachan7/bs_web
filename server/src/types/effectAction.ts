@@ -120,6 +120,7 @@ export type EffectAction =
  // 自分のトラッシュのスピリットカードを手札に戻す。costBudget＝countを無視し、コスト合計がbudget以下で好きなだけ（コスト最大から貪欲に選ぶ決定的簡略化）。anyCardType＝カード種別を問わない。vanillaFilter＝効果の記述を持たないカードのみ（isVanillaCard）。bravesOnly＝ブレイヴカードだけ（includeBravesの「両方」とは別軸）。colorFilter は静的なcolorsで判定。costSkipDraw＝そのドローステップのドローを支払いに使う（実際に戻せたときだけ GameState.drawStepSkipped を立てる）。keywordFilter は静的に持つエントリで判定、keywordFilterAny は OR。thenDestroyIfFamily＝戻したカードがその系統（配列＝OR）を持つときだけ続けて maxBp以下の相手スピリット1体を破壊。自動選択は末尾＝新しい方から（本来は選択の簡略化）。all＝countを無視しfamilyFilter該当カードすべて
  | { type: "settleDerived" } // その時点までに効果の中で待機に入った破壊・消滅の列を解決して確定する（「この効果発揮後」の区切り）。通常は効果の出口が自動で行うので、データには「この効果発揮後」の位置にだけ書く
  | { type: "loseGame"; side: "opponent" | "own" } // 効果で敗北させる（相手は負けたことになる）。side は効果の持ち主から見た負ける側
+ | { type: "restartGame" } // お互いのカードすべてをデッキへ戻して切り直し、1ターン目からゲームを再開する（PB13-05）。ゲーム中に1回だけで、2回目以降は何もしない。除外ゾーンとライフは残る
  | { type: "noop" } // 何もしない。magicNegate の確認など、アクション解決以外の pendingChoice のプレースホルダ。カードデータには書かない
  | { type: "repeatCombinedAttackMarker" } // 何もしない目印。同じ個体が合体中のブレイヴの『合体アタック時』効果の後に「もう1度」を聞く（BS22-009）。実体は fireAgain への包み込み（combinedAttackRepeat.ts）
  | { type: "fireAgain"; action: EffectAction; confirmed?: true } // 解決後に「同じ効果をもう1度だけ発揮できる」と聞き、承諾されたら action をもう1度解決する（対象は選び直す）

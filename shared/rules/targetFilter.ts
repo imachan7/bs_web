@@ -137,7 +137,7 @@ export function matchesTarget(
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
     // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）。
     // 配列指定はいずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
-    if (filter.rarity !== undefined && !card(inst.cardId).rarity.includes(filter.rarity)) return false
+    if (filter.rarity !== undefined && !card(inst.cardId).rarity.split(",").some((r) => filter.rarity!.includes(r.trim()))) return false
     if (filter.nameIs !== undefined && !cardNameIs(inst, filter.nameIs)) return false
     if (filter.nameContains !== undefined) {
         const names = Array.isArray(filter.nameContains) ? filter.nameContains : [filter.nameContains]
