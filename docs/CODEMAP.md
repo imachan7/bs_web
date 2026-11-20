@@ -390,6 +390,18 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `RoomStatus`（型）
 - `registerAdmin`（fn）
 
+## server/src/ai/attackPlan.ts
+
+- `restAfterTop`（fn）：大きい順に並べた数の列から上 k 個を除いた合計
+- `AttackPlan`（型）
+- `PlanOptions`（型）：ponytail: 相手の手札の守り・伏せたバースト・自分の守り手と相手のアタッカーの BP の比較は数えない（§9.v の後回し）
+- `planAttacks`（fn）
+- `planPick`（fn）
+
+## server/src/ai/blockPlan.ts
+
+- `blockPick`（fn）：ponytail: 相手の手札・バースト・【激突】などの効果、ブロッカーが勝てるかは残りの打点の計算に入れない
+
 ## server/src/ai/boardEval.ts
 
 - `BOARD_WEIGHTS`（const）
@@ -432,6 +444,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `MoveTags`（型）
 - `tagsOfAction`（fn）
 - `magicTags`（fn）：マジックを timing の側の効果で使うときのタグ
+- `anyNode`（fn）：アクションの木のどこかが条件に合うか（葉の type と行き先を効果データから読む）
+- `BurstKind`（型）：セットするバーストの種類。守り＝ライフを増やす（placeCores の行き先が life）か、同じカードのフラッシュ効果が
+- `burstKind`（fn）
+- `GUARD_RANK_LOW_LIFE`（const）：守りは自分のライフが少ないほど価値が上がる（ライフ5以上で除去と同格、4以下で除去の上、2以下でほかのどの種類よりも上）
+- `GUARD_RANK_CRITICAL_LIFE`（const）
+- `burstRank`（fn）
 - `opponentHasTargets`（fn）：相手の場に removal の的になりうるものがいるか
 - `pruneMoves`（fn）：打っても何も起きない手を合法手から落とす。タグの無い手（pass・nextPhase・endTurn・選択）は触らない。
 - `FieldEffectTag`（型）：場のカードが今のレベルで持つ効果の分類（評価の「場の効果の価値」用）。誘発・起動・場のイベント・バトル勝利・ステップの
@@ -442,7 +460,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `AiPolicy`（型）：pickState は先読み用（GameState を要る）。手を返したらそれを使い、null なら pick に任せる。
 - `OLD_POLICY`（const）：段階1完了時点の選び方。段階2で点を変えても、これは pickBestMove を呼び続ける（新しい点は別関数に足す）
 - `LOOKAHEAD_POLICY`（const）：旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
-- `DEFAULT_POLICY`（const）：本番の既定。先読みをアタックだけに使う（根拠は lookahead.ts の LOOKAHEAD_KINDS）
+- `BURST_POLICY`（const）：バーストをセットし、意味のない発動は断る。場のコアも消滅させない範囲で支払いに使う。ライフ2の局面で旧の約2倍（2026-11-20）
+- `PLAN_POLICY`（const）：アタックの計画（attackPlan.ts）：取り切れる盤面だけ全員で行き、それ以外は BP で勝てて守り手が残る個体だけで行く。
+- `BLOCK_POLICY`（const）：ブロックかライフかを、アタッカーのシンボル数と残りのアタックで決める（blockPlan.ts）＋守っても負けるなら全員で行く。
+- `DEFAULT_POLICY`（const）：本番の既定。ai:bench --vs-old の旧側（基準）もこれ（BS_AI_OLD=stage1 で段階1の OLD_POLICY）
+- `CANDIDATE_POLICY`（const）：ai:bench --vs-old の新側（試す案）。基準を動かさないため、案は既存の pick 関数を書き換えず、新しい関数で手を足し引きしてここに差す
 
 ## server/src/ai/runner.ts
 

@@ -106,6 +106,40 @@ export function magicTags(cardId: string, timing: "main" | "flash"): MoveTags {
     return tagsOfAction(actions)
 }
 
+// アクションの木のどこかが条件に合うか（葉の type と行き先を効果データから読む）
+export function anyNode(a: unknown, pred: (x: Record<string, any>) => boolean): boolean {
+    if (Array.isArray(a)) return a.some((v) => anyNode(v, pred))
+    if (a === null || typeof a !== "object") return false
+    const x = a as Record<string, any>
+    return pred(x) || Object.values(x).some((v) => anyNode(v, pred))
+}
+
+// セットするバーストの種類。守り＝ライフを増やす（placeCores の行き先が life）か、同じカードのフラッシュ効果が
+// アタックステップを終える（thenPay で追加発揮できる）。判定は効果データの type と行き先だけで、カード ID は見ない
+export type BurstKind = "removal" | "guard" | "buffOwn" | "draw" | "other"
+export function burstKind(cardId: string): BurstKind {
+    const effects = getCard(cardId).effects
+    const burst = effects.filter((e) => e.kind === "burst")
+    const tags = burst.flatMap((e) => tagsOfAction([e.action]).tags)
+    if (tags.includes("removal")) return "removal"
+    const guard =
+        burst.some((e) => anyNode(e.action, (x) => x.type === "placeCores" && x.to === "life")) ||
+        (burst.some((e) => e.thenPay === "flash") && effects.some((e) => e.kind === "magic" && e.timing === "flash" && anyNode(e.action, (x) => x.type === "endAttackStepAfterBattle")))
+    if (guard) return "guard"
+    return tags.includes("buffOwn") ? "buffOwn" : tags.includes("draw") ? "draw" : "other"
+}
+
+// セットするバーストの良し悪し（除去 > 自分を強く > ドロー > その他）。守りの位置は BURST_RANK で決める
+const BURST_RANK: Record<BurstKind, number> = { removal: 3, guard: 3, buffOwn: 2, draw: 1, other: 0 }
+// 守りは自分のライフが少ないほど価値が上がる（ライフ5以上で除去と同格、4以下で除去の上、2以下でほかのどの種類よりも上）
+export const GUARD_RANK_LOW_LIFE = 4
+export const GUARD_RANK_CRITICAL_LIFE = 5
+export function burstRank(cardId: string, life: number): number {
+    const kind = burstKind(cardId)
+    if (kind !== "guard") return BURST_RANK[kind]
+    return life <= 2 ? GUARD_RANK_CRITICAL_LIFE : life <= 4 ? GUARD_RANK_LOW_LIFE : BURST_RANK.guard
+}
+
 function opponentOf(pid: PlayerId): PlayerId {
     return pid === "p1" ? "p2" : "p1"
 }
