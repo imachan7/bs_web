@@ -28,5 +28,6 @@ export const LOOKAHEAD_POLICY: AiPolicy = { pick: pickBestMove, pickState: looka
 // バーストをセットし、意味のない発動は断る。場のコアも消滅させない範囲で支払いに使う。ライフ2の局面で旧の約2倍（2026-11-20）
 export const BURST_POLICY: AiPolicy = { pick: pickBestMove }
 
-// 本番の既定。手の候補と点は BURST_POLICY と同じ（pickBestMove）で、アタックだけ先読みで上書きする（根拠は lookahead.ts の LOOKAHEAD_KINDS）
-export const DEFAULT_POLICY: AiPolicy = LOOKAHEAD_POLICY
+// 本番の既定。場のコアの支払い・Lv1 召喚・バーストが入った後は、アタックの先読みを足しても先読みなしと差が出なかった
+// （構築済み 2400局で 50.9%、48.9〜52.9。2026-11-20）ので、計算の軽い先読みなしにする。先読みは LOOKAHEAD_POLICY に残す
+export const DEFAULT_POLICY: AiPolicy = BURST_POLICY

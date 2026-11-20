@@ -51,6 +51,8 @@ function matchups(): Matchup[] {
 }
 const MATCHUPS = matchups()
 
+// BS_AI_OLD=burst：旧側を BURST_POLICY（先読みなし）にして、先読みだけの差を測る
+const OLD_SIDE: AiPolicy = process.env.BS_AI_OLD === "burst" ? BURST_POLICY : OLD_POLICY
 // 新（本番の既定）対 旧（OLD_POLICY）。先後を入れ替えて同数回し、色の偏りと先手有利を消す。
 // 引き分け＝手数上限・詰まり・例外で決着しなかった局
 function vsOld(): void {
@@ -97,7 +99,7 @@ function vsOld(): void {
         {
             for (let n = 0; n < N; n++) {
                 const newIsP1 = n % 2 === 0
-                const policies: Record<PlayerId, AiPolicy> = newIsP1 ? { p1: NEW, p2: OLD_POLICY } : { p1: OLD_POLICY, p2: NEW }
+                const policies: Record<PlayerId, AiPolicy> = newIsP1 ? { p1: NEW, p2: OLD_SIDE } : { p1: OLD_SIDE, p2: NEW }
                 const newPid: PlayerId = newIsP1 ? "p1" : "p2"
                 try {
                     const s: GameState = createGame(`vs-${i}-${n}`, { p1: "A", p2: "B" }, { p1: MATCHUPS[i]!.a, p2: MATCHUPS[i]!.b })
@@ -181,7 +183,7 @@ function lowLife(): void {
             const lowPid: PlayerId = (n >> 1) % 2 === 0 ? "p1" : "p2"
             const newPid: PlayerId = lowIsNew ? lowPid : lowPid === "p1" ? "p2" : "p1"
             const oppPid: PlayerId = lowPid === "p1" ? "p2" : "p1"
-            const policies: Record<PlayerId, AiPolicy> = { p1: newPid === "p1" ? NEW : OLD_POLICY, p2: newPid === "p2" ? NEW : OLD_POLICY }
+            const policies: Record<PlayerId, AiPolicy> = { p1: newPid === "p1" ? NEW : OLD_SIDE, p2: newPid === "p2" ? NEW : OLD_SIDE }
             const row: Row = { lowIsNew, won: false, set: false, fired: false, paid: 0, declinedReady: 0, declinedIdle: 0, paidIdle: 0 }
             try {
                 const decks = { p1: MATCHUPS[i]!.a, p2: MATCHUPS[i]!.b }

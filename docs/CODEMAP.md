@@ -449,7 +449,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `OLD_POLICY`（const）：段階1完了時点の選び方。段階2で点を変えても、これは pickBestMove を呼び続ける（新しい点は別関数に足す）
 - `LOOKAHEAD_POLICY`（const）：旧方針に、先読みで確かな改善が出た手だけを上書きさせる（対象の手の種類は LOOKAHEAD_KINDS）
 - `BURST_POLICY`（const）：バーストをセットし、意味のない発動は断る。場のコアも消滅させない範囲で支払いに使う。ライフ2の局面で旧の約2倍（2026-11-20）
-- `DEFAULT_POLICY`（const）：本番の既定。手の候補と点は BURST_POLICY と同じ（pickBestMove）で、アタックだけ先読みで上書きする（根拠は lookahead.ts の LOOKAHEAD…
+- `DEFAULT_POLICY`（const）：本番の既定。場のコアの支払い・Lv1 召喚・バーストが入った後は、アタックの先読みを足しても先読みなしと差が出なかった
 
 ## server/src/ai/runner.ts
 
