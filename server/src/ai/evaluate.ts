@@ -12,7 +12,7 @@ import { isTrashWaiting } from "../../../shared/rules/waiting"
 import type { CardInstance, GameAction, GameView, PlayerId } from "../type"
 import { getCard } from "../logic/GameState"
 import { canBlock } from "../../../shared/block"
-import { currentLevel, effectiveBp, instLevels, instanceSymbolCount } from "../../../shared/rules"
+import { currentLevel, effectiveBp, instLevels } from "../../../shared/rules"
 import type { AiMove } from "./legalMoves"
 
 function opponentOf(pid: PlayerId): PlayerId {
@@ -34,7 +34,7 @@ function findOnBoard(
 }
 
 // BP は 1000 単位で扱うと点数が跳ねすぎるので、比較用に千分の一へ落とす
-function bpScore(view: GameView, owner: PlayerId, inst: CardInstance): number {
+export function bpScore(view: GameView, owner: PlayerId, inst: CardInstance): number {
     return effectiveBp(view, owner, inst) / 1000
 }
 
@@ -257,16 +257,4 @@ export function pickBestMove(view: GameView, me: PlayerId, moves: AiMove[]): AiM
         }
     }
     return best
-}
-
-// フィールドの厚み（テストとログ用の簡易指標。手の選択には使わない）
-export function boardStrength(view: GameView, pid: PlayerId): number {
-    const player = view.players[pid]
-    return (
-        player.life * 10 +
-        player.field.spirits.reduce(
-            (sum, inst) => sum + bpScore(view, pid, inst) + instanceSymbolCount(inst),
-            0,
-        )
-    )
 }

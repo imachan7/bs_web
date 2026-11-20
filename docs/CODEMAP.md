@@ -390,11 +390,16 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `RoomStatus`（型）
 - `registerAdmin`（fn）
 
+## server/src/ai/boardEval.ts
+
+- `BOARD_WEIGHTS`（const）
+- `evaluateBoard`（fn）：pid 視点の盤面の良さ（自分 − 相手）。大きいほど pid に有利
+
 ## server/src/ai/evaluate.ts
 
+- `bpScore`（fn）：BP は 1000 単位で扱うと点数が跳ねすぎるので、比較用に千分の一へ落とす
 - `scoreMove`（fn）：1手の点数。高いほど「打ちたい手」
 - `pickBestMove`（fn）：候補のうち最も点数の高い手を返す。同点なら列挙順（＝決定的）
-- `boardStrength`（fn）：フィールドの厚み（テストとログ用の簡易指標。手の選択には使わない）
 
 ## server/src/ai/index.ts
 
@@ -414,6 +419,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `magicTags`（fn）：マジックを timing の側の効果で使うときのタグ
 - `opponentHasTargets`（fn）：相手の場に removal の的になりうるものがいるか
 - `pruneMoves`（fn）：打っても何も起きない手を合法手から落とす。タグの無い手（pass・nextPhase・endTurn・選択）は触らない。
+
+## server/src/ai/policy.ts
+
+- `AiPolicy`（型）
+- `OLD_POLICY`（const）：段階1完了時点の選び方。段階2で点を変えても、これは pickBestMove を呼び続ける（新しい点は別関数に足す）
+- `DEFAULT_POLICY`（const）：本番の既定。段階2の新しい選び方が採用されたらここを差し替える
 
 ## server/src/ai/runner.ts
 
