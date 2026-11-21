@@ -3,19 +3,19 @@
 // 断りのない「コストを支払う」なので、リザーブだけでなくスピリットのコアからも払える（COST_MODEL §12）
 import type { EffectAction, GameState, PlayerId } from "../../type"
 import { getCard, log } from "../GameState"
-import { autoPayPlan, payCost, resolveAction } from "../EffectModules"
+import { costPayPlan, payCost, resolveAction } from "../EffectModules"
 import { askCostPay } from "../summonSurcharge"
 import { markPayConfirmed } from "../actions/pay"
 import { magicEffectiveColors } from "../../../../shared/cost"
 
 export function canPayMagicCost(state: GameState, pid: PlayerId, cost: number): boolean {
-    return autoPayPlan(state, pid, cost, true) !== null
+    return costPayPlan(state, pid, cost) !== null
 }
 
 // 払えるときだけ払って action を解決する。対話ではどのコアから払うかを聞く（effectCostPay）
 export function payMagicCostThenResolve(state: GameState, pid: PlayerId, cardId: string, cost: number, action: EffectAction): void {
     const card = getCard(cardId)
-    const plan = autoPayPlan(state, pid, cost, true)
+    const plan = costPayPlan(state, pid, cost)
     if (plan === null) {
         log(state, `${card.name}：コストを支払えないため発揮しなかった。`)
         return

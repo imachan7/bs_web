@@ -500,6 +500,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `emitEvent`（fn）：seq は state.eventSeq で自動採番。GameEngine.handleAction 冒頭で events をクリアするので、配信されるのは1アクション分だけ
 - `resistanceAgainst`（fn）：このインスタンスが、いま解決中の効果を「受けない」状態か。破壊・コア除去・疲労・バウンス等の各ガードから呼ぶ。
 - `meisaiTollOf`（fn）：kind:"meisai" で対象 target に掛かるコスト（無ければ undefined）
+- `costPayPlan`（fn）：コストの「払えるか」と「おまかせの払い方」の共通の入口（召喚・効果のコストとも）。維持コア（Lv1）を残して払えればその払い方、
 - `autoPayPlan`（fn）：「Nコスト支払う」をリザーブ＋フィールドのコアから自動で払う計画（2026-10-08 ユーザー確定: 支払い元はフィールドも含む）。
 - `askPayToNegateIfNeeded`（fn）
 - `gateTargetedApply`（fn）：自動で（または複数体のうちの1体として）決めた対象に効果を当てる直前の関門。聞いて中断したなら "asked"（呼び出し元はその対象を適用せず、残りを再開スタックへ積んで retu…
@@ -810,7 +811,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `burstActivationFee`（fn）
 - `burstFeeUnpayable`（fn）
-- `payBurstActivationFee`（fn）：ponytail: 支払い元は自動（リザーブ→ネクサス→コアの多いスピリット）。支払い元を選ばせるなら askCostPay（summonSurcharge.ts）へ載せ替える
+- `payBurstActivationFee`（fn）：ponytail: 支払い元は自動（costPayPlan：維持コアを残して払えなければ消滅させて払う）。支払い元を選ばせるなら askCostPay（summonSurcharg…
 
 ## server/src/logic/burstNegate.ts
 

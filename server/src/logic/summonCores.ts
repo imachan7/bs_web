@@ -1,6 +1,6 @@
 // 効果による召喚・配置で、置くコアの数（Lv）を選ばせる。選ぶのは支払いの時点（場に出す前。2026-11-11 ユーザー決定）
 import type { CardData, EffectAction, GameState, PaySource, PlayerId } from "../type"
-import { autoPayPlan } from "./EffectModules"
+import { costPayPlan } from "./EffectModules"
 import { suspend } from "./GameState"
 import { normalReserveOf } from "./soulCore"
 import { summonVoidToll } from "../../../shared/rules/summonToll"
@@ -10,7 +10,7 @@ import { summonVoidToll } from "../../../shared/rules/summonToll"
 // 以前は選択肢が消滅払いを数え、自動の支払いは数えなかったため、出した選択肢を自動では払えず止まった
 export function summonPayPlan(state: GameState, pid: PlayerId, need: number, reserveOnly = false): { paySources: PaySource[]; soulFromReserve: boolean } | null {
     if (reserveOnly) return normalReserveOf(state.players[pid]) >= need ? { paySources: [], soulFromReserve: false } : null
-    return autoPayPlan(state, pid, need, true) ?? autoPayPlan(state, pid, need)
+    return costPayPlan(state, pid, need)
 }
 
 // 置けるコアの数の選択肢。ボイドの通行料（BS22-012）はリザーブから払うので、リザーブが足りなければ候補なし

@@ -249,6 +249,12 @@ export function meisaiTollOf(target: CardInstance): number | undefined {
     )?.cost
 }
 
+// コストの「払えるか」と「おまかせの払い方」の共通の入口（召喚・効果のコストとも）。維持コア（Lv1）を残して払えればその払い方、
+// 払えなければ味方を0個にして消滅させる払い方（COST_MODEL §13。コストはフィールドのコアからも払え、0個になったスピリットは消滅する。#662・#665）
+export function costPayPlan(state: GameState, pid: PlayerId, need: number): { paySources: PaySource[]; soulFromReserve: boolean } | null {
+    return autoPayPlan(state, pid, need, true) ?? autoPayPlan(state, pid, need)
+}
+
 // 「Nコスト支払う」をリザーブ＋フィールドのコアから自動で払う計画（2026-10-08 ユーザー確定: 支払い元はフィールドも含む）。
 // 通常コアのリザーブ → ネクサス → コアの多いスピリット の順、最後にリザーブの[ソウルコア]。払えなければ null。
 // ponytail: 支払い元スピリットの維持コア割れ（消滅）も避けない単純な貪欲法。AI が賢く払う必要が出たら見直す

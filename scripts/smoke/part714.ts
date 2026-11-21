@@ -1,4 +1,5 @@
 // smoke パート714（プロモ B：P072 ゴールド・クロー・ドラゴン／P060 ナイト・ドラゴン／P065 ショベル・ゴレム。期待値役が効果文だけから書いた場面テスト）
+import { resolveAll } from "./lib631"
 import { assert, getCard } from "./helpers"
 import { scenario } from "./scenario"
 import type { ScenarioCtx, Side } from "./scenario"
@@ -49,13 +50,15 @@ const newSpirit = (name: string, bp: number): string[] => [
 
 // ── P072 ゴールド・クロー・ドラゴン ──
 // 自分のバースト：ラウンドテーブルナイツ。ライフが減ったとき、トラッシュのコスト5以下のスピリット1枚を召喚する（召喚コストは0、維持するコア1個はリザーブから）
-// 追撃の「その後コストを支払うことで」はリザーブ不足で払えない
+// 追撃の「その後コストを支払うことで」は、自分のスピリットを消滅させれば払える（#662）が、この場面の狙いではないので断る
 console.log("=== P072 Lv2 / 自分のバースト発動後：そのバースト発動時にスピリットが召喚されていたら、疲労させてもう1度発揮（もう1体召喚できる） ===")
 scenario({
     name: "P072-召喚するバーストをもう1度",
     start: {
         turn: "opp",
         phase: "attack",
+        // 途中のバーストの「その後コストを支払うことで」は、自分のスピリットを消滅させれば払える（#662）。この場面の狙いではないので断る
+        interactive: true,
         me: { reserve: 1, burst: "BS17-076", trash: ["BS06-013", "BS10-011"], spirits: [{ card: "P072", cores: 3 }] },
         opp: { spirits: [{ card: "BS01-005", label: "アタッカー", cores: 4 }] },
     },
@@ -63,6 +66,7 @@ scenario({
         t.act("opp", { type: "attack", instanceId: t.id("アタッカー") })
         settle(t, "opp")
         t.act("me", { type: "takeLife" })
+        resolveAll(t, [], "noPay")
     },
     // 1回目で1体、疲労させた2回目でもう1体（対象を選び直す）。ライフのコア1個が入ったリザーブ2個を、2体の維持コアで使い切る
     expect: [
@@ -131,6 +135,8 @@ scenario({
     start: {
         turn: "opp",
         phase: "attack",
+        // 途中のバーストの「その後コストを支払うことで」は、自分のスピリットを消滅させれば払える（#662）。この場面の狙いではないので断る
+        interactive: true,
         me: { reserve: 1, burst: "BS17-076", trash: ["BS06-013"], spirits: [{ card: "P072", cores: 3, rested: true }] },
         opp: { spirits: [{ card: "BS01-005", label: "アタッカー", cores: 4 }] },
     },
@@ -138,6 +144,7 @@ scenario({
         t.act("opp", { type: "attack", instanceId: t.id("アタッカー") })
         settle(t, "opp")
         t.act("me", { type: "takeLife" })
+        resolveAll(t, [], "noPay")
     },
     expect: [
         "自分.ライフ: 5 → 4",
@@ -154,6 +161,8 @@ scenario({
     start: {
         turn: "opp",
         phase: "attack",
+        // 途中のバーストの「その後コストを支払うことで」は、自分のスピリットを消滅させれば払える（#662）。この場面の狙いではないので断る
+        interactive: true,
         me: { reserve: 1, burst: "BS17-076", trash: ["BS06-013"], spirits: [{ card: "P072", cores: 3 }] },
         opp: { spirits: [{ card: "BS01-005", label: "アタッカー", cores: 4 }] },
     },
@@ -161,6 +170,7 @@ scenario({
         t.act("opp", { type: "attack", instanceId: t.id("アタッカー") })
         settle(t, "opp")
         t.act("me", { type: "takeLife" })
+        resolveAll(t, [], "noPay")
     },
     expect: [
         "自分.ライフ: 5 → 4",
@@ -292,6 +302,8 @@ scenario({
     start: {
         turn: "opp",
         phase: "attack",
+        // 途中のバーストの「その後コストを支払うことで」は、自分のスピリットを消滅させれば払える（#662）。この場面の狙いではないので断る
+        interactive: true,
         me: { reserve: 0, burst: "BS15-076", spirits: [{ card: "P060", cores: 3 }] },
         opp: { spirits: [{ card: "BS16-025", label: "アタッカー", cores: 1 }] },
     },
@@ -299,6 +311,7 @@ scenario({
         t.act("opp", { type: "attack", instanceId: t.id("アタッカー") })
         settle(t, "opp")
         t.act("me", { type: "takeLife" })
+        resolveAll(t, [], "noPay")
     },
     // シンボル2つのアタックでライフ5→3（コア2個がリザーブへ）。バースト後にリザーブ1個をライフへ置いて4、リザーブ1
     expect: [

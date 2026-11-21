@@ -13,7 +13,7 @@ import type { CardData, CardInstance, CardType, Color, EffectAction, GameState, 
 import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
 import { isOnceUsed, markOnceUsed } from "../oncePerTurn"
-import { autoPayPlan, canExhaustNexus, payCost } from "../EffectModules"
+import { canExhaustNexus, costPayPlan, payCost } from "../EffectModules"
 import { currentLevel } from "../GameState"
 import { burstTenshoUnpayable } from "../keywords/tensho"
 import { suspend } from "../GameState"
@@ -562,7 +562,7 @@ function judgePay(
     // 「Nコスト支払う」はリザーブ＋フィールドのコアから払える。疲労で肩代わりできるネクサスがあれば、その分は払う数から引く
     if (isReserveToll(c)) {
         const assist = effectCostDiscountNexus(state, owner, self?.cardId)
-        if (autoPayPlan(state, owner, Math.max(0, c.count - (assist?.amount ?? 0)), true) === null) return { cost: c, reason: UNPAYABLE_REASONS.removeCores ?? "コアが足りない" }
+        if (costPayPlan(state, owner, Math.max(0, c.count - (assist?.amount ?? 0))) === null) return { cost: c, reason: UNPAYABLE_REASONS.removeCores ?? "コアが足りない" }
     } else if (!kyoshuSelfPayable(state, owner, action)) {
         const costReason = unpayableReason(state, owner, self, c, srcColors, srcType)
         if (costReason !== null) return { cost: c, reason: costReason }
@@ -822,7 +822,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             return
         }
         if (player.reserve < need) {
-            const plan = autoPayPlan(state, owner, need, true)
+            const plan = costPayPlan(state, owner, need)
             if (plan === null) {
                 fizzle(unpayableLine(sourceName, UNPAYABLE_REASONS.removeCores ?? "コアが足りない"))
                 return
