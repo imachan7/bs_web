@@ -44,7 +44,7 @@ const HELD_EVENTS = new Set<string>([
     "opponentSpiritCoresEmptied", "ownSpiritCoresRemovedByOpponent", "opponentSpiritCoresToReserve",
     "ownLifeLost", "ownChimeiMilled", "ownSpiritReducedLife",
     "opponentDeckMilled", "ownDeckMilled", "ownDeckMillPrevented",
-    "ownSpiritSummoned", "anySpiritSummoned", "anyBraveSummoned",
+    "ownSpiritSummoned", "anySpiritSummoned", "anyBraveSummoned", "anySpiritCombined",
 ])
 
 // 効果の中なら、いま解決している効果の id（効果の外・勝敗決定後は undefined ＝その場で解決する）
