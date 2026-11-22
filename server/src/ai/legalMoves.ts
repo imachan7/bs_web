@@ -85,9 +85,23 @@ function choiceMoves(state: GameState, pid: PlayerId): AiMove[] {
         const wasteful =
             choice.burstThenPay !== undefined &&
             ((head?.type === "if" && !ifCondMet(stubCtx(state, pid), head.cond)) ||
+                // 場のスピリットを消滅させないと払えないなら払わない（2026-11-22 ユーザー指示）
+                autoPayPlan(state, pid, choice.burstThenPay.cost, false, "lv1") === null ||
                 // アタックステップを終える効果は、相手にまだアタックできる回復状態のスピリットがいなければコアを温存する
                 (!oppReady && anyNode(choice.action, (x) => x.type === "endAttackStepAfterBattle")))
-        for (const option of wasteful ? [] : choice.options ?? []) {
+        // コストの支払い待ちは、スピリットを Lv1 で残す払い方を付けて答え、そう払えない選択肢は出さない（2026-11-22 ユーザー指示：
+        // 場のスピリットを消滅させて払わない）。何も残らないときは、断れるなら断り、断れなければサーバーのおまかせ（消滅させる払い方も含む）に任せる
+        const pay = choice.effectCostPay
+        const kept: AiMove[] = []
+        if (pay && !pay.reserveOnly && !wasteful) {
+            ;(choice.options ?? []).forEach((option, i) => {
+                const plan = autoPayPlan(state, pid, pay.need + (pay.keepByOption?.[i] ?? pay.keep ?? 0) + (pay.tollKeep ?? 0), false, "lv1")
+                if (plan && !plan.soulFromReserve) kept.push({ action: { type: "resolveChoice", option, paySources: plan.paySources }, reason: `選択：${option}` })
+            })
+        }
+        moves.push(...kept)
+        const vanishOnly = pay !== undefined && !pay.reserveOnly && kept.length === 0 && choice.optional === true
+        for (const option of wasteful || kept.length > 0 || vanishOnly ? [] : choice.options ?? []) {
             const ba = choice.burstActivate
             const futile = ba !== undefined && burstFutile(state, pid, ba.cardId, ba.event)
             moves.push({ action: { type: "resolveChoice", option }, reason: `選択：${option}`, ...(futile ? { futile: true as const } : {}) })

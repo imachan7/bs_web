@@ -427,6 +427,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/ai/keepGuard.ts
 
 - `isStopFlash`（const）
+- `isGuardFlash`（const）
 - `keepGuardPick`（fn）
 
 ## server/src/ai/legalMoves.ts

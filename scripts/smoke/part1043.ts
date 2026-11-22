@@ -54,7 +54,13 @@ console.log("=== 2. 報告の盤面：ライフ減少で三札之術のバース
     refreshLevelAsOverrides(s)
     assert(handleAction(s, "p2", { type: "attack", instanceId: s.players.p2.field.spirits[0]!.instanceId }) === null, "p2 がアタックする")
     for (let i = 0; i < 40 && (s.battle !== null || s.pendingChoice !== null); i++) {
-        const pid = s.pendingChoice?.pid ?? (decideAiAction(s, "p1") ? "p1" : "p2")
+        const pc = s.pendingChoice
+        // 払う判断は対戦者として行う（AI は消滅させてまで払わない。2026-11-22）。支払い元は渡さず、サーバーのおまかせで払う
+        if (pc?.pid === "p1" && (pc.burstThenPay || pc.effectCostPay)) {
+            if (handleAction(s, "p1", { type: "resolveChoice", option: pc.options![0]! }) !== null) break
+            continue
+        }
+        const pid = pc?.pid ?? (decideAiAction(s, "p1") ? "p1" : "p2")
         const m = decideAiAction(s, pid)
         if (!m || handleAction(s, pid, m.action) !== null) break
     }

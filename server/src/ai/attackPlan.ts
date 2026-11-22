@@ -34,7 +34,9 @@ export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[],
     const blockerCount = theirs.field.spirits.filter((b) => attackers.some((a) => canBlock(view, opp, b, me, a) === null)).length
     const through = restAfterTop(attackers.map(instanceSymbolCount), blockerCount)
     const lethal = through >= theirs.life
-    if (lethal) return { lethal, allowed: new Set(attackerIds) }
+    // シンボル0はライフを減らせず、相手もブロックしないので、取り切れる局面でも出さない（2026-11-22 ユーザー指示）
+    const hits = (): Set<string> => new Set(attackers.filter((a) => instanceSymbolCount(a) > 0).map((a) => a.instanceId))
+    if (lethal) return { lethal, allowed: hits() }
 
     // 次の相手のターンは相手の全スピリットが回復してアタックしてくる。上から k 体止めれば残りがライフ未満になる最小の k
     const threats = theirs.field.spirits.map(instanceSymbolCount)
@@ -47,12 +49,12 @@ export function planAttacks(view: GameView, me: PlayerId, attackerIds: string[],
     while (need < threats.length && restAfterTop(threats, need) >= mine.life) need++
     const idle = mine.field.spirits.filter((s) => !s.isRested).length
     // 全員残しても相手の場の個体だけで次のターンに削り切られるなら、守っても負けるので全員で行く（召喚の見込みは入れない）
-    if (opts.desperate && restAfterTop(theirs.field.spirits.map(instanceSymbolCount), idle) >= mine.life) return { lethal, allowed: new Set(attackerIds) }
+    if (opts.desperate && restAfterTop(theirs.field.spirits.map(instanceSymbolCount), idle) >= mine.life) return { lethal, allowed: hits() }
     const allowed = new Set<string>()
     if (idle - 1 < need) return { lethal, allowed }
     for (const a of attackers) {
         const bp = effectiveBp(view, me, a)
-        if (blockersOf(a).every((b) => effectiveBp(view, opp, b) < bp)) allowed.add(a.instanceId)
+        if (instanceSymbolCount(a) > 0 && blockersOf(a).every((b) => effectiveBp(view, opp, b) < bp)) allowed.add(a.instanceId)
     }
     return { lethal, allowed }
 }
