@@ -271,4 +271,5 @@ scripts/smoke/ は 897 ファイル（part 889本）。当たり（grep のみ�
 2. 後半（`finishSummonSequence`）：ブレイヴの「召喚されたとき」（`anyBraveSummoned`）は `HELD_EVENTS` に入れて自然に遅らせる。トラッシュから召喚・手札に戻る（`tryTrashSummonOnNameSummoned`・`returnTrashOnNameSummoned`）は誘発なので派生の1項目（`summonSequence` の tail を段2〜3に限る frame）として遅らせる。召喚されたスピリットが疲労する継続効果（`summonedExhaustGrant`）はその場
 3. `ownSpiritSummoned`・`anySpiritSummoned` も `HELD_EVENTS` に入れる（`fireSummonSequence` 以外から出る経路があっても効果の中なら遅らせる）
    - 合体（`anySpiritCombined`）も入れる（#673。バーニングサンの「合体させて召喚し、回復させる」の後に闇の聖剣Lv2が疲労させる）
+   - バースト設置・転召・ネクサス配置・キーワード発揮・【氷壁】使用・分身配置も入れる（2026-11-22 ユーザー確認：効果で起きた出来事の誘発は、その効果の処理をすべて終えてから）
 4. 同時召喚（`summonBatch`）：効果の中では、全員を場に出した後の順番の確認を出さない（各体の誘発は出口の1本の列で順番を聞く）
