@@ -232,8 +232,10 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
         const waiverAvailable =
             card.levels.some((l) => l.soulCoreRequired === true) && soulInReserveEarly && reserve + fieldCores >= cost + 1
 
-        // If they can afford Lv2 or higher, show level selection
-        if (affordableLevels.length > 1 || waiverAvailable) {
+        // 維持コアより1個でも多く置けるなら選択を出す（Lv の境目以外の数も置けるように。2026-11-24 ユーザー決定：案B）
+        const minCores = Math.min(...card.levels.map((l) => l.cores))
+        const extraPlaceable = reserve + fieldCores >= cost + minCores + 1
+        if (affordableLevels.length > 1 || extraPlaceable || waiverAvailable) {
             const cardId = zoneCards?.[handIndex]
             if (!cardId) return
             ui.targeting = null
