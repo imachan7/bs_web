@@ -73,9 +73,9 @@ export function preloadCardArt(cardIds: Iterable<string>): void {
     }
 }
 
-export function attachCardArt(el: HTMLElement, cardId: string, name: string): void {
+export function attachCardArt(el: HTMLElement, cardId: string, name: string, size: "lg" | "md" = "md"): void {
     el.title = name
-    const url = cardImageUrl(cardId)
+    const url = cardImageUrl(cardId, size)
     if (url === null || artMissing.has(cardId)) return
     const art = document.createElement("img")
     art.className = "card-art"

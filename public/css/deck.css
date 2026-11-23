@@ -1103,23 +1103,3 @@ input[type="text"] {
     margin-bottom: 4px;
 }
 
-/* マウスを載せたときの拡大の絵（cardArt.ts の hoverArt）。詳細の上に出す */
-#detail-panel.with-art {
-    display: grid;
-    grid-template-columns: 170px minmax(0, 1fr);
-    column-gap: 12px;
-    width: min(540px, calc(100vw - 24px));
-    max-width: min(540px, calc(100vw - 24px));
-}
-#detail-panel.with-art > :not(.hover-art) {
-    grid-column: 2;
-}
-#detail-panel .hover-art {
-    grid-column: 1;
-    grid-row: 1 / span 40;
-    align-self: start;
-    display: block;
-    width: 170px;
-    aspect-ratio: 675 / 983;
-    border-radius: 8px;
-}

@@ -6,9 +6,12 @@ import { KEYWORDS } from "../../shared/rules"
 import { isTokenCard } from "../../shared/cardDb"
 import { effectLineSegments } from "./effectText"
 import { assetUrl } from "./assetUrl"
-import { attachCardArt, hoverArt, installSecretCardArt } from "./cardArt"
+import { attachCardArt, installSecretCardArt } from "./cardArt"
 
 // ---- 定数 ----
+
+// 一覧の絵は、広い画面（PC）では高画質（lg）、狭い画面（スマホ）では軽い md（通信量を増やさない。2026-11-24 ユーザー方針）
+const poolArtSize: "lg" | "md" = typeof matchMedia === "function" && matchMedia("(min-width: 900px)").matches ? "lg" : "md"
 
 const MAX_COPIES = 3 // 同名カードの上限枚数
 const STORAGE_KEY = "bsweb:decks"
@@ -272,7 +275,7 @@ function renderPool(keepLimit = false): void {
         el.style.setProperty("--c-main", `var(--c-${card.colors[0]})`)
         el.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
         if (card.limited) el.classList.add("limited")
-        attachCardArt(el, card.cardId, card.name)
+        attachCardArt(el, card.cardId, card.name, poolArtSize)
 
         const note = cardNotes[card.cardId]
         if (note) {
@@ -469,9 +472,6 @@ function renderDetail(card: CardData, anchor?: HTMLElement): void {
     detailCardId = card.cardId
     const panel = $("detail-panel")
     panel.textContent = ""
-    const art = hoverArt(card.cardId)
-    panel.classList.toggle("with-art", art !== null)
-    if (art) panel.appendChild(art)
 
     const titleArea = document.createElement("div")
     titleArea.style.display = "flex"
