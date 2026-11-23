@@ -1,3 +1,4 @@
+import { coreIcon } from "./coreIcon"
 // 情報欄・バースト欄・バトル欄の表示
 import { attachCardArt } from "../cardArt"
 import type { GameView, PlayerId } from "../../../server/src/type"
@@ -45,7 +46,7 @@ export function renderInfo(
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
         // ソウルコアはコア数値に含まれない（docs/design/SOULCORE.md 案A-outside）。
         // 案B-inside: 数値には最初から[ソウルコア]が含まれる（2026-10-06 ユーザー確定）。所在は別項目で特定する
-        ["reserve", `🔵 リザーブ ${p.reserve}`],
+        ["reserve", `リザーブ ${p.reserve}`],
         ["trash-cores", `トラッシュコア ${p.trashCores}`],
         ...((soulCoreWhereText(view, pid)
             ? [["soul-core", `${soulCoreWhereText(view, pid)}`]]
@@ -87,10 +88,29 @@ export function renderInfo(
         if (cls === "soul-core") {
             span.innerHTML = `<img src="/imgs/soulcore.png" class="soul-core-inline" alt="[ソウルコア]"> ソウルコア ${text}`
         } else {
-            span.textContent = text
+            if (isReserve || cls === "trash-cores") span.appendChild(coreIcon())
+            span.append(text)
         }
         el.appendChild(span)
     }
+    if (isSelf) renderHandSides(p)
+}
+
+// PC の手札の左右（CSS で狭い画面では隠す）。トラッシュ側は main.ts が押下で中身を開く
+function renderHandSides(p: GameView["players"][PlayerId]): void {
+    const left = document.getElementById("hand-side-left")
+    const right = document.getElementById("hand-side-right")
+    if (!left || !right) return
+    left.innerHTML = `<div class="hs-life">❤ ${p.life}</div>`
+    const reserve = document.createElement("div")
+    reserve.className = "hs-line"
+    reserve.append(coreIcon(), `リザーブ ${p.reserve}`)
+    left.appendChild(reserve)
+    right.innerHTML = `<div class="hs-line">トラッシュ ${p.trashCards.length}枚</div>`
+    const tc = document.createElement("div")
+    tc.className = "hs-line"
+    tc.append(coreIcon(), `トラッシュコア ${p.trashCores}`)
+    right.appendChild(tc)
 }
 
 // 発動したバーストを表向きにめくって見せる演出（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）

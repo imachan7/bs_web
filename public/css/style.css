@@ -367,6 +367,17 @@ button:active {
     color: var(--text-muted);
 }
 
+.core-icon {
+    height: 1em;
+    width: auto;
+    vertical-align: -0.15em;
+    margin-right: 0.2em;
+}
+
+.hand-side {
+    display: none;
+}
+
 .player-info .life {
     display: inline-block;
     color: var(--danger);
@@ -2531,5 +2542,27 @@ body:has(#notice-banner:not(.hidden)) {
     /* 手札も同じく、左右に空きが残らないよう大きくする（文字が読みやすくなる） */
     #hand > .card {
         zoom: 1.3;
+    }
+    /* 手札の左右の空きに、ライフ・リザーブ／トラッシュを置く */
+    .hand-side {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex: 1 1 0;
+        min-width: 120px;
+        padding-top: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-muted);
+    }
+    #hand-side-right {
+        cursor: pointer;
+    }
+    .hand-side .hs-life {
+        color: var(--danger);
+        font-size: 28px;
+    }
+    .hand-side .hs-line .core-icon {
+        height: 1.2em;
     }
 }

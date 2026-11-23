@@ -1,4 +1,5 @@
 // フィールドのスピリット・ネクサス1枚の表示（コア・レベル・ボタン）
+import { coreIcon } from "./coreIcon"
 import type { CardInstance, Color, GameView, PlayerId } from "../../../server/src/type"
 import { COLOR_LABELS } from "../../../data/constants"
 import { braveCombineCandidates } from "../../../shared/summon"
@@ -306,11 +307,11 @@ export function fieldCardEl(
     const soulOnThis =
         view.players[ownerPid].soulCore?.zone === "instance" &&
         view.players[ownerPid].soulCore.instanceId === inst.instanceId
-    // 支払いモード中は支払い後のコア数を並記する（例: ◉ コア 4→2。2026-10-06 ユーザー要望）
+    // 支払いモード中は支払い後のコア数を並記する（例: コア 4→2。2026-10-06 ユーザー要望）
     const payAssigned = ui.paying?.assigned[inst.instanceId] ?? 0
     const paySoulHere = ui.paying?.soulPayInstanceId === inst.instanceId ? 1 : 0
     const afterPay = inst.cores - payAssigned - paySoulHere
-    cores.textContent = `◉ コア ${inst.cores}${afterPay !== inst.cores ? `→${afterPay}` : ""}`
+    cores.append(coreIcon(), `コア ${inst.cores}${afterPay !== inst.cores ? `→${afterPay}` : ""}`)
     overlay.appendChild(cores)
     el.appendChild(overlay)
     // [ソウルコア]が載っている個体には画像バッジを重ねる（公開情報。docs/design/SOULCORE.md）
