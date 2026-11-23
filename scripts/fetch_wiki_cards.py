@@ -54,7 +54,7 @@ USER_AGENT = "bs-web-card-importer/1.0 (+https://github.com/imachan7/bs_web)"
 REQUEST_INTERVAL_SEC = 3  # ページ間の待ち時間（縮めないこと。docstring「取得先への配慮」参照）
 DEFAULT_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "staging", ".cache")
 COLOR_MAP = {"赤": "red", "紫": "purple", "緑": "green", "白": "white", "黄": "yellow", "青": "blue"}
-TYPE_MAP = {"スピリット": "spirit", "ネクサス": "nexus", "マジック": "magic", "ブレイヴ": "brave"}
+TYPE_MAP = {"スピリット": "spirit", "ネクサス": "nexus", "マジック": "magic", "ブレイヴ": "brave", "アルティメット": "ultimate"}
 
 
 def fetch_page(card_set, refer, page, rowid, cache_dir):
@@ -178,7 +178,8 @@ def parse_row(row_html):
 
     symbol = []
     if lines[-1].startswith("シンボル："):
-        symbol = [COLOR_MAP[ch] for ch in lines[-1].split("：", 1)[1] if ch in COLOR_MAP]
+        # 究極シンボル「極」は色ではない（docs/design/ULTIMATE.md §1.2 の SymbolMark）
+        symbol = [{**COLOR_MAP, "極": "ultimate"}[ch] for ch in lines[-1].split("：", 1)[1] if ch in COLOR_MAP or ch == "極"]
         lines = lines[:-1]
 
     cost, reduction, colors, family = parse_cost_line(lines[1], bracket_colors)
@@ -225,6 +226,11 @@ def parse_row(row_html):
         cond = [l for l in lines[effect_start:] if l.startswith("合体条件：")]
         if cond:
             card["braveConditionText"] = cond[0].split("：", 1)[1]
+    if card_type == "ultimate":
+        # braveConditionText と同じく、構造化は投入後の人手の作業
+        cond = [l for l in lines[effect_start:] if l.startswith("【召喚条件：")]
+        if cond:
+            card["summonConditionText"] = cond[0][len("【召喚条件："):].rstrip("】")
     if limit_m:
         card["limitCount"] = int(limit_m.group(1))
     return card

@@ -1,0 +1,4495 @@
+[
+ {
+  "cardId": "BS24-001",
+  "name": "リューマン・クロウ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【スピリットソウル：赤】\n自分がアルティメットカードを召喚するとき、このスピリットに[赤](赤のシンボル1つ)を追加する。"
+ },
+ {
+  "cardId": "BS24-002",
+  "name": "バジリアックス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "爬獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットをBP+2000する。自分のアルティメットがいる間、さらに、このスピリットをBP+2000する。"
+ },
+ {
+  "cardId": "BS24-003",
+  "name": "拳獣キングルー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "皇獣",
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nBP5000以下のスピリットの破壊では、お互いはバースト条件が【相手による自分のスピリット破壊後】のバーストを発動できない。\nLv2･Lv3\nこのスピリットの色とシンボルは緑としても扱う。"
+ },
+ {
+  "cardId": "BS24-004",
+  "name": "リューマン・フェニック",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n自分のスピリットが2体以下の間、このスピリットはLv3として扱う。\nLv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BS24-005",
+  "name": "アロカノンサウルス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "green"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nBP2000以下の相手のスピリット1体を破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手の合体していないスピリット1体を疲労させる。\n[緑][緑]：ボイドからコア1個を自分の赤のスピリットに置く。"
+ },
+ {
+  "cardId": "BS24-006",
+  "name": "リューマン・バルカ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「滅龍」を持つ自分のスピリットすべてのLvを、1つ上のものとして扱う。\nLv2･Lv3『自分のアタックステップ』\n自分の赤のスピリットすべては、アタックするときコスト3以下の相手のスピリット1体を指定し、そのスピリットにアタックできる。"
+ },
+ {
+  "cardId": "BS24-007",
+  "name": "スチーム・トリケラ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "white"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリットのコアを、好きなだけこのスピリットに置くことができる。\nLv2･Lv3『このスピリットのバトル時』\nターンで最初のバトルの間、このスピリットをBP+6000する。"
+ },
+ {
+  "cardId": "BS24-008",
+  "name": "エクリプス・ドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのスピリットカードを召喚する。\nLv1･Lv2･Lv3【強化】\nアルティメット以外の自分の「BP破壊効果」の上限を+1000する。\nLv1･Lv2･Lv3『お互いのアタックステップ』\nコスト3以下のスピリットのアタックでは、お互いのライフは減らない。"
+ },
+ {
+  "cardId": "BS24-009",
+  "name": "フレイム・ガンドラグナー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nBP6000以下の相手のスピリット1体を破壊する。\n自分のアルティメットがいるとき、かわりに、BP12000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS24-010",
+  "name": "リューマン・ブレイド",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 8,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人",
+   "剣使"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "自分のアルティメットがいる間、手札にあるこのスピリットカードをコスト5にする。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nシンボル2つ以上を持つスピリットすべてを破壊する。\nLv3『このスピリットのアタック時』\nこのスピリットに赤のシンボル1つを追加し、このスピリットのシンボル1つにつき、このスピリットをBP+5000する。"
+ },
+ {
+  "cardId": "BS24-011",
+  "name": "ワンアイドデーモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【スピリットソウル：紫】\n自分がアルティメットカードを召喚するとき、このスピリットに[紫](紫のシンボル1つ)を追加する。"
+ },
+ {
+  "cardId": "BS24-012",
+  "name": "ガスウサギ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 1,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "霊獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のスピリット/アルティメット1体につき、相手の手元に置いてあるカード1枚を破棄する。"
+ },
+ {
+  "cardId": "BS24-013",
+  "name": "サードアイズ・スネーク",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n相手が効果でボイドからコアを増やすとき、そのコアの置く場所を、このスピリットに変更する。"
+ },
+ {
+  "cardId": "BS24-014",
+  "name": "ツチグデーモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【呪撃】『このスピリットのアタック時』\nバトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する。\nLv1･Lv2『自分のメインステップ』\n自分の手札にある【呪滅撃】を持つスピリットカードを召喚するとき、そのコストを-1する。"
+ },
+ {
+  "cardId": "BS24-015",
+  "name": "バットナイト",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\n自分のアルティメットがいるとき、さらに、自分はデッキから1枚ドローする。\nLv2【呪撃】『このスピリットのアタック時』\nバトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する。"
+ },
+ {
+  "cardId": "BS24-016",
+  "name": "メズデーモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple",
+   "red"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3『このスピリットのアタック時』\n自分の手札にある紫のカード1枚を破棄することで、相手のスピリットのコア1個を相手のリザーブに置く。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：相手のネクサス1つを破壊する。\n[赤][赤]：自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BS24-017",
+  "name": "カースガーゴイル",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【呪撃】『このスピリットのアタック時』\nバトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する。\nLv2･Lv3『相手によるこのスピリットの破壊時』\n相手のスピリットのコア2個を相手のリザーブに置く。\n自分のアルティメットがいるとき、さらに、自分はデッキから2枚ドローする。"
+ },
+ {
+  "cardId": "BS24-018",
+  "name": "冥獣王オセロ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主",
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手のスピリット1体のコアを、1個だけになるように相手のリザーブに置く。\n自分のアルティメットがいるとき、さらに、相手の合体スピリットのブレイヴ1つを破壊する。\nLv2･Lv3\nこのスピリットの色とシンボルは赤としても扱う。"
+ },
+ {
+  "cardId": "BS24-019",
+  "name": "仏蛇龍カノン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 8,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "自分のアルティメットがいる間、手札にあるこのスピリットカードをコスト5にする。\nLv1･Lv2･Lv3【強化】\nアルティメット以外の自分の「コア除去効果」でリザーブに置くコアを+1個する。\nLv2･Lv3『このスピリットのバトル時』\n相手のスピリットのコア1個を相手のリザーブに置く。"
+ },
+ {
+  "cardId": "BS24-020",
+  "name": "アックスモス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "刃虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットは、相手の効果によって破壊されたとき手札に戻る。"
+ },
+ {
+  "cardId": "BS24-021",
+  "name": "ヨロイカラス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": ""
+ },
+ {
+  "cardId": "BS24-022",
+  "name": "ヨロイフクロウ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個をこのスピリットに置く。\nLv1･Lv2\n相手によってこのスピリットのコアが取り除かれるとき、自分の手札にあるアルティメットカード1枚を相手に見せることで、このスピリットのコアの数はLv1コストより少なくならない。"
+ },
+ {
+  "cardId": "BS24-023",
+  "name": "セイバーホーネット",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "刃虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv2『このスピリットの破壊時』\n相手は、相手のスピリット1体を疲労させる。\n自分のアルティメットがいるとき、この効果で疲労させるスピリットを自分で指定する。"
+ },
+ {
+  "cardId": "BS24-024",
+  "name": "ソードピューマ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1･Lv2【分身：1】『このスピリットの召喚時』\n自分のデッキの上から1枚を裏向きで自分のフィールドに置き、自分のリザーブのコア1個以上を置くことで、ゲーム終了時まで、そのカードを“コスト0/系統：「分身」/<1>Lv1/BP3000/[緑]”の緑の分身スピリットにする。\n(分身スピリットは合体できず、手札/デッキに戻るとき破棄される)"
+ },
+ {
+  "cardId": "BS24-025",
+  "name": "カナブーン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nボイドからコア1個を自分のリザーブに置く。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：相手のスピリット1体を指定する。このターンの間、そのスピリットはブロックできない。"
+ },
+ {
+  "cardId": "BS24-026",
+  "name": "ソードコヨーテ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「剣獣」を持つ自分のスピリットすべてに“『このスピリットのアタック時』相手はバーストを発動できない”を与える。\nLv2『このスピリットのアタック時』\n相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "BS24-027",
+  "name": "ナイトイーグル",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【分身：1】『このスピリットのアタック時』\n自分のデッキの上から1枚を裏向きで自分のフィールドに置き、自分のリザーブのコア1個以上を置くことで、ゲーム終了時まで、そのカードを“コスト0/系統：「分身」/<1>Lv1/BP3000/[緑]”の緑の分身スピリットにする。\n(分身スピリットは合体できず、手札/デッキに戻るとき破棄される)\nLv2･Lv3\n自分の分身スピリットすべてのLv1BPを11000として扱う。"
+ },
+ {
+  "cardId": "BS24-028",
+  "name": "スコーピオンナイト",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 8,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "自分のアルティメットがいる間、手札にあるこのスピリットカードをコスト5にする。\nLv1･Lv2･Lv3『このスピリットのバトル時』\nコスト3以下の相手のスピリットすべてを疲労させる。\nLv3\n自分のアルティメットがバトルしている間、相手はバーストを発動できない。"
+ },
+ {
+  "cardId": "BS24-029",
+  "name": "千年獣ベヒモス・シダー",
+  "type": "spirit",
+  "colors": [
+   "green",
+   "yellow"
+  ],
+  "cost": 9,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "樹魔",
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 8000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 14000
+   }
+  ],
+  "symbol": [
+   "green",
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の黄のスピリット1体につき、ボイドからコア1個を自分のリザーブに置く。\nLv2･Lv3『自分のアタックステップ』\nカード名に「ベヒモス」と入っている自分のスピリットがアタックしたとき、スピリットでブロックするなら、相手はスピリット2体でないとブロックできない。\nそのスピリットがブロックされたとき、どれか1体とだけバトルする。"
+ },
+ {
+  "cardId": "BS24-030",
+  "name": "オートマチックガンナー",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 1,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "武装",
+   "動器"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【スピリットソウル：白】\n自分がアルティメットカードを召喚するとき、このスピリットに[白](白のシンボル1つ)を追加する。"
+ },
+ {
+  "cardId": "BS24-031",
+  "name": "アクアクマノミ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "空魚"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\nシンボル2つ以上を持つ相手のスピリットすべてを手札に戻す。"
+ },
+ {
+  "cardId": "BS24-032",
+  "name": "サイバー・シェパード",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "purple"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\n相手のネクサス1つを手札に戻す。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：相手のスピリット1体のコアを、1個だけになるように相手のリザーブに置く。"
+ },
+ {
+  "cardId": "BS24-033",
+  "name": "グロッシュリザード",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white",
+   "red"
+  ],
+  "family": [
+   "甲竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットは、回復状態で破壊されたとき、疲労状態でフィールドに残る。\nLv2『このスピリットのブロック時』\nこのスピリットをBP+3000する。"
+ },
+ {
+  "cardId": "BS24-034",
+  "name": "90式タンクモービル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "動器",
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nこのスピリットをBP+3000する。\nさらに、自分のアルティメットがいるとき、相手の合体スピリットのブレイヴ1つを手札に戻す。"
+ },
+ {
+  "cardId": "BS24-035",
+  "name": "ガーネットドラゴン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "red",
+   "red"
+  ],
+  "family": [
+   "甲竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットの色とシンボルは赤としても扱う。\nLv1･Lv2･Lv3『相手のアタックステップ』\n系統：「甲竜」/「竜人」を持つ自分のスピリットすべては疲労状態でブロックできる。\nLv2･Lv3【重装甲：赤/紫/白/青】\nこのスピリットは、相手の赤/紫/白/青のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。"
+ },
+ {
+  "cardId": "BS24-036",
+  "name": "バーストタートル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "甲獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n相手のスピリット1体を手札に戻す。\nこの効果発揮後、このカードをコストを支払わずに召喚する。\nLv1･Lv2\nお互いのデッキは破棄されない。\nさらに、自分のアルティメットがいる間、このスピリットは相手のスピリットの効果を受けない。"
+ },
+ {
+  "cardId": "BS24-037",
+  "name": "スクラップマンモス",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n相手のバースト1つを破棄することで、相手のスピリット1体を手札に戻す。\nLv2\nこのスピリットの色とシンボルは紫としても扱う。"
+ },
+ {
+  "cardId": "BS24-038",
+  "name": "空の要塞皇キングフォートレス",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「武装」を持つ自分のスピリット/アルティメット1体につき、相手のスピリット1体を手札に戻す。\n手札に戻したスピリット1体につき、ボイドからコア1個を自分のリザーブに置く。\nLv1･Lv2･Lv3\n系統：「武装」を持つ自分のスピリットすべては、相手のアルティメット以外の効果で消滅するとき、自分のリザーブのコアを、好きなだけそれらのスピリットに置くことで、回復状態でフィールドに残る。"
+ },
+ {
+  "cardId": "BS24-039",
+  "name": "ワイバーンベリル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 8,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "甲竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "自分のアルティメットがいる間、手札にあるこのスピリットカードをコスト5にする。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n相手の合体スピリットのブレイヴ1つをデッキの上に戻すことができる。\nLv2･Lv3『自分のアタックステップ』\n自分のアルティメットがアタックしたとき、このスピリットは回復する。"
+ },
+ {
+  "cardId": "BS24-040",
+  "name": "ウォッチーノ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 1,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "小玩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\nBP5000以下の相手のスピリット1体を疲労させることで、このスピリットは疲労状態でフィールドに残る。"
+ },
+ {
+  "cardId": "BS24-041",
+  "name": "コダマウス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow",
+   "green"
+  ],
+  "family": [
+   "想獣",
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分のデッキを上から6枚オープンできる。\nその中のカード名に「ベヒモス」と入っているスピリットカード1枚を手札に加える。\n残ったカードは破棄する。\nLv2\nこのスピリットの色とシンボルは緑としても扱う。"
+ },
+ {
+  "cardId": "BS24-042",
+  "name": "歌姫アーシア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n系統：「詩姫」を持つ自分のスピリットが相手によって消滅/破壊されたとき、自分はデッキから1枚ドローする。\nLv2･Lv3『相手によるこのスピリットの破壊時』\n自分のアルティメットがいるとき、このスピリットは疲労状態でフィールドに残ることができる。"
+ },
+ {
+  "cardId": "BS24-043",
+  "name": "歌姫マリカ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\nコスト3以下の相手のスピリットがアタックしたとき、ボイドからコア1個を自分のライフに置く。\nLv2\n自分の[歌姫アーシア]/[歌姫マリカ]/[歌姫ココ]/[歌姫ミレファ]が1体ずついる間、自分のアルティメットすべてをBP+10000する。"
+ },
+ {
+  "cardId": "BS24-044",
+  "name": "コケトリス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "green"
+  ],
+  "family": [
+   "想獣",
+   "歌鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nこのターンの間、相手のスピリット1体をBP-3000する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。\n[緑][緑]：相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "BS24-045",
+  "name": "歌姫ココ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\n相手のスピリット1体を指定する。このターンの間、そのスピリットはアタック/ブロックできない。\nLv2･Lv3\n自分のアルティメットがいる間、系統：「詩姫」を持つ自分のスピリットすべては、相手のスピリットの効果を受けない。"
+ },
+ {
+  "cardId": "BS24-046",
+  "name": "騎士ペンタン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "歌鳥",
+   "漂精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『お互いのアタックステップ』\n自分の黄のスピリットが相手によって消滅/破壊されたとき、自分の手札にある系統：「歌鳥」を持つスピリットカード1枚を、コストを支払わずに召喚できる。\nLv2･Lv3\n系統：「歌鳥」を持つ自分のスピリット/アルティメット1体につき、このスピリットをBP+1000する。"
+ },
+ {
+  "cardId": "BS24-047",
+  "name": "翼獣ウィングベヒモス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『相手によるこのスピリットの消滅/破壊時』\nカード名に「ベヒモス」と入っている自分のスピリット1体につき、相手のスピリット1体を好きな順番でデッキの下に戻す。\nLv2･Lv3『自分のアタックステップ』\nカード名に「ベヒモス」と入っている自分のスピリットすべては、Lv1/Lv2の相手のスピリットからブロックされない。"
+ },
+ {
+  "cardId": "BS24-048",
+  "name": "歌姫ミレファ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "自分のアルティメットがいる間、手札にあるこのスピリットカードをコスト5にする。\nLv2･Lv3『自分のアタックステップ』\n自分のアルティメットがアタックしたとき、自分のデッキを上から1枚オープンできる。\nそのカードが系統：「詩姫」を持つスピリットカードのとき、そのアルティメットは相手のスピリットからブロックされない。\nオープンしたカードは手札に加える。"
+ },
+ {
+  "cardId": "BS24-049",
+  "name": "ドライアン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "新生"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": ""
+ },
+ {
+  "cardId": "BS24-050",
+  "name": "クォーツ・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\n相手のデッキを上から1枚破棄する。"
+ },
+ {
+  "cardId": "BS24-051",
+  "name": "巨人航海士トービー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n系統：「造兵」を持つコスト4以下の自分のスピリットが召喚されたとき、ボイドからコア1個をこのスピリットに置く。\nこの効果はターンに1回しか使えない。"
+ },
+ {
+  "cardId": "BS24-052",
+  "name": "ライオット・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv2･Lv3『このスピリットの破壊時』\n自分のネクサス1つを疲労させることで、このスピリットは回復状態でフィールドに残る。"
+ },
+ {
+  "cardId": "BS24-053",
+  "name": "キャラベル・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "white"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分の白/青のアルティメットがバトルしたとき、ボイドからコア1個をこのスピリットに置く。\nLv1･Lv2『お互いのアタックステップ』\n系統：「造兵」を持つ自分のアルティメットすべてのLvを、1つ上のものとして扱う。\n【連鎖：条件《白シンボル》】\n(自分の白シンボルがあるとき、下の効果を続けて発揮する)\n[白]：このスピリットは、相手のスピリットの効果を受けない。"
+ },
+ {
+  "cardId": "BS24-054",
+  "name": "海賊巨人キッド",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のデッキを上から4枚オープンできる。\nその中の系統：「造兵」/「闘神」を持つアルティメットカードすべてを手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2･Lv3『このスピリットのバトル時』\nコスト1以下の相手のスピリット1体を破壊する。\n自分のアルティメットがいるとき、さらに、コスト3の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS24-055",
+  "name": "ベアーケンタウロス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト5以下の相手のスピリット1体を破壊する。自分のアルティメット1体につき、この効果で破壊するコストを+5する。\nLv2【強襲：2】『このスピリットのアタック時』\nこのスピリットは、ターンに2回まで、自分のネクサス1つを疲労させることで回復できる。"
+ },
+ {
+  "cardId": "BS24-056",
+  "name": "ガレオン・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "自分のアルティメットがいる間、手札にあるこのスピリットカードをコスト5にする。\nLv1･Lv2『このスピリットの召喚時』\nコスト5以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n自分のアルティメットの「デッキ破棄効果」で、マジックカードが破棄されたとき、相手のスピリット1体を指定できる。\nこのターンの間、相手は、可能ならば必ずそのスピリットでブロックする。"
+ },
+ {
+  "cardId": "BS24-057",
+  "name": "鮫首竜シャークハイドラ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 9,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "海首"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 13000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 16000
+   }
+  ],
+  "symbol": [
+   "blue",
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\nコスト8以上のスピリットが破壊されたとき、このスピリットは回復する。"
+ },
+ {
+  "cardId": "BS24-058",
+  "name": "アルティメット・ドラグサウルス",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "新生",
+   "爬獣"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\nLv3･Lv4『このアルティメットの召喚時』\n相手のネクサス1つを破壊する。\n【Uトリガー】Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、BP10000以下の相手のスピリット1体を破壊する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-059",
+  "name": "アルティメット・プテラトマホーク",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "新生",
+   "空牙"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 9000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 15000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\nLv3･Lv4･Lv5『このアルティメットの召喚時』\nシンボル2つ以上を持つ相手のスピリット1体を破壊する。\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は可能ならブロックする。ただし、アルティメットはブロックしなくてもよい。\n相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-060",
+  "name": "究極龍王リヴァイア",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "新生",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 12000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 17000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 25000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は可能ならブロックする。ただし、アルティメットはブロックしなくてもよい。\n相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『このアルティメットのアタック時』\n自分のトラッシュにある赤のスピリットカード1枚を手札に戻すことで、相手の合体スピリット1体を破壊する。",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-061",
+  "name": "アルティメット・シャ・ズー",
+  "type": "ultimate",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "新生",
+   "霊獣"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の紫スピリット1体以上】\nLv3･Lv4『このアルティメットの破壊時』\n相手のスピリット2体を疲労させる。\n【Uトリガー】Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、相手は、相手のスピリットのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の紫スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-062",
+  "name": "アルティメット・ダークウィッチ",
+  "type": "ultimate",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "新生",
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 9000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 13000
+   },
+   {
+    "level": 5,
+    "cores": 6,
+    "bp": 16000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の紫スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、相手は、相手のスピリットのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の紫スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-063",
+  "name": "アルティメット・ズ・ガイン",
+  "type": "ultimate",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "新生",
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 16000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【召喚条件：自分の紫スピリット1体以上】\nLv3･Lv4･Lv5『このアルティメットの召喚時』\n相手の手札が3枚以上のとき、相手は、相手の手札1枚を破棄する。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は、相手のスピリットのコア1個をボイドに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の紫スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-064",
+  "name": "アルティメット・ケツァルカトル",
+  "type": "ultimate",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "新生",
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 12000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 18000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 23000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【召喚条件：自分の紫スピリット1体以上】\nLv3･Lv4･Lv5『自分のターン』\n自分の「コア除去効果」で相手のスピリットが消滅したとき、自分のアルティメットのコア1個を自分のライフに置くことができる。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は、相手のスピリットのコア1個をボイドに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の紫スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-065",
+  "name": "アルティメット・ジガワスプ",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "新生",
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【召喚条件：自分の緑スピリット1体以上】\nフラッシュ【神速】\n手札にあるこのアルティメットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\n【Uトリガー】Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手のスピリット3体を疲労させる。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の緑スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-066",
+  "name": "アルティメット・ジオ",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "新生",
+   "巨獣"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 13000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 16000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の緑スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このアルティメットをスピリットでブロックするなら、相手はスピリット3体でないとブロックできない。\nこのアルティメットがブロックされたとき、どれか1体とだけバトルする。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の緑スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-067",
+  "name": "アルティメット・トレントン",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "新生",
+   "樹魔"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 11000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 14000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 22000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【召喚条件：自分の緑スピリット1体以上】\nLv3･Lv4･Lv5『このアルティメットの召喚時』\n自分の手札にある緑のスピリットカード1枚を、コストを支払わずに召喚できる。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このアルティメットをスピリットでブロックするなら、相手はスピリット3体でないとブロックできない。\nこのアルティメットがブロックされたとき、どれか1体とだけバトルする。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の緑スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-068",
+  "name": "アルティメット・エムブラ",
+  "type": "ultimate",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "新生",
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の白スピリット1体以上】\nLv3･Lv4『このアルティメットのアタック時』\nシンボル2つ以上を持つ相手のスピリット1体を手札に戻す。\n【Uトリガー】Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このアルティメットは相手のスピリットからブロックされない。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の白スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-069",
+  "name": "アルティメット・フェンリル",
+  "type": "ultimate",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "新生",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 9000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 13000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 15000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【召喚条件：自分の白スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手のネクサス1つを手札に戻し、このアルティメットは相手のスピリットからブロックされない。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『相手のアタックステップ』\n自分のスピリット/アルティメットすべてをBP+3000する。",
+  "summonConditionText": "自分の白スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-070",
+  "name": "アルティメット・フレイア",
+  "type": "ultimate",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "新生",
+   "氷姫"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 15000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 21000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【召喚条件：自分の白スピリット1体以上】\nLv3･Lv4･Lv5『このアルティメットの召喚時』\nこのターン終了時、自分の白のアルティメットすべてを回復させる。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このアルティメットは相手のスピリットからブロックされない。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の白スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-071",
+  "name": "アルティメット・コリスタル",
+  "type": "ultimate",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "新生",
+   "漂精"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 5,
+    "cores": 3,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の黄スピリット1体以上】\nLv3･Lv4･Lv5『このアルティメットのアタック時』\nバトル終了時、このアルティメットを破壊する。\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このバトルの間、このアルティメットは破壊されない。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の黄スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-072",
+  "name": "アルティメット・エンジュ",
+  "type": "ultimate",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "新生",
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 8000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の黄スピリット1体以上】\n【Uトリガー】Lv3･Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このアルティメットは、トラッシュに置いたカードのコスト以下の相手のスピリットにブロックされず、自分のトラッシュにあるマジックカード1枚を手札に戻す。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の黄スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-073",
+  "name": "アルティメット・ソフィア",
+  "type": "ultimate",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "新生",
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 13000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 16000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【召喚条件：自分の黄スピリット1体以上】\nLv3･Lv4･Lv5『このアルティメットの召喚時』\n自分の手札にある系統：「詩姫」を持つスピリットカード1枚を、コストを支払わずに召喚できる。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このアルティメットは、トラッシュに置いたカードのコスト以下の相手のスピリットにブロックされず、自分のトラッシュにあるマジックカード1枚を手札に戻す。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の黄スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-074",
+  "name": "アルティメット・アンプルール",
+  "type": "ultimate",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "新生",
+   "皇獣",
+   "歌鳥"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 13000
+   },
+   {
+    "level": 5,
+    "cores": 3,
+    "bp": 18000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の黄スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、自分の手札にあるカード名に「ペンタン」と入っているスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の黄スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-075",
+  "name": "アルティメット・ロックゴレム",
+  "type": "ultimate",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "新生",
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【召喚条件：自分の青スピリット1体以上】\nLv3･Lv4･Lv5『お互いのアタックステップ』\nお互い、コスト3以下のスピリットは、ターンに1回しかアタックできない。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、相手のデッキを上から2枚破棄する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の青スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-076",
+  "name": "アルティメット・モンゴクウ",
+  "type": "ultimate",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "新生",
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 10000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 15000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の青スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このアルティメットのBPを倍にする。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の青スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-077",
+  "name": "アルティメット・アイアンゴレム",
+  "type": "ultimate",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "新生",
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 9000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 12000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 15000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の青スピリット1体以上】\nLv3･Lv4･Lv5【粉砕】『このアルティメットのアタック時』\n相手のデッキを上から、このアルティメットのLvと同じ枚数破棄する。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、相手のデッキを上から2枚破棄する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の青スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-078",
+  "name": "アルティメット・ランドルフ",
+  "type": "ultimate",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "新生",
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 12000
+   },
+   {
+    "level": 4,
+    "cores": 4,
+    "bp": 18000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【召喚条件：自分の青スピリット1体以上】\n【Uトリガー】Lv3･Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、相手のデッキを上から2枚破棄する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4『自分のアタックステップ』\n自分のアルティメットの「デッキ破棄効果」でマジックカードを破棄するたび、相手のスピリットのコア1個を相手のトラッシュに置く。",
+  "summonConditionText": "自分の青スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-079",
+  "name": "プテルファイター",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "white"
+  ],
+  "family": [
+   "空牙"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n自分のトラッシュにある系統：「竜人」/「甲竜」を持つスピリットカード1枚を手札に戻す。\n合体条件：コスト3以上\n【合体時】『このスピリットの合体アタック時』\nBP6000以下の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト3以上"
+ },
+ {
+  "cardId": "BS24-080",
+  "name": "アーマードハーレー",
+  "type": "brave",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "トラッシュにあるこのブレイヴカードは、系統：「呪鬼」を持つ自分のスピリットが召喚されたとき、コストを支払わずに召喚できる。\n合体条件：コスト3以上\n【合体時】【呪撃】『このスピリットの合体アタック時』\nバトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   }
+  ],
+  "braveConditionText": "コスト3以上"
+ },
+ {
+  "cardId": "BS24-081",
+  "name": "クワガータンク",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "yellow"
+  ],
+  "family": [
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\nボイドからコア1個を系統：「剣獣」/「想獣」を持つ自分のスピリットに置く。\n合体条件：コスト4以上",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "BS24-082",
+  "name": "バスターファルコン21",
+  "type": "brave",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "blue"
+  ],
+  "family": [
+   "動器"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\nBP合計5000まで相手のスピリットを好きなだけ手札に戻す。\nこの効果で手札に戻したスピリット1体につき、ボイドからコア1個を系統：「武装」を持つ自分のスピリットに置く。\n合体条件：コスト4以上",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "BS24-083",
+  "name": "ウィングアロー",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "red"
+  ],
+  "family": [
+   "翼船"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、相手のスピリット1体をBP-3000する。\n合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\nこのターンの間、相手のスピリット1体をBP-3000する。この効果でBP0になったスピリットを破壊する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "BS24-084",
+  "name": "ロブス・アームズ",
+  "type": "brave",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\n系統：「造兵」を持つ自分のスピリット/アルティメット1体につき、相手のデッキを上から1枚破棄する。\nこの効果でマジックカードが破棄されるたび、ボイドからコア1個をこのスピリットに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "BS24-085",
+  "name": "破滅への序曲",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n自分が系統：「滅龍」を持つコスト7以上のスピリットカードを召喚するとき、系統：「竜人」/「星竜」を持つ自分のスピリットすべてに赤のシンボル1つを追加する。\nLv2『自分のドローステップ』\n系統：「竜人」を持つ自分のスピリットがいるとき、ドローの枚数を+1枚する。"
+ },
+ {
+  "cardId": "BS24-086",
+  "name": "燃え尽きた戦場",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n自分のアルティメットが召喚されたとき、自分はデッキから1枚ドローする。\nこの効果はターンに1回しか使えない。\nLv2『相手のアタックステップ』\n自分のライフが減ったとき、このネクサスのコア1個につき、BP4000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS24-087",
+  "name": "地獄都市カイーナ",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n【呪撃】/【呪滅撃】を持つ自分のスピリットが疲労したとき、自分はデッキから1枚ドローする。\nLv2『自分のエンドステップ』\n自分のトラッシュにある系統：「呪鬼」を持つスピリットカード1枚を召喚できる。"
+ },
+ {
+  "cardId": "BS24-088",
+  "name": "万本槍の古戦場",
+  "type": "nexus",
+  "colors": [
+   "purple",
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple",
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n相手のスピリット/アルティメットが疲労したとき、自分はデッキから1枚ドローする。\nLv2『自分のアタックステップ』\n自分がドローしたとき、相手のスピリットのコア1個を相手のリザーブに置く。"
+ },
+ {
+  "cardId": "BS24-089",
+  "name": "巻き上がるダンガロ山脈",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分が分身スピリットを出すとき、リザーブからコアを置くかわりに、ボイドからコア1個をそのカードに置いて分身スピリットを出すことができる。\nこの効果は重複しない。\nLv2『相手のアタックステップ』\n自分のライフが減って3/2/1になったとき、自分の手札にある【分身】を持つスピリットカード1枚を、コストを支払わずに召喚できる。"
+ },
+ {
+  "cardId": "BS24-090",
+  "name": "命の果実群生地",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n自分のアルティメットが召喚されたとき、ボイドからコア1個を自分のリザーブに置く。\nこの効果はターンに1回しか使えない。\nLv2『相手のアタックステップ』\n自分のライフが減ったとき、減ったライフ1つにつき、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BS24-091",
+  "name": "千年雪の要塞都市",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n自分のアルティメットが召喚されたとき、召喚されたアルティメットのBP以下の相手のスピリット1体を手札に戻す。\nLv2『自分のアタックステップ』\n自分のアルティメットが相手のライフを減らしたとき、ボイドからコア1個を自分のリザーブに置く。"
+ },
+ {
+  "cardId": "BS24-092",
+  "name": "氷宙遺跡スカイ・リオ",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n系統：「甲竜」を持つ自分のスピリットが召喚されたとき、ボイドからコア1個を自分のリザーブに置く。\nこの効果はターンに1回しか使えない。\nLv2『相手のアタックステップ』\n相手の手札が増えたとき、増えたカード1枚につき、相手は、相手の手札1枚を破棄する。\nこの効果は重複しない。"
+ },
+ {
+  "cardId": "BS24-093",
+  "name": "天使の舞い降りた場所",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のスタートステップ』\nステップ開始時、自分の手札にあるマジックカード1枚をオープンして手元に置くことで、自分はデッキから1枚ドローする。\nオープンしたマジックカードは、ゲーム終了時まで、手札にあるときと同様に使用できる。\nLv2『自分のメインステップ』\n自分のアルティメットカードを召喚するとき、系統：「詩姫」を持つ自分のスピリットすべてに、黄のシンボル1つを追加する。"
+ },
+ {
+  "cardId": "BS24-094",
+  "name": "封印されし魔導書図書館",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nお互いのデッキは破棄されず、お互いのスピリットは効果によって回復しない。\nLv2『自分のアタックステップ』\n自分のマジックの効果でドローするとき、このネクサスを疲労させることで、ドロー枚数を倍にする。\nこの効果は重複しない。"
+ },
+ {
+  "cardId": "BS24-095",
+  "name": "サファイアの彫像",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のUトリガーの「デッキ破棄効果」で、相手のデッキが6枚以下しか破棄されなかったとき、さらに、相手のデッキを上から4枚破棄する。\nLv2『お互いのアタックステップ』\n相手のバースト発動後、相手のデッキを上から7枚破棄する。"
+ },
+ {
+  "cardId": "BS24-096",
+  "name": "忘れられし凱旋門",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\n相手は、相手のフィールドにあるシンボルと同じ色のマジックカードしか使用できない。\nLv2\n相手は、ボイドからライフにコアを置けない。"
+ },
+ {
+  "cardId": "BS24-097",
+  "name": "ブレイヴデストラクション",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n相手の合体スピリットのブレイヴ1つを破壊する。\nまたは、BP3000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS24-098",
+  "name": "ジャッジメントコール",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分のデッキを上から6枚オープンする。\nその中の系統：「滅龍」を持つスピリットカード1枚を手札に加える。\n残ったカードは破棄する。\nこの効果でカード名：「断罪の滅龍ジャッジメント・ドラゴニス」を手札に加えたとき、BP7000以下の相手のスピリット1体を破壊する。\nフラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+2000する。"
+ },
+ {
+  "cardId": "BS24-099",
+  "name": "フレイムブリーズ",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\nBP4000以下のスピリット1体を破壊する。\nこの効果では、相手はバースト条件が【相手による自分のスピリット破壊後】のバーストを発動できない。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BP4000以下の相手のスピリット1体を疲労させる。\n[緑][緑]：相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "BS24-100",
+  "name": "デモンズパペット",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のトラッシュにある系統：「呪鬼」を持つコスト6以下のスピリットカード1枚を、コストを支払わずに召喚する。\nただし、『このスピリットの召喚時』効果は発揮しない。"
+ },
+ {
+  "cardId": "BS24-101",
+  "name": "ソウルバースト",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n相手のスピリット1体のコアを、1個だけになるように相手のリザーブに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のスピリットのコア1個を相手のリザーブに置く。"
+ },
+ {
+  "cardId": "BS24-102",
+  "name": "デスマサカー",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n疲労状態の相手のスピリット1体を破壊する。\n【連鎖：条件《白シンボル》】\n(自分の白シンボルがあるとき、下の効果を続けて発揮する)\n[白]：自分の紫のスピリット1体を回復させる。\n[白][白]：相手のバースト1つを破棄する。この効果は、メインステップで発揮しない。"
+ },
+ {
+  "cardId": "BS24-103",
+  "name": "サイクルパワー",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+2000する。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：バトル終了時、トラッシュにあるこのマジックカードは手札に戻る。\nこの効果は、メインステップで発揮しない。"
+ },
+ {
+  "cardId": "BS24-104",
+  "name": "バインディングクリーパー",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\n相手のスピリット1体を疲労させる。\n自分のアルティメットがいるとき、さらに、相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "BS24-105",
+  "name": "シャドーリーフ",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分のスピリット1体の【分身】を発揮させる。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のスピリット1体を疲労させる。\nさらに、自分の分身スピリット1体につき、相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "BS24-106",
+  "name": "アルティメットウォール",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのバトルが終了したとき、アタックステップを終了する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nコスト3以下の相手のスピリット3体を手札に戻す。"
+ },
+ {
+  "cardId": "BS24-107",
+  "name": "ドリームネビュラ",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\n相手のスピリット1体を手札に戻す。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：相手のスピリットのコア1個を相手のリザーブに置く。\n[紫][紫]：自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BS24-108",
+  "name": "サプレッション",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 8,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のスピリットすべてを回復させる。\nこの効果で回復したスピリット1体につき、相手のスピリット1体を手札に戻す。"
+ },
+ {
+  "cardId": "BS24-109",
+  "name": "バトルキャンセル",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手のスピリットのアタック後】\n自分のスピリットからコア1個を自分のライフに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nバトル解決時、BPを比べずにバトルを終了させる。"
+ },
+ {
+  "cardId": "BS24-110",
+  "name": "セイントブリーズ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、相手のスピリット2体をBP-3000する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BP5000以下の相手のスピリットすべてを疲労させる。"
+ },
+ {
+  "cardId": "BS24-111",
+  "name": "アルティメットプラズマ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 12,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "トラッシュにあるこのマジックカードは、一切の効果を受けない。\nフラッシュ：\n相手のスピリット2体までを好きな順番でデッキの下に戻す。\nデッキの下に戻したスピリット1体につき、自分はデッキから1枚ドローする。\nこのマジックカードは自分のアルティメットがアタックしている間しか使えない。"
+ },
+ {
+  "cardId": "BS24-112",
+  "name": "クリアエッジ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\n相手の手札にある/手元に置いてあるカードが合計5枚以上のとき、相手は、相手の手札にある/手元に置いてあるカードを合計3枚になるように破棄する。\nフラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+2000する。"
+ },
+ {
+  "cardId": "BS24-113",
+  "name": "オーバードライブ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+5000する。\n【連鎖：条件《白シンボル》】\n(自分の白シンボルがあるとき、下の効果を続けて発揮する)\n[白]：自分の青のスピリット1体を回復させる。\n[白][白]：シンボル2つ以上を持つ相手のスピリットすべてを手札に戻す。"
+ },
+ {
+  "cardId": "BS24-114",
+  "name": "ブレイクグラインド",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nコスト合計3まで相手のスピリットを好きなだけ破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nコスト3以下の相手のスピリット3体を破壊する。\nこの効果で破壊したスピリット1体につき、相手のデッキを上から2枚破棄する。"
+ },
+ {
+  "cardId": "BS24-X01",
+  "name": "断罪の滅龍ジャッジメント・ドラゴニス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 10,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "滅龍"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 13000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 16000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『お互いのアタックステップ開始時』\n自分の手札にある赤のカード1枚を破棄することで、このターンの間、自分のスピリットすべてをBP+5000する。\nLv2･Lv3【激突】『このスピリットのアタック時』\n相手のスピリットは、可能ならブロックする。\nLv3『このスピリットのアタック時』\n〔ゲームに1回：同名〕このターン終了後、自分のターンを行う。"
+ },
+ {
+  "cardId": "BS24-X02",
+  "name": "冥府三巨頭クイン・メドゥーク",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 8,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "無魔",
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【呪滅撃】『相手によるこのスピリットの破壊時』\n相手のライフのコア1個を相手のトラッシュに置くことで、このスピリットは回復状態でフィールドに残る。\nLv1･Lv2･Lv3『相手のターン』\n【呪撃】を持つ自分のスピリットすべてに【呪滅撃】を与える。\nLv2･Lv3\n【呪滅撃】を持つ自分のスピリットが相手のライフを減らしたとき、相手のライフのコアはリザーブ/トラッシュではなくボイドに置かれる。"
+ },
+ {
+  "cardId": "BS24-X03",
+  "name": "アルティメット・ジークフリーデン",
+  "type": "ultimate",
+  "colors": [
+   "red",
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "white",
+   "white"
+  ],
+  "family": [
+   "新生",
+   "古竜",
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 12000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 20000
+   },
+   {
+    "level": 5,
+    "cores": 6,
+    "bp": 30000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上と白スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、BP10000以下の相手のスピリット1体を破壊する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『相手のアタックステップ』\n相手のアルティメットがアタックしたとき、自分の手札にあるアルティメットカード1枚を破棄することで、このアルティメットは回復する。",
+  "summonConditionText": "自分の赤スピリット1体以上と白スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-X04",
+  "name": "アルティメット・デスペラード",
+  "type": "ultimate",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "新生",
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 11000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 16000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 19000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の紫スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、相手は、相手のスピリットのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『自分のアタックステップ』\n相手のリザーブ/トラッシュのコア1個につき、このアルティメットをBP+1000する。",
+  "summonConditionText": "自分の紫スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-X05",
+  "name": "アルティメット・カイザーアトラス",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "新生",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 11000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 15000
+   },
+   {
+    "level": 5,
+    "cores": 6,
+    "bp": 23000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の緑スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手のスピリット3体を疲労させる。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『このアルティメットのアタック時』\nBPを比べ相手のスピリット/アルティメットだけを破壊したとき、相手のライフのコア1個をボイドに置く。",
+  "summonConditionText": "自分の緑スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-X06",
+  "name": "究極巨神アルティメット・トール",
+  "type": "ultimate",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "新生",
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 12000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 15000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の白スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手のネクサス1つを手札に戻し、このアルティメットは相手のスピリットからブロックされない。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『相手のアタックステップ』\nLv2以下の相手のスピリットがアタックしたとき、このアルティメットは回復する。",
+  "summonConditionText": "自分の白スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-X07",
+  "name": "アルティメット・ミカファール",
+  "type": "ultimate",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "新生",
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 14000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の黄スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、ターンに1回、自分のマジックの効果で相手のスピリット1体以上を手札/デッキに戻したら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『このアルティメットのアタック時』\n自分の手札にある/手元に置いてあるマジックカード1枚を、フラッシュタイミングでコストを支払わずに使用できる。",
+  "summonConditionText": "自分の黄スピリット1体以上"
+ },
+ {
+  "cardId": "BS24-X08",
+  "name": "アルティメット・キャッスルゴレム",
+  "type": "ultimate",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "新生",
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 12000
+   },
+   {
+    "level": 4,
+    "cores": 4,
+    "bp": 16000
+   },
+   {
+    "level": 5,
+    "cores": 6,
+    "bp": 26000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の青スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、トラッシュに置いたカードのコスト1につき、相手のデッキを上から3枚破棄する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『自分のアタックステップ』\nコスト5以下の相手のスピリット/ネクサスの「デッキは破棄されない」効果すべてを無効にする。",
+  "summonConditionText": "自分の青スピリット1体以上"
+ },
+ {
+  "cardId": "CP14-X01R",
+  "name": "不滅龍エターナル・ドラゴニス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "滅龍"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "CP",
+  "limited": false,
+  "effect": "このスピリットカードは、相手のUトリガー/「デッキ破棄効果」によって自分のデッキからトラッシュに置かれたとき、コストを支払わずに召喚できる。\nLv3『このスピリットのアタック時』\n自分か相手のアルティメットがいる間、このスピリットに赤のシンボル1つを追加する。"
+ },
+ {
+  "cardId": "CP14-X02R",
+  "name": "魔龍帝アルティメット・ジークフリード",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "新生",
+   "龍帝"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 15000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "CP",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、このアルティメットが相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『このアルティメットのアタック時』\nこのアルティメットのアタックによって相手のライフを減らしたとき、相手の合体スピリット1体を破壊する。\nまたは、相手の合体スピリットのブレイヴ1つを破壊する。",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ }
+]
