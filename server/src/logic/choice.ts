@@ -625,6 +625,7 @@ function resolveChoiceInner(
                   handIndex: info.handIndex,
                   fromTegamoto: true,
                   ...(info.level !== undefined ? { level: info.level } : {}),
+                  ...(info.cores !== undefined ? { cores: info.cores } : {}),
                   ...(info.paySources !== undefined ? { paySources: info.paySources } : {}),
                   ...(info.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: info.braveTargetInstanceId } : {}),
                   ...(info.exReductionTrashIndices !== undefined ? { exReductionTrashIndices: info.exReductionTrashIndices } : {}),
@@ -647,6 +648,10 @@ function resolveChoiceInner(
             info.paySoulCoreFromReserve,
             info.placeSoulCoreFromReserve,
             index === 0, // 0=コストを支払わずに召喚する
+            undefined,
+            undefined,
+            undefined,
+            info.cores,
         )
         if (error) return error
         if (state.winner) return null

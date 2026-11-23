@@ -325,14 +325,14 @@ function dispatchAction(
             const braveFree = tryBraveFreeSummon(state, pid, action)
             if (braveFree !== undefined) return braveFree
             if (action.fromTegamoto) return doSummonFromTegamoto(state, pid, action)
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices, action.payOffInstanceId)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices, action.payOffInstanceId, undefined, action.cores)
         }
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":
             return doSetBurst(state, pid, action.handIndex)
         case "setNexus":
-            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve)
+            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.cores)
         case "castMagic":
             return doCastMagic(
                 state,
@@ -556,8 +556,9 @@ export function doSummon(
     extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（省略時は自動で選ぶ）
     payOffInstanceId?: string, // kind:"summonPayOff"：破壊することで召喚コストを払ったものとして扱う個体
     fromTegamoto?: boolean, // 手元から召喚する（validateSummon と同じ意味）
+    cores?: number, // 置くコアの数（level より優先）
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices, payOffInstanceId, fromTegamoto)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices, payOffInstanceId, fromTegamoto, cores)
     if (error) return error
 
     const player = state.players[pid]
@@ -634,6 +635,7 @@ export function doSummon(
             sokuFreeChoice: {
                 handIndex,
                 ...(level !== undefined ? { level } : {}),
+                ...(cores !== undefined ? { cores } : {}),
                 ...(paySources !== undefined ? { paySources } : {}),
                 ...(braveTargetInstanceId !== undefined ? { braveTargetInstanceId } : {}),
                 ...(exReductionTrashIndices !== undefined && exReductionTrashIndices.length > 0 ? { exReductionTrashIndices } : {}),
@@ -660,6 +662,7 @@ export function doSummon(
     const maintain = placedCoresForSummon(card, level, {
         braveTarget: braveTargetInstanceId !== undefined,
         placeSoulCoreFromReserve,
+        cores,
     })
 
     // コアで足りない分の召喚コストを手札破棄で支払う（枚数は validateSummon と同じ関数で出す）
@@ -942,8 +945,9 @@ function doSetNexus(
     millPay?: number,
     paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を配置コスト支払い1個ぶんとして使う
     placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして配置したネクサスに置く
+    cores?: number,
 ): string | null {
-    const error = validateSetNexus(state, pid, handIndex, paySources, level, millPay, paySoulCoreFromReserve, placeSoulCoreFromReserve)
+    const error = validateSetNexus(state, pid, handIndex, paySources, level, millPay, paySoulCoreFromReserve, placeSoulCoreFromReserve, cores)
     if (error) return error
 
     const player = state.players[pid]
@@ -952,7 +956,7 @@ function doSetNexus(
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）。《真界放》の waiver 配置は doSummon と同じ
-    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve })
+    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve, cores })
 
     // 配置コストをデッキ破棄で支払う場合（コア払いとの併用はできないので全額かゼロ。枚数は validateSetNexus と同じ関数で出す）
     const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources, millPay)

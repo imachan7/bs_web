@@ -566,12 +566,14 @@ export function minLevelCoresOf(levels: LevelDef[]): number {
 export function placedCoresForSummon(
     cardData: CardData,
     level: number | undefined,
-    opts?: { braveTarget?: boolean | undefined; placeSoulCoreFromReserve?: boolean | undefined },
+    opts?: { braveTarget?: boolean | undefined; placeSoulCoreFromReserve?: boolean | undefined; cores?: number | undefined },
 ): number {
     if (opts?.braveTarget === true) return 0
     if (opts?.placeSoulCoreFromReserve === true && cardData.levels.some((l) => l.soulCoreRequired === true)) {
         return 1
     }
+    // 召喚時に置くコアは最小Lvの維持コア以上なら何個でもよい（レベルは置いた数から決まる）。
+    if (opts?.cores !== undefined) return opts.cores
     if (level === undefined) return minLevelCores(cardData)
     return cardData.levels.find((l) => l.level === level)?.cores ?? minLevelCores(cardData)
 }

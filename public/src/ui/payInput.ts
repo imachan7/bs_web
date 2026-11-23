@@ -138,6 +138,7 @@ export function submitPaying(): void {
         pay.placeSoulCore === true ? true : undefined,
         pay.payOffInstanceId,
         pay.fromTegamoto,
+        pay.cores,
     )
     ui.paying = null
 }
@@ -279,7 +280,7 @@ export function assignPayCore(instanceId: string): void {
     const maintain =
         card.type === "magic" || pay.braveTargetInstanceId !== undefined
             ? 0
-            : placedCoresForSummon(card, pay.level, { placeSoulCoreFromReserve: pay.placeSoulCore === true })
+            : placedCoresForSummon(card, pay.level, { placeSoulCoreFromReserve: pay.placeSoulCore === true, cores: pay.cores })
     const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
     const already = pay.assigned[instanceId] ?? 0
     // 代替コスト（手札破棄／デッキ破棄）で肩代わりしたぶん、コアで払う額が減る

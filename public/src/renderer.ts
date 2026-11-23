@@ -239,6 +239,8 @@ export interface UiState {
     combineBrave: { braveInstanceId: string; candidateIds: string[] } | null
     // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
     stepper: number | null
+    // 召喚・配置で置くコアの数の増減（レベル選択の下）。選択を閉じたら null に戻す
+    summonCores: number | null
     // バーストを再セットするときの確認待ち（既存のバーストはトラッシュへ送られるため確認をはさむ）
     burstResetConfirm: { handIndex: number } | null
 }
@@ -877,6 +879,29 @@ export function render(view: GameView, ui: UiState): void {
                 : "Lv2を[ソウルコア]で置く (1コア)"
             if (needsField) b.classList.add("needs-field-cores")
             choiceOptionsEl.appendChild(b)
+        }
+        // 置くコアの数を Lv の境目以外にも決められる（最小Lvの維持コア以上〜払える数まで）
+        const minCores = minLevelCores(card)
+        const maxCores = reserve + fieldCores - cost
+        if (maxCores > minCores) {
+            if (ui.summonCores === null || ui.summonCores < minCores || ui.summonCores > maxCores) ui.summonCores = minCores
+            const n = ui.summonCores
+            const lv = card.levels.filter((l) => l.cores <= n).at(-1)?.level ?? 1
+            const minus = document.createElement("button")
+            minus.dataset.summonCoresStep = "-1"
+            minus.textContent = "−"
+            minus.disabled = n <= minCores
+            const readout = document.createElement("span")
+            readout.className = "stepper-value"
+            readout.textContent = `${String(n)}コア`
+            const plus = document.createElement("button")
+            plus.dataset.summonCoresStep = "+1"
+            plus.textContent = "＋"
+            plus.disabled = n >= maxCores
+            const go = document.createElement("button")
+            go.dataset.summonCores = String(n)
+            go.textContent = `コア${String(n)}個で召喚（Lv${String(lv)}）`
+            choiceOptionsEl.append(minus, readout, plus, go)
         }
         show("choice-options", true)
     } else if (ui.braveSummonSelect) {

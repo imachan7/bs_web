@@ -44,7 +44,7 @@ export function payingNeed(view: GameView, paying: PayingState): number {
     const maintain =
         card.type === "magic" || paying.braveTargetInstanceId !== undefined
             ? 0
-            : placedCoresForSummon(card, paying.level, { placeSoulCoreFromReserve: paying.placeSoulCore === true })
+            : placedCoresForSummon(card, paying.level, { placeSoulCoreFromReserve: paying.placeSoulCore === true, cores: paying.cores })
     // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
     const alt = payingAltPay(view, paying)
     // kind:"payAssistByExhaust"（BS16-021）：疲労させたスピリット1体につきeffect.cost分、
@@ -86,6 +86,7 @@ export interface PayingState {
     choiceZone?: "hand" | "trash"
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
     level?: number // 召喚レベル指定用
+    cores?: number // 置くコアの数（level より優先）
     substituteInstanceId?: string // 入れ替え召喚の入れ替え元
     braveTargetInstanceId?: string // ダイレクトブレイヴの合体先スピリット（維持コアは置かない）
     altSummonNexusInstanceIds?: string[] // 代替召喚でデッキの下に戻すネクサス（召喚コストは0になる）
