@@ -1073,6 +1073,8 @@ button:active {
 .combine-badge,
 .as-spirit-badge {
     position: absolute;
+    /* 合体したブレイヴの箱（.brave-combined-box。ホストの右に置く暗い箱）が右下のバッジに重なって隠すため、前に出す */
+    z-index: 5;
     min-width: 44px;
     padding: 4px 10px;
     font-size: 11px;
@@ -1155,6 +1157,27 @@ button:active {
 }
 .detach-badge:hover {
     filter: brightness(1.2);
+}
+
+/* カードの下の操作ボタンの行（fieldCard.ts の cardActions）。中のボタンは角に重ねず、並べて置く */
+.card-actions {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 4px;
+    display: flex;
+    gap: 4px;
+    z-index: 5;
+    white-space: nowrap;
+}
+.card-actions > button {
+    position: static;
+}
+/* ボタンが出ているカードの下に、その行のぶんの隙間を空ける */
+.spirit-zone .card:has(> .card-actions),
+.nexus-zone .card:has(> .card-actions) {
+    margin-bottom: 28px;
 }
 
 /* 合体（メインステップの任意合体。§6.4）。スピリット状態のブレイヴにだけ出る */
