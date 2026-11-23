@@ -308,11 +308,11 @@ function renderPool(keepLimit = false): void {
 
         const txt = document.createElement("span")
         const bp = maxBp(card)
-        const parts = [TYPE_LABELS[card.type]]
+        // 一覧は1行に収めるので、スピリットは種類名を省いて BP だけ（種類名とレアリティは詳細パネルにある）
+        const parts: string[] = card.type === "spirit" ? [] : [TYPE_LABELS[card.type]]
         if (bp !== null) parts.push(`BP${bp}`)
         const braveGain = braveBpGain(card)
-        if (braveGain !== null) parts.push(`合体時BP+${braveGain}`)
-        if (card.rarity !== "") parts.push(card.rarity)
+        if (braveGain !== null) parts.push(`合体+${braveGain}`)
         txt.textContent = parts.join(" / ")
         info.appendChild(txt)
 
@@ -324,11 +324,20 @@ function renderPool(keepLimit = false): void {
             redLabel.className = "reduction-label"
             redLabel.textContent = "軽減"
             redWrap.appendChild(redLabel)
-            card.reduction.forEach(r => {
+            // 一覧は狭いので、同じ色はアイコン1つ＋個数で出す（赤赤赤 → 赤×3）
+            const byColor = new Map<string, number>()
+            for (const r of card.reduction) byColor.set(r, (byColor.get(r) ?? 0) + 1)
+            for (const [r, n] of byColor) {
                 const icon = document.createElement("span")
                 icon.className = `sym-icon bg-${r}`
                 redWrap.appendChild(icon)
-            })
+                if (n > 1) {
+                    const count = document.createElement("span")
+                    count.className = "reduction-count"
+                    count.textContent = String(n)
+                    redWrap.appendChild(count)
+                }
+            }
             info.appendChild(redWrap)
         }
 
@@ -341,6 +350,8 @@ function renderPool(keepLimit = false): void {
             mark.textContent = "禁止"
             el.appendChild(mark)
         }
+
+        markAtLimit(el, card.name)
 
         // デッキ投入済み枚数バッジ
         const inDeck = deck.get(card.cardId) ?? 0
@@ -380,6 +391,9 @@ function renderPool(keepLimit = false): void {
         grid.appendChild(more)
     }
 
+    const activeFilters = filterColors.size + filterTypes.size + filterCosts.size + filterFlags.size + filterNotes.size
+        + filterSeries.size + filterKeywords.size + filterFamilies.size
+    $("filter-toggle").textContent = activeFilters > 0 ? `絞り込み（${activeFilters}）` : "絞り込み"
     $("pool-count").textContent = `${visible.length} / ${cards.length} 枚を表示中`
 }
 
@@ -461,7 +475,13 @@ function updatePoolBadges(): void {
         // 一覧はデッキの増減では描き直さないので、−ボタンの押せる状態もここで合わせる
         const removeBtn = el.querySelector<HTMLButtonElement>(".remove-btn")
         if (removeBtn) removeBtn.disabled = inDeck === 0
+        markAtLimit(el, master(cardId).name)
     }
+}
+
+// 同名の上限まで入ったカードを一覧で暗くする（押して注意が出るまで分からなかったため）。上限は同名の合計で見る
+function markAtLimit(el: HTMLElement, name: string): void {
+    el.classList.toggle("at-limit", nameCount(name) >= nameLimit(name))
 }
 
 // カード詳細（効果テキスト全文）の表示
@@ -712,6 +732,7 @@ function renderDeck(): void {
     const counter = $("deck-count")
     counter.textContent = `${total} / ${DECK_MIN_SIZE}以上`
     counter.className = total >= DECK_MIN_SIZE ? "valid" : "invalid"
+    $("deck-bar-count").textContent = counter.textContent
 
     // 検証結果の表示
     const validation = $("deck-validation")
@@ -1245,7 +1266,7 @@ interface PickerGroup {
 
 // 見出しで開閉する複数選択の一覧（系統・弾・キーワードで共有）。選択は selected に入れ、変わるたびに onChange を呼ぶ。
 // 戻り値の reset は条件クリア用
-function setupFoldPicker(prefix: string, label: string, selected: Set<string>, groups: PickerGroup[], onChange: () => void): () => void {
+function setupFoldPicker(prefix: string, selected: Set<string>, groups: PickerGroup[], onChange: () => void): () => void {
     const toggle = $(`${prefix}-toggle`)
     const panel = $(`${prefix}-panel`)
     const box = $(`${prefix}-selected`)
@@ -1292,7 +1313,7 @@ function setupFoldPicker(prefix: string, label: string, selected: Set<string>, g
     }
     toggle.addEventListener("click", () => {
         const open = panel.classList.toggle("hidden") === false
-        toggle.textContent = `${label} ${open ? "▾" : "▸"}`
+        toggle.textContent = `選ぶ ${open ? "▾" : "▸"}`
         toggle.setAttribute("aria-expanded", String(open))
     })
     return () => {
@@ -1321,19 +1342,19 @@ function setupFilterChips(): void {
 
     const seriesItem = (v: string) => ({ value: v, text: MERGED_SERIES_LABELS[v] ?? (seriesLabel(v) === "" ? v : `${v} ${seriesLabel(v)}`) })
     const allSeries = Array.from(availableSeries).sort()
-    const resetSeries = setupFoldPicker("series", "弾", filterSeries, [
+    const resetSeries = setupFoldPicker("series", filterSeries, [
         { heading: "ブースター", items: allSeries.filter((v) => v.startsWith("BS") && !v.startsWith("BSC")).map(seriesItem) },
         { heading: "スターター", items: allSeries.filter((v) => v.startsWith("SD")).map(seriesItem) },
         { heading: "コレクション", items: allSeries.filter((v) => v.startsWith("BSC")).map(seriesItem) },
         { heading: "プロモ・その他", items: allSeries.filter((v) => !v.startsWith("BS") && !v.startsWith("SD")).map(seriesItem) },
     ], renderPool)
-    const resetKeywords = setupFoldPicker("keyword", "キーワード", filterKeywords, [
+    const resetKeywords = setupFoldPicker("keyword", filterKeywords, [
         { heading: null, items: Array.from(availableKeywords).sort().map((kw) => ({ value: kw, text: KEYWORDS[kw]?.label ?? kw })) },
     ], renderPool)
 
     for (const set of mentionedFamilies.values()) for (const f of set) availableFamilies.add(f)
     const familyColor = familyColors(availableFamilies)
-    const resetFamilies = setupFoldPicker("family", "系統", filterFamilies,
+    const resetFamilies = setupFoldPicker("family", filterFamilies,
         FAMILY_GROUPS.map(([colorKey, label]) => ({
             heading: label,
             items: Array.from(availableFamilies)
@@ -1431,6 +1452,11 @@ function setupFilterChips(): void {
         renderPool()
     })
 
+    $("filter-toggle").addEventListener("click", () => {
+        const open = $("filters").classList.toggle("open")
+        $("filter-toggle").setAttribute("aria-expanded", String(open))
+    })
+
     $("filter-reset").addEventListener("click", () => {
         filterColors.clear()
         filterTypes.clear()
@@ -1458,6 +1484,9 @@ function setupFilterChips(): void {
 }
 
 function setupDeckIo(): void {
+    // 狭い画面ではデッキ面が全画面の重ね表示になる（開閉の見た目は deck.css）
+    $("deck-open").addEventListener("click", () => document.body.classList.add("deck-open"))
+    $("deck-close").addEventListener("click", () => document.body.classList.remove("deck-open"))
     $("btn-save").addEventListener("click", saveCurrentDeck)
     $("btn-clear").addEventListener("click", () => {
         if (deck.size === 0) return

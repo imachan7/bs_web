@@ -40,7 +40,7 @@ body {
 
 /* ---- ロビー ---- */
 #lobby {
-    max-width: 400px;
+    max-width: 480px;
     margin: 100px auto;
     padding: 32px;
     background: var(--bg-panel);
@@ -2516,3 +2516,141 @@ body:has(#notice-banner:not(.hidden)) {
     height: auto;
     transform: none;
 }
+
+/* ---- ロビーの組み立て（2026-11-24）----
+   名前・デッキは全部の入り方で共通なので一番上に1回だけ。主役は「対戦する」の4つの入り方で、
+   いちばん使うランダムマッチだけを塗りのボタンにして重みを付ける。右の細い列は「いま誰がいるか」とお知らせ */
+#lobby {
+    max-width: 1080px;
+    margin: 48px auto;
+    padding: 28px 32px 32px;
+    text-align: left;
+}
+.lobby-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 24px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+#lobby .lobby-top h1 { margin: 0; letter-spacing: 0.5px; }
+.lobby-links { display: flex; gap: 4px 18px; flex-wrap: wrap; font-size: 13px; }
+.lobby-links a { color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+.lobby-links a:hover { color: var(--text-main); }
+
+.lobby-player {
+    display: grid;
+    grid-template-columns: minmax(0, 200px) minmax(0, 1fr) auto;
+    gap: 10px 16px;
+    align-items: end;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: 10px;
+}
+.lobby-player .starter-toggle { grid-column: 2; }
+/* デッキ選びの隣に置く（デッキを決める場所で作り直しにも行けるように） */
+#lobby .lobby-player #deck-builder-link {
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    color: var(--accent-hover);
+    font-size: 14px;
+    white-space: nowrap;
+    text-align: center;
+}
+#lobby .lobby-player #deck-builder-link:hover { background: rgba(59, 130, 246, 0.12); text-decoration: none; }
+.lobby-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-muted); }
+.lobby-field input,
+.lobby-field select,
+.mode-inline input,
+.mode-inline select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #14161b;
+    color: var(--text-main);
+    font-size: 14px;
+    min-width: 0;
+}
+.lobby-field input:focus, .lobby-field select:focus,
+.mode-inline input:focus, .mode-inline select:focus { outline: none; border-color: var(--accent); }
+
+.lobby-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 32px;
+    margin-top: 28px;
+    align-items: start;
+}
+/* 長いデッキ名の select が列を押し広げないよう、中身の最小幅を0にする */
+.lobby-player > *, .lobby-modes, .lobby-side, .mode, .lobby-live { min-width: 0; }
+.lobby-field select, .mode-inline select { width: 100%; text-overflow: ellipsis; }
+#lobby .seo-description { max-width: none !important; }
+.lobby-heading { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+
+.mode-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.mode {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px;
+    border: 1px solid #2c313b;
+    border-radius: 10px;
+}
+.mode h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.mode > p { margin: 0 0 6px; font-size: 13px; color: var(--text-muted); flex: 1; }
+.mode-primary { border-color: var(--btn-bg); background: rgba(29, 78, 216, 0.08); }
+.mode button { width: 100%; }
+.mode-inline { display: flex; gap: 8px; }
+.mode-inline input, .mode-inline select { flex: 1; }
+.mode-inline button { width: auto; flex: none; }
+.btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent-hover); }
+.btn-outline:hover { background: rgba(59, 130, 246, 0.12); }
+#lobby #waiting-message { margin: 4px 0 0; font-size: 13px; }
+
+.lobby-side { display: flex; flex-direction: column; gap: 20px; }
+.lobby-live { padding: 16px; background: var(--bg-card); border-radius: 10px; }
+.lobby-counts { margin: 0 0 10px; font-size: 13px; color: var(--text-muted); }
+.lobby-live .lobby-rooms { margin: 0; }
+.lobby-live .lobby-rooms li { border-top: 1px solid #2c313b; padding: 8px 0; }
+.lobby-live .lobby-rooms li:first-child { border-top: none; }
+.lobby-live .lobby-rooms button { width: auto; padding: 6px 12px; }
+#lobby .lobby-announcements { margin: 0; }
+/* 広い画面：右は「いまのロビー」だけにして左の「対戦する」と同じ高さに伸ばし、部屋が多ければ中でスクロールする
+   （高さ0＋min-height:100% で行の高さを左だけで決めさせる）。お知らせは2列の下に全幅で置く。
+   右にお知らせまで積むと、左より長くなってタイルの下に余白が出るか、お知らせが潰れるため */
+@media (min-width: 900px) {
+    .lobby-body {
+        grid-template-areas: "modes live" "news news";
+        align-items: stretch;
+    }
+    .lobby-side { display: contents; }
+    .lobby-modes { grid-area: modes; }
+    .lobby-live { grid-area: live; height: 0; min-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; }
+    .lobby-live .lobby-rooms { flex: 1; min-height: 0; overflow-y: auto; }
+    .lobby-side .lobby-announcements { grid-area: news; max-width: none; }
+}
+
+/* 狭い画面：プレイヤー → いまのロビー → 入り方 → お知らせ。入り方のタイルは1列 */
+@media (max-width: 899px) {
+    #lobby { margin: 16px auto; padding: 20px 16px; }
+    .lobby-player { grid-template-columns: minmax(0, 1fr); }
+    .lobby-player .starter-toggle { grid-column: 1; }
+    .lobby-player .starter-toggle { order: 3; }
+    #lobby .lobby-player #deck-builder-link { order: 4; }
+    .lobby-body { display: flex; flex-direction: column; align-items: stretch; gap: 24px; }
+    .lobby-side { display: contents; }
+    .lobby-live { order: 1; }
+    .lobby-modes { order: 2; }
+    .lobby-side .lobby-announcements { order: 3; }
+}
+@media (max-width: 560px) {
+    .mode-grid { grid-template-columns: minmax(0, 1fr); }
+}
+

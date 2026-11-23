@@ -1205,7 +1205,7 @@ export function showWaiting(): void {
     // 待機中はボタンの文言を「参加を取り消す」に変えて残す
     const joinBtn = document.getElementById("join-btn")
     if (joinBtn) {
-        joinBtn.textContent = "参加を取り消す"
+        joinBtn.textContent = "やめる"
         joinBtn.classList.add("cancel-mode")
     }
 }
@@ -1215,7 +1215,7 @@ export function hideWaiting(): void {
     // ボタンの文言を元に戻す
     const joinBtn = document.getElementById("join-btn")
     if (joinBtn) {
-        joinBtn.textContent = "対戦ルームに入る"
+        joinBtn.textContent = "入る"
         joinBtn.classList.remove("cancel-mode")
     }
 }

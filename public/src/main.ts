@@ -21,16 +21,23 @@ interface SocketLike {
     connect: () => void
 }
 
+// crypto.randomUUID は https か localhost でしか使えない。LAN の IP（http://192.168.…）でスマホから開いて試すと
+// ページを開いた直後に例外で止まり、全部のボタンが効かなくなる。getRandomValues はどこでも使える
+function randomId(): string {
+    if (typeof crypto.randomUUID === "function") return crypto.randomUUID()
+    return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("")
+}
+
 // 端末ごとの合言葉。接続が切れても、これが同じなら対戦中の席に戻れる（server/src/roomManager.ts の resume）
 function loadPlayerRef(): string {
     try {
         const saved = localStorage.getItem("bs_player_ref")
         if (saved) return saved
-        const created = crypto.randomUUID()
+        const created = randomId()
         localStorage.setItem("bs_player_ref", created)
         return created
     } catch {
-        return crypto.randomUUID() // 保存できない環境では、このページを開いている間だけ有効
+        return randomId() // 保存できない環境では、このページを開いている間だけ有効
     }
 }
 
@@ -601,7 +608,7 @@ async function init(): Promise<void> {
 
     // ---- 公開ルーム ----
     byId("pub-room-btn").addEventListener("click", () => {
-        const pool = `pub:${crypto.randomUUID()}`
+        const pool = `pub:${randomId()}`
         const name = (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
         startWaiting("random", pool, byId("pub-room-btn"), showPubWait, { host: { name } })
         myPubPool = pool
@@ -615,7 +622,7 @@ async function init(): Promise<void> {
     byId("start-ai-btn").addEventListener("click", () => {
         const name =
             (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
-        const myDeck = (byId("ai-my-deck-select") as HTMLSelectElement).value
+        const myDeck = (byId("deck-select") as HTMLSelectElement).value
         const oppDeck = (byId("ai-opp-deck-select") as HTMLSelectElement).value
         preloadCardArt([...deckCardIdsOf(myDeck), ...deckCardIdsOf(oppDeck)])
 

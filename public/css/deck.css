@@ -59,40 +59,72 @@ input[type="text"] {
 
 #topbar {
     display: flex;
-    align-items: center;
-    gap: 16px;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 24px;
     padding: 10px 16px;
     background: #242838;
+}
+
+#topbar-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
 }
 
 #topbar h1 {
     margin: 0;
     font-size: 18px;
+    white-space: nowrap;
 }
 
 #topbar-note {
     font-size: 12px;
     color: #b8bdd4;
+    white-space: nowrap;
 }
 
-#lobby-link {
-    margin-left: auto;
-    color: #7fd4ff;
+/* 3つとも同じ大きさ・色。ロビーへ戻る道だけ accent にして目的地を示す */
+#topbar-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 18px;
     font-size: 13px;
-    text-decoration: none;
 }
 
-#lobby-link:hover {
+#topbar-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #b8bdd4;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+#topbar-links a:hover {
+    color: #e8e8f0;
+}
+
+#topbar-links #lobby-link {
+    color: #7fd4ff;
+}
+
+#topbar-links #lobby-link:hover {
     text-decoration: underline;
 }
 
 /* ---- 2ペインレイアウト ---- */
 
+#deck-bar,
+#deck-close {
+    display: none;
+}
+
 #builder {
     display: flex;
     gap: 12px;
     padding: 12px 16px;
-    height: calc(100vh - 46px);
 }
 
 #pool-pane {
@@ -115,18 +147,85 @@ input[type="text"] {
     padding: 10px;
 }
 
-@media (max-width: 960px) {
-    #builder {
+/* 広い画面：ページ自体は動かさず、一覧とデッキがそれぞれ中でスクロールする（デッキは常に右に見える） */
+@media (min-width: 900px) {
+    body {
+        display: flex;
         flex-direction: column;
-        height: auto;
+        height: 100vh;
     }
 
-    #pool-pane {
-        min-height: 60vh;
+    main {
+        flex: 1;
+        min-height: 0;
+    }
+
+    #builder {
+        height: 100%;
+    }
+}
+
+/* 狭い画面：デッキは画面下のバーから全画面で開く */
+@media (max-width: 899px) {
+    #builder {
+        padding: 12px 12px 76px;
+    }
+
+    #deck-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 90;
+        padding: 10px 16px;
+        background: #242838;
+        border-top: 1px solid #3a4059;
+        font-size: 14px;
+    }
+
+    #deck-open {
+        padding: 10px 18px;
+        font-size: 14px;
     }
 
     #deck-pane {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 150;
         width: auto;
+        border-radius: 0;
+        padding: 12px 16px 24px;
+        background: #1a1d2b;
+    }
+
+    body.deck-open {
+        overflow: hidden;
+    }
+
+    body.deck-open #deck-pane {
+        display: flex;
+    }
+
+    #deck-close {
+        display: block;
+        align-self: flex-start;
+        padding: 8px 14px;
+        background: transparent;
+        border: 1px solid #555;
+        color: #cdd2e8;
+    }
+
+    #deck-close:hover {
+        background: #2c3044;
+    }
+
+    #toast {
+        bottom: 80px;
+        z-index: 300;
     }
 }
 
@@ -135,22 +234,48 @@ input[type="text"] {
 #filters {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     padding: 8px 10px;
     background: #242838;
     border-radius: 10px;
 }
 
+#filter-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
 .filter-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px 20px;
     flex-wrap: wrap;
 }
 
+/* 1行に「見出し＋チップ」を複数並べる（1種類1行にすると縦に長くなりすぎる） */
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 6px 8px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.filter-row > .fold-panel {
+    flex-basis: 100%;
+}
+
+/* 見出しの幅をそろえて、チップの左端を縦に通す（「キーワード」が5字） */
 .filter-label {
+    flex: none;
+    white-space: nowrap;
     font-size: 12px;
     color: #b8bdd4;
+}
+
+.filter-tools .filter-label {
+    width: auto;
 }
 
 .family-select {
@@ -169,6 +294,7 @@ input[type="text"] {
 
 .chip-group {
     display: flex;
+    flex-wrap: wrap;
     gap: 4px;
 }
 
@@ -223,19 +349,62 @@ input[type="text"] {
 }
 
 #search-input {
-    width: 180px;
+    flex: 1 1 160px;
+    min-width: 0;
+}
+
+#filter-toggle {
+    display: none;
+    background: transparent;
+    border: 1px solid #555;
+    color: #cdd2e8;
+}
+
+#filter-toggle:hover {
+    background: #2c3044;
+}
+
+.sort-select {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #1a1d2b;
+    color: #e8e8f0;
+    font-size: 13px;
+}
+
+/* 狭い画面：検索の行だけ常に出し、ほかの条件は［絞り込み］で開く */
+@media (max-width: 899px) {
+    #filters:not(.open) #filter-rows {
+        display: none;
+    }
+
+    #filter-toggle {
+        display: block;
+    }
+
+    .filter-tools {
+        order: -1;
+    }
+
+    .filter-row {
+        gap: 8px 14px;
+    }
 }
 
 #filter-reset {
-    background: #3a4059;
+    background: transparent;
+    border: 1px solid #555;
+    color: #cdd2e8;
 }
 
 #filter-reset:hover {
-    background: #4a5170;
+    background: #2c3044;
 }
 
 #pool-count {
     margin-left: auto;
+    white-space: nowrap;
     font-size: 12px;
     color: #b8bdd4;
 }
@@ -247,7 +416,7 @@ input[type="text"] {
     overflow-y: auto;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
+    gap: 4px;
     align-content: start;
     padding: 6px;
 }
@@ -257,19 +426,19 @@ input[type="text"] {
     border: none;
     border-radius: 8px;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%);
-    padding: 12px 8px 8px 14px;
+    padding: 10px 8px 10px 14px;
     cursor: pointer;
     user-select: none;
     overflow: visible;
     transition: transform 0.1s;
 }
 
-/* カラー枠（多色カードは斜めに2色分割） */
+/* 色は左端の帯だけで示す（多色カードは斜めに2色分割）。周りの枠は色を付けない */
 .pool-card::before {
     content: '';
     position: absolute;
-    inset: -2px;
-    border-radius: 10px;
+    inset: 0;
+    border-radius: 8px;
     background: linear-gradient(135deg, var(--c-main, #555) 50%, var(--c-sub, #555) 50%);
     z-index: -1;
 }
@@ -277,9 +446,10 @@ input[type="text"] {
 .pool-card::after {
     content: '';
     position: absolute;
-    inset: 0;
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(30, 32, 44, 0.95) 0%, #14161f 100%);
+    inset: 0 0 0 4px;
+    border-radius: 0 8px 8px 0;
+    background: #14161f;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     z-index: -1;
 }
 
@@ -291,12 +461,7 @@ input[type="text"] {
 .pool-card .name {
     font-weight: bold;
     font-size: 12px;
-    margin-bottom: 4px;
-    padding-right: 40px;
-    padding-left: 18px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
 }
 
 .pool-card .info {
@@ -1101,4 +1266,166 @@ input[type="text"] {
 .fold-panel .family-chips {
     flex-wrap: wrap;
     margin-bottom: 4px;
+}
+
+/* ---- カードプール（文字表示）：コスト｜名前と情報｜ボタン の3列 ----
+   画像表示（.has-art）はボタンを画像に重ねるので、ここでは対象外 */
+.pool-card:not(.has-art) {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+    column-gap: 4px;
+    row-gap: 0;
+    align-items: center;
+    padding: 3px 4px 3px 9px;
+}
+
+.pool-card:not(.has-art) .cost-badge {
+    position: relative;
+    top: 0;
+    left: 0;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: center;
+    justify-self: center;
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
+    border-width: 1px;
+}
+
+/* 一覧で多く見えるよう、名前と情報はそれぞれ1行に収めて切る（全文は詳細パネルで見られる） */
+.pool-card:not(.has-art) .name {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pool-card:not(.has-art) .info {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* 幅が足りないときは軽減アイコンの側を切る（BP は必ず読めるように縮ませない） */
+.pool-card:not(.has-art) .info > * {
+    flex: none;
+}
+
+.pool-card:not(.has-art) .info > .reduction-icons {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.pool-card:not(.has-art) .name { font-size: 11px; }
+/* アイコンは潰さず小さくする（収まらない分は右端で切れる） */
+.pool-card:not(.has-art) .info .sym-icon {
+    flex: none;
+    width: 11px;
+    height: 11px;
+}
+.pool-card:not(.has-art) .info { font-size: 10px; }
+
+.pool-card:not(.has-art) .info { gap: 3px; }
+.pool-card:not(.has-art) .reduction-icons { gap: 1px; margin-left: 0; }
+.reduction-count { font-size: 9px; color: #9aa3c0; margin-right: 2px; }
+.pool-card:not(.has-art) .remove-btn,
+.pool-card:not(.has-art) .add-btn { width: 18px; height: 18px; font-size: 11px; }
+
+/* 一覧では「軽減」の文字を省き、アイコンだけにする（幅を BP に回す） */
+.pool-card:not(.has-art) .reduction-label {
+    display: none;
+}
+
+.pool-card:not(.has-art) .add-btn,
+.pool-card:not(.has-art) .remove-btn {
+    position: static;
+    flex: none;
+}
+
+/* −と＋は右に横並び（縦に積むとカードが2段ぶん高くなる） */
+.pool-card:not(.has-art) .remove-btn {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+}
+
+.pool-card:not(.has-art) .add-btn {
+    grid-column: 4;
+    grid-row: 1 / span 2;
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+}
+
+.pool-card:not(.has-art) .note-badge,
+.pool-card:not(.has-art) .limited-mark {
+    position: static;
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 4px;
+}
+
+.pool-card:not(.has-art) .count-badge {
+    top: -7px;
+    right: 8px;
+}
+
+/* 主な操作は＋だけ塗る。−は枠線にして重みを下げる */
+.pool-card:not(.has-art) .remove-btn {
+    background: transparent;
+    border: 1px solid #555;
+    color: #cdd2e8;
+}
+
+.pool-card:not(.has-art) .remove-btn:hover:not(:disabled) {
+    background: #2c3044;
+}
+
+.pool-card:not(.has-art) .remove-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* 同名の上限まで入ったカード。押せば注意が出るので操作は残し、見た目だけ下げる */
+.pool-card.at-limit:not(.has-art) .name,
+.pool-card.at-limit:not(.has-art) .info,
+.pool-card.at-limit:not(.has-art) .cost-badge {
+    opacity: 0.45;
+}
+
+/* マウスのある端末：本体のクリックで1枚入るので −／＋ は載せたときだけ右端に重ねて出す。
+   ふだん隠す分の幅を名前と BP に回す（タッチ端末は本体タップが詳細なのでボタンを常に出す） */
+@media (hover: hover) and (pointer: fine) {
+    .pool-card:not(.has-art) {
+        grid-template-columns: 18px minmax(0, 1fr);
+    }
+    .pool-card:not(.has-art) .remove-btn,
+    .pool-card:not(.has-art) .add-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        visibility: hidden;
+    }
+    .pool-card:not(.has-art) .remove-btn { right: 26px; }
+    .pool-card:not(.has-art) .add-btn { right: 4px; }
+    .pool-card:not(.has-art):hover .remove-btn,
+    .pool-card:not(.has-art):hover .add-btn,
+    .pool-card:not(.has-art):focus-within .remove-btn,
+    .pool-card:not(.has-art):focus-within .add-btn {
+        visibility: visible;
+    }
+    .pool-card:not(.has-art):hover .info,
+    .pool-card:not(.has-art):hover .name {
+        padding-right: 46px;
+    }
 }
