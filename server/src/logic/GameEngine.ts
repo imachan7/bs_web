@@ -21,6 +21,7 @@ import {
     log,
     instMinLevelCores,
     minLevelCores,
+    summonLevelCostBonus,
     opponentOf,
     placedCoresForSummon,
     checkNoMutationAfterSuspend,
@@ -663,6 +664,7 @@ export function doSummon(
         braveTarget: braveTargetInstanceId !== undefined,
         placeSoulCoreFromReserve,
         cores,
+        levelCostBonus: summonLevelCostBonus(state, pid, card),
     })
 
     // コアで足りない分の召喚コストを手札破棄で支払う（枚数は validateSummon と同じ関数で出す）
@@ -956,7 +958,7 @@ function doSetNexus(
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）。《真界放》の waiver 配置は doSummon と同じ
-    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve, cores })
+    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve, cores, levelCostBonus: summonLevelCostBonus(state, pid, card) })
 
     // 配置コストをデッキ破棄で支払う場合（コア払いとの併用はできないので全額かゼロ。枚数は validateSetNexus と同じ関数で出す）
     const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources, millPay)

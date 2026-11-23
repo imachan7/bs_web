@@ -4,7 +4,7 @@ import { ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules
 import { canDirectAttack, effectiveCost, magicTargetSide, master, matchesDirectedAttackFilter } from "../renderer"
 import { summonPayOffOptions } from "../../../shared/summonPayOff"
 import { exReductionSymbolsFor, type ExReductionGroup, payableFieldCores } from "./paying"
-import { canAltSummonFromHand, flashSummonFromHandNow, attackTollTotal, attackPayTollCount, instMinLevelCores, placedCoresForSummon, timedContentsOn } from "../../../shared/rules"
+import { canAltSummonFromHand, flashSummonFromHandNow, attackTollTotal, attackPayTollCount, instMinLevelCores, placedCoresForSummon, summonLevelCostBonus, timedContentsOn } from "../../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, exTrashReductionCandidateIndices, ownFieldSymbolColors } from "../../../shared/cost"
 import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } from "../../../shared/summon"
 import { blockPayCost } from "../../../shared/block"
@@ -225,7 +225,8 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える（2026-08-01）ため、
         // 選択肢に出すレベルの判定にもフィールドのコアを含める
         const fieldCores = cardIdForField ? payableFieldCores(view, cardIdForField) : 0
-        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
+        const lvBonus = summonLevelCostBonus(view, view.you, card)
+        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores + lvBonus)
         // 《真界放》のwaiver配置（[ソウルコア]1個でLv2）が選べるなら、レベルが1つしか
         // 買えなくても選択ステップを出す（3パターンの選択。2026-10-07 ユーザー指示）
         const soulInReserveEarly = view.players[view.you].soulCore?.zone === "reserve"
@@ -261,7 +262,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
             ? 1
             : card.type === "magic" || braveTargetInstanceId !== undefined
               ? 0
-              : placedCoresForSummon(card, level, { cores })
+              : placedCoresForSummon(card, level, { cores, levelCostBonus: summonLevelCostBonus(view, view.you, card) })
     const reserve = view.players[view.you].reserve
 
     // 栄光の表彰台Lv1：ネクサスの配置コストを、コアの代わりにデッキ破棄で払える。

@@ -16,7 +16,7 @@ import { placeDenial, summonDenial } from "../summonGate"
 import { askSummonCores } from "../summonCores"
 import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
-import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { clearBattle, createInstance, draw, getCard, log, minLevelCores, summonLevelCostBonus, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
     attachBrave,
     bothSidesPids,
@@ -402,7 +402,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             if (placeCores === undefined && askSummonCores(state, owner, getCard(cardId), 0, { ...action, deployIndex: idx })) return true
             if (action.from === "hand") zone.splice(idx, 1)
             else if (takeFromTrash(state, owner, idx, "effect") === null) return false
-            const maintain = placeCores ?? minLevelCores(getCard(cardId))
+            const maintain = placeCores ?? minLevelCores(getCard(cardId)) + summonLevelCostBonus(state, owner, getCard(cardId))
             // 選んだ数はリザーブから置く。選ばない経路は従来どおり（リザーブを減らさない）
             if (placeCores !== undefined) player.reserve -= placeCores
             const inst = createInstance(cardId, state.turn, maintain)

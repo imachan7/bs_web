@@ -15,7 +15,7 @@ import { canPayLife, lifeCostQuery, recordLifeLoss, settleLifeZero } from "./lif
 import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId, ResolvedTargetFilter } from "../type"
 import { millAllowed, noteMilled } from "./zones/mill"
 import { trashUnderCards } from "./zones/underCards"
-import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
+import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, summonLevelCostBonus, opponentOf, pushResumeFrames, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
 import { revertDestroyGroupUsage } from "./triggers"
@@ -506,7 +506,7 @@ export function applyFushiSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const maintain = placeCores ?? minLevelCores(card)
+    const maintain = placeCores ?? minLevelCores(card) + summonLevelCostBonus(state, info.pid, card)
     const freeNexus =
         useFree && info.freeNexusInstanceId !== undefined
             ? player.field.nexuses.find((n) => n.instanceId === info.freeNexusInstanceId && !n.isRested)
@@ -626,7 +626,7 @@ export function applySpiritMillFreeSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const maintain = placeCores ?? minLevelCores(card)
+    const maintain = placeCores ?? minLevelCores(card) + summonLevelCostBonus(state, info.pid, card)
     const resume = { type: "trashSummonPaidInternal", via: "mill", cardId: info.cardId, trashIndex: index } as const
     if (!prepaid) {
         const owed = surchargeOwed(state, info.pid, card, false)

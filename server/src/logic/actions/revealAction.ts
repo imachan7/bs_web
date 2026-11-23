@@ -9,7 +9,7 @@ import { askSummonCores, summonPayPlan } from "../summonCores"
 import { normalReserveOf } from "../soulCore"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardPick, EffectAction, Keyword, PlayerId, PlayerState } from "../../type"
-import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames } from "../GameState"
+import { createInstance, currentLevel, getCard, log, minLevelCores, summonLevelCostBonus, pushResumeFrames } from "../GameState"
 import { emitEvent, payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, requestChoice, resolveTensho } from "../EffectModules"
 import { fireNexusDeployed } from "../fieldEventTriggers"
 import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
@@ -171,7 +171,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 return
             }
             // placeCores が付いていれば、置くコアの選択待ちで pay:"cost" のコストは払い済み（summonCores.ts）
-            const maintain = action.placeCores ?? minLevelCores(card)
+            const maintain = action.placeCores ?? minLevelCores(card) + summonLevelCostBonus(state, owner, card)
             const fullCost = action.pay === "cost" ? effectiveCost(state, owner, card) : 0
             const cost = action.placeCores !== undefined ? 0 : fullCost
             if (action.placeCores === undefined && askCores(fullCost, action)) return
@@ -226,7 +226,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 return
             }
             // placeCores が付いていれば、置くコアの選択待ちで pay:"cost" のコストと余分は払い済み（summonCores.ts）
-            const maintain = hostId !== undefined ? 0 : action.placeCores ?? minLevelCores(card)
+            const maintain = hostId !== undefined ? 0 : action.placeCores ?? minLevelCores(card) + summonLevelCostBonus(state, owner, card)
             const fullCost = action.pay === "cost" ? effectiveCost(state, owner, card, false, [], false, false) : 0
             const cost = action.placeCores !== undefined ? 0 : fullCost
             if (action.surchargePrepaid) state.summonSurchargePaid = owner

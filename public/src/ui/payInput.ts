@@ -3,7 +3,7 @@ import type { GameView, PaySource } from "../../../server/src/type"
 import { effectiveCost, master } from "../renderer"
 import { ownHandKeyword } from "../../../shared/rules"
 import { payingAltPay } from "./paying"
-import { flashSummonFromHandNow, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds } from "../../../shared/rules"
+import { flashSummonFromHandNow, minLevelCores, placedCoresForSummon, summonLevelCostBonus, sokuPayableInstanceIds } from "../../../shared/rules"
 import { view, ui, send, rerender } from "../main"
 import { sendPlay } from "./play"
 
@@ -280,7 +280,7 @@ export function assignPayCore(instanceId: string): void {
     const maintain =
         card.type === "magic" || pay.braveTargetInstanceId !== undefined
             ? 0
-            : placedCoresForSummon(card, pay.level, { placeSoulCoreFromReserve: pay.placeSoulCore === true, cores: pay.cores })
+            : placedCoresForSummon(card, pay.level, { placeSoulCoreFromReserve: pay.placeSoulCore === true, cores: pay.cores, levelCostBonus: summonLevelCostBonus(view, view.you, card) })
     const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
     const already = pay.assigned[instanceId] ?? 0
     // 代替コスト（手札破棄／デッキ破棄）で肩代わりしたぶん、コアで払う額が減る

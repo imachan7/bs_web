@@ -2,7 +2,7 @@
 import { summonPayOffOptions, summonCostWithPayOff } from "../../../shared/summonPayOff"
 import type { CardData, Color, GameView } from "../../../server/src/type"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, exSymbolsOfTrashCard } from "../../../shared/cost"
-import { ownHandKeyword, flashSummonFromHandNow, hasKeyword, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds, handSizeOf, payAssistCandidates } from "../../../shared/rules"
+import { ownHandKeyword, flashSummonFromHandNow, hasKeyword, minLevelCores, placedCoresForSummon, summonLevelCostBonus, sokuPayableInstanceIds, handSizeOf, payAssistCandidates } from "../../../shared/rules"
 import { master } from "../renderer"
 
 // 支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
@@ -44,7 +44,7 @@ export function payingNeed(view: GameView, paying: PayingState): number {
     const maintain =
         card.type === "magic" || paying.braveTargetInstanceId !== undefined
             ? 0
-            : placedCoresForSummon(card, paying.level, { placeSoulCoreFromReserve: paying.placeSoulCore === true, cores: paying.cores })
+            : placedCoresForSummon(card, paying.level, { placeSoulCoreFromReserve: paying.placeSoulCore === true, cores: paying.cores, levelCostBonus: summonLevelCostBonus(view, view.you, card) })
     // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
     const alt = payingAltPay(view, paying)
     // kind:"payAssistByExhaust"（BS16-021）：疲労させたスピリット1体につきeffect.cost分、

@@ -12,6 +12,7 @@ import { setCardLookup } from "../../shared/cardDb"
 import { choiceCounterView } from "./choiceCounter"
 import { effectiveCost } from "../../shared/cost"
 import { minLevelCores } from "../../shared/rules/activation"
+import { summonLevelCostBonus } from "../../shared/rules/summonLevelCost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
@@ -855,14 +856,15 @@ export function render(view: GameView, ui: UiState): void {
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
         // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
         const fieldCores = payableFieldCores(view, ui.summonLevelSelect.cardId)
-        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
+        const lvBonus = summonLevelCostBonus(view, view.you, card)
+        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores + lvBonus)
         for (const l of affordableLevels) {
             const b = document.createElement("button")
             b.dataset.summonLevel = String(l.level)
-            const needsField = reserve < cost + l.cores
+            const needsField = reserve < cost + l.cores + lvBonus
             b.textContent = needsField
-                ? `Lv${l.level} (${l.cores}コア・フィールドから取得)`
-                : `Lv${l.level} (${l.cores}コア)`
+                ? `Lv${l.level} (${l.cores + lvBonus}コア・フィールドから取得)`
+                : `Lv${l.level} (${l.cores + lvBonus}コア)`
             if (needsField) b.classList.add("needs-field-cores")
             choiceOptionsEl.appendChild(b)
         }
@@ -881,12 +883,12 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         // 置くコアの数を Lv の境目以外にも決められる（最小Lvの維持コア以上〜払える数まで）
-        const minCores = minLevelCores(card)
+        const minCores = minLevelCores(card) + lvBonus
         const maxCores = reserve + fieldCores - cost
         if (maxCores > minCores) {
             if (ui.summonCores === null || ui.summonCores < minCores || ui.summonCores > maxCores) ui.summonCores = minCores
             const n = ui.summonCores
-            const lv = card.levels.filter((l) => l.cores <= n).at(-1)?.level ?? 1
+            const lv = card.levels.filter((l) => l.cores + lvBonus <= n).at(-1)?.level ?? 1
             const minus = document.createElement("button")
             minus.dataset.summonCoresStep = "-1"
             minus.textContent = "−"
