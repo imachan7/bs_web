@@ -374,7 +374,7 @@ button:active {
     margin-right: 0.2em;
 }
 
-.hand-side {
+[id^="mat-"] {
     display: none;
 }
 
@@ -2543,26 +2543,74 @@ body:has(#notice-banner:not(.hidden)) {
     #hand > .card {
         zoom: 1.3;
     }
-    /* 手札の左右の空きに、ライフ・リザーブ／トラッシュを置く */
-    .hand-side {
+    /* バトスピの公式プレイマットの並び。左の列がバースト・ライフ・リザーブ、右の列がデッキ・トラッシュで、
+       相手側は縦の並びだけ上下逆（相手から見て手前のものが自分に近い）。
+       場の行を格子にし、バースト（ネクサスの行の中にある）は nexus-row を display: contents でほどいて左の列へ置く */
+    .field-row {
+        display: grid;
+        grid-template-columns: 150px auto minmax(0, 1fr) 150px;
+        grid-template-areas:
+            "burst nexus spirits deck"
+            "life nexus spirits trash"
+            "reserve nexus spirits trash";
+        gap: 10px 14px;
+    }
+    #opponent-area .field-row {
+        grid-template-areas:
+            "reserve nexus spirits trash"
+            "life nexus spirits deck"
+            "burst nexus spirits deck";
+    }
+    .field-row > .nexus-row { display: contents; }
+    .field-row .nexus-zone { grid-area: nexus; align-self: stretch; }
+    .field-row > .spirit-zone { grid-area: spirits; align-self: stretch; }
+    .field-row .burst-zone { grid-area: burst; }
+    #opponent-area .field-row .burst-zone { align-self: stretch; }
+    [id^="mat-"] { display: block; }
+    [id$="-life-self"], [id$="-life-opp"] { grid-area: life; }
+    [id^="mat-reserve"] { grid-area: reserve; }
+    [id^="mat-deck"] { grid-area: deck; }
+    [id^="mat-trash"] { grid-area: trash; cursor: pointer; }
+    .burst-zone,
+    .mat-box {
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        padding: 14px 8px 8px;
+        min-height: 64px;
+    }
+    /* ラベルは枠の上辺にかぶせる。枠の線がラベルの背後で切れる */
+    .burst-zone::before,
+    .mat-head {
+        position: absolute;
+        top: -0.65em;
+        left: 8px;
+        right: 8px;
         display: flex;
-        flex-direction: column;
-        gap: 6px;
-        flex: 1 1 0;
-        min-width: 120px;
-        padding-top: 8px;
-        font-size: 14px;
-        font-weight: 700;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        line-height: 1.3;
         color: var(--text-muted);
     }
-    #hand-side-right {
-        cursor: pointer;
-    }
-    .hand-side .hs-life {
-        color: var(--danger);
-        font-size: 28px;
-    }
-    .hand-side .hs-line .core-icon {
-        height: 1.2em;
+    .burst-zone::before { content: "バースト"; right: auto; width: max-content; padding: 0 4px; background: var(--bg-main); }
+    .mat-head { pointer-events: none; }
+    .mat-head > span:first-child { background: var(--bg-main); padding: 0 4px; }
+    .mat-n { color: var(--text-main); font-size: 13px; font-weight: 700; background: var(--bg-main); padding: 0 4px; }
+    .mat-life .mat-n { color: var(--danger); font-size: 26px; line-height: 1; }
+    .mat-cores { display: flex; flex-wrap: wrap; gap: 2px; font-size: 22px; min-height: 22px; }
+    .mat-cores .core-icon { margin: 0; vertical-align: top; }
+    .mat-half { font-size: 13px; color: var(--text-muted); padding: 4px 0; }
+    .mat-half + .mat-half { border-top: 1px solid rgba(255, 255, 255, 0.18); }
+    .mat-box.targetable, .mat-half.targetable { outline: 2px solid var(--accent); cursor: pointer; }
+    /* 操作ボタンは中央の高さで右端に浮くので、右の列（デッキ・トラッシュ）の左へずらして重ねない */
+    #action-buttons-container { right: 196px; }
+    /* 同じ数を情報の行と二重に出さない */
+    .player-info .life,
+    .player-info .reserve,
+    .player-info .trash-cores,
+    .player-info .deck-n,
+    .player-info .trash-n {
+        display: none;
     }
 }

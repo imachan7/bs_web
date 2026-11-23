@@ -1307,14 +1307,18 @@ async function init(): Promise<void> {
         byId("trash-panel").classList.toggle("hidden")
         rerender()
     })
-    // PC の手札の右にあるトラッシュの塊から、自分のタブで開く
-    byId("hand-side-right").addEventListener("click", () => {
-        activeTrashTab = "mine"
-        byId("tab-my-trash").classList.add("active")
-        byId("tab-opp-trash").classList.remove("active")
-        byId("trash-panel").classList.remove("hidden")
-        rerender()
-    })
+    // PC のマットのトラッシュの枠から、その側のタブで開く
+    for (const [id, tab] of [["mat-trash-self", "mine"], ["mat-trash-opp", "opp"]] as const) {
+        byId(id).addEventListener("click", (e) => {
+            // コア選択の候補として押したときは、中身を開かず選択を優先する
+            if ((e.target as HTMLElement).closest("[data-corezone]")) return
+            activeTrashTab = tab
+            byId("tab-my-trash").classList.toggle("active", tab === "mine")
+            byId("tab-opp-trash").classList.toggle("active", tab === "opp")
+            byId("trash-panel").classList.remove("hidden")
+            rerender()
+        })
+    }
     byId("btn-close-trash").addEventListener("click", () => {
         byId("trash-panel").classList.add("hidden")
     })

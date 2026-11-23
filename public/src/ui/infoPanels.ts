@@ -1,4 +1,5 @@
 import { coreIcon } from "./coreIcon"
+import { renderMat } from "./mat"
 // 情報欄・バースト欄・バトル欄の表示
 import { attachCardArt } from "../cardArt"
 import type { GameView, PlayerId } from "../../../server/src/type"
@@ -57,9 +58,9 @@ export function renderInfo(
         ...((p.burstSet
             ? [["", `バースト セット中${isSelf && p.burstSetThisTurn ? "（このターンはセット済み）" : ""}`]]
             : []) as [string, string][]),
-        ["", `デッキ ${p.deckCount}枚`],
+        ["deck-n", `デッキ ${p.deckCount}枚`],
         ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
-        ["", `トラッシュ ${p.trashCards.length}枚`],
+        ["trash-n", `トラッシュ ${p.trashCards.length}枚`],
     ]
 
     const peekedBurst = view.players[view.you].peekedOpponentBurstCardId
@@ -93,24 +94,7 @@ export function renderInfo(
         }
         el.appendChild(span)
     }
-    if (isSelf) renderHandSides(p)
-}
-
-// PC の手札の左右（CSS で狭い画面では隠す）。トラッシュ側は main.ts が押下で中身を開く
-function renderHandSides(p: GameView["players"][PlayerId]): void {
-    const left = document.getElementById("hand-side-left")
-    const right = document.getElementById("hand-side-right")
-    if (!left || !right) return
-    left.innerHTML = `<div class="hs-life">❤ ${p.life}</div>`
-    const reserve = document.createElement("div")
-    reserve.className = "hs-line"
-    reserve.append(coreIcon(), `リザーブ ${p.reserve}`)
-    left.appendChild(reserve)
-    right.innerHTML = `<div class="hs-line">トラッシュ ${p.trashCards.length}枚</div>`
-    const tc = document.createElement("div")
-    tc.className = "hs-line"
-    tc.append(coreIcon(), `トラッシュコア ${p.trashCores}`)
-    right.appendChild(tc)
+    renderMat(view, ui, pid, isSelf)
 }
 
 // 発動したバーストを表向きにめくって見せる演出（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）
