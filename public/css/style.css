@@ -2516,3 +2516,16 @@ body:has(#notice-banner:not(.hidden)) {
     height: auto;
     transform: none;
 }
+
+/* 広い画面（PC）では場のカードを大きくする。場の行に対してカードが小さく、余白ばかりが目立ったため（2026-11-24 ユーザー指摘）。
+   中の文字・コア・合体したブレイヴの箱・ボタンの位置を一緒に拡大できるよう、個々の寸法ではなく zoom で倍率を掛ける */
+@media (min-width: 1100px) {
+    .spirit-zone > .card,
+    .nexus-zone > .card,
+    .burst-zone .burst-slot {
+        zoom: 1.4;
+    }
+    .nexus-zone {
+        min-width: 200px;
+    }
+}
