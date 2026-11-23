@@ -2544,7 +2544,7 @@ body:has(#notice-banner:not(.hidden)) {
         zoom: 1.3;
     }
     /* バトスピの公式プレイマットの並び。左の列がバースト・ライフ・リザーブ、右の列がデッキ・トラッシュで、
-       相手側は縦の並びだけ上下逆（相手から見て手前のものが自分に近い）。
+       相手側は点対称（下の #opponent-area の指定）。
        場の行を格子にし、バースト（ネクサスの行の中にある）は nexus-row を display: contents でほどいて左の列へ置く */
     .field-row {
         display: grid;
@@ -2555,11 +2555,13 @@ body:has(#notice-banner:not(.hidden)) {
             "reserve nexus spirits trash";
         gap: 10px 14px;
     }
+    /* 相手側は自分側を180度回した形（点対称）。向かい合わせに置いたマットと同じ見え方にする（2026-11-24 ユーザー指示） */
     #opponent-area .field-row {
+        grid-template-columns: 150px minmax(0, 1fr) auto 150px;
         grid-template-areas:
-            "reserve nexus spirits trash"
-            "life nexus spirits deck"
-            "burst nexus spirits deck";
+            "trash spirits nexus reserve"
+            "trash spirits nexus life"
+            "deck spirits nexus burst";
     }
     .field-row > .nexus-row { display: contents; }
     .field-row .nexus-zone { grid-area: nexus; align-self: stretch; }
