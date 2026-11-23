@@ -10,7 +10,7 @@ function cardImageBase(): string {
     return host === "localhost" || host === "127.0.0.1" || host.endsWith(".discordsays.com") ? "/imgs/cards" : "https://storage.googleapis.com/bs-web-card-images"
 }
 
-export function cardImageUrl(cardId: string, size: "md" | "sm" | "xs" = "md"): string | null {
+export function cardImageUrl(cardId: string, size: "lg" | "md" | "sm" | "xs" = "md"): string | null {
     if (!cardId.startsWith("26R") && !secretArtOn()) return null
     return `${cardImageBase()}/${size}/${cardSetDir(cardId)}/${cardId}.webp`
 }

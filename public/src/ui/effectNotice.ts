@@ -1,11 +1,13 @@
 // 解決中の効果の表示（誰のどのカードのどの効果か）。盤面中央の帯に1件ずつ出し、解決が終わったら消す
 import type { GameEvent, GameView } from "../../../server/src/type"
 import { master } from "../renderer"
+import { cardImageUrl } from "../cardArt"
 
 type EffectEvent = Extract<GameEvent, { type: "effect" }>
 const MAX_WAITING = 3 // 溜まりすぎたら古いものから飛ばす（2026-11-24 ユーザー指示）
-const MINE_MS = 1500
-const OPP_MS = 2500
+// 自分の効果は短め、相手の効果は読めるよう長め（2026-11-24 ユーザー指示で延長）
+const MINE_MS = 2500
+const OPP_MS = 4000
 
 let queue: EffectEvent[] = []
 let current: { ev: EffectEvent; choiceSeen: boolean; timer: number | undefined } | null = null
@@ -39,16 +41,29 @@ function showNext(): void {
     const box = document.createElement("div")
     box.id = "effect-notice"
     box.className = mine ? "effect-mine" : "effect-opp"
+    // 何のカードかを絵で見せる。PC は高画質（lg）、スマホは場と同じ md（読み込み済みのことが多く通信が増えない）。絵が無いカードは出さない
+    const art = cardImageUrl(ev.cardId, matchMedia("(min-width: 900px)").matches ? "lg" : "md")
+    if (art !== null) {
+        const img = document.createElement("img")
+        img.className = "effect-notice-art"
+        img.alt = ""
+        img.src = art
+        img.onerror = () => img.remove()
+        box.appendChild(img)
+    }
+    const text = document.createElement("div")
+    text.className = "effect-notice-text"
+    box.appendChild(text)
     const title = document.createElement("div")
     title.className = "effect-notice-title"
     title.textContent = `${mine ? "あなた" : "相手"}の ${ev.cardName}${ev.heading !== undefined ? ` ${ev.heading.slice(ev.heading.indexOf("『"))}` : "の効果"}`
-    box.appendChild(title)
+    text.appendChild(title)
     const body = effectBodyText(ev.cardId, ev.heading)
     if (body !== "") {
         const b = document.createElement("div")
         b.className = "effect-notice-body"
         b.textContent = body
-        box.appendChild(b)
+        text.appendChild(b)
     }
     box.addEventListener("click", dismiss)
     host.prepend(box)

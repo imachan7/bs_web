@@ -2322,6 +2322,9 @@ body:has(#notice-banner:not(.hidden)) {
     cursor: pointer;
     animation: event-detail-in 180ms ease-out;
 }
+#effect-notice { display: flex; gap: 12px; align-items: flex-start; }
+.effect-notice-art { flex: none; width: 120px; aspect-ratio: 675 / 983; border-radius: 6px; }
+.effect-notice-text { min-width: 0; flex: 1; }
 #effect-notice.effect-mine { border-color: #4fb3d9; }
 #effect-notice.effect-opp { border-color: #e0524a; }
 .effect-notice-title { font-size: 14px; font-weight: 700; }
@@ -2337,7 +2340,8 @@ body:has(#notice-banner:not(.hidden)) {
     white-space: pre-wrap;
 }
 @media (max-width: 700px) {
-    #effect-notice { padding: 4px 8px; }
+    #effect-notice { padding: 4px 8px; gap: 8px; }
+    .effect-notice-art { width: 56px; }
     .effect-notice-title { font-size: 13px; }
     .effect-notice-body { -webkit-line-clamp: 2; font-size: 11px; }
 }
