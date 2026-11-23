@@ -63,6 +63,16 @@ export class RoomManager {
         return this.rooms.size
     }
 
+    // 人間2人がそろって接続中の部屋の数（AI戦は数えない）
+    get playingCount(): number {
+        let n = 0
+        for (const room of this.rooms.values()) {
+            const ps = [room.players.p1, room.players.p2]
+            if (ps.every((p) => p && p.connected && !p.isAi)) n++
+        }
+        return n
+    }
+
     // ルームに参加する。空いている席（p1 → p2）に割り当てる。
     //
     // **同じ socket が同じルームで2回目の join を送ってきたら「参加の取り消し」として席を空ける**

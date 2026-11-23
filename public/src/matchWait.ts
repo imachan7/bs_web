@@ -9,10 +9,12 @@ export type WaitHandlers = {
     onWaiting: (waiting: number) => void
     onMatched: (roomId: string) => void
     onFailed: (message: string) => void
+    onGone?: () => void
 }
+export type WaitExtra = { host?: { name: string }; joinOnly?: boolean }
 
 // 待ちを始める。返り値を呼ぶと待ちをやめる（サーバーの列からも外す）
-export function waitForOpponent(pool: string, deck: DeckChoice, handlers: WaitHandlers): () => void {
+export function waitForOpponent(pool: string, deck: DeckChoice, handlers: WaitHandlers, extra: WaitExtra = {}): () => void {
     let ticket: string | undefined
     let stopped = false
     let failures = 0
@@ -33,14 +35,18 @@ export function waitForOpponent(pool: string, deck: DeckChoice, handlers: WaitHa
             const res = await fetch("/api/match/wait", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ticket, pool, ...deck }),
+                body: JSON.stringify({ ticket, pool, ...deck, ...extra }),
             })
-            const body = (await res.json()) as { ticket?: string; waiting?: number; roomId?: string; error?: string }
+            const body = (await res.json()) as { ticket?: string; waiting?: number; roomId?: string; gone?: boolean; error?: string }
             if (stopped) return
             failures = 0
             if (body.error) {
                 stop()
                 return handlers.onFailed(body.error)
+            }
+            if (body.gone) {
+                stop()
+                return handlers.onGone?.()
             }
             if (body.roomId) {
                 stop()
