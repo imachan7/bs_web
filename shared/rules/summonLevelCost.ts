@@ -6,6 +6,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { currentLevel, effectSources } from "./level"
 import { entryActive } from "./effectStop"
+import { minLevelCores } from "./activation"
 
 export function summonLevelCostBonus(board: Board, pid: PlayerId, cardData: CardData): number {
     // ブレイヴ単体は field.spirits に載るのでスピリット扱い
@@ -23,4 +24,10 @@ export function summonLevelCostBonus(board: Board, pid: PlayerId, cardData: Card
         }
     }
     return sum
+}
+
+// これから場に出すカード（召喚・配置・入れ替え・【不死】・トークンなど）の置くコアの最小。
+// 場にいる個体は instMinLevelCores を使う
+export function summonMinCores(board: Board, pid: PlayerId, cardData: CardData): number {
+    return minLevelCores(cardData) + summonLevelCostBonus(board, pid, cardData)
 }

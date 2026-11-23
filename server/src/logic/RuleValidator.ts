@@ -21,7 +21,7 @@ import {
     findSpirit,
     getCard,
     instMinLevelCores,
-    minLevelCores,
+    minLevelCores, summonMinCores,
     opponentOf,
     placedCoresForSummon,
 } from "./GameState"
@@ -448,7 +448,7 @@ export function validateSwapSoulCore(state: GameState, pid: PlayerId, fromInstan
 // 召喚／配置のレベル指定を検証する（未指定＝Lv1は常に有効）。
 function validateSummonCores(state: GameState, pid: PlayerId, card: CardData, cores?: number): string | null {
     if (cores === undefined) return null
-    const min = minLevelCores(card) + summonLevelCostBonus(state, pid, card)
+    const min = summonMinCores(state, pid, card)
     if (!Number.isInteger(cores) || cores < min) return `置くコアは${min}個以上の整数で指定してください`
     return null
 }
@@ -1272,7 +1272,7 @@ export function validateAttack(
             const payError = validatePaySources(state, pid, payToll, paySources, paySoulCoreFromReserve)
             if (payError) return `アタックするには${String(payToll)}コスト必要です（${payError}）`
             const fromSelf = paySources.find((s) => s.instanceId === instanceId)
-            if (fromSelf && inst.cores - fromSelf.count < minLevelCores(getCard(inst.cardId))) {
+            if (fromSelf && inst.cores - fromSelf.count < instMinLevelCores(inst)) {
                 return "アタックするスピリットの維持コアを支払いに使うことはできません"
             }
         }
@@ -1387,7 +1387,7 @@ export function validateBlock(
         if (payError) return `ブロックするには${String(payNeed)}コスト必要です（${payError}）`
         // ブロックするスピリット自身から払って維持コアを割ると、宣言と同時に消滅してしまう
         const fromSelf = paySources?.find((s) => s.instanceId === instanceId)
-        if (fromSelf && inst.cores - fromSelf.count < minLevelCores(getCard(inst.cardId))) {
+        if (fromSelf && inst.cores - fromSelf.count < instMinLevelCores(inst)) {
             return "ブロックするスピリットの維持コアを支払いに使うことはできません"
         }
     } else if (paySources && paySources.length > 0) {

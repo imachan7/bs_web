@@ -20,7 +20,7 @@ import {
     getCard,
     log,
     instMinLevelCores,
-    minLevelCores,
+    summonMinCores,
     summonLevelCostBonus,
     opponentOf,
     placedCoresForSummon,
@@ -464,7 +464,7 @@ function doBattleSwapSummon(
     noteCoverage(card.effects.find((e) => e.kind === "battleSwapSummon"), "battleSwapSummon")
     const cost = effectiveCost(state, pid, card)
     returnSpiritToHand(state, pid, substitute)
-    const maintain = minLevelCores(card)
+    const maintain = summonMinCores(state, pid, card)
     payVoidToll(state, pid, card)
     const placedFromField = payCost(state, pid, cost, paySources, maintain)
     player.reserve -= maintain - placedFromField
@@ -814,7 +814,7 @@ function requestResshinsokuDestination(state: GameState, pid: PlayerId, info: Re
     }
     const player = state.players[pid]
     const card = getCard(info.cardId)
-    const need = minLevelCores(card) - info.selfCores
+    const need = summonMinCores(state, pid, card) - info.selfCores
     const forceSelf = need >= info.remaining
     const targets = [...player.field.spirits, ...player.field.nexuses]
     const destinations: string[] = forceSelf ? ["self"] : ["reserve", ...targets.map((t) => t.instanceId), "self"]

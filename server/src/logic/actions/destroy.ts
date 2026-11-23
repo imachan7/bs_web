@@ -8,7 +8,7 @@ import { coreRemovalAllowed } from "../coreGate"
 import { kyokaBonus } from "../keywords/kyoka"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, DestroyContext, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
-import { createInstance, currentLevel, draw, findNexus, getCard, instMinLevelCores, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { createInstance, currentLevel, draw, findNexus, getCard, instMinLevelCores, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesPids,

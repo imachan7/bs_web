@@ -4,7 +4,7 @@ import { ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules
 import { canDirectAttack, effectiveCost, magicTargetSide, master, matchesDirectedAttackFilter } from "../renderer"
 import { summonPayOffOptions } from "../../../shared/summonPayOff"
 import { exReductionSymbolsFor, type ExReductionGroup, payableFieldCores } from "./paying"
-import { canAltSummonFromHand, flashSummonFromHandNow, attackTollTotal, attackPayTollCount, instMinLevelCores, placedCoresForSummon, summonLevelCostBonus, timedContentsOn } from "../../../shared/rules"
+import { canAltSummonFromHand, flashSummonFromHandNow, attackTollTotal, attackPayTollCount, instMinLevelCores, placedCoresForSummon, summonLevelCostBonus, summonMinCores, timedContentsOn } from "../../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, exTrashReductionCandidateIndices, ownFieldSymbolColors } from "../../../shared/cost"
 import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } from "../../../shared/summon"
 import { blockPayCost } from "../../../shared/block"
@@ -234,7 +234,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
             card.levels.some((l) => l.soulCoreRequired === true) && soulInReserveEarly && reserve + fieldCores >= cost + 1
 
         // 維持コアより1個でも多く置けるなら選択を出す（Lv の境目以外の数も置けるように。2026-11-24 ユーザー決定：案B）
-        const minCores = Math.min(...card.levels.map((l) => l.cores))
+        const minCores = summonMinCores(view, view.you, card)
         const extraPlaceable = reserve + fieldCores >= cost + minCores + 1
         if (affordableLevels.length > 1 || extraPlaceable || waiverAvailable) {
             const cardId = zoneCards?.[handIndex]

@@ -16,6 +16,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { effectiveCost } from "../cost"
 import { summonVoidToll } from "./summonToll"
+import { summonMinCores } from "./summonLevelCost"
 import { activeConstraints, canDiscardHand, costExhaustLocked, hasGlobalConstraint, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords, timedPlayerRules } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
@@ -540,7 +541,7 @@ export function directAttackFilter(
 export function handSummonCostPayable(board: Board, pid: PlayerId, cardData: CardData, paid = 0): boolean {
     const p = board.players[pid]
     const fieldCores = [...p.field.spirits, ...p.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
-    return p.reserve + fieldCores >= minLevelCores(cardData) + Math.max(0, effectiveCost(board, pid, cardData) - paid) + summonVoidToll(board, cardData)
+    return p.reserve + fieldCores >= summonMinCores(board, pid, cardData) + Math.max(0, effectiveCost(board, pid, cardData) - paid) + summonVoidToll(board, cardData)
 }
 
 export function minLevelCores(cardData: CardData): number {

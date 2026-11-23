@@ -3,7 +3,7 @@ import type { GameView, PaySource } from "../../../server/src/type"
 import { effectiveCost, master } from "../renderer"
 import { ownHandKeyword } from "../../../shared/rules"
 import { payingAltPay } from "./paying"
-import { flashSummonFromHandNow, minLevelCores, placedCoresForSummon, summonLevelCostBonus, sokuPayableInstanceIds } from "../../../shared/rules"
+import { flashSummonFromHandNow, placedCoresForSummon, summonLevelCostBonus, summonMinCores, minLevelCores, sokuPayableInstanceIds } from "../../../shared/rules"
 import { view, ui, send, rerender } from "../main"
 import { sendPlay } from "./play"
 
@@ -193,7 +193,7 @@ export function startChoicePaying(cardIndex: number): boolean {
     if (cardId === undefined) return false
     const card = master(cardId)
     // マジックには「置くコア」が無いのでコストだけ
-    const need = effectiveCost(view, view.you, card) + (card.type === "magic" ? 0 : minLevelCores(card))
+    const need = effectiveCost(view, view.you, card) + (card.type === "magic" ? 0 : summonMinCores(view, view.you, card))
     // 案B-inside: [ソウルコア]ぶんを差し引いた通常コアでauto判定する
     if (ui.payMode === "auto" && player.reserve - (player.soulCore?.zone === "reserve" ? 1 : 0) >= need) return false
     ui.paying = {

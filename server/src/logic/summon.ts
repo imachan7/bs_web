@@ -7,7 +7,7 @@ import { countEffectCounter, getAllFamilies, hasSummonedExhaustGrant, payCost, s
 import { summonVoidToll } from "../../../shared/rules/summonToll"
 import { refreshLevelAsOverrides } from "./state/continuous"
 import type { CardData, CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
-import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, summonLevelCostBonus, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
+import { createInstance, findInstanceAnywhere, getCard, log, summonMinCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { attachBrave } from "./brave"
 import { summonDenial } from "./summonGate"
 import { fireSummonTrigger, hasGrantedSummonTrigger, summonedByBurst } from "./triggers"
@@ -50,7 +50,7 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
         if (!hit) continue
         noteCoverage(hit, "trashSummonOnNameSummoned")
         // 維持コアを払えないなら確認自体を出さない（【不死】と同じ方針）
-        if (!canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card))) continue
+        if (!canPayFreeSummonSurcharge(state, pid, card, summonMinCores(state, pid, card))) continue
         if (state.interactiveTargets) {
             suspend(state, {
                 pid,
@@ -317,7 +317,7 @@ export function summonFreeFromHandIndex(
     }
     const card = getCard(cardId)
     // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。doSummonと同じ規則）
-    const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : opts?.placeCores ?? minLevelCores(card) + summonLevelCostBonus(state, owner, card)
+    const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : opts?.placeCores ?? summonMinCores(state, owner, card)
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
     // BS08帝竜騎サイクル）。支払い元はリザーブに加えて**フィールドのコア**も使える
     // （paySources。通常の召喚と同じ。2026-08-23 まではリザーブのみの簡略化で、
@@ -429,7 +429,7 @@ export function summonFreeFromTrashIndex(
     }
     const card = getCard(cardId)
     // 合体して出るブレイヴは維持コアを置かない（手札版と同じ）
-    const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : opts?.placeCores ?? minLevelCores(card) + summonLevelCostBonus(state, owner, card)
+    const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : opts?.placeCores ?? summonMinCores(state, owner, card)
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
     // BS07常闇の聖堂＝「自分のフィールドのコアをコストとして使うことで〜召喚できる」）。
     // 支払い元はリザーブに加えて**フィールドのコア**も使える（paySources。手札版と同じ）

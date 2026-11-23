@@ -12,7 +12,7 @@ import { setCardLookup } from "../../shared/cardDb"
 import { choiceCounterView } from "./choiceCounter"
 import { effectiveCost } from "../../shared/cost"
 import { minLevelCores } from "../../shared/rules/activation"
-import { summonLevelCostBonus } from "../../shared/rules/summonLevelCost"
+import { summonLevelCostBonus, summonMinCores } from "../../shared/rules/summonLevelCost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
@@ -883,7 +883,7 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         // 置くコアの数を Lv の境目以外にも決められる（最小Lvの維持コア以上〜払える数まで）
-        const minCores = minLevelCores(card) + lvBonus
+        const minCores = summonMinCores(view, view.you, card)
         const maxCores = reserve + fieldCores - cost
         if (maxCores > minCores) {
             if (ui.summonCores === null || ui.summonCores < minCores || ui.summonCores > maxCores) ui.summonCores = minCores

@@ -10,7 +10,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { millAllowed } from "../zones/mill"
 import { coreGainAllowed } from "../coreGainCap"
 import type { CardData, CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
+import { findInstanceAnywhere, getCard, log, summonMinCores, opponentOf, resolveInOrder } from "../GameState"
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
 import { isOnceUsed, markOnceUsed } from "../oncePerTurn"
 import { canExhaustNexus, costPayPlan, payCost } from "../EffectModules"
@@ -78,7 +78,7 @@ function summonFromHandPayable(state: GameState, owner: PlayerId, self: CardInst
     const n = countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
     if (n === 0) return false
     if (candidates.length < n) return false
-    const maintain = candidates.map((id) => minLevelCores(getCard(id))).sort((a, b) => a - b).slice(0, n).reduce((a, b) => a + b, 0)
+    const maintain = candidates.map((id) => summonMinCores(state, owner, getCard(id))).sort((a, b) => a - b).slice(0, n).reduce((a, b) => a + b, 0)
     return state.players[owner].reserve - n >= maintain
 }
 
@@ -307,7 +307,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const card = getCard(cardId)
         if (card.type === "nexus") return true
         if (card.type !== "spirit" && card.type !== "brave") return false
-        return !burstTenshoUnpayable(state, owner, card) && canPayFreeSummonSurcharge(state, owner, card, minLevelCores(card), true)
+        return !burstTenshoUnpayable(state, owner, card) && canPayFreeSummonSurcharge(state, owner, card, summonMinCores(state, owner, card), true)
     },
     moveCards: (state, owner, self, action, _srcColors, srcType) => action.type === "moveCards" && moveCardsPayable(state, owner, self, action, srcType),
     // destroyBlockerAfterBattle：バトル中でブロックしたスピリットが場にいる（ハンドラの前提と揃える）
