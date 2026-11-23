@@ -2528,4 +2528,8 @@ body:has(#notice-banner:not(.hidden)) {
     .nexus-zone {
         min-width: 200px;
     }
+    /* 手札も同じく、左右に空きが残らないよう大きくする（文字が読みやすくなる） */
+    #hand > .card {
+        zoom: 1.3;
+    }
 }
