@@ -2533,6 +2533,7 @@ body:has(#notice-banner:not(.hidden)) {
 @media (min-width: 1100px) {
     .spirit-zone > .card,
     .nexus-zone > .card,
+    .nexus-zone > .nexus-slot,
     .burst-zone .burst-slot {
         zoom: 1.4;
     }
@@ -2546,23 +2547,25 @@ body:has(#notice-banner:not(.hidden)) {
     /* バトスピの公式プレイマットの並び。左の列がバースト・ライフ・リザーブ、右の列がデッキ・トラッシュで、
        相手側は点対称（下の #opponent-area の指定）。
        場の行を格子にし、バースト（ネクサスの行の中にある）は nexus-row を display: contents でほどいて左の列へ置く */
+    /* ネクサスはスマホと同じくスピリットの下の段（相手側は上の段）に置く（2026-11-24 ユーザー指示） */
     .field-row {
         display: grid;
-        grid-template-columns: 150px auto minmax(0, 1fr) 150px;
+        grid-template-columns: 150px minmax(0, 1fr) 150px;
+        grid-template-rows: auto auto auto;
         grid-template-areas:
-            "burst nexus spirits deck"
-            "life nexus spirits trash"
-            "reserve nexus spirits trash";
+            "burst spirits deck"
+            "life spirits trash"
+            "reserve nexus trash";
         gap: 10px 14px;
     }
     /* 相手側は自分側を180度回した形（点対称）。向かい合わせに置いたマットと同じ見え方にする（2026-11-24 ユーザー指示） */
     #opponent-area .field-row {
-        grid-template-columns: 150px minmax(0, 1fr) auto 150px;
         grid-template-areas:
-            "trash spirits nexus reserve"
-            "trash spirits nexus life"
-            "deck spirits nexus burst";
+            "trash nexus reserve"
+            "trash spirits life"
+            "deck spirits burst";
     }
+    .field-row .nexus-zone { min-height: 0; min-width: 0; }
     .field-row > .nexus-row { display: contents; }
     .field-row .nexus-zone { grid-area: nexus; align-self: stretch; }
     .field-row > .spirit-zone { grid-area: spirits; align-self: stretch; }
@@ -2573,6 +2576,17 @@ body:has(#notice-banner:not(.hidden)) {
     [id^="mat-reserve"] { grid-area: reserve; }
     [id^="mat-deck"] { grid-area: deck; }
     [id^="mat-trash"] { grid-area: trash; cursor: pointer; }
+    /* 押せることが分かるように、枠の下に「中身を見る」を出し、載せたら枠を明るくする */
+    [id^="mat-trash"]::after {
+        content: "中身を見る ›";
+        display: block;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+        font-size: 12px;
+        color: var(--accent-hover);
+    }
+    [id^="mat-trash"]:hover { border-color: var(--accent); background: rgba(59, 130, 246, 0.08); }
     .burst-zone,
     .mat-box {
         position: relative;
