@@ -1,6 +1,6 @@
+// 情報欄・バースト欄・バトル欄の表示
 import { coreIcon } from "./coreIcon"
 import { renderMat } from "./mat"
-// 情報欄・バースト欄・バトル欄の表示
 import { attachCardArt } from "../cardArt"
 import type { GameView, PlayerId } from "../../../server/src/type"
 import { effectiveBp, coreZoneChoiceId, canAwakenFromReserve, timedFlashLocked } from "../../../shared/rules"
