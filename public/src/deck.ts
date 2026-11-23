@@ -470,6 +470,7 @@ function renderDetail(card: CardData, anchor?: HTMLElement): void {
     const panel = $("detail-panel")
     panel.textContent = ""
     const art = hoverArt(card.cardId)
+    panel.classList.toggle("with-art", art !== null)
     if (art) panel.appendChild(art)
 
     const titleArea = document.createElement("div")

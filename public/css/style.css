@@ -900,12 +900,23 @@ button:active {
 
 
 /* マウスを載せたときの拡大の絵（cardArt.ts の hoverArt）。効果文の上に出す */
+#effect-tooltip.with-art {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    column-gap: 12px;
+    width: min(540px, calc(100vw - 24px));
+    max-width: min(540px, calc(100vw - 24px));
+}
+#effect-tooltip.with-art > :not(.hover-art) {
+    grid-column: 2;
+}
 #effect-tooltip .hover-art {
+    grid-column: 1;
+    grid-row: 1 / span 40;
+    align-self: start;
     display: block;
-    width: 240px;
-    max-width: 100%;
+    width: 170px;
     aspect-ratio: 675 / 983;
-    margin: 0 auto 8px;
     border-radius: 8px;
 }
 

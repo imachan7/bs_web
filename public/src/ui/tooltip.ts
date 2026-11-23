@@ -35,6 +35,7 @@ export function setupEffectTooltip(): void {
         
         tip.innerHTML = ""
         const art = hoverArt(cardId)
+        tip.classList.toggle("with-art", art !== null)
         if (art) tip.appendChild(art)
         const titleArea = document.createElement("div")
         titleArea.style.display = "flex"
