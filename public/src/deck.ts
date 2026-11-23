@@ -6,7 +6,7 @@ import { KEYWORDS } from "../../shared/rules"
 import { isTokenCard } from "../../shared/cardDb"
 import { effectLineSegments } from "./effectText"
 import { assetUrl } from "./assetUrl"
-import { attachCardArt, installSecretCardArt } from "./cardArt"
+import { attachCardArt, hoverArt, installSecretCardArt } from "./cardArt"
 
 // ---- 定数 ----
 
@@ -469,6 +469,8 @@ function renderDetail(card: CardData, anchor?: HTMLElement): void {
     detailCardId = card.cardId
     const panel = $("detail-panel")
     panel.textContent = ""
+    const art = hoverArt(card.cardId)
+    if (art) panel.appendChild(art)
 
     const titleArea = document.createElement("div")
     titleArea.style.display = "flex"

@@ -10,7 +10,7 @@ function cardImageBase(): string {
     return host === "localhost" || host === "127.0.0.1" || host.endsWith(".discordsays.com") ? "/imgs/cards" : "https://storage.googleapis.com/bs-web-card-images"
 }
 
-export function cardImageUrl(cardId: string, size: "md" | "sm" | "xs" = "md"): string | null {
+export function cardImageUrl(cardId: string, size: "lg" | "md" | "sm" | "xs" = "md"): string | null {
     if (!cardId.startsWith("26R") && !secretArtOn()) return null
     return `${cardImageBase()}/${size}/${cardSetDir(cardId)}/${cardId}.webp`
 }
@@ -95,4 +95,18 @@ export function attachCardArt(el: HTMLElement, cardId: string, name: string): vo
         art.remove()
     }
     el.appendChild(art)
+}
+
+// マウスのある端末で、カードに載せたときの拡大表示（lg）を出す。絵が無いカード・読めないときは何も出さない。
+// lg は載せたときにだけ読む（ふだんの画面では読まない。スマホでは出さない）
+export function hoverArt(cardId: string): HTMLImageElement | null {
+    if (typeof matchMedia === "function" && !matchMedia("(hover: hover) and (pointer: fine)").matches) return null
+    const url = cardImageUrl(cardId, "lg")
+    if (url === null || artMissing.has(cardId)) return null
+    const img = document.createElement("img")
+    img.className = "hover-art"
+    img.alt = ""
+    img.src = url
+    img.onerror = () => img.remove()
+    return img
 }

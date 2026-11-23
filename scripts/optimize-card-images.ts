@@ -1,4 +1,4 @@
-// public/imgs/cards/original/<弾>/*.webp から表示用の md/sm/xs を作る（手元の cwebp を使う。brew install webp）。
+// public/imgs/cards/original/<弾>/*.webp から表示用の lg/md/sm/xs を作る（lg はマウスを載せたときの拡大表示だけで読む）（手元の cwebp を使う。brew install webp）。
 // 作成済みで元画像より新しいものは飛ばす
 import { execFileSync } from "node:child_process"
 import fs from "node:fs"
@@ -7,6 +7,7 @@ import path from "node:path"
 const INPUT = "public/imgs/cards/original"
 const OUTPUT = "public/imgs/cards"
 const SIZES = [
+    { dir: "lg", width: 360 },
     { dir: "md", width: 144 },
     { dir: "sm", width: 116 },
     { dir: "xs", width: 96 },

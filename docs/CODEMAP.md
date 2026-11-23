@@ -1567,6 +1567,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `installSecretCardArt`（fn）
 - `preloadCardArt`（fn）：対戦で使うデッキの画像を先に読んでおく（画面に出た時点で初めて読むと、出た瞬間に絵が無い・遅れて出る）。
 - `attachCardArt`（fn）
+- `hoverArt`（fn）：マウスのある端末で、カードに載せたときの拡大表示（lg）を出す。絵が無いカード・読めないときは何も出さない。
 
 ## public/src/choiceCounter.ts
 

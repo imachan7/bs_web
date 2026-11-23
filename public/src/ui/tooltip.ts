@@ -1,6 +1,7 @@
 // カードにホバーしたときの効果ツールチップ
 import { effectLineSegments } from "../effectText"
 import { master, COLOR_SYMBOLS, escapeHtml } from "../renderer"
+import { hoverArt } from "../cardArt"
 
 export let currentHoverCard: HTMLElement | null = null
 
@@ -33,6 +34,8 @@ export function setupEffectTooltip(): void {
         const m = master(cardId)
         
         tip.innerHTML = ""
+        const art = hoverArt(cardId)
+        if (art) tip.appendChild(art)
         const titleArea = document.createElement("div")
         titleArea.style.display = "flex"
         titleArea.style.alignItems = "center"

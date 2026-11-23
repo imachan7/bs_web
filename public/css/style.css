@@ -2516,3 +2516,13 @@ body:has(#notice-banner:not(.hidden)) {
     height: auto;
     transform: none;
 }
+
+/* マウスを載せたときの拡大の絵（cardArt.ts の hoverArt）。効果文の上に出す */
+#effect-tooltip .hover-art {
+    display: block;
+    width: 240px;
+    max-width: 100%;
+    aspect-ratio: 675 / 983;
+    margin: 0 auto 8px;
+    border-radius: 8px;
+}
