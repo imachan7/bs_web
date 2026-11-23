@@ -751,7 +751,7 @@ export function render(view: GameView, ui: UiState): void {
         const confirm = document.createElement("button")
         confirm.dataset.option = opts[value] ?? "0"
         confirm.textContent = "決定"
-        choiceOptionsEl.append(minus, readout, plus, confirm)
+        choiceOptionsEl.append(stepperRow(minus, readout, plus), confirm)
         show("choice-options", true)
     } else if (myPendingChoice && myPendingChoice.kind === "option") {
         for (const opt of myPendingChoice.options ?? []) {
@@ -901,7 +901,7 @@ export function render(view: GameView, ui: UiState): void {
             const go = document.createElement("button")
             go.dataset.summonCores = String(n)
             go.textContent = `コア${String(n)}個で召喚（Lv${String(lv)}）`
-            choiceOptionsEl.append(minus, readout, plus, go)
+            choiceOptionsEl.append(stepperRow(minus, readout, plus), go)
         }
         show("choice-options", true)
     } else if (ui.braveSummonSelect) {
@@ -1265,4 +1265,12 @@ function vanishingNote(view: GameView, assigned: Record<string, number>): string
         .filter((sp) => (assigned[sp.instanceId] ?? 0) > 0 && sp.cores - (assigned[sp.instanceId] ?? 0) < minLevelCores(master(sp.cardId)))
         .map((sp) => master(sp.cardId).name)
     return names.length > 0 ? `／⚠️ ${names.join("、")}が消滅します` : ""
+}
+
+// −・数・＋ を1行にまとめる。選択肢の列はボタンを1つずつ縦に積むので、ばらばらに入れるとスマホで−だけが見えて残りが画面の外に出た
+function stepperRow(...items: HTMLElement[]): HTMLElement {
+    const row = document.createElement("div")
+    row.className = "stepper-row"
+    row.append(...items)
+    return row
 }
