@@ -882,6 +882,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `DestroyDenialQuery`（型）
 - `destroyDenial`（fn）：破壊を止める理由（ログ用）。止められないなら null。スピリットに効く禁止は bpCompare だけ
 
+## server/src/logic/effectNotice.ts
+
+- `emitEffectNotice`（fn）：action は EffectDef が持つ同じオブジェクトで来るので、参照一致で効果を引く（ターン1回の包み直しなどで外れたら見出しだけ省く）
+
 ## server/src/logic/effectTax.ts
 
 - `hasEffectTax`（const）
@@ -1621,6 +1625,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `showWaiting`（fn）：ロビー側の表示制御
 - `hideWaiting`（fn）
 - `showToast`（fn）
+
+## public/src/ui/effectNotice.ts
+
+- `effectBodyText`（fn）：見出し行から次の見出し行の手前までの本文。見出し行は Lv1･Lv2『…』／【合体時】Lv2『…』のように行頭が見出しの形
+- `syncEffectNotice`（fn）：描画のたびに呼ぶ。新しい出来事を並べ、選び終わっていれば消し、発生源のカードを光らせ直す（描き直しで class が落ちるため）
 
 ## public/src/ui/fieldCard.ts
 
