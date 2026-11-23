@@ -21,7 +21,7 @@ export function effectBodyText(cardId: string, heading: string | undefined): str
     if (start === -1) return ""
     const rest = lines[start]!.slice(heading.length).trim()
     let end = start + 1
-    while (end < lines.length && !/^(Lv\d(･Lv\d)*($|『|：|【)|【[^】]*】($|Lv|『)|『|メイン：|フラッシュ：|【バースト)/.test(lines[end] ?? "")) end++
+    while (end < lines.length && !/^(Lv\d(･Lv\d)*($|『|：|【)|(【[^】]*】)+($|Lv|『)|『|メイン：|フラッシュ：|【バースト)/.test(lines[end] ?? "")) end++
     return [rest, ...lines.slice(start + 1, end)].filter((l) => l !== "").join("\n")
 }
 
@@ -56,7 +56,7 @@ function showNext(): void {
     box.appendChild(text)
     const title = document.createElement("div")
     title.className = "effect-notice-title"
-    title.textContent = `${mine ? "あなた" : "相手"}の ${ev.cardName}${ev.heading !== undefined ? ` ${ev.heading.slice(ev.heading.indexOf("『"))}` : "の効果"}`
+    title.textContent = `${mine ? "あなた" : "相手"}の ${ev.cardName}${ev.heading !== undefined ? ` ${ev.heading.slice(ev.heading.indexOf("『"))}` : "の効果"}${ev.trigger !== undefined ? ` ${ev.trigger}` : ""}`
     text.appendChild(title)
     const body = effectBodyText(ev.cardId, ev.heading)
     if (body !== "") {

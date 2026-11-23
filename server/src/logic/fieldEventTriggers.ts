@@ -1,4 +1,5 @@
 // 盤面の出来事（fieldEvent）で起きる誘発の収集と解決。手札を得た・ネクサスを配置したときの通知もここ
+import { emitEffectNoticeFor } from "./effectNotice"
 import { canFireWhileWaiting, isLeaveRelatedTrigger, isReturnWaiting, isTrashWaiting, waitingEventFor, frameWaitingEvent } from "../../../shared/rules/waiting"
 import { levelStillMet } from "./levelRecheck"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
@@ -653,6 +654,7 @@ export function fireFieldEventTriggers(
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
             if (e.effect.optional && state.interactiveTargets) {
+                emitEffectNoticeFor(state, c.actionPid, e.inst, e.effect)
                 requestActivationConfirm(
                     state,
                     c.actionPid,
@@ -668,6 +670,7 @@ export function fireFieldEventTriggers(
                 delete state.effectFizzled
                 // 中の pay が確認で止まったとき、断った／不発で消費を戻せるよう渡す（triggered と同じ）
                 const action = markPays(bindEventTargets(e.effect.action, eventInfo?.eventTargetIds), { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } })
+                emitEffectNoticeFor(state, c.actionPid, e.inst, e.effect)
                 resolveAction(state, c.actionPid, c.actionSelf, action, c.actionTargetId, c.srcColors, c.srcType, undefined, undefined, c.srcCardId, undefined, undefined, c.srcInstanceId)
                 // コストを払えないなどで何も起きなかったら、「ターンに1回」／同時破壊グループの消費を戻す（2026-09-16／fix/destroyed-trigger-once）
                 if (state.effectFizzled) {

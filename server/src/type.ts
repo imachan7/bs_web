@@ -171,7 +171,7 @@ export type GameEvent =
     | { seq: number; type: "lifeDamage"; pid: PlayerId; amount: number } // ライフのコアが減った（このpidが被弾した側）
     | { seq: number; type: "magic"; pid: PlayerId; cardName: string; cardId?: string; timing?: "main" | "flash" } // マジック使用。画面が使った効果の文面を出す
     // スピリット・ネクサス・ブレイヴの効果が解決を始めた（マジック・バーストは上の出来事）。heading は効果文の見出し行（Lv1･Lv2『このスピリットのアタック時』）
-    | { seq: number; type: "effect"; pid: PlayerId; cardId: string; cardName: string; instanceId?: string; heading?: string }
+    | { seq: number; type: "effect"; pid: PlayerId; cardId: string; cardName: string; instanceId?: string; heading?: string; trigger?: string }
     | { seq: number; type: "reveal"; pid: PlayerId; cardIds: string[] } // デッキ・バーストのカードをオープンした（pid＝オープンしたカードの持ち主）
     | { seq: number; type: "burst"; pid: PlayerId; cardName: string; cardId?: string }
     // バウンス／デッキ戻し。

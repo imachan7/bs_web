@@ -884,7 +884,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/effectNotice.ts
 
-- `emitEffectNotice`（fn）：action は EffectDef が持つ同じオブジェクトで来るので、参照一致で効果を引く（ターン1回の包み直しなどで外れたら見出しだけ省く）
+- `noticeOf`（fn）：決められないときは何も返さない（違う段落を出すより出さないほうがよい）
+- `emitEffectNotice`（fn）
+- `emitEffectNoticeFor`（fn）：効果の定義が手元にある入口（fieldEvent の解決）から直接出す。fieldEvent は self がイベントの主語になることがあり、
 
 ## server/src/logic/effectTax.ts
 
