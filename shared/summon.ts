@@ -10,7 +10,7 @@ import type { Board } from "./board"
 import { card } from "./cardDb"
 import { effectiveCost } from "./cost"
 import { braveSlotsUsed, extraCombineAllowed } from "./rules/braveExtraCombine"
-import { activeConstraints, timedContentsOn, zoneSpiritEffectsDisabled, isFlashLockedFor, matchesBraveCondition, minLevelCores } from "./rules"
+import { activeConstraints, timedContentsOn, zoneSpiritEffectsDisabled, isFlashLockedFor, matchesBraveCondition, summonMinCores } from "./rules"
 
 // 召喚（type:"summon"）で場に出せるカードか。
 // **ブレイヴは単体で場に出すとスピリットとして扱われる**ので、こちらも true になる（BRAVE.md §1.1）。
@@ -123,7 +123,7 @@ export function battleSwapSummonCheck(
     // コストは**入れ替え元がまだ場にいる時点**で数える（軽減シンボルは召喚宣言時の盤面で決まる）。
     // GameEngine.doBattleSwapSummon も手札に戻す前に effectiveCost を呼んでおり、順序が一致している
     const cost = effectiveCost(board, pid, cardData)
-    const placeCores = minLevelCores(cardData)
+    const placeCores = summonMinCores(board, pid, cardData)
     return {
         effectId: swap.id,
         substituteName: swap.substituteName,

@@ -4,7 +4,7 @@
 // 破壊待機の発動元のコアはリザーブへ移さず、フィールドのコアとして全部払える（summonPayPlan／fieldCoresSpendable）
 import type { ActionCtx } from "./types"
 import type { CardData, EffectAction, PlayerId } from "../../type"
-import { createInstance, findSpirit, getCard, log, minLevelCores, pushResumeFrames, suspend } from "../GameState"
+import { createInstance, findSpirit, getCard, log, summonMinCores, pushResumeFrames, suspend } from "../GameState"
 import { payCost, requestChoice } from "../EffectModules"
 import { askCostPay, payVoidToll } from "../summonSurcharge"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
@@ -47,7 +47,7 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
     const totals = (idx: number[], lv: number[] = []): { cost: number; keep: number; toll: number } => {
         const cards = idx.map((i) => getCard(player.hand[i]!))
         const surcharge = Math.max(0, ...cards.map((c) => summonSurcharge(state, owner, c)))
-        return { cost: cards.reduce((sum, c) => sum + baseCost(c), 0) + surcharge, keep: cards.reduce((sum, c, k) => sum + (lv[k] ?? minLevelCores(c)), 0), toll: cards.reduce((sum, c) => sum + summonVoidToll(state, c), 0) }
+        return { cost: cards.reduce((sum, c) => sum + baseCost(c), 0) + surcharge, keep: cards.reduce((sum, c, k) => sum + (lv[k] ?? summonMinCores(state, owner, c)), 0), toll: cards.reduce((sum, c) => sum + summonVoidToll(state, c), 0) }
     }
     const affordable = (idx: number[]): boolean => {
         const t = totals(idx)
@@ -75,7 +75,7 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
         }
         for (const i of [...idx].sort((a, b) => b - a)) player.hand.splice(i, 1)
         player.reserve -= t.keep - placed
-        const insts = cards.map((id, k) => ({ ...createInstance(id, state.turn, lv[k] ?? minLevelCores(getCard(id))), noOnSummon: true as const }))
+        const insts = cards.map((id, k) => ({ ...createInstance(id, state.turn, lv[k] ?? summonMinCores(state, owner, getCard(id))), noOnSummon: true as const }))
         player.field.spirits.push(...insts)
         log(state, `${player.name}は${sourceName}の効果で「${cards.map((id) => getCard(id).name).join("、")}」をコスト${t.cost}を支払い召喚した。（このスピリットの召喚時効果は発揮されない）`)
         // 【転召】は無償召喚でも必ず行う（公式Q&A 2024-10-31）。対象は支払いの前に選んである
@@ -141,13 +141,13 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
     // 1体ずつ置くコアの数（Lv）を聞く。全員の分が決まってから finish が一括で払う（2026-11-11 ユーザー決定）
     const askLevels = (idx: number[], pk: (string | null)[], lv: number[]): boolean => {
         const t = totals(idx, lv)
-        const rest = idx.slice(lv.length + 1).reduce((sum, i) => sum + minLevelCores(getCard(player.hand[i]!)), 0)
+        const rest = idx.slice(lv.length + 1).reduce((sum, i) => sum + summonMinCores(state, owner, getCard(player.hand[i]!)), 0)
         const done = lv.reduce((sum, n) => sum + n, 0)
         const card = getCard(player.hand[idx[lv.length]!]!)
         // 味方を消滅させる払い方も含めて選べる Lv を出す（単体の召喚と同じ。summonCores.ts）
         const options = summonCoreOptions(state, owner, card, t.cost + t.toll - summonVoidToll(state, card) + done + rest)
         if (options.length < 2) {
-            lv.push(options[0]?.cores ?? minLevelCores(card))
+            lv.push(options[0]?.cores ?? summonMinCores(state, owner, card))
             return false
         }
         suspend(state, {
@@ -188,14 +188,14 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
     // 置くコアの数を選んで戻ってきた
     if (action.lvAsk) {
         const cores = Number(/コア(\d+)個/.exec(ctx.chosenOption ?? "")?.[1])
-        finish(chosen, picks, [...(action.lvCores ?? []), Number.isFinite(cores) ? cores : minLevelCores(getCard(player.hand[chosen[(action.lvCores ?? []).length]!]!))])
+        finish(chosen, picks, [...(action.lvCores ?? []), Number.isFinite(cores) ? cores : summonMinCores(state, owner, getCard(player.hand[chosen[(action.lvCores ?? []).length]!]!))])
         return
     }
 
     if (!state.interactiveTargets) {
         // 非対話（AI・テスト）：1体あたりの必要コアが小さいものから貪欲に、払える限り選ぶ（召喚数を最大化する簡略化）
         const picked: number[] = []
-        const order = matching().sort((a, b) => baseCost(getCard(player.hand[a]!)) + minLevelCores(getCard(player.hand[a]!)) - (baseCost(getCard(player.hand[b]!)) + minLevelCores(getCard(player.hand[b]!))))
+        const order = matching().sort((a, b) => baseCost(getCard(player.hand[a]!)) + summonMinCores(state, owner, getCard(player.hand[a]!)) - (baseCost(getCard(player.hand[b]!)) + summonMinCores(state, owner, getCard(player.hand[b]!))))
         for (const i of order) if (affordable([...picked, i])) picked.push(i)
         const acc: (string | null)[] = []
         fillPicks(picked, acc)

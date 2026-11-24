@@ -3,7 +3,7 @@ import { effectSources, currentLevel } from "../../../shared/rules"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../shared/coverage"
 import type { GameAction, GameState, PlayerId } from "../type"
-import { getCard, log, minLevelCores, suspend } from "./GameState"
+import { getCard, log, summonMinCores, suspend } from "./GameState"
 import { summonFreeFromHandIndex } from "./EffectModules"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { summonDenial } from "./summonGate"
@@ -37,7 +37,7 @@ export function tryBraveFreeSummon(state: GameState, pid: PlayerId, action: Summ
     const card = getCard(cardId)
     // 効果による召喚の禁止・1コスト以上支払う縛り（X07。Q4611）はここで弾き、通常の召喚に任せる
     if (summonDenial(state, { pid, cardId, from: "hand", cause: "effect", braveTargetInstanceId: action.braveTargetInstanceId }) !== null) return undefined
-    const maintain = action.braveTargetInstanceId !== undefined ? 0 : minLevelCores(card)
+    const maintain = action.braveTargetInstanceId !== undefined ? 0 : summonMinCores(state, pid, card)
     player.reserve -= 1
     const affordable = player.reserve >= maintain && canPayFreeSummonSurcharge(state, pid, card, maintain, false)
     player.reserve += 1
