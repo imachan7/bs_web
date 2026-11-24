@@ -1,4 +1,5 @@
 <script lang="ts">
+    // 絞り込みウィンドウの中の1項目（見出し＋グループ見出しつきのチップ）。選択は呼び出し側の下書きの集合
     import type { Snippet } from "svelte"
     import type { SvelteSet } from "svelte/reactivity"
 
@@ -13,41 +14,29 @@
         extra?: Snippet
     } = $props()
 
-    let open = $state(false)
-    const texts = $derived(new Map(groups.flatMap((g) => g.items.map((i) => [i.value, i.text] as const))))
     const flip = (v: string) => (selected.has(v) ? selected.delete(v) : selected.add(v))
 </script>
 
-<div class="item">
-    <span class="label">{label}</span>
-    <button type="button" class="chip" aria-expanded={open} onclick={() => (open = !open)}>選ぶ {open ? "▾" : "▸"}</button>
-    <div class="chips">
-        {#each selected as v (v)}
-            <button type="button" class="chip active" title="外す" onclick={() => flip(v)}>{texts.get(v) ?? v} ×</button>
-        {/each}
-    </div>
+<section class="sec">
+    <h3>{label}</h3>
     {@render extra?.()}
-</div>
-{#if open}
-    <div class="panel">
-        {#each groups as g (g.heading)}
-            {#if g.items.length > 0}
-                {#if g.heading !== null}<div class="label">{g.heading}</div>{/if}
-                <div class="chips">
-                    {#each g.items as item (item.value)}
-                        <button type="button" class="chip {item.cls ?? ''}" class:active={selected.has(item.value)} onclick={() => flip(item.value)}>{item.text}</button>
-                    {/each}
-                </div>
-            {/if}
-        {/each}
-    </div>
-{/if}
+    {#each groups as g (g.heading)}
+        {#if g.items.length > 0}
+            {#if g.heading !== null}<div class="label">{g.heading}</div>{/if}
+            <div class="chips">
+                {#each g.items as item (item.value)}
+                    <button type="button" class="chip {item.cls ?? ''}" class:active={selected.has(item.value)} onclick={() => flip(item.value)}>{item.text}</button>
+                {/each}
+            </div>
+        {/if}
+    {/each}
+</section>
 
 <style>
-    .item { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; min-width: 0; }
+    .sec { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid #3a3d44; }
+    h3 { margin: 0; font-size: 13px; color: #e8e8f0; }
     .label { flex: none; white-space: nowrap; font-size: 12px; color: #b8bdd4; }
     .chips { display: flex; flex-wrap: wrap; gap: 4px; }
-    .panel { flex-basis: 100%; width: 100%; display: flex; flex-direction: column; gap: 4px; }
     .chip { background: #2c3044; color: #cdd2e8; border: 1px solid #555; padding: 4px 10px; font-size: 12px; }
     .chip:hover { background: #3a4059; }
     .chip.active { background: #4a6cd4; border-color: #7fa0ff; color: #fff; }

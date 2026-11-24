@@ -92,11 +92,11 @@
     .hint { color: #889; font-size: 13px; }
     .pin { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #8fa8ff; }
     .pin button { font-size: 12px; padding: 2px 8px; }
-    .art { width: 100%; max-width: 360px; align-self: center; height: auto; aspect-ratio: 675 / 985; border-radius: 8px; background: #0003; }
+    .art { width: 100%; max-width: 260px; align-self: center; height: auto; aspect-ratio: 675 / 985; border-radius: 8px; background: #0003; }
     .title { display: flex; align-items: center; gap: 6px; font-weight: bold; flex-wrap: wrap; }
     .sym { width: 14px; height: 14px; border-radius: 50%; background-size: cover; box-shadow: 0 1px 2px #0008; }
     .meta { font-size: 12px; color: #aab; }
-    .effect { white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
+    .effect { white-space: pre-wrap; font-size: 12px; line-height: 1.75; background: #26282e; border: 1px solid #33363d; border-radius: 8px; padding: 9px 10px; color: #ddd; }
     .effect-note { color: #8fd3ff; text-decoration: underline dotted; cursor: help; }
     .note { font-size: 12px; padding: 6px 8px; border-radius: 6px; }
     .note.unimplemented { background: #d44a4a33; border: 1px solid #d44a4a; }

@@ -38,6 +38,7 @@
         <input type="text" placeholder="デッキ名" bind:value={deck.name} />
         <span class="total" class:ok={total >= DECK_MIN_SIZE}>{total} / {DECK_MIN_SIZE}以上</span>
     </div>
+    <div class="progress"><div style:width="{Math.min(100, (total / DECK_MIN_SIZE) * 100)}%"></div></div>
     {#if errors.length === 0}
         <p class="valid">有効なデッキです</p>
     {:else}
@@ -45,10 +46,11 @@
             {#each errors as e}<li>{e}</li>{/each}
         </ul>
     {/if}
-    <DeckStats {stats} />
-    {#each groups as g (g.type)}
-        <DeckCategory type={g.type} cards={g.cards} total={g.total} />
-    {/each}
+    <DeckStats {stats}>
+        {#each groups as g (g.type)}
+            <DeckCategory type={g.type} cards={g.cards} total={g.total} />
+        {/each}
+    </DeckStats>
     <SavedDecks />
     <DeckIo />
 </div>
@@ -57,6 +59,8 @@
     .deckpane { height: 100%; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 10px; }
     .head { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
     .head input { flex: 1; min-width: 0; }
+    .progress { flex-shrink: 0; height: 6px; background: #33363d; border-radius: 99px; overflow: hidden; }
+    .progress div { height: 100%; background: #ffd23e; transition: width 0.15s; }
     .close { display: none; }
     .total { font-weight: bold; white-space: nowrap; color: #e8a0a0; }
     .total.ok { color: #6fd68a; }
