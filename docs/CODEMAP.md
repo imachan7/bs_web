@@ -7,7 +7,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `blockRequiredCount`（fn）：このアタッカーをブロックするのに必要なブロッカーの体数（blockRequiresCount）。
 - `blockPayCost`（fn）：このアタッカーをブロックするのに払うコスト（制約 blockPayCost の合計）。
 - `blockReserveToTrashCount`（fn）：このアタッカーをブロックするのにトラッシュへ置くリザーブのコアの数（制約 blockReserveToTrash の合計）
-- `blockDestroyOwnSpiritRecord`（fn）：blockCost destroyOwnSpirit を掛けた記録（無ければ undefined）
+- `blockDestroyTolls`（fn）：blockCost destroyOwnSpirit の「破壊1体ぶん」を、記録の count だけ並べたもの。発生源ごとに別の破壊として1体ずつ払う
 - `blockDestroyCandidates`（fn）：blockCost destroyOwnSpirit で破壊できるスピリット。破壊はアタッカー側の効果なので、【装甲】などで効果を受けない個体は選べず、
 - `blockExhaustSpiritRequired`（fn）：このアタッカーをブロックするのに、ブロックするスピリット以外の回復状態のスピリット1体を疲労させる必要があるか（制約 blockExhaustSpirit）
 - `canBlock`（fn）
@@ -546,7 +546,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `finishResshinsokuSummon`（fn）：コアの配置がすべて終わったところで実際にスピリットを場に出す。コストも維持コアの支払いも無い（維持コアぶんは「このスピリット」に置かれたコアが兼ねる）。
 - `MAGIC_FREE_OPTIONS`（const）：無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
 - `COUNT_IS_BODIES`（const）：count が「対象の体数」を表すアクション。ここに挙げたものだけを「複数体が対象なのに1体しか渡されていない」の判定にかける。
-- `destroyBlockToll`（fn）：破壊はアタッカー側の効果（相手によって破壊された扱い。Q4429 で破壊時効果も発揮する）
+- `payBlockDestroyTolls`（fn）：blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリットを、発生源ごとに1体ずつ選んで破壊する（from 番目から）。
+- `destroyBlockToll`（fn）：破壊はアタッカー側の効果（相手によって破壊された扱い。Q4429 で破壊時効果も発揮する）。帰属は rec（その破壊を求めた記録）の発生源
 - `exhaustBlockToll`（fn）
 - `continueBlockDeclaration`（fn）：ブロックのコストを払ったあとの宣言処理（blockExhaustSpirit の選択待ちからも再開する）
 - `finishBlockDeclaration`（fn）
@@ -806,6 +807,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `separateBravesBelowMinCost`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ。
 - `separateBravesOverLimit`（fn）：合体数の上限を上げていた効果（BS23-X01 など）が消えて、上限を超えたホストの分離（Q4588）。
+- `trashSpiritStateBravesWhenForbidden`（fn）：BS11-X02 Lv3「相手は、ブレイヴをスピリット状態にできない」が効いている間、その側のスピリット状態のブレイヴは
 
 ## server/src/logic/braveFreeSummon.ts
 
