@@ -339,8 +339,9 @@
     #action-buttons button { padding: 8px 6px; font-size: 13px; width: 100%; white-space: normal; }
     /* 増減式の選択（置くコアの数など）。選択肢は画面下の横幅いっぱいに出すので「− 文面 ＋」を1行に並べ、−／＋ は押しやすい大きさにする
        （右の細い列に並べていたときは文面が −／＋ に重なって読めなかった。2026-11-24 ユーザー指摘） */
-    #choice-options .stepper-row { gap: 6px; }
-    #choice-options .stepper-row > .stepper-value { flex: 1 1 auto; min-width: 0; white-space: normal; font-size: 14px; }
+    /* −／＋ は数のすぐ両側にまとめて中央に寄せる。端と端に離すと、片手の親指で左右に大きく動かすことになった（2026-11-25 ユーザー指摘） */
+    #choice-options .stepper-row { gap: 8px; justify-content: center; }
+    #choice-options .stepper-row > .stepper-value { flex: none; min-width: 7.5em; text-align: center; white-space: nowrap; font-size: 14px; }
     #choice-options .stepper-row > button { flex: none; width: 64px; min-height: 44px; font-size: 20px; }
 
     /* 画面の下端に固定して、手札の上に重ねる（開いている間は手札が隠れる）。ページが画面より高くても、下が見切れて「召喚」が半分になることがない（2026-11-24 iPhone SE で確認）。
