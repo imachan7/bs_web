@@ -288,7 +288,7 @@ export function requestActivationConfirm(
     // 断ったときに「ターンに1回」の消費を戻す対象（oncePerTurn を持つ triggered / fieldEvent。2026-09-16）
     revertTriggered?: { instanceId: string; effectId: string },
     // 承認後の解決に渡す対象と発生源（確認を挟むと失われるため。BS13-053 モクバオー）
-    carry?: { targetInstanceId?: string | undefined; sourceColors?: Color[] | undefined; sourceType?: CardType | undefined; sourceCardId?: string | undefined },
+    carry?: { targetInstanceId?: string | undefined; sourceColors?: Color[] | undefined; sourceType?: CardType | undefined; sourceCardId?: string | undefined; sourceInstanceId?: string | undefined },
 ): void {
     // 発生源が分からない呼び出し（マジック・バースト）は名前を出せないので従来どおり確認する
     if (self && skipUnpayablePay(state, pid, self, revertTriggered ? { ...action, onceRevert: revertTriggered } as EffectAction : action, getCard(self.cardId).name)) return
@@ -304,8 +304,8 @@ export function requestActivationConfirm(
         selfInstanceId: self ? self.instanceId : null,
         ...(revertTriggered ? { revertTriggered } : {}),
         ...(carry?.targetInstanceId !== undefined ? { confirmTargetInstanceId: carry.targetInstanceId } : {}),
-        ...(carry?.sourceColors !== undefined || carry?.sourceType !== undefined
-            ? { effectSource: { ...(carry.sourceType !== undefined ? { type: carry.sourceType } : {}), ...(carry.sourceColors !== undefined ? { colors: carry.sourceColors } : {}) } }
+        ...(carry?.sourceColors !== undefined || carry?.sourceType !== undefined || carry?.sourceInstanceId !== undefined
+            ? { effectSource: { ...(carry.sourceType !== undefined ? { type: carry.sourceType } : {}), ...(carry.sourceColors !== undefined ? { colors: carry.sourceColors } : {}), ...(carry.sourceInstanceId !== undefined ? { instanceId: carry.sourceInstanceId } : {}) } }
             : {}),
         // 発生源のカード：持ち回りが無ければ self。suspend が外側の効果のカードで埋めると、承認後の解決で self を発生源と見なせなくなる
         ...(carry?.sourceCardId !== undefined ? { sourceCardId: carry.sourceCardId } : self ? { sourceCardId: self.cardId } : {}),

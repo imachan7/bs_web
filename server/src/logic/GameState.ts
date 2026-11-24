@@ -290,8 +290,8 @@ export function setWaitingEvent(state: GameState, event: string | null | undefin
 export function suspend(state: GameState, choice: PendingChoice): void {
     const src = state.currentEffectSource
     const withSource: PendingChoice =
-        src !== undefined && choice.effectSource === undefined && (src.type !== undefined || src.colors !== undefined)
-            ? { ...choice, effectSource: { ...(src.type !== undefined ? { type: src.type } : {}), ...(src.colors !== undefined ? { colors: src.colors } : {}) } }
+        src !== undefined && choice.effectSource === undefined && (src.type !== undefined || src.colors !== undefined || src.instanceId !== undefined)
+            ? { ...choice, effectSource: { ...(src.type !== undefined ? { type: src.type } : {}), ...(src.colors !== undefined ? { colors: src.colors } : {}), ...(src.instanceId !== undefined ? { instanceId: src.instanceId } : {}) } }
             : choice
     const withCard: PendingChoice = src?.cardId !== undefined && withSource.sourceCardId === undefined ? { ...withSource, sourceCardId: src.cardId } : withSource
     const withBurst: PendingChoice = src?.burst && src.cardId !== undefined && withCard.burst === undefined ? { ...withCard, burst: { pid: src.pid, cardId: src.cardId } } : withCard

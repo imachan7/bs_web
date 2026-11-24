@@ -351,7 +351,7 @@ function resolveChoiceInner(
         log(state, `${getCard(info.targetCardId).name}の【迷彩】：${state.players[info.pid].name}は${info.need}コストを支払った。`)
         state.meisaiPaidFor = info.targetInstanceId
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -378,7 +378,7 @@ function resolveChoiceInner(
         if (info.need > 0) log(state, info.surcharge ? `${state.players[info.pid].name}：${getCard(info.sourceCardId).name}のために${info.need}コスト余分に支払った。` : `${getCard(info.sourceCardId).name}：${info.need}コストを支払った。`)
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         const resume = placeCores === undefined ? pending.action : ({ ...pending.action, placeCores } as typeof pending.action)
-        resolveAction(state, pending.actorPid ?? pending.pid, self, resume, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, resume, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId, undefined, undefined, pending.effectSource?.instanceId)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -701,13 +701,13 @@ function resolveChoiceInner(
                     declareBurst(state, chosen !== undefined ? { ...record, eventCost: chosen } : record)
                 } else {
                     delete state.effectFizzled
-                    resolveAction(state, actor, self, pending.action, pending.confirmTargetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId)
+                    resolveAction(state, actor, self, pending.action, pending.confirmTargetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId, undefined, undefined, pending.effectSource?.instanceId)
                     // 発動を選んだがコストを払えず不発だった＝発揮していないので「ターンに1回」を戻す（2026-09-16）
                     if (state.effectFizzled) revertActivatedIfSkipped(state, pending)
                     delete state.effectFizzled
                 }
             } else {
-                resolveAction(state, actor, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, option)
+                resolveAction(state, actor, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, option, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
             }
         } else {
             const name = self ? getCard(self.cardId).name : "効果"
@@ -730,11 +730,11 @@ function resolveChoiceInner(
         state.pendingChoice = null
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         if (cardIndex !== undefined) {
-            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, cardIndex, undefined, paySources)
+            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, cardIndex, undefined, paySources, undefined, pending.effectSource?.instanceId)
         } else if (pending.resolveOnSkip) {
             // 「選び終わったら後処理がある」効果（BS08堕天使ミカファール：破棄した枚数ぶんドローする）。
             // スキップ＝「もう選ばない」の合図なので、cardIndex なしで action をもう一度解決させる
-            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type)
+            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
         } else {
             // 起動能力から出た選択をやめた＝発揮しなかった扱いにして、同じターンにもう一度起動できるようにする
             revertActivatedIfSkipped(state, pending)
@@ -755,11 +755,11 @@ function resolveChoiceInner(
     const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
 
     if (instanceId !== undefined) {
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, instanceId, pending.effectSource?.colors, pending.effectSource?.type)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, instanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
     } else if (pending.resolveOnSkip) {
         // 「選び終わったら後処理がある」効果（予算内で好きなだけ破壊するトグル選択）。
         // スキップ＝「これで確定」の合図なので、対象なしで action をもう一度解決させる
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
     } else {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }
@@ -832,6 +832,9 @@ export function runActionFrame(state: GameState, pid: PlayerId, frame: Extract<R
         undefined,
         undefined,
         frame.sourceCardId,
+        undefined,
+        undefined,
+        frame.sourceInstanceId,
     )
     delete state.resumeEffectId
     if (prevBurst) state.resumeBurst = prevBurst

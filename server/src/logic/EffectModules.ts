@@ -1393,6 +1393,7 @@ export function resolveAction(
     paySources?: PaySource[],
     // バースト効果の入口（burst.ts／choice.ts／handBurstEffect.ts）だけが true を渡す。入れ子と再開は下で引き継ぐ
     burst?: true,
+    sourceInstanceId?: string,
 ): void {
     // 召喚時効果を発揮した印。pay は払えないと発動していないので、確認を済ませたか払った時点で付ける（pay.ts）
     // summonSequence は召喚の手順の続き（内部専用）で、召喚時効果の発揮ではない
@@ -1420,6 +1421,7 @@ export function resolveAction(
                 : undefined)
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する
+    const srcInstanceId = sourceInstanceId ?? self?.instanceId
     const destroyContext: DestroyContext = {
         effectId,
         sourcePid: owner,
@@ -1427,7 +1429,7 @@ export function resolveAction(
         // 発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用）
         ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
         // 発生源インスタンス（「その効果を発揮したスピリット」を対象にする軸用）
-        ...(self ? { sourceInstanceId: self.instanceId } : {}),
+        ...(srcInstanceId !== undefined ? { sourceInstanceId: srcInstanceId } : {}),
         ...(srcCardId !== undefined ? { sourceCardId: srcCardId } : {}),
     }
 
@@ -1441,6 +1443,7 @@ export function resolveAction(
         srcColors,
         srcType,
         sourceCardId: srcCardId,
+        srcInstanceId,
         destroyContext,
         targetInstanceId,
         chosenOption,
@@ -1461,6 +1464,9 @@ export function resolveAction(
                 opts?.chosenOption,
                 opts?.chosenCardIndex,
                 sameSource ? srcCardId : undefined,
+                undefined,
+                undefined,
+                sameSource ? srcInstanceId : undefined,
             )
         },
     }
@@ -1482,8 +1488,7 @@ export function resolveAction(
         pid: owner,
         ...(srcType !== undefined ? { type: srcType } : {}),
         ...(srcColors !== undefined ? { colors: srcColors } : {}),
-        // self が確定しているときだけ発生源インスタンスを載せる
-        ...(self !== null && self !== undefined ? { instanceId: self.instanceId } : {}),
+        ...(srcInstanceId !== undefined ? { instanceId: srcInstanceId } : {}),
         ...(srcCardId !== undefined ? { cardId: srcCardId } : {}),
     }
     // 「効果でコアが置かれた」の検出用スナップショット。**一番外側の効果でだけ**取る
