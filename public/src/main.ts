@@ -402,6 +402,8 @@ function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement
             stopWaiting = null
             showWait(null)
             showToast("対戦相手が見つかりました")
+            // 盤面を作るデバッグの入口（/api/debug/setup）が要る実際のルームID。入力したルーム名は待ち合わせの名前で、IDとは別（docs/guide/DEBUG_SETUPS.md）
+            ;(window as unknown as { ROOM?: string }).ROOM = roomId
             // 同じ内容の join をもう一度送ると、サーバーは参加の取り消しとして扱う
             const join = () => socket.emit("join", { roomId, name, ...deck })
             const retry = () => startWaiting(mode, pool, button, showWait, extra)
