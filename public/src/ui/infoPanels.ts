@@ -268,5 +268,12 @@ export function renderBattle(view: GameView): void {
         message += " 相手はフラッシュ封印中（手札のカードを使用できない）。"
     }
 
-    el.textContent = message
+    // 何が起きているか（最初の「！」「。」まで）と、何をすればよいかを分けて出す。スマホは後ろを小さくする（長い1文だと何が起きたか分からなかった。2026-11-24 ユーザー）
+    const cut = message.search(/[！。]/) + 1
+    const head = document.createElement("b")
+    head.textContent = cut > 0 ? message.slice(0, cut) : message
+    const hint = document.createElement("span")
+    hint.className = "battle-hint"
+    hint.textContent = cut > 0 ? message.slice(cut).trim() : ""
+    el.replaceChildren(head, " ", hint)
 }

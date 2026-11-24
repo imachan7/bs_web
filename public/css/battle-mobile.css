@@ -42,7 +42,19 @@
     /* 中央の帯は高さを固定する。文字（対象選択の案内・選択肢のボタン）で伸びると上下の場がずれて画面が揺れた（2026-11-24 ユーザー指摘）。
        入りきらない分は帯の上下へはみ出して場の上に重ねる（flex の中央寄せなので上下に均等に出る）。重ねたとき場が透けないよう中身に背景を付ける */
     #center-info-area { height: 28px; min-height: 0; padding: 0 8px; gap: 2px; box-sizing: border-box; position: relative; z-index: 110; overflow: visible; }
-    #center-info-area > :not(.hidden) { background: var(--bg-panel); border-radius: 6px; padding: 2px 8px; font-size: 12px; text-align: center; box-shadow: 0 2px 8px #000a; }
+    /* 盤面は overflow: hidden なので、中央の帯からはみ出した案内が場の端で切れていた */
+    #board { overflow: visible; }
+    /* 案内は「何が起きたか」を太字、「何をすればよいか」を小さく1行にする（ui/infoPanels.ts）。効果の発動は絵を出さず2行まで（光っている場のカードで分かる） */
+    #battle-info .battle-hint { display: block; font-size: 10px; font-weight: normal; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #effect-notice { padding: 3px 8px; }
+    #effect-notice .effect-notice-art { display: none; }
+    #effect-notice .effect-notice-title { font-size: 12px; }
+    #effect-notice .effect-notice-body { -webkit-line-clamp: 1; font-size: 10px; }
+    /* 召喚・破壊などの通知は小さくし、新しい2件だけ出す（大きいまま積み重なって相手の場が埋まっていた） */
+    .event-banner { padding: 3px 10px; font-size: 12px; border-radius: 6px; }
+    #event-layer { gap: 3px; }
+    #event-layer > .event-banner:nth-last-child(n+3) { display: none; }
+    #center-info-area > :not(.hidden) { max-width: 100%; box-sizing: border-box; min-width: 0; background: var(--bg-panel); border-radius: 6px; padding: 2px 8px; font-size: 12px; text-align: center; box-shadow: 0 2px 8px #000a; }
     .player-area { padding: 4px 8px; gap: 2px; justify-content: flex-start; }
     .opp-hand-area { display: none !important; }
     /* 情報の行は、右に PC と同じマットの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で折り返して出す。
