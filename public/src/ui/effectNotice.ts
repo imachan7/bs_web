@@ -65,13 +65,23 @@ function showNext(): void {
         b.textContent = body
         text.appendChild(b)
     }
-    box.addEventListener("click", dismiss)
+    // 効果文が途中で切れているときは、1回目のタップで全文を開き（開いている間は時間で消さない）、2回目で閉じる。
+    // スマホは帯に2行しか出せず、長い効果は何が起きているか読めなかった（2026-11-24 ユーザー指摘）
+    box.addEventListener("click", () => {
+        if (box.classList.contains("truncated") && !box.classList.contains("expanded")) {
+            box.classList.add("expanded")
+            return
+        }
+        dismiss()
+    })
     host.prepend(box)
+    const bodyEl = box.querySelector<HTMLElement>(".effect-notice-body")
+    if (bodyEl && bodyEl.scrollHeight > bodyEl.clientHeight + 1) box.classList.add("truncated")
     current = { ev, choiceSeen: lastView.pendingChoice != null, timer: undefined }
     const me = current
     // 選ぶ場面が続いている間は出したまま。無いままなら一定時間で消す
     me.timer = window.setTimeout(() => {
-        if (current === me && !(lastView?.pendingChoice != null)) dismiss()
+        if (current === me && !(lastView?.pendingChoice != null) && !box.classList.contains("expanded")) dismiss()
     }, mine ? MINE_MS : OPP_MS)
 }
 

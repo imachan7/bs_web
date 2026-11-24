@@ -44,12 +44,15 @@
     #center-info-area { height: 28px; min-height: 0; padding: 0 8px; gap: 2px; box-sizing: border-box; position: relative; z-index: 110; overflow: visible; }
     /* 盤面は overflow: hidden なので、中央の帯からはみ出した案内が場の端で切れていた */
     #board { overflow: visible; }
-    /* 案内は「何が起きたか」を太字、「何をすればよいか」を小さく1行にする（ui/infoPanels.ts）。効果の発動は絵を出さず2行まで（光っている場のカードで分かる） */
+    /* 案内は「何が起きたか」を太字、「何をすればよいか」を小さく1行にする（ui/infoPanels.ts）。効果の発動は絵を出さず、効果文は2行まで（光っている場のカードで分かる） */
     #battle-info .battle-hint { display: block; font-size: 10px; font-weight: normal; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #effect-notice { padding: 3px 8px; }
     #effect-notice .effect-notice-art { display: none; }
     #effect-notice .effect-notice-title { font-size: 12px; }
-    #effect-notice .effect-notice-body { -webkit-line-clamp: 1; font-size: 10px; }
+    #effect-notice .effect-notice-body { -webkit-line-clamp: 2; font-size: 11px; text-align: left; }
+    /* 切れた効果文は帯を押すと全文を開く（ui/effectNotice.ts）。長ければ中をスクロール */
+    #effect-notice.expanded .effect-notice-body { -webkit-line-clamp: unset; display: block; max-height: 40dvh; overflow-y: auto; }
+    #effect-notice.truncated:not(.expanded) .effect-notice-text::after { content: "▼ 押すと全文"; display: block; font-size: 9px; color: var(--accent-hover); text-align: right; }
     /* 召喚・破壊などの通知は小さくし、新しい2件だけ出す（大きいまま積み重なって相手の場が埋まっていた） */
     .event-banner { padding: 3px 10px; font-size: 12px; border-radius: 6px; }
     #event-layer { gap: 3px; }
