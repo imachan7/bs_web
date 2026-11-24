@@ -290,6 +290,11 @@
        その場で押す場面がなく、狭い画面で欄や支払いのボタンの場所を取っていた（2026-11-24 ユーザー指摘） */
     #game:has(#btn-cancel-target:not(.hidden), #card-dock:not(.hidden)) :is(#btn-attack-phase, #btn-end-turn) { display: none; }
     #action-buttons button { padding: 8px 6px; font-size: 13px; width: 100%; white-space: normal; }
+    /* 増減式の選択（置くコアの数など）は、列の幅（104px）に「−・文面・＋」を1行で並べると文面が −／＋ に重なって読めなかった（2026-11-24 ユーザー指摘）。
+       文面を上の行に出し、−／＋ は下の行で半分ずつ */
+    #choice-options .stepper-row { flex-wrap: wrap; gap: 4px; }
+    #choice-options .stepper-row > .stepper-value { order: -1; flex: 0 0 100%; min-width: 0; white-space: normal; font-size: 13px; }
+    #choice-options .stepper-row > button { flex: 1 1 0; width: auto; min-height: 40px; font-size: 18px; }
 
     /* 画面の下端に固定して、手札の上に重ねる（開いている間は手札が隠れる）。ページが画面より高くても、下が見切れて「召喚」が半分になることがない（2026-11-24 iPhone SE で確認）。
        大きな絵・カード名・操作ボタン（高さ44px以上）を出す。時間では消えず、もう一度カードを押すか × で閉じる */

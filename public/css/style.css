@@ -1820,9 +1820,11 @@ button:active {
     min-width: 0;
     padding: 6px 0;
 }
+/* 数の欄は文字の幅だけにして、−／＋ をそのすぐ両側に寄せる。flex: 1 で伸ばすと、列の幅（長い「Lv2 (…フィールドから取得)」のボタンに合わせた幅）いっぱいに
+   −／＋ が離れて、どれが増減のボタンか分かりにくかった（2026-11-24 ユーザー指摘） */
 #choice-options .stepper-row > .stepper-value {
-    min-width: 0;
-    flex: 1;
+    min-width: 3.5em;
+    flex: none;
     white-space: nowrap;
 }
 #choice-options .stepper-value {

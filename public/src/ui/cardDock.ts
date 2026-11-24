@@ -64,9 +64,13 @@ function entriesOf(sel: Selection, card: HTMLElement): Entry[] {
     return [...play, ...[...card.querySelectorAll<HTMLButtonElement>(HAND_SOURCES)].map((src) => ({ els: [src], title: src.title, disabled: src.disabled, label: src.textContent ?? "" }))]
 }
 
-// 対象選択・支払いなどの途中は、手札を押すとその場で何かが決まるので欄を挟まない（今までの動きのまま）
-function handIsFree(): boolean {
-    return !!view && !!ui && !view.pendingChoice && ui.paying === null && ui.targeting === null && ui.awakenTarget === null && ui.soulSwapSelect === null && ui.directedAttack === null
+// 対象選択・支払いなどの途中は、手札・場のカードを押すとその場で何かが決まるので欄を挟まない（今までの動きのまま）。
+// 場のカードにもこの判定が無く、効果で召喚するときのコアの支払いで自分のスピリットを押すと欄が開いて、コアを取れなかった（2026-11-24 ユーザー指摘）
+function uiIsFree(): boolean {
+    if (!view || !ui || view.pendingChoice) return false
+    const u = ui
+    // renderer.ts の anyMode（「対象選択をやめる」を出す条件）と同じ並び
+    return [u.targeting, u.awakenTarget, u.paying, u.directedAttack, u.summonLevelSelect, u.battleSwapSummon, u.braveSummonSelect, u.altSummonSelect, u.exReductionSelect, u.soulCoreOnlySelect, u.magicTimingSelect, u.soulSwapSelect, u.burstResetConfirm, u.combineBrave].every((m) => m === null)
 }
 
 function select(sel: Selection): void {
@@ -84,7 +88,7 @@ export function renderCardDock(v?: GameView, u?: UiState): void {
     const dock = $("card-dock")
     const card = selected !== null && mobile.matches ? findCard(selected) : null
     const entries = selected && card ? entriesOf(selected, card) : []
-    if (!selected || !card || (selected.zone === "field" ? entries.length === 0 : !handIsFree())) {
+    if (!selected || !card || (selected.zone === "field" ? entries.length === 0 : !uiIsFree())) {
         selected = null
         picking = null
         dock.classList.add("hidden")
@@ -121,7 +125,7 @@ export function installCardDock(): void {
     for (const id of ["my-spirits", "my-nexuses"]) {
         $(id).addEventListener("click", (e) => {
             // 欄から元のボタンを押し直したときは、カードを選び直さずに main.ts の処理へ通す（手札と同じ印）
-            if (!mobile.matches || passing) return
+            if (!mobile.matches || passing || !uiIsFree()) return
             const card = (e.target as HTMLElement).closest<HTMLElement>(".card[data-instance-id]")
             if (!card || card.classList.contains("clickable") || sourcesOf(card).length === 0) return
             e.stopPropagation()
@@ -129,7 +133,7 @@ export function installCardDock(): void {
         }, true)
     }
     $("hand").addEventListener("click", (e) => {
-        if (!mobile.matches || passing || !handIsFree()) return
+        if (!mobile.matches || passing || !uiIsFree()) return
         const card = (e.target as HTMLElement).closest<HTMLElement>(".card[data-card-id]")
         if (!card) return
         e.stopPropagation()
