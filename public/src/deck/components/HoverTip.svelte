@@ -3,7 +3,7 @@
     import { tip, hideTip } from "../state/hoverTip.svelte"
     import CardText from "./CardText.svelte"
 
-    const W = 320
+    const W = 280
     const card = $derived(tip.cardId ? cardStore.cards.find((c) => c.cardId === tip.cardId) : undefined)
     let h = $state(0)
 
@@ -32,5 +32,9 @@
 {/if}
 
 <style>
-    .tip { position: fixed; z-index: 30; width: 320px; max-height: calc(100vh - 16px); overflow: hidden; box-sizing: border-box; padding: 10px; background: #1f2230; border: 1px solid #555; border-radius: 8px; box-shadow: 0 8px 28px #000a; pointer-events: none; }
+    .tip { position: fixed; z-index: 30; width: 280px; max-height: calc(100vh - 16px); overflow: hidden; box-sizing: border-box; padding: 10px; background: #1f2230; border: 1px solid #555; border-radius: 8px; box-shadow: 0 8px 28px #000a; pointer-events: none; }
+    /* 浮かぶ欄は一覧の上に重なるので、詳細カラムより一回り小さい字にする（2026-11-24 ユーザー） */
+    .tip :global(.text) { gap: 5px; font-size: 12px; }
+    .tip :global(.meta), .tip :global(.note) { font-size: 10px; }
+    .tip :global(.effect) { font-size: 11px; line-height: 1.55; padding: 6px 8px; }
 </style>
