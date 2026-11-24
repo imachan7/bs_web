@@ -1663,7 +1663,7 @@ button:active {
 }
 
 /* ---- レスポンシブ: タブレット ---- */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (orientation: landscape) {
     :root {
         --action-col-width: 104px;
     }
@@ -1720,7 +1720,7 @@ button:active {
 }
 
 /* ---- レスポンシブ: スマホ ---- */
-@media (max-width: 480px) {
+@media (max-width: 480px), (max-height: 500px) and (orientation: landscape) {
     /* アクティブでないステップのみ1文字表記に切り替え */
     .phase-step:not(.active) {
         font-size: 0;
@@ -2399,7 +2399,7 @@ body:has(#notice-banner:not(.hidden)) {
     overflow: hidden;
     white-space: pre-wrap;
 }
-@media (max-width: 700px) {
+@media (max-width: 700px), (max-height: 500px) and (orientation: landscape) {
     #effect-notice { padding: 4px 8px; gap: 8px; }
     .effect-notice-art { width: 56px; }
     .effect-notice-title { font-size: 13px; }
@@ -2507,7 +2507,7 @@ body:has(#notice-banner:not(.hidden)) {
 .reveal-type { position: relative; font-size: 10px; color: var(--text-muted); margin-top: 4px; }
 
 /* スマホ幅：マジックの通知（上）とオープン中のカードが重ならないよう、オープン中のカードは下に横長で出す */
-@media (max-width: 700px) {
+@media (max-width: 700px), (max-height: 500px) and (orientation: landscape) {
     #reveal-panel,
     #mill-panel {
         top: auto;
@@ -2731,7 +2731,7 @@ body:has(#notice-banner:not(.hidden)) {
 }
 
 /* プレイマットの枠の部品（ui/mat.ts）。PC の配置（下の 1100px 以上）と、スマホ（battle-mobile.css が小さくして置く）で同じものを使う */
-@media (min-width: 1100px), (max-width: 768px) {
+@media (min-width: 1100px), (max-width: 768px), (max-height: 500px) and (orientation: landscape) {
     [id^="mat-"] { display: block; }
     .mat-box {
         position: relative;

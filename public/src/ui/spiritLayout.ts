@@ -1,7 +1,7 @@
 // スマホで場のスピリットの並べ方を決める。カードの大きさは固定で、1段→2段→…（欄の高さに入る段数まで）→各段の中で重ねる→1段で横スクロール、の順に試す（2026-11-24 ユーザー決定）。
 // 判定はここの1か所に集めた。CSS の個数指定（nth-child）だと、疲労して横向きのカードやブレイヴの絵の幅が入らず、9体目が切れていた
 // 読み込み時に window を触ると、ブラウザの無い smoke（renderer を読み込む part）が落ちるので、使う時点で判定する
-const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches } }
+const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px), (max-height: 500px) and (orientation: landscape)").matches } }
 const ZONES = ["my-spirits", "opp-spirits"]
 // 重ねても Lv・BP・コアを読ませる左側の幅。これより詰めないと決めて、それでも入らなければ横スクロール
 const SLICE = 24

@@ -5,7 +5,7 @@
 #status-menu { display: contents; }
 #btn-status-menu, #btn-status-menu-close, #mat-tegamoto-self, #mat-tegamoto-opp { display: none; }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (orientation: landscape) {
     /* 行の高さ。背の低い画面（下の max-height: 700px）だけ値を詰める（2026-11-24 iPhone SE の Safari で見える高さ約553px に収めるため）。
        --zone-h はスピリットの欄の高さで、2段のときのカード幅もここから決まる（欄に収まる幅。ui/spiritLayout.ts は測った幅で判定するので値を直接は読まない） */
     :root {
@@ -352,4 +352,74 @@
     .player-area { padding-top: 2px; padding-bottom: 2px; }
     #status-bar { padding: 2px 8px; }
     #center-info-area { height: 18px; }
+}
+
+/* スマホの横向き（高さ500px以下の横長）。PC の並びを詰めた形：上に相手・下に自分の場、右端に操作ボタンの列、下端に手札（2026-11-24 ユーザー決定）。
+   上の縦向きの指定（同じ条件でも効く）を、場の行の並べ方・情報の置き場所・ボタンの列だけ上書きする。
+   場の行は横1列（自分：バースト｜ネクサス｜スピリット｜情報とマット、相手は点対称）にして、高さはスピリットの欄に全部回す */
+@media (max-height: 500px) and (orientation: landscape) {
+    :root {
+        --card-w: 40px; --hand-w: 40px; --nexus-w: 40px;
+        --mat-col: 140px;
+        /* 84px は上の行・中央の帯・余白の合計 */
+        --zone-h: max(100px, calc((100dvh - 84px - var(--hand-w) * 985 / 675) / 2));
+    }
+    #board, #player-area { padding-right: calc(var(--action-col-width) + 8px); box-sizing: border-box; }
+    .my-hand-area { padding-right: calc(var(--action-col-width) + 8px); }
+    #center-info-area { height: 20px; }
+    .player-area { position: relative; padding: 2px 8px; }
+
+    .field-row,
+    #opponent-area .field-row {
+        grid-template-rows: var(--zone-h);
+        grid-template-columns: auto auto minmax(0, 1fr) var(--mat-col);
+        grid-template-areas: "burst nexus spirits mats";
+        align-items: stretch;
+    }
+    #opponent-area .field-row {
+        grid-template-columns: var(--mat-col) minmax(0, 1fr) auto auto;
+        grid-template-areas: "mats spirits nexus burst";
+    }
+    .field-row .burst-zone { align-self: center; }
+    .nexus-zone,
+    #opponent-area .nexus-zone { height: var(--zone-h); flex-direction: column; flex-wrap: wrap; padding: 8px 2px 0; }
+    /* 相手のネクサスは中央の帯の側（下）から並べる（上から並べると180度回ったカードの上端が欄の外に出て切れた） */
+    #opponent-area .nexus-zone { flex-wrap: wrap-reverse; justify-content: flex-start; flex-direction: column-reverse; padding: 0 2px 8px; }
+
+    /* 名前・手札の枚数は情報とマットの列の上端に1行、その下にマットを2×2で置く */
+    .player-info {
+        position: absolute;
+        top: 2px;
+        width: var(--mat-col);
+        height: 16px;
+        margin: 0 !important;
+        flex-wrap: nowrap;
+        overflow: hidden;
+    }
+    #my-info { right: calc(var(--action-col-width) + 16px); }
+    #opp-info { left: 8px; }
+    .field-row > .mat-box { height: 40px; width: 68px !important; }
+    #player-area .field-row > .mat-box,
+    #opponent-area .field-row > .mat-box { bottom: auto; }
+    #player-area .field-row > [id^="mat-life"] { top: 18px; right: 72px; }
+    #player-area .field-row > [id^="mat-reserve"] { top: 18px; right: 0; }
+    #player-area .field-row > [id^="mat-deck"] { top: 62px; right: 72px; }
+    #player-area .field-row > [id^="mat-trash"] { top: 62px; right: 0; }
+    #opponent-area .field-row > [id^="mat-life"] { top: 18px; left: 0; right: auto; }
+    #opponent-area .field-row > [id^="mat-reserve"] { top: 18px; left: 72px; right: auto; }
+    #opponent-area .field-row > [id^="mat-deck"] { top: 62px; left: 0; right: auto; }
+    #opponent-area .field-row > [id^="mat-trash"] { top: 62px; left: 72px; right: auto; }
+    /* 手元はマットの下。欄が低くて入らないときは隠れる（押せるのはカードがあるときだけ） */
+    .field-row > #mat-tegamoto-self.mat-box { top: 106px; right: 0; }
+    .field-row > #mat-tegamoto-opp.mat-box { top: 106px; left: 0; right: auto; }
+    .player-area:has(.field-row > [id^="mat-tegamoto"].mat-box) .player-info { width: var(--mat-col); }
+
+    /* 操作ボタンは右端の列に縦に並べる（上の行の下から画面の下端まで） */
+    #action-buttons-container { top: 40px; bottom: calc(8px + env(safe-area-inset-bottom)); max-height: none; display: flex; flex-direction: column; justify-content: flex-end; }
+    #action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) { max-height: none; }
+    /* 押したカードの欄は左下に、画面の半分ほどの幅で出す（全幅だと「召喚」のボタンが横に間延びした） */
+    #card-dock:not(.hidden),
+    #game:not(:has(#action-buttons > :not(.hidden, #btn-attack-phase, #btn-end-turn))) #card-dock:not(.hidden) { right: auto; width: min(440px, 60vw); }
+    #card-dock-art { height: 64px; }
+    #effect-tooltip { max-height: calc(100dvh - 120px); }
 }
