@@ -6,7 +6,7 @@ export const DECK_STORAGE_KEY = "bsweb:decks"
 
 export const CUSTOM_DECK_PREFIX = "custom:"
 
-// デッキビルダー（deck.ts）と同じ保存フォーマット
+// デッキビルダー（デッキ構築画面）と同じ保存フォーマット
 export interface SavedDeck {
     name: string
     cards: Record<string, number>
