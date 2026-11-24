@@ -1642,6 +1642,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `removeCard`（fn）
 - `validateDeck`（fn）：デッキ全体の制約検証。問題がなければ空配列
 
+## public/src/deck-next/state/detail.svelte.ts
+
+- `detail`（const）：詳細に出しているカード。マウスが離れても次のカードに載るまで残す。mobile は画面いっぱいの欄を開いているか（スマホ用）
+- `hoverCard`（fn）：タッチのタップでも pointerenter は飛ぶので、マウスのときだけ拾う（スマホのタップは詳細ボタンで開く）
+
 ## public/src/deck-next/state/filters.svelte.ts
 
 - `COST_CHIP_MAX`（const）

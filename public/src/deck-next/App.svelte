@@ -4,6 +4,8 @@
     import Pool from "./components/Pool.svelte"
     import DeckPane from "./components/DeckPane.svelte"
     import MobileBar from "./components/MobileBar.svelte"
+    import DetailColumn from "./components/DetailColumn.svelte"
+    import { detail } from "./state/detail.svelte"
     import Toast from "./components/Toast.svelte"
 
     loadCards()
@@ -19,9 +21,10 @@
         <div class="poolbody"><Pool /></div>
         <div class="mbar"><MobileBar onopen={() => (showDeck = true)} /></div>
     </div>
-    <aside class="detail"></aside>
+    <aside class="detail"><DetailColumn /></aside>
     <aside class="deck"><DeckPane onclose={() => (showDeck = false)} /></aside>
 </div>
+{#if detail.mobile}<div class="full"><DetailColumn mobile /></div>{/if}
 <Toast />
 
 <style>
@@ -36,7 +39,9 @@
     .poolbody { flex: 1; min-height: 0; }
     .mbar { display: none; }
     .detail, .deck { min-height: 0; overflow: hidden; border-left: 1px solid #333; }
+    .full { display: none; }
     @media (max-width: 899px) {
+        .full { display: block; position: fixed; inset: 0; z-index: 10; }
         .layout { display: block; height: 100dvh; }
         .pool, .deck { height: 100dvh; }
         .mbar { display: block; }
