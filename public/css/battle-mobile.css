@@ -10,29 +10,81 @@
     #center-info-area { min-height: 30px; padding: 2px 8px; gap: 2px; }
     .player-area { padding: 4px 8px; gap: 2px; justify-content: flex-start; }
     .opp-hand-area:not(:has(button:not(.hidden))) { display: none !important; }
-    .player-info { height: 30px; flex-wrap: nowrap; align-items: center; gap: 10px; overflow-x: auto; white-space: nowrap; }
+    /* 情報の行は、右に PC と同じマットの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で折り返して出す。
+       枠の幅の合計（272px）と合わせて 276px を引く。390px 幅で約 98px。狭い端末では名前の行が詰まって切れる */
+    .player-info {
+        height: 40px;
+        width: calc(100% - 276px);
+        flex-wrap: wrap;
+        align-content: center;
+        gap: 0 6px;
+        overflow: hidden;
+        font-size: 10px;
+        line-height: 12px;
+        position: relative;
+        z-index: 1;
+    }
+    #my-info { margin-top: -42px; }
+    #opponent-area .opp-hand-area { order: -1 }
+    #opp-info { margin-bottom: -42px; }
 
     /* 自分は上にスピリット（左にバースト）・下にネクサス、相手はその点対称。バーストはネクサスの行の中にあるので display: contents でほどく */
     .field-row {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
-        grid-template-rows: 104px 50px;
-        grid-template-areas: "burst spirits" "nexus nexus";
+        grid-template-rows: 104px 63px 40px;
+        grid-template-areas: "burst spirits" "nexus nexus" ". .";
         gap: 2px 6px;
+        position: relative;
         min-height: 0;
         align-items: center;
     }
     #opponent-area .field-row {
         grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-rows: 50px 104px;
-        grid-template-areas: "nexus nexus" "spirits burst";
+        grid-template-rows: 40px 63px 104px;
+        grid-template-areas: ". ." "nexus nexus" "spirits burst";
     }
     .field-row > .nexus-row { display: contents; }
     .field-row .burst-zone { grid-area: burst; }
     .field-row .nexus-zone { grid-area: nexus; }
     .field-row > .spirit-zone { grid-area: spirits; }
     .burst-zone .burst-slot,
-    #opp-burst .burst-slot.burst-revealed { width: 64px; height: auto; aspect-ratio: 675 / 985; }
+    #opp-burst .burst-slot.burst-revealed { width: 48px; height: auto; aspect-ratio: 675 / 985; }
+    /* 伏せていないときは細くして、スピリットの行に幅を回す */
+    .burst-zone .burst-slot.burst-empty { width: 24px; font-size: 0; }
+    .burst-empty::before { content: "B"; font-size: 11px; }
+
+    /* ライフ・リザーブ・デッキ・トラッシュは PC と同じ枠（ui/mat.ts）を小さくして、情報の行の右に並べる。
+       幅は固定（右端から トラッシュ64・デッキ60・リザーブ68・ライフ68）。コアは1行5個で折り返すので、10個で2行に収まる */
+    .field-row > .mat-box {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-sizing: border-box;
+        height: 40px;
+        min-height: 0;
+        padding: 2px 4px;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    #player-area .field-row > .mat-box { bottom: 0; }
+    #opponent-area .field-row > .mat-box { top: 0; }
+    .field-row > [id^="mat-trash"] { right: 0; width: 64px; cursor: pointer; opacity: 0.8; border-color: rgba(255, 255, 255, 0.1); }
+    .field-row > [id^="mat-deck"] { right: 68px; width: 60px; }
+    .field-row > [id^="mat-reserve"] { right: 132px; width: 68px; }
+    .field-row > [id^="mat-life"] { right: 204px; width: 68px; }
+    .mat-box .mat-head { position: static; gap: 4px; justify-content: flex-start; font-size: 9px; line-height: 11px; }
+    .mat-box .mat-head > span:first-child { background: none; padding: 0; }
+    /* 枠が狭いので、見出しと数を1語ずつ折らずに、入らなければ数を次の行へ送る（「デッ／キ」と割れていた） */
+    .mat-box .mat-head { flex-wrap: wrap; row-gap: 0; }
+    .mat-box .mat-head > span { white-space: nowrap; }
+    .mat-box .mat-n { background: none; padding: 0; font-size: 12px; line-height: 11px; }
+    .mat-box.mat-life .mat-n { font-size: 14px; }
+    .mat-box .mat-cores { gap: 1px; font-size: 10px; min-height: 0; max-width: 56px; }
+    .mat-box .mat-cores .mat-core-count { font-size: 10px; }
+    .mat-box .mat-half { font-size: 8px; line-height: 10px; padding: 0; }
+    .mat-box .mat-half + .mat-half { border-top: none; }
 
     /* スピリットは1行。幅は5枚目から48pxに縮め、それでも入らなければこの行の中だけ横にスクロールする。
        数で切り替えるのは、CSS だけで決められて保守が軽いから（疲労・合体の余白は数えないので、4枚でも余白が重なると少しスクロールする） */
@@ -75,7 +127,7 @@
         flex-direction: row;
         align-items: flex-start;
         gap: 6px;
-        height: 50px;
+        height: 63px;
         min-height: 0;
         min-width: 0;
         padding: 8px 6px 0;
@@ -83,7 +135,8 @@
         overflow-y: hidden;
     }
     #opponent-area .nexus-zone { padding: 0 6px 8px; }
-    .nexus-zone .card { width: 48px; height: 42px; flex: 0 0 auto; margin: 0; padding: 1px; }
+    /* 高さは PC のネクサス（68×78）と同じ縦横比。行の高さ（63px）は、この高さ55pxと上のコストバッジのはみ出し8pxの合計 */
+    .nexus-zone .card { width: 48px; height: auto; aspect-ratio: 68 / 78; flex: 0 0 auto; margin: 0; padding: 1px; }
     .nexus-slot { margin-right: 0; }
 
     /* Lv・BP・コアは1行ずつ・見出しなしで下の帯に載せ、シンボルは右上の小さな印にする（右下だとコアの文字に重なった） */
