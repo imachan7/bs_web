@@ -2826,6 +2826,8 @@ body:has(#notice-banner:not(.hidden)) {
     .mat-half { font-size: 13px; color: var(--text-muted); padding: 4px 0; }
     .mat-half + .mat-half { border-top: 1px solid rgba(255, 255, 255, 0.18); }
     .mat-box.targetable, .mat-half.targetable { outline: 2px solid var(--accent); cursor: pointer; }
+    /* デッキ破棄の枚数を数えている間（ui/millCount.ts）。デッキとトラッシュの枠を光らせて、どこからどこへ動いたかを見せる */
+    .mat-box.milling { border-color: var(--warning, #f5b041); box-shadow: 0 0 10px rgba(245, 176, 65, 0.55); }
     /* 操作ボタンは中央の高さで右端に浮くので、右の列（デッキ・トラッシュ）の左へずらして重ねない */
     #action-buttons-container { right: 196px; }
     /* 同じ数を情報の行と二重に出さない */

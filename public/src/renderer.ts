@@ -8,6 +8,7 @@ import type {
 } from "../../server/src/type"
 import { CARD_TYPE_LABELS } from "../../data/constants"
 import { attachCardArt } from "./cardArt"
+import { startMillCount } from "./ui/millCount"
 import { setCardLookup } from "../../shared/cardDb"
 import { choiceCounterView } from "./choiceCounter"
 import { effectiveCost } from "../../shared/cost"
@@ -312,6 +313,8 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
             return ev.pid === you ? null : `🃏 相手が${ev.count}枚ドロー`
         case "lifeDamage":
             return null // バナーは出さず、ライフ表示のシェイク演出のみ
+        case "mill":
+            return `🗑 ${ev.pid === you ? "あなた" : "相手"}のデッキを${ev.count}枚破棄`
         case "returnToHand":
             return `💨 ${ev.cardName} 手札へ戻る`
         case "returnToDeck":
@@ -526,6 +529,8 @@ function processNewEvents(view: GameView): Set<PlayerId> {
             lifeDamagedPids.add(ev.pid)
             continue
         }
+        // 枚数を1枚ずつ数える（バナーは下の通常の流れで出す）
+        if (ev.type === "mill") startMillCount(ev.pid, ev.count)
         if ((ev.type === "destroy" || ev.type === "returnToHand" || ev.type === "returnToDeck") && ev.instanceId !== undefined) {
             pendingLeaves.set(ev.instanceId, ev.type === "destroy" ? (ev.vanish ? "vanish" : "destroy") : "bounce")
         }

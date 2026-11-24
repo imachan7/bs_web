@@ -13,7 +13,7 @@ import { resolveMagicEffects } from "../triggers"
 import { fireFieldEventTriggers, fireNexusDeployed } from "../fieldEventTriggers"
 import { effectSources, deckMillBlockedByRule, isEndStepLocked, timedPlayerRules, trashCardEffectsDisabled, trashFrozen } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
-import { recordPlayerRule, resolveAction } from "../EffectModules"
+import { emitEvent, recordPlayerRule, resolveAction } from "../EffectModules"
 
 // globalConstraint "millCap"（BS05エターナルシールド）：pid自身のeffectSources（フィールド＋
 // このターンの仮想発生源。lendSelfThisTurnで貸与可）を走査し、レベル有効な millCap のうち
@@ -138,6 +138,8 @@ function millBlockReason(state: GameState, pid: PlayerId, byOpponent: boolean): 
 // 破棄した枚数をターンの累計に足す。millDeck を通らない破棄（効果のコストなど）もここで数える
 export function noteMilled(state: GameState, pid: PlayerId, n: number, actorPid: PlayerId | undefined, sourceType: CardType | undefined): void {
     if (n <= 0) return
+    // デッキを破棄する経路（効果・コスト・ライフの身代わり）はすべてここを通るので、画面への知らせもここで1回出す
+    emitEvent(state, { type: "mill", pid, count: n })
     state.millCountThisTurnMutual[pid] = (state.millCountThisTurnMutual[pid] ?? 0) + n
     if (actorPid === undefined || actorPid === pid) return
     for (const r of recordedMillCaps(state, pid, sourceType)) r.used = (r.used ?? 0) + n

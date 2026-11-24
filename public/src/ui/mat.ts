@@ -1,6 +1,7 @@
 // PC の対戦画面のプレイマット（ライフ・リザーブ・デッキ・トラッシュの枠）。狭い画面では CSS で隠し、情報の行が同じ数を出す
 import type { GameView, PlayerId } from "../../../server/src/type"
 import { coreIcon } from "./coreIcon"
+import { markMillCount } from "./millCount"
 import { coreZoneChoiceId, canAwakenFromReserve } from "../../../shared/rules"
 import type { UiState } from "../renderer"
 
@@ -52,14 +53,19 @@ export function renderMat(view: GameView, ui: UiState, pid: PlayerId, isSelf: bo
         mark(reserve, coreZoneChoiceId("reserve", pid))
     }
 
-    slotOf("deck", side, "デッキ", `${p.deckCount}枚`)
+    const deck = slotOf("deck", side, "デッキ", "")
+    if (deck) {
+        deck.dataset.millBox = pid
+        markMillCount(deck.querySelector<HTMLElement>(".mat-n")!, "deck", pid, p.deckCount, "", "枚")
+    }
 
     const trash = slotOf("trash", side, "トラッシュ", "")
     if (trash) {
         trash.classList.add("mat-trash")
         const cards = document.createElement("div")
         cards.className = "mat-half"
-        cards.textContent = `カード ${p.trashCards.length}枚`
+        markMillCount(cards, "trash", pid, p.trashCards.length, "カード ", "枚")
+        trash.dataset.millBox = pid
         const co = document.createElement("div")
         co.className = "mat-half"
         co.append(coreIcon(), `コア ${p.trashCores}`)

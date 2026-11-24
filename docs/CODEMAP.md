@@ -1684,6 +1684,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `renderMat`（fn）
 
+## public/src/ui/millCount.ts
+
+- `millPending`（fn）：まだ数えていない枚数（描画はデッキに足し、トラッシュから引く）
+- `startMillCount`（fn）：何枚でも合わせて1秒ほどで数え終わるようにする（1枚ずつの間は 60〜150ms）
+- `refreshMillTexts`（fn）：描画した直後にも呼ぶ（数えている途中で描き直されたとき、光らせるクラスを付け直すため）
+- `markMillCount`（fn）：数える対象の文字の要素に印を付ける。base は破棄の後の（本当の）枚数
+
 ## public/src/ui/payInput.ts
 
 - `PAY_MODE_KEY`（const）：コアの支払い方式はブラウザごとに覚える。保存できない環境（プライベートモード等）では毎回「自動」に戻る
