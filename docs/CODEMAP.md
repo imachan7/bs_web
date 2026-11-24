@@ -321,6 +321,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isExhaustImmuneOnBoard`（fn）：【疲労しない】（kind:"exhaustImmunityGrant"。トランプの王国）。
 - `continuousEffectReaches`（fn）：相手の継続効果（相手に与える制約・常時のBP増減・期間つきの範囲効果・指定アタック）が、この個体に届くか。
 
+## shared/rules/summonLevelCost.ts
+
+- `summonLevelCostBonus`（fn）
+- `summonMinCores`（fn）：これから場に出すカード（召喚・配置・入れ替え・【不死】・トークンなど）の置くコアの最小。
+
 ## shared/rules/summonToll.ts
 
 - `summonVoidToll`（fn）：Q4338：コストは印刷のコストで見る。発生源の陣営は問わず、召喚する側のリザーブから払う
@@ -1623,6 +1628,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hideWaiting`（fn）
 - `showToast`（fn）
 
+## public/src/ui/coreIcon.ts
+
+- `coreIcon`（fn）：コアの画像。文字の高さに合わせるため大きさは CSS（.core-icon）で em 指定
+
 ## public/src/ui/fieldCard.ts
 
 - `renderField`（fn）
@@ -1659,6 +1668,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `CATEGORY_MAP`（const）：コミットメッセージからカテゴリと表示テキストを抽出する
 - `parseReleaseMessage`（fn）
 - `loadChangelog`（fn）
+
+## public/src/ui/mat.ts
+
+- `renderMat`（fn）
 
 ## public/src/ui/payInput.ts
 

@@ -2,6 +2,7 @@
 import type { CardData, EffectAction, GameState, PaySource, PlayerId } from "../type"
 import { costPayPlan } from "./EffectModules"
 import { suspend } from "./GameState"
+import { summonLevelCostBonus, summonMinCores } from "../../../shared/rules/summonLevelCost"
 import { normalReserveOf } from "./soulCore"
 import { summonVoidToll } from "../../../shared/rules/summonToll"
 
@@ -18,11 +19,12 @@ export function summonCoreOptions(state: GameState, pid: PlayerId, card: CardDat
     const toll = summonVoidToll(state, card)
     if (normalReserveOf(state.players[pid]) < toll) return []
     // 置く数は Lv の境目に限らない。効果による召喚はアタックステップでも起き、後からコアを動かせないため（2026-11-12 ユーザー指摘）
+    const bonus = summonLevelCostBonus(state, pid, card)
     const levels = [...card.levels].sort((a, b) => a.cores - b.cores)
-    const min = levels[0]?.cores ?? 0
+    const min = summonMinCores(state, pid, card)
     const options: { level: number; cores: number }[] = []
     for (let n = min; summonPayPlan(state, pid, cost + n + toll, reserveOnly) !== null; n++) {
-        options.push({ level: levels.filter((l) => l.cores <= n).at(-1)!.level, cores: n })
+        options.push({ level: levels.filter((l) => l.cores + bonus <= n).at(-1)?.level ?? levels[0]!.level, cores: n })
     }
     return options
 }

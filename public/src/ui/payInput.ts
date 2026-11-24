@@ -3,7 +3,7 @@ import type { GameView, PaySource } from "../../../server/src/type"
 import { effectiveCost, master } from "../renderer"
 import { ownHandKeyword } from "../../../shared/rules"
 import { payingAltPay } from "./paying"
-import { flashSummonFromHandNow, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds } from "../../../shared/rules"
+import { flashSummonFromHandNow, placedCoresForSummon, summonLevelCostBonus, summonMinCores, minLevelCores, sokuPayableInstanceIds } from "../../../shared/rules"
 import { view, ui, send, rerender } from "../main"
 import { sendPlay } from "./play"
 
@@ -138,6 +138,7 @@ export function submitPaying(): void {
         pay.placeSoulCore === true ? true : undefined,
         pay.payOffInstanceId,
         pay.fromTegamoto,
+        pay.cores,
     )
     ui.paying = null
 }
@@ -192,7 +193,7 @@ export function startChoicePaying(cardIndex: number): boolean {
     if (cardId === undefined) return false
     const card = master(cardId)
     // マジックには「置くコア」が無いのでコストだけ
-    const need = effectiveCost(view, view.you, card) + (card.type === "magic" ? 0 : minLevelCores(card))
+    const need = effectiveCost(view, view.you, card) + (card.type === "magic" ? 0 : summonMinCores(view, view.you, card))
     // 案B-inside: [ソウルコア]ぶんを差し引いた通常コアでauto判定する
     if (ui.payMode === "auto" && player.reserve - (player.soulCore?.zone === "reserve" ? 1 : 0) >= need) return false
     ui.paying = {
@@ -279,7 +280,7 @@ export function assignPayCore(instanceId: string): void {
     const maintain =
         card.type === "magic" || pay.braveTargetInstanceId !== undefined
             ? 0
-            : placedCoresForSummon(card, pay.level, { placeSoulCoreFromReserve: pay.placeSoulCore === true })
+            : placedCoresForSummon(card, pay.level, { placeSoulCoreFromReserve: pay.placeSoulCore === true, cores: pay.cores, levelCostBonus: summonLevelCostBonus(view, view.you, card) })
     const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
     const already = pay.assigned[instanceId] ?? 0
     // 代替コスト（手札破棄／デッキ破棄）で肩代わりしたぶん、コアで払う額が減る

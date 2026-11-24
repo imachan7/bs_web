@@ -1,7 +1,7 @@
 // サーバー通信、ユーザー操作の受付、状態購読
 import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
-import { installSecretCardArt, preloadCardArt } from "./cardArt"
+import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -114,7 +114,7 @@ function connectAndRun(button: HTMLElement, action: () => void): void {
 
 
 export let view: GameView | null = null
-export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, burstResetConfirm: null }
+export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, summonCores: null, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -233,6 +233,7 @@ function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
             el.appendChild(badge)
         }
         
+        attachCardArt(el, cardId, m.name)
         el.dataset.cardId = cardId // enable tooltip
         trashContent.appendChild(el)
     })
@@ -1250,6 +1251,21 @@ async function init(): Promise<void> {
             tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, picked.length > 0 ? picked : [], undefined, undefined, fromTegamoto)
             return
         }
+        const coresStepEl = closestData(e, "data-summon-cores-step")
+        if (coresStepEl && ui.summonLevelSelect) {
+            ui.summonCores = (ui.summonCores ?? 0) + Number(coresStepEl.dataset.summonCoresStep)
+            rerender()
+            return
+        }
+        const coresEl = closestData(e, "data-summon-cores")
+        if (coresEl && ui.summonLevelSelect) {
+            const cores = Number(coresEl.dataset.summonCores)
+            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
+            ui.summonLevelSelect = null
+            ui.summonCores = null
+            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, undefined, fromTegamoto, cores)
+            return
+        }
         const levelEl = closestData(e, "data-summon-level")
         if (levelEl && ui.summonLevelSelect) {
             const level = Number(levelEl.dataset.summonLevel)
@@ -1306,6 +1322,18 @@ async function init(): Promise<void> {
         byId("trash-panel").classList.toggle("hidden")
         rerender()
     })
+    // PC のマットのトラッシュの枠から、その側のタブで開く
+    for (const [id, tab] of [["mat-trash-self", "mine"], ["mat-trash-opp", "opp"]] as const) {
+        byId(id).addEventListener("click", (e) => {
+            // コア選択の候補として押したときは、中身を開かず選択を優先する
+            if ((e.target as HTMLElement).closest("[data-corezone]")) return
+            activeTrashTab = tab
+            byId("tab-my-trash").classList.toggle("active", tab === "mine")
+            byId("tab-opp-trash").classList.toggle("active", tab === "opp")
+            byId("trash-panel").classList.remove("hidden")
+            rerender()
+        })
+    }
     byId("btn-close-trash").addEventListener("click", () => {
         byId("trash-panel").classList.add("hidden")
     })

@@ -316,6 +316,7 @@ export interface PendingChoice {
         handIndex: number
         fromTegamoto?: true // 手元のカードの召喚：handIndex は手元の添字。答えが来るまでカードは手元に置いたまま
         level?: number
+        cores?: number
         paySources?: PaySource[]
         braveTargetInstanceId?: string
         exReductionTrashIndices?: number[]
