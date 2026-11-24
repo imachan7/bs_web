@@ -14,7 +14,6 @@
     const card = $derived(cardStore.cards.find((c) => c.cardId === detail.cardId))
     const note = $derived(card ? cardStore.notes[card.cardId] : undefined)
     const NOTE_LABELS = { unimplemented: "未実装", partial: "一部未実装", simplified: "簡略化" }
-    const SYMBOL_FILES: Record<string, string> = { red: "red", purple: "violet", green: "green", white: "white", yellow: "yellow", blue: "blue" }
     const art = $derived(card ? cardImageUrl(card.cardId, mobile ? "md" : "lg") : null)
     let artFailed = $state("")
 
@@ -65,7 +64,6 @@
         {/key}
         <div class="title">
             <span>{card.name}（{card.cardId}）</span>
-            {#each card.symbol ?? [] as s}<span class="sym" style:background-image="url('/imgs/symbols/{SYMBOL_FILES[s]}_symbol.png')"></span>{/each}
         </div>
         <div class="meta">{lines.join("　")}</div>
         {#if levelText}<div class="meta">{levelText}</div>{/if}
@@ -94,7 +92,6 @@
     .pin button { font-size: 12px; padding: 2px 8px; }
     .art { width: 100%; max-width: 260px; align-self: center; height: auto; aspect-ratio: 675 / 985; border-radius: 8px; background: #0003; }
     .title { display: flex; align-items: center; gap: 6px; font-weight: bold; flex-wrap: wrap; }
-    .sym { width: 14px; height: 14px; border-radius: 50%; background-size: cover; box-shadow: 0 1px 2px #0008; }
     .meta { font-size: 12px; color: #aab; }
     .effect { white-space: pre-wrap; font-size: 12px; line-height: 1.75; background: #26282e; border: 1px solid #33363d; border-radius: 8px; padding: 9px 10px; color: #ddd; }
     .effect-note { color: #8fd3ff; text-decoration: underline dotted; cursor: help; }
