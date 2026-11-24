@@ -2,7 +2,7 @@
 import { coreIcon } from "./coreIcon"
 import type { CardInstance, Color, GameView, PlayerId } from "../../../server/src/type"
 import { COLOR_LABELS } from "../../../data/constants"
-import { braveCombineCandidates } from "../../../shared/summon"
+import { braveCombineCandidates, braveExchangeTargets } from "../../../shared/summon"
 import { attachCardArt } from "../cardArt"
 import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors } from "../../../shared/rules"
 import { payingCardId } from "./paying"
@@ -222,6 +222,14 @@ export function fieldCardEl(
                     btn.textContent = "分離"
                     btn.title = `分離してスピリット状態にする（コア${need}個が必要）`
                     row.appendChild(btn)
+                    if (braveExchangeTargets(view, view.you, brave.instanceId).length > 0) {
+                        const ex = document.createElement("button")
+                        ex.className = "detach-badge exchange-badge"
+                        ex.dataset.exchange = brave.instanceId
+                        ex.textContent = "交換"
+                        ex.title = "別のスピリットに合体させ直す（コアは動かない）"
+                        row.appendChild(ex)
+                    }
                 }
                 box.appendChild(row)
             }

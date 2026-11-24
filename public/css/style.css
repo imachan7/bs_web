@@ -1190,6 +1190,8 @@ button:active {
 .detach-badge:hover {
     filter: brightness(1.2);
 }
+/* 交換（§6.4.1）は分離の1段上に置く */
+.exchange-badge { bottom: 18px; }
 
 /* カードの下の操作ボタンの行（fieldCard.ts の cardActions）。中のボタンは角に重ねず、並べて置く */
 .card-actions {

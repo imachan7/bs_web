@@ -106,6 +106,7 @@ import {
     validateBlock,
     validateEndTurn,
     validateCombineBrave,
+    validateExchangeBrave,
     validateDetachBrave,
     validateMoveCore,
     validateSwapSoulCore,
@@ -363,6 +364,8 @@ function dispatchAction(
             return doCombineBrave(state, pid, action.braveInstanceId, action.hostInstanceId)
         case "detachBrave":
             return doDetachBrave(state, pid, action.braveInstanceId, action.paySources)
+        case "exchangeBrave":
+            return doExchangeBrave(state, pid, action.braveInstanceId, action.toInstanceId)
         case "awaken":
             return doAwaken(state, pid, action.instanceId, action.fromInstanceId, action.count)
         case "attack":
@@ -1050,6 +1053,35 @@ function doDetachBrave(state: GameState, pid: PlayerId, braveInstanceId: string,
     const host = player.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     if (!brave || !host) return "対象のカードが見つかりません"
     detachBraveVoluntary(state, pid, host, brave, paySources)
+    return null
+}
+
+// メインステップのブレイヴの交換（BRAVE.md §6.4.1）。スピリット状態を経ずに付け直すので、コアは動かさない。
+// 疲労は移動元を引き継ぐ（外すときに写し、attachBrave の疲労合成で移動先へ伝わる。§12.5）
+function doExchangeBrave(state: GameState, pid: PlayerId, braveInstanceId: string, toInstanceId: string): string | null {
+    const error = validateExchangeBrave(state, pid, braveInstanceId, toInstanceId)
+    if (error) return error
+    const player = state.players[pid]
+    const from = player.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
+    const to = findSpirit(player, toInstanceId)
+    if (!from || !to) return "対象のカードが見つかりません"
+    const take = (host: CardInstance): CardInstance | undefined => {
+        const ref = (host.braveRefs ?? [])[0]
+        if (!ref) return undefined
+        delete host.braveRefs
+        const at = player.field.combinedBraves.findIndex((b) => b.instanceId === ref.instanceId)
+        const [brave] = player.field.combinedBraves.splice(at, 1)
+        if (brave) brave.isRested = host.isRested
+        return brave
+    }
+    const moving = take(from)
+    const back = take(to)
+    if (!moving) return "対象のブレイヴが見つかりません"
+    attachBrave(state, pid, to, moving)
+    if (back) attachBrave(state, pid, from, back)
+    log(state, back
+        ? `${player.name}は${getCard(from.cardId).name}と${getCard(to.cardId).name}のブレイヴを入れ替えた。`
+        : `${player.name}は${getCard(moving.cardId).name}を${getCard(to.cardId).name}に合体させ直した。`)
     return null
 }
 
