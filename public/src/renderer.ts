@@ -238,7 +238,7 @@ export interface UiState {
     altSummonSelect: { handIndex: number; cardId: string; candidateNexusIds: string[] } | null
     // 任意合体モード（BRAVE.md §6.4）：合体させるスピリット状態のブレイヴを選んだ状態。
     // candidateIds は合体先に選べる自分のスピリット（braveCombineCandidates と同じ判定）
-    combineBrave: { braveInstanceId: string; candidateIds: string[] } | null
+    combineBrave: { braveInstanceId: string; candidateIds: string[]; exchange?: true } | null // exchange＝合体中のブレイヴの交換（§6.4.1）
     // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
     stepper: number | null
     // 召喚・配置で置くコアの数の増減（レベル選択の下）。選択を閉じたら null に戻す

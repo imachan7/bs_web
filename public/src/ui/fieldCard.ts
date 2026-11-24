@@ -2,7 +2,7 @@
 import { coreIcon } from "./coreIcon"
 import type { CardInstance, Color, GameView, PlayerId } from "../../../server/src/type"
 import { COLOR_LABELS } from "../../../data/constants"
-import { braveCombineCandidates } from "../../../shared/summon"
+import { braveCombineCandidates, braveExchangeTargets } from "../../../shared/summon"
 import { attachCardArt, cardImageUrl } from "../cardArt"
 import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors, instBaseCost } from "../../../shared/rules"
 import { payingCardId } from "./paying"
@@ -234,6 +234,14 @@ export function fieldCardEl(
                     btn.textContent = "分離"
                     btn.title = `分離してスピリット状態にする（コア${need}個が必要）`
                     row.appendChild(btn)
+                    if (braveExchangeTargets(view, view.you, brave.instanceId).length > 0) {
+                        const ex = document.createElement("button")
+                        ex.className = "detach-badge exchange-badge"
+                        ex.dataset.exchange = brave.instanceId
+                        ex.textContent = "交換"
+                        ex.title = "別のスピリットに合体させ直す（コアは動かない）"
+                        row.appendChild(ex)
+                    }
                 }
                 box.appendChild(row)
             }
@@ -562,7 +570,7 @@ export function fieldCardEl(
         }
         // 任意合体モード中：合体先に選べるスピリットを強調する
         if (ui.combineBrave !== null && ui.combineBrave.candidateIds.includes(inst.instanceId)) {
-            el.classList.add("targetable", "clickable")
+            el.classList.add("brave-dest", "clickable")
         }
         // 起動能力（フラッシュ中のバトル／自分のメインステップで任意発動）：バッジのクリックで発動。
         // 出す条件は共有層の activatableAbility が一手に判定する（サーバーの受理条件と同じ実装）

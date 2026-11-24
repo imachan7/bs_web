@@ -1277,6 +1277,14 @@ button:active {
 /* ブレイヴがはみ出すぶんは並び全体の上に空ける（合体したスピリットだけを下げると、隣と段差になる） */
 :root[data-brave="art"] .spirit-zone:has(.has-brave-art) { padding-top: 32px; }
 :root[data-brave="full"] .spirit-zone:has(.has-brave-art) { padding-top: 40px; }
+/* 交換（§6.4.1）は分離の1段上に置く */
+.exchange-badge { bottom: 18px; }
+/* 合体・交換の移せる先。赤の targetable だと赤のスピリットの縁と見分けられないので、カードの色に無い水色の外枠にする */
+.spirit-zone .card.brave-dest {
+    outline: 3px solid #4fd8ff;
+    outline-offset: 3px;
+    box-shadow: 0 0 12px 3px rgba(79, 216, 255, 0.7);
+}
 
 /* カードの下の操作ボタンの行（fieldCard.ts の cardActions）。中のボタンは角に重ねず、並べて置く */
 .card-actions {
