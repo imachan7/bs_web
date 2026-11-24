@@ -1,6 +1,7 @@
 <script lang="ts">
     import { cardStore } from "../state/cards.svelte"
     import { filters, visibleCards } from "../state/filters.svelte"
+    import { artEpoch } from "../state/artEpoch.svelte"
     import PoolTile from "./PoolTile.svelte"
     import PoolRow from "./PoolRow.svelte"
 
@@ -39,13 +40,15 @@
         <p>読み込み中</p>
     {:else}
         <div class="body {mode}">
-            {#each shown as card (card.cardId)}
-                {#if mode === "grid"}
-                    <PoolTile {card} size={artSize} />
-                {:else}
-                    <PoolRow {card} />
-                {/if}
-            {/each}
+            {#key artEpoch.n}
+                {#each shown as card (card.cardId)}
+                    {#if mode === "grid"}
+                        <PoolTile {card} size={artSize} area="pool" />
+                    {:else}
+                        <PoolRow {card} />
+                    {/if}
+                {/each}
+            {/key}
             {#if visible.length > limit}
                 <button type="button" class="more" onclick={() => (limit += PAGE)}>
                     もっと見る（残り{visible.length - limit}件）

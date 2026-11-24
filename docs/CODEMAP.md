@@ -1599,6 +1599,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `braveConditionText`（fn）：合体条件の表示文言（例: "系統：「神星」" "コスト3以上" "「○○」" "効果の記述を持たないスピリット"）
 - `braveBpGain`（fn）：合体時に加算されるBP（braveLevels の最高値。cores は常に0なので levels は1件想定）
 
+## public/src/deck-next/logic/deckStats.ts
+
+- `DeckEntry`（型）
+- `DeckStats`（型）
+- `computeDeckStats`（fn）
+
 ## public/src/deck-next/logic/families.ts
 
 - `FAMILY_GROUPS`（const）
@@ -1612,12 +1618,29 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `MERGED_SERIES_LABELS`（const）
 - `seriesLabel`（fn）
 
+## public/src/deck-next/state/artEpoch.svelte.ts
+
+- `artEpoch`（const）：合言葉でカード絵の表示が切り替わったら増やす。一覧は {#key} で張り直し、use:cardArt をやり直す
+
 ## public/src/deck-next/state/cards.svelte.ts
 
 - `NoteStatus`（型）
 - `CardNote`（型）
 - `cardStore`（const）
 - `loadCards`（fn）
+
+## public/src/deck-next/state/deck.svelte.ts
+
+- `deck`（const）
+- `deckCards`（const）
+- `cardOf`（fn）
+- `deckTotal`（fn）
+- `nameCount`（fn）：同名カードのデッキ内合計枚数（cardId が違っても同名なら合算する）
+- `nameLimit`（fn）
+- `addBlockReason`（fn）：追加できない理由（できるなら null）。トーストと＋ボタンの無効化で共有する
+- `addCard`（fn）
+- `removeCard`（fn）
+- `validateDeck`（fn）：デッキ全体の制約検証。問題がなければ空配列
 
 ## public/src/deck-next/state/filters.svelte.ts
 
@@ -1634,6 +1657,16 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `filterNotes`（const）
 - `passesFilter`（fn）
 - `visibleCards`（fn）：絞り込んで並べたカード。cardStore.cards は cardId 順なので、ID順はそのまま
+
+## public/src/deck-next/state/selection.svelte.ts
+
+- `selection`（const）：− ＋ を出しているタイル。プールとデッキ欄に同じカードが並ぶので、cardId だけでなく置き場も含めて持つ
+- `toggleSelection`（fn）
+
+## public/src/deck-next/state/toast.svelte.ts
+
+- `toast`（const）：画面下の通知。同時に1件だけ出し、次が来たら置き換える
+- `showToast`（fn）
 
 ## public/src/effectText.ts
 
