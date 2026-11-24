@@ -923,7 +923,7 @@ export interface LifeLossQuery {
 // 原因を問わず効く扱いは EFFECT_GATE §4 の 4（2026-10-30 ユーザー確認）
 export function lifeLossAllowed(board: Board, q: LifeLossQuery): number {
     const { pid } = q
-    if (q.actorPid !== pid && cantReduceOpponentLife(board, q.actorPid)) return 0
+    if (q.actorPid !== pid && cantReduceOpponentLife(q.sourceInstance)) return 0
     // noLifeDamage の includeEffects（BS19-106）：減らしに来た効果の発生源が「アタック/効果では減らない」を
     // 指定されたスピリットそのもののときは減らせない
     if (q.cause === "effect" && q.actorPid !== pid && q.sourceInstance?.lifeDamageEffectsNegatedFor === pid) return 0
@@ -953,19 +953,17 @@ function ownLifeFloorByCostSelfToTrash(board: Board, pid: PlayerId): number {
     return floor
 }
 
-// attackerPid は「ライフを減らそうとしている側」。その持ち主のフィールドに
-// cantReduceOpponentLifeWhileSelfRefreshed を持つ**回復状態の**発生源があれば減らせない（BS11-X06 Lv3）
-export function cantReduceOpponentLife(board: Board, attackerPid: PlayerId): boolean {
-    for (const inst of effectSources(board, attackerPid)) {
-        if (inst.isRested) continue
-        for (const effect of card(inst.cardId).effects) {
-            if (effect.kind !== "globalConstraint") continue
-            if (effect.constraint.type !== "cantReduceOpponentLifeWhileSelfRefreshed") continue
-            if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
-            return true
-        }
-    }
-    return false
+// BS11-X06 Lv3「このスピリットが回復状態の間、相手のライフを減らせない」。効くのは発生源の個体自身が減らそうとするときだけで、
+// 同じプレイヤーの別スピリットのアタック・効果ダメージは止めない（2026-11-24 ユーザー確認。公式 Q3069）。
+// 原因（アタック/効果/コスト）は問わない。発生源が不明（sourceInstance なし）のときは止めない
+export function cantReduceOpponentLife(source: CardInstance | undefined): boolean {
+    if (!source || source.isRested) return false
+    return card(source.cardId).effects.some(
+        (effect) =>
+            effect.kind === "globalConstraint" &&
+            effect.constraint.type === "cantReduceOpponentLifeWhileSelfRefreshed" &&
+            effectActiveOn(source, effect, currentLevel(source).level),
+    )
 }
 
 // このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか
