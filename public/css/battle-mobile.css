@@ -9,7 +9,10 @@
     /* 行の高さ。背の低い画面（下の max-height: 700px）だけ値を詰める（2026-11-24 iPhone SE の Safari で見える高さ約553px に収めるため）。
        --zone-h はスピリットの欄の高さで、2段のときのカード幅もここから決まる（欄に収まる幅。ui/spiritLayout.ts は測った幅で判定するので値を直接は読まない） */
     :root {
-        --sp-h-ratio: calc(985 / 675); --nexus-h: 63px; --info-h: 40px; --nexus-w: 48px; --card-w: 48px; --hand-w: 48px;
+        --sp-h-ratio: calc(985 / 675); --nexus-h: 63px; --info-h: 40px; --nexus-w: 48px;
+        /* カード（場・手札共通）は画面の幅と高さの小さい側に合わせて少しだけ大きくする。375×667 で48px、430×932（Pro Max）で約57px。
+           体数では変えない。145pxまで大きくしたときは大きすぎて手札と釣り合わず、48px固定では Pro Max で小さかった（2026-11-24 ユーザー） */
+        --card-w: clamp(48px, min(16vw - 12px, 7.2dvh), 64px); --hand-w: var(--card-w);
         /* 背の高いスマホで下に余白が残らないよう、スピリットの欄は見えている高さ（dvh）に合わせて伸ばす（2026-11-24 ユーザー指摘：430×932 で下に約270px空いていた）。
            カードは大きくせず、段を増やせる広さにする。高さ667px までは150px（48pxのカードで2段）。296px は欄2つ・手札以外の行（上の行・情報・ネクサス・中央の帯・余白）の合計の実測 */
         --zone-h: max(150px, calc((100dvh - 296px - var(--hand-w) * 985 / 675) / 2));
@@ -345,7 +348,7 @@
    標準の値は、375×667 以上（高さ667px以上）でスピリットの絵を大きく保つため、そのまま（667px で境にしたのは、375×667 の見た目を変えないため）。1段と2段で欄の高さは同じ。
    カードの幅は .spirit-zone の --sp-w が欄の高さ（--zone-h）から逆算するので、ここでは欄の高さだけ変える */
 @media (max-width: 768px) and (max-height: 666px) {
-    :root { --zone-h: 122px; --nexus-h: 54px; --info-h: 36px; --hand-w: 42px; --nexus-w: 40px; --card-w: 39px; }
+    :root { --zone-h: 122px; --nexus-h: 54px; --info-h: 36px; --hand-w: 42px; --nexus-w: 40px; --card-w: 38px; }
     .player-area { padding-top: 2px; padding-bottom: 2px; }
     #status-bar { padding: 2px 8px; }
     #center-info-area { height: 18px; }
