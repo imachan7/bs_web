@@ -28,7 +28,7 @@ import {
 import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, timedCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, summonLevelCostBonus, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { onlyUsableDenial, canDiscardHand, costExhaustLocked, coreIntakeRefused, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
-import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
+import { battleSwapSummonCheck, braveCombineCandidates, braveExchangeTargets, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockDestroyCandidates, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter, mandatoryDirectAttackTargetIds } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -893,6 +893,14 @@ export function validateCombineBrave(
     if (!braveCombineCandidates(state, pid, brave.cardId).includes(hostInstanceId)) {
         return "そのスピリットには合体できません"
     }
+    return null
+}
+
+// メインステップの交換（§6.4.1）
+export function validateExchangeBrave(state: GameState, pid: PlayerId, braveInstanceId: string, toInstanceId: string): string | null {
+    const timing = checkMainTiming(state, pid)
+    if (timing) return timing
+    if (!braveExchangeTargets(state, pid, braveInstanceId).includes(toInstanceId)) return "そのスピリットとは交換できません"
     return null
 }
 

@@ -5,7 +5,7 @@ import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
-import { braveCombineCandidates } from "../../shared/summon"
+import { braveCombineCandidates, braveExchangeTargets } from "../../shared/summon"
 import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, rebuildDeckSelects, rememberDeckSelection, rememberLobbyInputs, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
 import { waitForOpponent, type DeckChoice, type WaitExtra } from "./matchWait"
@@ -402,6 +402,8 @@ function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement
             stopWaiting = null
             showWait(null)
             showToast("対戦相手が見つかりました")
+            // 盤面を作るデバッグの入口（/api/debug/setup）が要る実際のルームID。入力したルーム名は待ち合わせの名前で、IDとは別（docs/guide/DEBUG_SETUPS.md）
+            ;(window as unknown as { ROOM?: string }).ROOM = roomId
             // 同じ内容の join をもう一度送ると、サーバーは参加の取り消しとして扱う
             const join = () => socket.emit("join", { roomId, name, ...deck })
             const retry = () => startWaiting(mode, pool, button, showWait, extra)
@@ -592,6 +594,7 @@ async function init(): Promise<void> {
     // お知らせ（Gitコミット履歴）を非同期で取得・表示
     loadChangelog()
     installSecretCardArt(showToast)
+    installDisplaySettings()
 
     byId("join-btn").addEventListener("click", () => {
         // 2回目の「対戦ルームに入る」は参加の取り消し
@@ -753,6 +756,18 @@ async function init(): Promise<void> {
             }
             return
         }
+        // 交換バッジ（§6.4.1）：合体先の選択モードを交換として使う
+        const exchangeBtn = closestData(e, "data-exchange")
+        if (exchangeBtn) {
+            if (!view) return
+            const braveInstanceId = String(exchangeBtn.dataset.exchange)
+            ui.combineBrave = { braveInstanceId, candidateIds: braveExchangeTargets(view, view.you, braveInstanceId), exchange: true }
+            ui.targeting = null
+            ui.awakenTarget = null
+            ui.paying = null
+            rerender()
+            return
+        }
         // 分離バッジ（§6.4）：リザーブで払えるならそのまま送り、足りなければ支払いモードへ入る
         const detachBtn = closestData(e, "data-detach")
         if (detachBtn) {
@@ -777,7 +792,9 @@ async function init(): Promise<void> {
             const card = closestData(e, "data-instance-id")
             const hostInstanceId = card ? String(card.dataset.instanceId) : ""
             if (ui.combineBrave.candidateIds.includes(hostInstanceId)) {
-                send({ type: "combineBrave", braveInstanceId: ui.combineBrave.braveInstanceId, hostInstanceId })
+                send(ui.combineBrave.exchange
+                    ? { type: "exchangeBrave", braveInstanceId: ui.combineBrave.braveInstanceId, toInstanceId: hostInstanceId }
+                    : { type: "combineBrave", braveInstanceId: ui.combineBrave.braveInstanceId, hostInstanceId })
             }
             ui.combineBrave = null
             rerender()
@@ -1402,3 +1419,45 @@ async function init(): Promise<void> {
 }
 
 void init()
+
+// 表示の設定（上の「⚙ 表示」で開く）。<html> の data 属性で CSS を切り替え、その端末に覚える
+// brave：合体したブレイヴを art＝イラストだけ／full＝カード全体。frame：スピリットの色の縁 on／off
+function installDisplaySettings(): void {
+    const settings = { brave: { key: "bs.braveStyle", values: ["art", "full"] }, frame: { key: "bs.frameStyle", values: ["on", "off"] } } as const
+    const apply = (name: keyof typeof settings, value: string) => {
+        document.documentElement.dataset[name] = value
+        const radio = document.querySelector<HTMLInputElement>(`input[name="${name}-style"][value="${value}"]`)
+        if (radio) radio.checked = true
+    }
+    for (const name of Object.keys(settings) as (keyof typeof settings)[]) {
+        const { key, values } = settings[name]
+        let saved: string | null = null
+        try {
+            saved = localStorage.getItem(key)
+        } catch {
+            // 保存できない環境では毎回既定から始める
+        }
+        apply(name, saved !== null && (values as readonly string[]).includes(saved) ? saved : values[0])
+        for (const radio of document.querySelectorAll<HTMLInputElement>(`input[name="${name}-style"]`)) {
+            radio.addEventListener("change", () => {
+                apply(name, radio.value)
+                try {
+                    localStorage.setItem(key, radio.value)
+                } catch {
+                    // 保存できなくても、この画面では切り替わる
+                }
+            })
+        }
+    }
+    const btn = byId("btn-display-settings")
+    const panel = byId("display-settings")
+    btn.addEventListener("click", () => {
+        const open = panel.classList.toggle("hidden") === false
+        btn.setAttribute("aria-expanded", String(open))
+    })
+    document.addEventListener("click", (e) => {
+        if (panel.classList.contains("hidden") || (e.target as HTMLElement).closest(".display-settings-wrap")) return
+        panel.classList.add("hidden")
+        btn.setAttribute("aria-expanded", "false")
+    })
+}

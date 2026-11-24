@@ -683,6 +683,26 @@ button:active {
 }
 .log-toggle-btn:hover { background: #2c3044; }
 
+/* 表示の設定（main.ts の installDisplaySettings）。ボタンの下に開く小さな欄 */
+.display-settings-wrap { position: relative; display: inline-block; }
+.display-settings {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 150;
+    min-width: 180px;
+    padding: 8px 10px;
+    background: var(--bg-card);
+    border: 1px solid #444;
+    border-radius: 6px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+    font-size: 13px;
+}
+.display-settings fieldset { border: none; margin: 0 0 6px; padding: 0; }
+.display-settings fieldset:last-child { margin-bottom: 0; }
+.display-settings legend { padding: 0; margin-bottom: 2px; color: var(--text-sub, #aab); font-size: 12px; }
+.display-settings label { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; cursor: pointer; }
+
 #log-panel, #trash-panel, #tegamoto-panel {
     position: fixed;
     right: 20px;
@@ -1189,6 +1209,81 @@ button:active {
 }
 .detach-badge:hover {
     filter: brightness(1.2);
+}
+/* カーソルのある環境では、合体スピリットに載せたときだけ出す（タッチでは載せられないので常に出す） */
+@media (hover: hover) {
+    .card:not(:hover) .detach-badge { display: none; }
+}
+
+/* 合体したブレイヴの見せ方（<html data-brave>）。
+   art＝イラストだけをホストの右斜め上に／full＝カード全体をホストの右斜め上に。
+   縁と絵で前後を分ける：ブレイヴの箱（縁）はホストの絵より先に DOM に入るので後ろに回り、重なった部分の縁はホストの絵に隠れる。
+   絵とボタンだけ z-index で前に出すと、ホストの縁のうちブレイヴの下の部分は絵に隠れ、外側の縁だけが残る
+   （箱に z-index を付けると重ね合わせの単位ができて、絵だけを前に出せなくなる）。
+   表示の設定（main.ts の installDisplaySettings）で切り替える。絵が読めないブレイヴ（.has-brave-art が無い）は右の帯のまま */
+.brave-art { display: none; }
+:root[data-brave="art"] .brave-combined.has-brave-art > .brave-art,
+:root[data-brave="full"] .brave-combined.has-brave-art > .brave-art {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    z-index: 3;
+}
+:root:is([data-brave="art"], [data-brave="full"]) .brave-combined.has-brave-art > .detach-badge { z-index: 4; }
+:root[data-brave="art"] .brave-combined.has-brave-art > .brave-name,
+:root[data-brave="full"] .brave-combined.has-brave-art > .brave-name { display: none; }
+:root[data-brave="art"] .brave-combined-box:has(> .has-brave-art),
+:root[data-brave="full"] .brave-combined-box:has(> .has-brave-art) {
+    left: 50%;
+    bottom: auto;
+    /* ホストと同じ大きさ。% はホストの縁の内側が基準なので、縁（左右 3px）のぶんを足す */
+    width: calc(100% + 6px);
+}
+:root[data-brave="art"] .brave-combined.has-brave-art,
+:root[data-brave="full"] .brave-combined.has-brave-art {
+    flex: none;
+    padding: 0;
+    /* 縁はほかのスピリットと同じ（合体スピリットの今の色。fieldCard.ts の --frame） */
+    border: 3px solid transparent;
+    border-radius: 6px;
+    background: linear-gradient(#111, #111) padding-box,
+                var(--frame, linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333))) border-box;
+}
+:root[data-brave="art"] .brave-combined-box:has(> .has-brave-art) { top: -30px; }
+/* イラストの枠だけを切り出す。カード画像（360×525）でイラストは横 22〜345px・縦 38〜300px（上はコストと名前、左は飾りの縁）。
+   縁の写り込みを避けるため、少し内側（横 30〜325px・縦 56〜286px）を取る。
+   枠の縦横比を箱に持たせ、画像をその枠の外まで広げてはみ出しを隠す */
+:root[data-brave="art"] .brave-combined.has-brave-art { aspect-ratio: 295 / 230; }
+:root[data-brave="art"] .brave-combined.has-brave-art > .brave-art {
+    inset: auto;
+    left: -10.17%;
+    top: -24.35%;
+    width: 122.03%;
+    height: auto;
+    max-width: none;
+    object-fit: fill;
+}
+:root[data-brave="full"] .brave-combined-box:has(> .has-brave-art) { top: -38px; }
+:root[data-brave="full"] .brave-combined.has-brave-art { aspect-ratio: 675 / 985; }
+/* 場のスピリットの色の縁を外す（<html data-frame="off">。表示の設定で選ぶ。絵のあるカードだけ。文字表示は縁が無いと読みにくいので残す） */
+/* 縁の幅は残して色だけ消す（幅を 0 にすると絵の入る場所が広がり、なしにした途端に絵が大きくなる） */
+:root[data-frame="off"] .spirit-zone .card.has-art,
+:root[data-frame="off"] .brave-combined.has-brave-art { background: linear-gradient(#111, #111) padding-box; }
+
+/* ブレイヴがはみ出すぶんは並び全体の上に空ける（合体したスピリットだけを下げると、隣と段差になる） */
+:root[data-brave="art"] .spirit-zone:has(.has-brave-art) { padding-top: 32px; }
+:root[data-brave="full"] .spirit-zone:has(.has-brave-art) { padding-top: 40px; }
+/* 交換（§6.4.1）は分離の1段上に置く */
+.exchange-badge { bottom: 18px; }
+/* 合体・交換の移せる先。赤の targetable だと赤のスピリットの縁と見分けられないので、カードの色に無い水色の外枠にする */
+.spirit-zone .card.brave-dest {
+    outline: 3px solid #4fd8ff;
+    outline-offset: 3px;
+    box-shadow: 0 0 12px 3px rgba(79, 216, 255, 0.7);
 }
 
 /* カードの下の操作ボタンの行（fieldCard.ts の cardActions）。中のボタンは角に重ねず、並べて置く */
@@ -2799,6 +2894,8 @@ body:has(#notice-banner:not(.hidden)) {
     }
     [id^="mat-trash"]:hover { border-color: var(--accent); background: rgba(59, 130, 246, 0.08); }
     .burst-zone,
+    /* トラッシュはマットの枠から開けるので、上のボタンは狭い画面だけに出す */
+    #btn-toggle-trash { display: none; }
     .mat-box {
         position: relative;
         border: 1px solid rgba(255, 255, 255, 0.18);
@@ -2827,6 +2924,7 @@ body:has(#notice-banner:not(.hidden)) {
     .mat-life .mat-n { color: var(--danger); font-size: 26px; line-height: 1; }
     .mat-cores { display: flex; flex-wrap: wrap; gap: 2px; font-size: 22px; min-height: 22px; }
     .mat-cores .core-icon { margin: 0; vertical-align: top; }
+    .mat-cores .mat-core-count { align-self: center; font-size: 15px; font-weight: 700; line-height: 1; }
     .mat-half { font-size: 13px; color: var(--text-muted); padding: 4px 0; }
     .mat-half + .mat-half { border-top: 1px solid rgba(255, 255, 255, 0.18); }
     .mat-box.targetable, .mat-half.targetable { outline: 2px solid var(--accent); cursor: pointer; }
