@@ -19,6 +19,7 @@ export type GameAction =
       }
     | { type: "combineBrave"; braveInstanceId: string; hostInstanceId: string } // メインステップの任意合体（docs/design/BRAVE.md §6.4）。スピリット状態のブレイヴを自分のスピリット1体へ合体させる。ブレイヴが載せていたコアは**リザーブへ戻す**（§1.1 の出典とは異なる。分離でリザーブから払うことと対称にするための決定）。合体先の候補は shared/summon.ts の braveCombineCandidates を通す（サーバーとUIで判定を共有する。§5.0）
     | { type: "detachBrave"; braveInstanceId: string; paySources?: PaySource[] } // メインステップの任意分離（§6.4）。⚠️ **Effect の "detachBrave"（効果による分離。コア不要）とは別物**。こちらは braveKeepCores（スピリット状態のLv1維持コスト）以上のコアを置く必要がある。paySources 省略時はリザーブから自動で払い、リザーブが足りなければ拒否する（クライアントは支払いUIへ入って paySources を付けて再送する）
+    | { type: "exchangeBrave"; braveInstanceId: string; toInstanceId: string } // メインステップの交換（BRAVE.md §6.4.1）。合体中のブレイヴを分離せずに toInstanceId へ移す（相手も合体していれば入れ替える）。コアは動かさない
     | { type: "attack"; instanceId: string; targetSpiritInstanceId?: string; paySources?: PaySource[]; paySoulCoreFromReserve?: boolean } // paySources＝制約 attackPayToll の支払いをフィールドのコアからも払う（省略時はリザーブから）。 targetSpiritInstanceId 指定時は指定アタック（canDirectAttack 持ちのみ）
     | { type: "block"; instanceId: string; paySources?: PaySource[]; paySoulCoreFromReserve?: boolean } // paySources＝ブロックの追加コスト（制約 blockPayCost）をフィールドのコアからも払う。省略時はリザーブから払う
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）

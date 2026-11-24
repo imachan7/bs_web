@@ -5,7 +5,7 @@ import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
-import { braveCombineCandidates } from "../../shared/summon"
+import { braveCombineCandidates, braveExchangeTargets } from "../../shared/summon"
 import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, rebuildDeckSelects, rememberDeckSelection, rememberLobbyInputs, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
 import { waitForOpponent, type DeckChoice, type WaitExtra } from "./matchWait"
@@ -753,6 +753,18 @@ async function init(): Promise<void> {
             }
             return
         }
+        // 交換バッジ（§6.4.1）：合体先の選択モードを交換として使う
+        const exchangeBtn = closestData(e, "data-exchange")
+        if (exchangeBtn) {
+            if (!view) return
+            const braveInstanceId = String(exchangeBtn.dataset.exchange)
+            ui.combineBrave = { braveInstanceId, candidateIds: braveExchangeTargets(view, view.you, braveInstanceId), exchange: true }
+            ui.targeting = null
+            ui.awakenTarget = null
+            ui.paying = null
+            rerender()
+            return
+        }
         // 分離バッジ（§6.4）：リザーブで払えるならそのまま送り、足りなければ支払いモードへ入る
         const detachBtn = closestData(e, "data-detach")
         if (detachBtn) {
@@ -777,7 +789,9 @@ async function init(): Promise<void> {
             const card = closestData(e, "data-instance-id")
             const hostInstanceId = card ? String(card.dataset.instanceId) : ""
             if (ui.combineBrave.candidateIds.includes(hostInstanceId)) {
-                send({ type: "combineBrave", braveInstanceId: ui.combineBrave.braveInstanceId, hostInstanceId })
+                send(ui.combineBrave.exchange
+                    ? { type: "exchangeBrave", braveInstanceId: ui.combineBrave.braveInstanceId, toInstanceId: hostInstanceId }
+                    : { type: "combineBrave", braveInstanceId: ui.combineBrave.braveInstanceId, hostInstanceId })
             }
             ui.combineBrave = null
             rerender()
