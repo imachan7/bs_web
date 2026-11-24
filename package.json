@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "tsx watch server/src/index.ts",
-    "dev:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts --bundle --outdir=public/dist --watch",
-    "build:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts --bundle --minify --outdir=public/dist && node scripts/build-ai-worker.mjs",
+    "dev:client": "node scripts/build-client.mjs --watch",
+    "build:client": "node scripts/build-client.mjs && node scripts/build-ai-worker.mjs",
     "build": "npm run build:client",
     "start": "tsx server/src/index.ts",
     "typecheck": "tsc --noEmit",
@@ -66,7 +66,9 @@
     "@types/node": "^25.6.0",
     "concurrently": "^9.2.1",
     "esbuild": "^0.28.0",
+    "esbuild-svelte": "^0.9.5",
     "socket.io-client": "^4.8.3",
+    "svelte": "^5.59.1",
     "typescript": "^6.0.3"
   }
 }
