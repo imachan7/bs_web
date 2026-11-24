@@ -21,10 +21,6 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：#703 デッキ構築の Svelte 版（draft PR #704・ブランチ `feat/deck-svelte-s0`）
-
-- S1〜S6 実装済み（`public/src/deck/`。旧 `deck.ts`・`deck.css` は削除、バグ報告は `css/bugreport.css`）。**ユーザーが画面を見てから Ready**。スマホ幅は Claude の窓では確かめられていない
-
 ### 次にやること（2026-11-22 時点。上から順に）
 
 1. **一度も実行されていない効果24件に場面テストを足し、`data/coverage-baseline.json` から消す**
