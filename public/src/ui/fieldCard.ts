@@ -366,7 +366,7 @@ export function fieldCardEl(
                 badge.dataset.effect = nexusActivatable.effectId
                 badge.textContent = "起動"
                 badge.title = nexusActivatable.costLabel
-                el.appendChild(badge)
+                cardActions(el).appendChild(badge)
             }
         }
         // 支払いモード中：自分のネクサス上のコアも支払いに割り当てられる
@@ -380,7 +380,7 @@ export function fieldCardEl(
                 const badge = document.createElement("div")
                 badge.className = "pay-badge"
                 badge.textContent = soulPayHere ? `支払${assigned}＋魂` : `支払${assigned}`
-                el.appendChild(badge)
+                cardActions(el).appendChild(badge)
             }
             if (assigned < normals) {
                 el.classList.add("targetable", "clickable")
@@ -463,7 +463,7 @@ export function fieldCardEl(
                 const badge = document.createElement("div")
                 badge.className = "pay-badge"
                 badge.textContent = soulPayHere ? `支払${assigned}＋魂` : `支払${assigned}`
-                el.appendChild(badge)
+                cardActions(el).appendChild(badge)
             }
             if (assigned < normals) {
                 el.classList.add("targetable", "clickable")
@@ -531,7 +531,7 @@ export function fieldCardEl(
             badge.dataset.awaken = inst.instanceId
             badge.textContent = "覚醒可能"
             badge.title = "クリックしてコアの移動元を選ぶ"
-            el.appendChild(badge)
+            cardActions(el).appendChild(badge)
         }
         // メインステップの任意合体（BRAVE.md §6.4）：スピリット状態のブレイヴにだけ「合体」を出す。
         // 候補の列挙は braveCombineCandidates に一本化する（サーバーの受理条件と同じ実装）
@@ -543,7 +543,7 @@ export function fieldCardEl(
                 badge.dataset.combine = inst.instanceId
                 badge.textContent = "合体"
                 badge.title = "クリックして合体先のスピリットを選ぶ（このブレイヴのコアはリザーブへ戻る）"
-                el.appendChild(badge)
+                cardActions(el).appendChild(badge)
             }
         }
         // 任意合体モード中：合体先に選べるスピリットを強調する
@@ -561,7 +561,7 @@ export function fieldCardEl(
             badge.dataset.effect = activatable.effectId
             badge.textContent = "起動"
             badge.title = activatable.costLabel
-            el.appendChild(badge)
+            cardActions(el).appendChild(badge)
         }
         // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタック/ブロック不可
         const singleCoreLocked =
@@ -710,4 +710,16 @@ function wedge(from: number, to: number): string {
     for (let d = from; d < to; d += 15) pts.push(point(d))
     pts.push(point(to))
     return `polygon(${pts.join(", ")})`
+}
+
+// カードの操作ボタン（起動・支払い・覚醒・合体）を並べる行。カードの下に置き、BP やコアの表示に重ねない
+// （角に重ねる作りだとスマホで「コア」の表示を隠し、合体したブレイヴの箱にも隠れた。2026-11-24 ユーザー指摘）
+function cardActions(el: HTMLElement): HTMLElement {
+    let row = el.querySelector<HTMLElement>(":scope > .card-actions")
+    if (!row) {
+        row = document.createElement("div")
+        row.className = "card-actions"
+        el.appendChild(row)
+    }
+    return row
 }
