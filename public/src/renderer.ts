@@ -36,7 +36,7 @@ import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui
 import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
 import { renderField } from "./ui/fieldCard"
 import { renderCardDock } from "./ui/cardDock"
-import { fanSpirits } from "./ui/spiritFan"
+import { layoutSpirits } from "./ui/spiritLayout"
 import { syncEffectNotice } from "./ui/effectNotice"
 import { renderHand } from "./ui/hand"
 import { renderInfo, renderBurst, renderBattle, flashBurstReveal } from "./ui/infoPanels"
@@ -394,7 +394,7 @@ function showLeaveGhost(instanceId: string, kind: "vanish" | "destroy" | "bounce
     // 消えるまでは元の場所を空けておく（詰めると隣のカードが写しの下から出てくるように見えるため）
     const zone = el.parentElement
     if (zone?.id) {
-        leavingSlots.set(instanceId, { zoneId: zone.id, index: Array.from(zone.children).indexOf(el), width: rect.width, height: rect.height })
+        leavingSlots.set(instanceId, { zoneId: zone.id, index: Array.from(zone.children).filter((c) => !c.classList.contains("sp-break")).indexOf(el), width: rect.width, height: rect.height })
         setTimeout(() => {
             leavingSlots.delete(instanceId)
             document.querySelector(`.leave-slot[data-slot="${CSS.escape(instanceId)}"]`)?.remove()
@@ -1099,7 +1099,7 @@ export function render(view: GameView, ui: UiState): void {
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
     renderField("my-spirits", "my-nexuses", view, ui, you, true)
     restoreLeavingSlots()
-    fanSpirits()
+    layoutSpirits()
     renderRevealPanel(view)
 
     // バーストエリア（docs/design/BURST.md）。相手のバーストは常に裏面のみ（cardIdは来ない）

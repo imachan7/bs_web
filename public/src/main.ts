@@ -12,7 +12,7 @@ import { waitForOpponent, type DeckChoice, type WaitExtra } from "./matchWait"
 import { assetUrl } from "./assetUrl"
 import { installCardDock } from "./ui/cardDock"
 import { installStatusMenu } from "./ui/statusMenu"
-import { installSpiritFan } from "./ui/spiritFan"
+import { installSpiritLayout } from "./ui/spiritLayout"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
@@ -600,7 +600,7 @@ async function init(): Promise<void> {
     installDisplaySettings()
     installCardDock()
     installStatusMenu()
-    installSpiritFan()
+    installSpiritLayout()
 
     byId("join-btn").addEventListener("click", () => {
         // 2回目の「対戦ルームに入る」は参加の取り消し

@@ -1867,10 +1867,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `sendAttack`（fn）：アタックの追加コスト（attackPayToll）：リザーブで払えるならそのまま送り、足りなければ支払いモードへ入る（ブロックと同じ。2026-10-11 ユーザー確認）
 - `onOppSpiritClick`（fn）
 
-## public/src/ui/spiritFan.ts
+## public/src/ui/spiritLayout.ts
 
-- `fanSpirits`（fn）
-- `installSpiritFan`（fn）
+- `layoutSpirits`（fn）
+- `installSpiritLayout`（fn）
 
 ## public/src/ui/statusMenu.ts
 

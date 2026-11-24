@@ -1,5 +1,5 @@
 /* スマホ（幅768px以下）の対戦画面の配置。相手の場・自分の場・手札を、上下にスクロールせず1画面に収める（2026-11-24 ユーザー要望）。
-   PC（769px以上）には効かない。場の行の高さは固定で、スピリットの数・合体の有無で変わらない（召喚・破壊で画面が上下にずれない） */
+   PC（769px以上）には効かない。場の行の高さは固定（スピリットの欄は150px）で、スピリットの数・合体の有無で変わらない（召喚・破壊で画面が上下にずれない） */
 #card-dock { display: none; }
 /* PC では上のボタン類をそのまま並べ、スマホ専用の部品（メニューの開閉・手元の欄）は出さない */
 #status-menu { display: contents; }
@@ -62,7 +62,7 @@
     .field-row {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
-        grid-template-rows: 104px 63px 40px;
+        grid-template-rows: 150px 63px 40px;
         grid-template-areas: "burst spirits" "nexus nexus" ". .";
         gap: 2px 6px;
         position: relative;
@@ -71,7 +71,7 @@
     }
     #opponent-area .field-row {
         grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-rows: 40px 63px 104px;
+        grid-template-rows: 40px 63px 150px;
         grid-template-areas: ". ." "nexus nexus" "spirits burst";
     }
     .field-row > .nexus-row { display: contents; }
@@ -126,24 +126,31 @@
     .mat-box .mat-half { font-size: 8px; line-height: 10px; padding: 0; }
     .mat-box .mat-half + .mat-half { border-top: none; }
 
-    /* スピリットは1行。幅は5枚目から48pxに縮め、入りきらなければ左から重ねる（.fan。重なり幅は ui/spiritFan.ts が測って --ov に入れる）。
-       重ねても入らない（Lv・BP・コアの左24pxを残す限界。目安13体）ときだけ、この行の中で横にスクロールする。
-       幅の切り替えを数で決めるのは、CSS だけで決められて保守が軽いから */
+    /* スピリットの欄は高さ150pxで固定（1段↔2段で画面が上下にずれないように。2026-11-24 ユーザー決定）。並べ方は ui/spiritLayout.ts が実際の幅を測って
+       data-rows に入れる：なし/"1"＝64pxで1段（欄の上下中央）、"2"＝48pxで2段（個数で均等。相手側は段の順が逆で、先頭の段が下）、
+       "scroll"＝2段でも入らないときの48pxの1段。入らない段は左から重ね（.fanned。重なり幅は --ov）、Lv・BP・コアの左24pxは残す。
+       --pf は絵やコストバッジがはみ出す側の余白、--pn は反対側。--br-top は合体ブレイヴの絵を段の上へ出してよい量 */
     .spirit-zone {
         --sp-w: 64px;
         --sp-h: calc(var(--sp-w) * var(--sp-h-ratio));
+        --pf: 27px;
+        --pn: 28px;
+        --br-top: 8px;
         flex-wrap: nowrap;
         align-items: flex-start;
         gap: 6px;
-        height: 104px;
+        height: 150px;
         min-height: 0;
-        /* 上はコストバッジのはみ出し（8px）のぶん。相手のカードは180度回るので、はみ出しは下になる */
-        padding: 8px 6px 3px;
+        padding: var(--pf) 6px var(--pn);
         overflow-x: auto;
         overflow-y: hidden;
     }
-    #opponent-area .spirit-zone { padding: 3px 6px 8px; }
-    .spirit-zone:has(> .card:nth-child(5)) { --sp-w: 48px; }
+    #opponent-area .spirit-zone { padding: var(--pn) 6px var(--pf); }
+    /* 段の間は .sp-break の高さで取る（改行用の要素も1行として数えられ、row-gap を使うと2回入るため） */
+    .spirit-zone[data-rows="2"] { --sp-w: 48px; --pf: 6px; --pn: 0px; --br-top: 2px; flex-wrap: wrap; align-content: flex-start; gap: 0 6px; }
+    #opponent-area .spirit-zone[data-rows="2"] { flex-wrap: wrap-reverse; }
+    .spirit-zone[data-rows="scroll"] { --sp-w: 48px; --pf: 39px; --pn: 39px; --br-top: 8px; }
+    .spirit-zone > .sp-break { flex: 0 0 100%; height: 2px; }
     .spirit-zone .card {
         width: var(--sp-w);
         height: auto;
@@ -152,24 +159,25 @@
         margin: 0;
         padding: 2px;
     }
-    /* 合体したブレイヴは、ホストの右へ半分はみ出す。絵は行の高さの中（上へ8px）に収める。右斜め上の見せ方は PC より浅い */
+    /* 合体したブレイヴは、ホストの右へ半分はみ出す。絵は段の中（上へ --br-top まで）に収める。右斜め上の見せ方は PC より浅い */
     .spirit-zone .card.has-brave { margin-right: calc(var(--sp-w) / 2 + 3px); }
     #opponent-area .spirit-zone .card.has-brave { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
-    :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: -8px; }
-    :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: 8px; }
-    :root[data-brave] #opponent-area .spirit-zone:has(.has-brave-art) { padding-top: 3px; }
+    :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: calc(var(--br-top) * -1); }
+    :root[data-brave] .spirit-zone .brave-combined.has-brave-art { max-height: calc(var(--sp-h) + var(--br-top)); }
+    :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: var(--pf); }
+    :root[data-brave] #opponent-area .spirit-zone:has(.has-brave-art) { padding-top: var(--pn); }
     /* 重ねたカードは、左24pxに Lv・BP・コアを寄せる（後ろのカードが右側を隠す）。相手のカードは180度回っているので、枠の右側が見た目の左になる。
        疲労したカードは重ねない（余白で場所を取り、能力値の枠も別の置き方をしている） */
-    .spirit-zone.fan > .card:not(.rested) { margin-right: calc(var(--ov) * -1); }
-    .spirit-zone.fan > .card.has-brave:not(.rested) { margin-right: calc(var(--sp-w) / 2 + 3px - var(--ov)); }
-    #opponent-area .spirit-zone.fan > .card:not(.rested),
-    #opponent-area .spirit-zone.fan > .card.has-brave:not(.rested) { margin-right: calc(var(--ov) * -1); }
-    .spirit-zone.fan .card.has-art:not(.rested) > .card-overlay { left: 0; right: auto; width: 24px; padding: 1px 0 2px; overflow: hidden; white-space: nowrap; }
-    .spirit-zone.fan .card[data-side="opp"].has-art:not(.rested) > .card-overlay { left: auto; right: 0; }
-    .spirit-zone.fan .card.has-art:not(.rested) > .card-overlay .stats,
-    .spirit-zone.fan .card.has-art:not(.rested) > .card-overlay .cores,
-    .spirit-zone.fan .card.has-art:not(.rested) > .card-overlay .stat-bp { font-size: 8px; }
-    .spirit-zone.fan .card.dock-selected { z-index: 5; }
+    .spirit-zone > .card.fanned:not(.rested) { margin-right: calc(var(--ov) * -1); }
+    .spirit-zone > .card.fanned.has-brave:not(.rested) { margin-right: calc(var(--sp-w) / 2 + 3px - var(--ov)); }
+    #opponent-area .spirit-zone > .card.fanned:not(.rested),
+    #opponent-area .spirit-zone > .card.fanned.has-brave:not(.rested) { margin-right: calc(var(--ov) * -1); }
+    .spirit-zone .card.fanned.has-art:not(.rested) > .card-overlay { left: 0; right: auto; width: 24px; padding: 1px 0 2px; overflow: hidden; white-space: nowrap; }
+    .spirit-zone .card.fanned[data-side="opp"].has-art:not(.rested) > .card-overlay { left: auto; right: 0; }
+    .spirit-zone .card.fanned.has-art:not(.rested) > .card-overlay .stats,
+    .spirit-zone .card.fanned.has-art:not(.rested) > .card-overlay .cores,
+    .spirit-zone .card.fanned.has-art:not(.rested) > .card-overlay .stat-bp { font-size: 8px; }
+    .spirit-zone .card.fanned.dock-selected { z-index: 5; }
     /* 疲労は90度回るので、見た目の幅（縦長の高さ）と実際の幅の差を左右に空ける */
     .spirit-zone .card.has-art.rested,
     .spirit-zone .card[data-side="opp"].has-art.rested { margin: 0 calc((var(--sp-h) - var(--sp-w)) / 2); }
@@ -217,8 +225,8 @@
     .card.dock-selected { outline: 2px solid var(--accent-hover); outline-offset: -3px; }
 
     /* 手札は場のスピリットと同じ大きさ（48px・カードの縦横比）で1行。押すと下の欄（#card-dock）に大きな絵と操作ボタンが出る。
-       行の高さは欄に絵を入れるぶん（124px）を取り、手札が小さいぶんは余白にする（2026-11-24 ユーザー確認） */
-    .my-hand-area { position: relative; min-height: 124px; }
+       行の高さは欄に絵を入れるぶん（96px。スピリットの欄が150pxになった分、124pxから詰めた）を取り、手札が小さいぶんは余白にする（2026-11-24 ユーザー確認） */
+    .my-hand-area { position: relative; min-height: 96px; }
     #hand { flex-wrap: nowrap; overflow-x: auto; padding-top: 0; min-width: 0; gap: 4px; align-items: flex-start; }
     #hand .card { flex: 0 0 auto; width: 48px; height: auto; aspect-ratio: 675 / 985; padding: 2px; font-size: 8px; }
     #hand .card .name { margin: 0; font-size: 8px; }
@@ -260,7 +268,7 @@
         border-radius: 8px;
         z-index: 130;
     }
-    #card-dock-art { grid-area: art; height: 108px; aspect-ratio: 675 / 985; border-radius: 6px; }
+    #card-dock-art { grid-area: art; height: 82px; aspect-ratio: 675 / 985; border-radius: 6px; }
     #card-dock-art:not([hidden]) { display: block; }
     #card-dock-name { grid-area: name; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #card-dock-close { grid-area: close; min-width: 44px; min-height: 28px; font-size: 18px; line-height: 1; }
