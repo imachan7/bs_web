@@ -39,7 +39,10 @@
     #status-menu .display-settings-wrap { display: block; }
     #status-menu .display-settings-wrap > button { width: 100%; }
     #status-menu .display-settings { left: auto; right: 0; }
-    #center-info-area { min-height: 28px; padding: 2px 8px; gap: 2px; }
+    /* 中央の帯は高さを固定する。文字（対象選択の案内・選択肢のボタン）で伸びると上下の場がずれて画面が揺れた（2026-11-24 ユーザー指摘）。
+       入りきらない分は帯の上下へはみ出して場の上に重ねる（flex の中央寄せなので上下に均等に出る）。重ねたとき場が透けないよう中身に背景を付ける */
+    #center-info-area { height: 28px; min-height: 0; padding: 0 8px; gap: 2px; box-sizing: border-box; position: relative; z-index: 110; overflow: visible; }
+    #center-info-area > :not(.hidden) { background: var(--bg-panel); border-radius: 6px; padding: 2px 8px; font-size: 12px; text-align: center; box-shadow: 0 2px 8px #000a; }
     .player-area { padding: 4px 8px; gap: 2px; justify-content: flex-start; }
     .opp-hand-area { display: none !important; }
     /* 情報の行は、右に PC と同じマットの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で折り返して出す。
@@ -308,5 +311,5 @@
     .spirit-zone:not([data-rows="2"]):not([data-rows="scroll"]) { --sp-w: calc((var(--zone-h) - 55px) / var(--sp-h-ratio)); }
     .spirit-zone[data-rows="scroll"] { --sp-w: calc((var(--zone-h) - 8px) / 2 / var(--sp-h-ratio)); --pf: calc((var(--zone-h) - var(--sp-h)) / 2); --pn: var(--pf); }
     #status-bar { padding: 2px 8px; }
-    #center-info-area { min-height: 18px; padding: 0 8px; }
+    #center-info-area { height: 18px; }
 }
