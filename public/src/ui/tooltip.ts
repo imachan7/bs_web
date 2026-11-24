@@ -173,7 +173,7 @@ export function setupEffectTooltip(): void {
         if (top < 4) top = rect.bottom + 8
         // スマホは画面の下端に押したカードの欄（#card-dock。高さ最大約140px）と操作ボタンが出る。タップでも mouseover が来て欄と同時に開くので、
         // 欄が開く前のこの時点で、欄の上端より上（下から DOCK_RESERVE px）に収まるようずらす。視線の移動が少ないようカードの近くに置く（2026-11-24 ユーザー）
-        if (window.matchMedia("(max-width: 768px), (max-height: 500px) and (orientation: landscape)").matches) {
+        if (window.matchMedia("(max-width: 768px)").matches) {
             // カードを隠さないよう、上と下の空いている広い側に置き、入りきらなければその側の高さに縮めて中をスクロールさせる
             const limit = window.innerHeight - DOCK_RESERVE
             const roomAbove = Math.min(rect.top, limit) - 8 - 4

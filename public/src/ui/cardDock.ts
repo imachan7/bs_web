@@ -8,7 +8,7 @@ import type { UiState } from "../renderer"
 // 欄に出すのは、カードに付いているボタンの複製。押したら元のボタンを押し直すので、押したときの動きは main.ts の既存の処理のまま増えない。
 // 手札も同じで、カード本体を押し直す（召喚・配置・使用）ボタンと、カードに付いたバッジのボタンを並べる
 // 読み込み時に window を触ると、ブラウザの無い smoke（renderer を読み込む part）が落ちるので、使う時点で判定する
-const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px), (max-height: 500px) and (orientation: landscape)").matches } }
+const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches } }
 const SOURCES = ":scope > .core-buttons > button, :scope > .soul-swap-badge, :scope > .card-actions > button"
 // 分離・交換は合体中のブレイヴごとに付いている。欄では「分離」「交換」を1つずつにまとめ、ブレイヴが2つ以上のときだけ押したあとにどれかを選ばせる
 // （1行ずつ「分離：カード名」と並べると長い名前で欄が横にはみ出した。2026-11-24 ユーザー指摘）
