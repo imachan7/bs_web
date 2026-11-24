@@ -1,0 +1,139 @@
+/* バグ報告ページの土台（旧 deck.css のうち bugreport.html が使っていた分だけ） */
+
+:root {
+    --c-red: #ef4444;
+    --c-purple: #a855f7;
+    --c-green: #22c55e;
+    --c-white: #e5e7eb;
+    --c-yellow: #eab308;
+    --c-blue: #3b82f6;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: #1a1d2b;
+    color: #e8e8f0;
+}
+
+.hidden {
+    display: none !important;
+}
+
+button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    background: #4a6cd4;
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+button:hover {
+    background: #5d7de0;
+}
+
+button.danger {
+    background: #d44a4a;
+}
+
+button.danger:hover {
+    background: #e05d5d;
+}
+
+input[type="text"] {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #1a1d2b;
+    color: #e8e8f0;
+    font-size: 13px;
+}
+
+/* ---- ヘッダー ---- */
+
+#topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 24px;
+    padding: 10px 16px;
+    background: #242838;
+}
+
+#topbar-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+#topbar h1 {
+    margin: 0;
+    font-size: 18px;
+    white-space: nowrap;
+}
+
+#topbar-note {
+    font-size: 12px;
+    color: #b8bdd4;
+    white-space: nowrap;
+}
+
+/* 3つとも同じ大きさ・色。ロビーへ戻る道だけ accent にして目的地を示す */
+#topbar-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 18px;
+    font-size: 13px;
+}
+
+#topbar-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #b8bdd4;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+#topbar-links a:hover {
+    color: #e8e8f0;
+}
+
+#topbar-links #lobby-link {
+    color: #7fd4ff;
+}
+
+#topbar-links #lobby-link:hover {
+    text-decoration: underline;
+}
+
+/* 広い画面：ページ自体は動かさず、本文が中でスクロールする */
+@media (min-width: 900px) {
+    body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+    }
+
+    main {
+        flex: 1;
+        min-height: 0;
+    }
+}
+
+/* ---- アクセシビリティ: モーション低減設定を尊重 ---- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

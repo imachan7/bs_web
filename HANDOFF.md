@@ -21,11 +21,9 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：#703 デッキ構築の Svelte 版（draft PR #704・ブランチ `feat/deck-svelte-s0`。S6 で切り替えるまで旧画面はそのまま）
+### 進行中：#703 デッキ構築の Svelte 版（draft PR #704・ブランチ `feat/deck-svelte-s0`）
 
-- 画面の設計は issue #703。置き場は `public/src/deck-next/`：`state/`（`cards.svelte.ts` カードと注記の読み込み・`deck.svelte.ts` デッキと枚数制限・`filters.svelte.ts` 絞り込みと並び順。runes の $state）／`logic/`（deck.ts から移す純粋な関数）／`components/`（Pool・PoolTile・DeckPane・DeckStats・DetailColumn・Filters・SavedDecks・DeckIo・MobileBar）／`actions/cardArt.ts`（`attachCardArt` を `use:` で包む）。色などの変数は `public/css/deck-next.css`
-- 段：S1 プール（読み取り専用・svelte-check を typecheck に）→ S2＋S4 デッキ欄・統計・詳細カラム・スマホの切替バー → S3 絞り込み → S5＋S6 保存・入出力・構築済みデッキ（色別プリセットは移さない。2026-11-24 ユーザー）→ `deck.html` を新エントリに切り替え、`deck.ts`・`deck.css`・`deck-next.html` を消す
-- localStorage `bsweb:decks` の形・`/api/cards`・入出力の JSON の形は変えない。段ごとに Claude が画面を開いて確かめ、S6 の後にユーザーが見てから Ready
+- S1〜S6 実装済み（`public/src/deck/`。旧 `deck.ts`・`deck.css` は削除、バグ報告は `css/bugreport.css`）。**ユーザーが画面を見てから Ready**。スマホ幅は Claude の窓では確かめられていない
 
 ### 次にやること（2026-11-22 時点。上から順に）
 

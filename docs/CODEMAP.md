@@ -1589,47 +1589,52 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `choiceCounterView`（fn）：トグル選択の「選んだ量／上限」表示。上限ちょうどで見た目を変えるのは、これ以上選べないと一目で分かるようにするため
 
-## public/src/deck-next/actions/cardArt.ts
+## public/src/deck/actions/cardArt.ts
 
 - `cardArt`（fn）
 
-## public/src/deck-next/logic/cardInfo.ts
+## public/src/deck/logic/cardInfo.ts
 
 - `maxBp`（fn）：スピリット状態の最高レベルBP（ネクサス・マジックは null）。ブレイヴもスピリット状態のBPを表示する
 - `braveConditionText`（fn）：合体条件の表示文言（例: "系統：「神星」" "コスト3以上" "「○○」" "効果の記述を持たないスピリット"）
 - `braveBpGain`（fn）：合体時に加算されるBP（braveLevels の最高値。cores は常に0なので levels は1件想定）
 
-## public/src/deck-next/logic/deckStats.ts
+## public/src/deck/logic/deckImport.ts
+
+- `ImportResult`（型）
+- `validateImport`（fn）
+
+## public/src/deck/logic/deckStats.ts
 
 - `DeckEntry`（型）
 - `DeckStats`（型）
 - `computeDeckStats`（fn）
 
-## public/src/deck-next/logic/families.ts
+## public/src/deck/logic/families.ts
 
 - `FAMILY_GROUPS`（const）
 - `familyColors`（fn）：系統を持つカードの色のうち最多の色が7割以上ならその色、そうでなければ多色。持つカードが無い系統も多色
 - `buildMentionedFamilies`（fn）：効果文の「系統：「X」「X・Y」」から拾った系統（cardId -> 系統の集合）
 
-## public/src/deck-next/logic/series.ts
+## public/src/deck/logic/series.ts
 
 - `seriesOf`（fn）：プロモ（P001・PX01・X003A 等）は「-」が無く番号まで cardId なので、数字より前を弾とする
 - `seriesGroupOf`（fn）：弾の絞り込み用の枠。P13・SJ12・X003A のように年代や末尾の英字で割れるものを頭の英字にまとめる（seriesOf と画像の置き場は変えない）
 - `MERGED_SERIES_LABELS`（const）
 - `seriesLabel`（fn）
 
-## public/src/deck-next/state/artEpoch.svelte.ts
+## public/src/deck/state/artEpoch.svelte.ts
 
 - `artEpoch`（const）：合言葉でカード絵の表示が切り替わったら増やす。一覧は {#key} で張り直し、use:cardArt をやり直す
 
-## public/src/deck-next/state/cards.svelte.ts
+## public/src/deck/state/cards.svelte.ts
 
 - `NoteStatus`（型）
 - `CardNote`（型）
 - `cardStore`（const）
 - `loadCards`（fn）
 
-## public/src/deck-next/state/deck.svelte.ts
+## public/src/deck/state/deck.svelte.ts
 
 - `deck`（const）
 - `deckCards`（const）
@@ -1641,14 +1646,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `addCard`（fn）
 - `removeCard`（fn）
 - `validateDeck`（fn）：デッキ全体の制約検証。問題がなければ空配列
+- `replaceDeck`（fn）：デッキ内容を丸ごと差し替える（読込・インポート・構築済みの共通の出口）
 
-## public/src/deck-next/state/detail.svelte.ts
+## public/src/deck/state/detail.svelte.ts
 
 - `detail`（const）：詳細に出しているカード。マウスが離れても次のカードに載るまで残す。mobile は画面いっぱいの欄を開いているか（スマホ用）
 - `hoverCard`（fn）：タッチのタップでも pointerenter は飛ぶので、マウスのときだけ拾う（スマホのタップは詳細ボタンで開く）
 - `selectDetail`（fn）：タップ・クリックでも詳細カラムを切り替える（幅900以上のタッチ端末＝タブレットはマウスが無く、hoverCard だけでは何も出ない）。
 
-## public/src/deck-next/state/filters.svelte.ts
+## public/src/deck/state/filters.svelte.ts
 
 - `COST_CHIP_MAX`（const）
 - `SortOrder`（型）
@@ -1664,12 +1670,27 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `passesFilter`（fn）
 - `visibleCards`（fn）：絞り込んで並べたカード。cardStore.cards は cardId 順なので、ID順はそのまま
 
-## public/src/deck-next/state/selection.svelte.ts
+## public/src/deck/state/recipes.svelte.ts
+
+- `recipes`（const）：構築済みデッキ（/api/deck-recipes）。選択欄に並べるだけなので、読み込み完了まで空
+- `loadRecipes`（fn）
+
+## public/src/deck/state/savedDecks.svelte.ts
+
+- `SavedDeck`（型）
+- `saved`（const）
+- `saveCurrentDeck`（fn）
+- `loadSaved`（fn）
+- `deleteSaved`（fn）
+- `duplicateSaved`（fn）
+- `renameSaved`（fn）
+
+## public/src/deck/state/selection.svelte.ts
 
 - `selection`（const）：− ＋ を出しているタイル。プールとデッキ欄に同じカードが並ぶので、cardId だけでなく置き場も含めて持つ
 - `toggleSelection`（fn）
 
-## public/src/deck-next/state/toast.svelte.ts
+## public/src/deck/state/toast.svelte.ts
 
 - `toast`（const）：画面下の通知。同時に1件だけ出し、次が来たら置き換える
 - `showToast`（fn）
@@ -1756,7 +1777,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `DECK_STORAGE_KEY`（const）
 - `CUSTOM_DECK_PREFIX`（const）
-- `SavedDeck`（型）：デッキビルダー（deck.ts）と同じ保存フォーマット
+- `SavedDeck`（型）：デッキビルダー（デッキ構築画面）と同じ保存フォーマット
 - `customDecks`（const）：デッキ名 → カードリスト（cardId -> 枚数）。ページ表示時に読み込む
 - `loadSavedDecks`（fn）
 - `deckRecipes`（let）：おまかせデッキ。カードプールに合わせてサーバーが決めるので起動時に取得する

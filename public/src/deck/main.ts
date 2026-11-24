@@ -1,4 +1,4 @@
-// deck-next のエントリ。Svelte の App を #deck-app へマウントする
+// デッキ構築ページのエントリ。Svelte の App を #deck-app へマウントする
 import { mount } from "svelte"
 import { installSecretCardArt } from "../cardArt"
 import App from "./App.svelte"

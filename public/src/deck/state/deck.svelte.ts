@@ -85,3 +85,10 @@ export function validateDeck(): string[] {
     if (total < DECK_MIN_SIZE) errors.push(`デッキは${DECK_MIN_SIZE}枚以上必要です（現在${total}枚）`)
     return errors
 }
+
+// デッキ内容を丸ごと差し替える（読込・インポート・構築済みの共通の出口）
+export function replaceDeck(cards: Record<string, number>, name: string): void {
+    deckCards.clear()
+    for (const [id, count] of Object.entries(cards)) deckCards.set(id, count)
+    deck.name = name
+}

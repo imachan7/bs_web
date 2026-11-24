@@ -5,6 +5,8 @@
     import { cardOf, deck, deckCards, deckTotal, validateDeck } from "../state/deck.svelte"
     import DeckCategory from "./DeckCategory.svelte"
     import DeckStats from "./DeckStats.svelte"
+    import SavedDecks from "./SavedDecks.svelte"
+    import DeckIo from "./DeckIo.svelte"
 
     let { onclose }: { onclose: () => void } = $props()
 
@@ -47,6 +49,8 @@
     {#each groups as g (g.type)}
         <DeckCategory type={g.type} cards={g.cards} total={g.total} />
     {/each}
+    <SavedDecks />
+    <DeckIo />
 </div>
 
 <style>
