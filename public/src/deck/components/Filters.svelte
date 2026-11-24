@@ -101,6 +101,10 @@
         return { seriesGroups, keywordGroups, familyGroups }
     })
 
+    // 幅900未満だけ畳む。PC では .fold と開閉ボタンを CSS で素通しにしている
+    let fold = $state(false)
+    const usedCount = $derived(filterColors.size + filterTypes.size + filterCosts.size + detailCount)
+
     function reset() {
         for (const s of [filterColors, filterTypes, filterCosts, filterFlags, filterSeries, filterKeywords, filterFamilies, filterNotes]) s.clear()
         filters.familyHas = true
@@ -110,10 +114,11 @@
     }
 </script>
 
-<div class="filters">
+<div class="filters" class:unfolded={fold}>
     <div class="row">
         <input type="search" placeholder="名前・効果文で検索" bind:value={filters.search} />
-        <div class="item">
+        <button type="button" class="foldbtn" aria-expanded={fold} onclick={() => (fold = !fold)}>絞り込み{usedCount > 0 ? `（${usedCount}件）` : ""} {fold ? "▲" : "▼"}</button>
+        <div class="item fold">
             <span class="label">色</span>
             <div class="chips">
                 {#each COLORS as [c, text] (c)}
@@ -121,7 +126,7 @@
                 {/each}
             </div>
         </div>
-        <div class="item">
+        <div class="item fold">
             <span class="label">タイプ</span>
             <div class="chips">
                 {#each TYPES as [t, text] (t)}
@@ -129,7 +134,7 @@
                 {/each}
             </div>
         </div>
-        <div class="item">
+        <div class="item fold">
             <span class="label">コスト</span>
             <div class="chips">
                 {#each COSTS as n (n)}
@@ -138,7 +143,7 @@
             </div>
         </div>
     </div>
-    <div class="row tools">
+    <div class="row tools fold">
         <select bind:value={filters.sort} aria-label="並び順">
             <option value="id">ID順</option>
             <option value="cost-asc">コスト昇順</option>
@@ -148,7 +153,7 @@
         <button type="button" class="ghost" onclick={reset}>条件クリア</button>
         <span class="count">{count} / {cardStore.cards.length} 枚を表示中</span>
         <button type="button" class="detailbtn" class:used={detailCount > 0} aria-expanded={open} bind:this={anchor} onclick={() => (open ? (open = false) : openPanel())}>
-            絞り込み{detailCount > 0 ? `（${detailCount}）` : ""}
+            詳しい絞り込み{detailCount > 0 ? `（${detailCount}）` : ""}
         </button>
     </div>
 </div>
@@ -227,7 +232,10 @@
     .winfoot { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-top: 1px solid #3a3d44; }
     .sp { flex: 1; }
     .apply { background: #4a6cd4; border: 1px solid #7fa0ff; color: #fff; padding: 4px 18px; }
+    .foldbtn { display: none; }
     @media (max-width: 899px) {
+        .foldbtn { display: block; flex: 1 1 100%; background: #2c3044; border: 1px solid #7fa0ff; color: #e8e8f0; padding: 8px 12px; font-size: 14px; }
+        .filters:not(.unfolded) .fold { display: none; }
         .win { inset: 0; width: auto; max-height: none; border-radius: 0; border: 0; }
         .row { gap: 8px 14px; }
     }

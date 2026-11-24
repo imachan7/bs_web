@@ -1655,6 +1655,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `leaveCard`（fn）
 - `selectDetail`（fn）：クリック・タップしたカードを固定する（幅900以上のタッチ端末はマウスが無いので、これで詳細を出す）。同じカードをもう一度押すと固定を外す
 - `unpinDetail`（fn）
+- `pressPoolCard`（fn）：プールのカードを押したとき。− ＋ はカードに常に出ているので押しても出さない。スマホ（幅900未満）は詳細カラムが無いので画面いっぱいの欄で開く
 
 ## public/src/deck/state/filters.svelte.ts
 
@@ -1671,6 +1672,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `filterNotes`（const）
 - `passesFilter`（fn）
 - `visibleCards`（fn）：絞り込んで並べたカード。cardStore.cards は cardId 順なので、ID順はそのまま
+
+## public/src/deck/state/hoverTip.svelte.ts
+
+- `tip`（const）：マウスを載せたカードの横に浮かべる文字だけの欄。詳細カラムの hoverCard（遅れて切り替える）とは独立
+- `showTip`（fn）
+- `hideTip`（fn）
 
 ## public/src/deck/state/recipes.svelte.ts
 

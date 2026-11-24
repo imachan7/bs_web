@@ -7,6 +7,7 @@
     import DetailColumn from "./components/DetailColumn.svelte"
     import { detail } from "./state/detail.svelte"
     import Toast from "./components/Toast.svelte"
+    import HoverTip from "./components/HoverTip.svelte"
 
     loadCards()
     // 収録範囲の表示。手で書くと弾を足すたびにずれるのでカードデータから出す
@@ -35,6 +36,7 @@
 </div>
 {#if detail.mobile}<div class="full"><DetailColumn mobile /></div>{/if}
 <Toast />
+<HoverTip />
 
 <style>
     .layout {

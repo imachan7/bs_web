@@ -8,6 +8,7 @@
     import { addBlockReason, deckCards } from "../state/deck.svelte"
     import { selection, toggleSelection } from "../state/selection.svelte"
     import { detail, hoverCard, leaveCard, pressPoolCard, selectDetail } from "../state/detail.svelte"
+    import { showTip, hideTip } from "../state/hoverTip.svelte"
     import AdjustButtons from "./AdjustButtons.svelte"
 
     let { card, size, area }: { card: CardData; size: "lg" | "md"; area: "pool" | "deck" } = $props()
@@ -45,8 +46,14 @@
     class:pinned
     role="button"
     tabindex="0"
-    onpointerenter={(e) => hoverCard(e, card.cardId)}
-    onpointerleave={leaveCard}
+    onpointerenter={(e) => {
+        hoverCard(e, card.cardId)
+        showTip(e, card.cardId)
+    }}
+    onpointerleave={() => {
+        leaveCard()
+        hideTip()
+    }}
     onclick={(e) => {
         e.stopPropagation()
         press()
