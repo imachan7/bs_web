@@ -51,7 +51,8 @@ function opponentOf(pid: PlayerId): PlayerId {
 
 // 条件判定だけに使う ActionCtx（resolve は呼ばれない）
 function stubCtx(state: GameState, pid: PlayerId): ActionCtx {
-    return { state, owner: pid, opp: pid === "p1" ? "p2" : "p1", self: null, sourceName: "", srcColors: undefined, srcType: "magic", sourceCardId: undefined, destroyContext: {}, targetInstanceId: undefined, chosenOption: undefined, chosenCardIndex: undefined, paySources: undefined, resolve: () => {} }
+    return { state, owner: pid, opp: pid === "p1" ? "p2" : "p1", self: null, sourceName: "", srcColors: undefined, srcType: "magic", sourceCardId: undefined, srcInstanceId: undefined,
+        destroyContext: {}, targetInstanceId: undefined, chosenOption: undefined, chosenCardIndex: undefined, paySources: undefined, resolve: () => {} }
 }
 
 // 発動確認を出しているバーストが、いま発動しても何も起きないか。

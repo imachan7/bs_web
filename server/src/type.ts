@@ -313,7 +313,7 @@ export type TimedRecord = {
         | { kind: "braveHost"; braveInstanceId: string } // そのブレイヴがいま合体しているホスト。読むたびに引き直す（分離したら誰にも当たらない）
     until: "turn" | "battle" | "attack" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock" | "effect" // effect＝一番外側の効果の解決が終わる（選択待ちで止まっていない）ときに消える（resolveAction）。 beforeBlock＝そのアタックのブロック宣言前のフラッシュの間だけ効く（ブロックが宣言されたら効かなくなり、バトル終了で消える）。 step＝いまのステップの終わりで消える（PhaseManager.endStepScoped）。attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
     ownerPid: PlayerId
-    sourceInstanceId?: string // 発生源が場を離れたら効かなくなる記録だけが付ける（braveBpBonusZero）
+    sourceInstanceId?: string // 発生源が場を離れたら効かなくなる記録だけが付ける（braveBpBonusZero）。blockCost の記録は、コストの破壊を起こした効果の発生源として持つ（GameEngine.destroyBlockToll が DestroyContext へ渡す）
     sourceType?: CardType // amountCounter を数え直すとき、数える効果の発生源の種別（スリーカードの sourceTypes 判定に要る）
     sourceColors?: Color[] // 「すべて」の Lv の置き換えを計算し直すたびに耐性（装甲を含む）を判定するため
 }
