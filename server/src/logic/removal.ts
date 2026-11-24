@@ -12,7 +12,7 @@ import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { askNextPickMany } from "./revivePickMany"
 import type { CardInstance, CardType, Color, EffectAction, EventBurstCheck, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import type { WaitingState } from "../types/cardInstance"
-import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, resolveInOrder, suspend } from "./GameState"
+import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, summonMinCores, opponentOf, pushResumeFrames, requestTrashReturn, resolveInOrder, suspend } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
 import { getAllFamilies, resolveAction } from "./EffectModules"
 import { destroyDenial } from "./destroyGate"
@@ -397,7 +397,7 @@ function destroyExtraItems(state: GameState, entry: DestroyEntry): FieldEventExt
                 const { maxBp: _maxBp, minBp: _minBp, exactBp: _exactBp, ...resolvedFilter } = effect.filter
                 if (!matchesTarget(state, ownerPid, inst, resolvedFilter, undefined)) continue
             }
-            if (!canPayFreeSummonSurcharge(state, ownerPid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
+            if (!canPayFreeSummonSurcharge(state, ownerPid, getCard(cardId), summonMinCores(state, ownerPid, getCard(cardId)))) continue
             noteCoverage(effect, "freeSummonFromHandOnOwnSpiritDestroyed")
             const nth = (seen[cardId] = (seen[cardId] ?? 0) + 1)
             extraItems.push({
@@ -875,7 +875,7 @@ export function tryFreeSummonOnHandDiscard(
     const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnDiscardedByOpponent")
     if (!effect) return false
     const player = state.players[targetPid]
-    if (!canPayFreeSummonSurcharge(state, targetPid, getCard(cardId), minLevelCores(getCard(cardId)))) return false
+    if (!canPayFreeSummonSurcharge(state, targetPid, getCard(cardId), summonMinCores(state, targetPid, getCard(cardId)))) return false
     const index = player.trashCards.lastIndexOf(cardId)
     if (index === -1) return false
     noteCoverage(effect, "freeSummonFromHandOnDiscardedByOpponent")
@@ -917,7 +917,7 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
         // condition：この関数はライフが減った後に呼ばれるので、減った後のライフで判定される
         if (effect.condition && player.life > effect.condition.ownLifeAtMost) continue
         // 維持コアを置けないなら召喚できないので、確認自体を出さない
-        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
+        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), summonMinCores(state, pid, getCard(cardId)))) continue
         noteCoverage(effect, "freeSummonFromHandOnLifeDamaged")
         if (state.interactiveTargets) {
             suspend(state, {
@@ -955,7 +955,7 @@ export function resolveHandFreeSummonOnDestroy(state: GameState, pid: PlayerId, 
     if (state.pendingChoice || state.winner) return
     const index = state.players[pid].hand.indexOf(cardId)
     if (index === -1) return
-    if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) return
+    if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), summonMinCores(state, pid, getCard(cardId)))) return
     if (state.interactiveTargets) {
         suspend(state, {
             pid,

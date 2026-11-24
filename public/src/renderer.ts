@@ -12,6 +12,7 @@ import { setCardLookup } from "../../shared/cardDb"
 import { choiceCounterView } from "./choiceCounter"
 import { effectiveCost } from "../../shared/cost"
 import { minLevelCores } from "../../shared/rules/activation"
+import { summonLevelCostBonus, summonMinCores } from "../../shared/rules/summonLevelCost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
@@ -240,6 +241,8 @@ export interface UiState {
     combineBrave: { braveInstanceId: string; candidateIds: string[] } | null
     // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
     stepper: number | null
+    // 召喚・配置で置くコアの数の増減（レベル選択の下）。選択を閉じたら null に戻す
+    summonCores: number | null
     // バーストを再セットするときの確認待ち（既存のバーストはトラッシュへ送られるため確認をはさむ）
     burstResetConfirm: { handIndex: number } | null
 }
@@ -720,7 +723,7 @@ export function render(view: GameView, ui: UiState): void {
         const confirm = document.createElement("button")
         confirm.dataset.option = opts[value] ?? "0"
         confirm.textContent = "決定"
-        choiceOptionsEl.append(minus, readout, plus, confirm)
+        choiceOptionsEl.append(stepperRow(minus, readout, plus), confirm)
         show("choice-options", true)
     } else if (myPendingChoice && myPendingChoice.kind === "option") {
         for (const opt of myPendingChoice.options ?? []) {
@@ -824,14 +827,15 @@ export function render(view: GameView, ui: UiState): void {
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
         // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
         const fieldCores = payableFieldCores(view, ui.summonLevelSelect.cardId)
-        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
+        const lvBonus = summonLevelCostBonus(view, view.you, card)
+        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores + lvBonus)
         for (const l of affordableLevels) {
             const b = document.createElement("button")
             b.dataset.summonLevel = String(l.level)
-            const needsField = reserve < cost + l.cores
+            const needsField = reserve < cost + l.cores + lvBonus
             b.textContent = needsField
-                ? `Lv${l.level} (${l.cores}コア・フィールドから取得)`
-                : `Lv${l.level} (${l.cores}コア)`
+                ? `Lv${l.level} (${l.cores + lvBonus}コア・フィールドから取得)`
+                : `Lv${l.level} (${l.cores + lvBonus}コア)`
             if (needsField) b.classList.add("needs-field-cores")
             choiceOptionsEl.appendChild(b)
         }
@@ -848,6 +852,29 @@ export function render(view: GameView, ui: UiState): void {
                 : "Lv2を[ソウルコア]で置く (1コア)"
             if (needsField) b.classList.add("needs-field-cores")
             choiceOptionsEl.appendChild(b)
+        }
+        // 置くコアの数を Lv の境目以外にも決められる（最小Lvの維持コア以上〜払える数まで）
+        const minCores = summonMinCores(view, view.you, card)
+        const maxCores = reserve + fieldCores - cost
+        if (maxCores > minCores) {
+            if (ui.summonCores === null || ui.summonCores < minCores || ui.summonCores > maxCores) ui.summonCores = minCores
+            const n = ui.summonCores
+            const lv = card.levels.filter((l) => l.cores + lvBonus <= n).at(-1)?.level ?? 1
+            const minus = document.createElement("button")
+            minus.dataset.summonCoresStep = "-1"
+            minus.textContent = "−"
+            minus.disabled = n <= minCores
+            const readout = document.createElement("span")
+            readout.className = "stepper-value"
+            readout.textContent = `${String(n)}コア`
+            const plus = document.createElement("button")
+            plus.dataset.summonCoresStep = "+1"
+            plus.textContent = "＋"
+            plus.disabled = n >= maxCores
+            const go = document.createElement("button")
+            go.dataset.summonCores = String(n)
+            go.textContent = `コア${String(n)}個で召喚（Lv${String(lv)}）`
+            choiceOptionsEl.append(stepperRow(minus, readout, plus), go)
         }
         show("choice-options", true)
     } else if (ui.braveSummonSelect) {
@@ -1213,4 +1240,12 @@ function vanishingNote(view: GameView, assigned: Record<string, number>): string
         .filter((sp) => (assigned[sp.instanceId] ?? 0) > 0 && sp.cores - (assigned[sp.instanceId] ?? 0) < minLevelCores(master(sp.cardId)))
         .map((sp) => master(sp.cardId).name)
     return names.length > 0 ? `／⚠️ ${names.join("、")}が消滅します` : ""
+}
+
+// −・数・＋ を1行にまとめる。選択肢の列はボタンを1つずつ縦に積むので、ばらばらに入れるとスマホで−だけが見えて残りが画面の外に出た
+function stepperRow(...items: HTMLElement[]): HTMLElement {
+    const row = document.createElement("div")
+    row.className = "stepper-row"
+    row.append(...items)
+    return row
 }

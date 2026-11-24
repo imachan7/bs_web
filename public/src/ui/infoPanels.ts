@@ -1,4 +1,6 @@
 // 情報欄・バースト欄・バトル欄の表示
+import { coreIcon } from "./coreIcon"
+import { renderMat } from "./mat"
 import { attachCardArt } from "../cardArt"
 import type { GameView, PlayerId } from "../../../server/src/type"
 import { effectiveBp, coreZoneChoiceId, canAwakenFromReserve, timedFlashLocked } from "../../../shared/rules"
@@ -45,7 +47,7 @@ export function renderInfo(
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
         // ソウルコアはコア数値に含まれない（docs/design/SOULCORE.md 案A-outside）。
         // 案B-inside: 数値には最初から[ソウルコア]が含まれる（2026-10-06 ユーザー確定）。所在は別項目で特定する
-        ["reserve", `🔵 リザーブ ${p.reserve}`],
+        ["reserve", `リザーブ ${p.reserve}`],
         ["trash-cores", `トラッシュコア ${p.trashCores}`],
         ...((soulCoreWhereText(view, pid)
             ? [["soul-core", `${soulCoreWhereText(view, pid)}`]]
@@ -56,9 +58,9 @@ export function renderInfo(
         ...((p.burstSet
             ? [["", `バースト セット中${isSelf && p.burstSetThisTurn ? "（このターンはセット済み）" : ""}`]]
             : []) as [string, string][]),
-        ["", `デッキ ${p.deckCount}枚`],
+        ["deck-n", `デッキ ${p.deckCount}枚`],
         ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
-        ["", `トラッシュ ${p.trashCards.length}枚`],
+        ["trash-n", `トラッシュ ${p.trashCards.length}枚`],
     ]
 
     const peekedBurst = view.players[view.you].peekedOpponentBurstCardId
@@ -87,10 +89,12 @@ export function renderInfo(
         if (cls === "soul-core") {
             span.innerHTML = `<img src="/imgs/soulcore.png" class="soul-core-inline" alt="[ソウルコア]"> ソウルコア ${text}`
         } else {
-            span.textContent = text
+            if (isReserve || cls === "trash-cores") span.appendChild(coreIcon())
+            span.append(text)
         }
         el.appendChild(span)
     }
+    renderMat(view, ui, pid, isSelf)
 }
 
 // 発動したバーストを表向きにめくって見せる演出（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）

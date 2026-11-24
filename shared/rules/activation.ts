@@ -16,6 +16,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { effectiveCost } from "../cost"
 import { summonVoidToll } from "./summonToll"
+import { summonMinCores } from "./summonLevelCost"
 import { activeConstraints, canDiscardHand, costExhaustLocked, hasGlobalConstraint, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords, timedPlayerRules } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
@@ -540,7 +541,7 @@ export function directAttackFilter(
 export function handSummonCostPayable(board: Board, pid: PlayerId, cardData: CardData, paid = 0): boolean {
     const p = board.players[pid]
     const fieldCores = [...p.field.spirits, ...p.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
-    return p.reserve + fieldCores >= minLevelCores(cardData) + Math.max(0, effectiveCost(board, pid, cardData) - paid) + summonVoidToll(board, cardData)
+    return p.reserve + fieldCores >= summonMinCores(board, pid, cardData) + Math.max(0, effectiveCost(board, pid, cardData) - paid) + summonVoidToll(board, cardData)
 }
 
 export function minLevelCores(cardData: CardData): number {
@@ -566,14 +567,17 @@ export function minLevelCoresOf(levels: LevelDef[]): number {
 export function placedCoresForSummon(
     cardData: CardData,
     level: number | undefined,
-    opts?: { braveTarget?: boolean | undefined; placeSoulCoreFromReserve?: boolean | undefined },
+    opts?: { braveTarget?: boolean | undefined; placeSoulCoreFromReserve?: boolean | undefined; cores?: number | undefined; levelCostBonus?: number | undefined },
 ): number {
     if (opts?.braveTarget === true) return 0
     if (opts?.placeSoulCoreFromReserve === true && cardData.levels.some((l) => l.soulCoreRequired === true)) {
         return 1
     }
-    if (level === undefined) return minLevelCores(cardData)
-    return cardData.levels.find((l) => l.level === level)?.cores ?? minLevelCores(cardData)
+    // 召喚時に置くコアは最小Lvの維持コア以上なら何個でもよい（レベルは置いた数から決まる）。
+    // 「Lvコスト+N」（summonLevelCostBonus）は素の Lv 表に足す。cores 指定は数そのまま（最小の検証側が bonus を足す）
+    if (opts?.cores !== undefined) return opts.cores
+    const bonus = opts?.levelCostBonus ?? 0
+    return (level === undefined ? minLevelCores(cardData) : cardData.levels.find((l) => l.level === level)?.cores ?? minLevelCores(cardData)) + bonus
 }
 
 // ---- フラッシュのロック ----

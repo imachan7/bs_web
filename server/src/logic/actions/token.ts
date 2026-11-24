@@ -7,7 +7,7 @@ import { payCost } from "../EffectModules"
 import { summonPayPlan } from "../summonCores"
 import { moveSoulCore, wouldDeplete } from "../soulCore"
 import { destroySpirit } from "../removal"
-import { minLevelCores } from "../../../../shared/rules/activation"
+import { summonMinCores } from "../../../../shared/rules/summonLevelCost"
 import { isTokenCard } from "../../../../shared/cardDb"
 
 const spawnTokenHandler: ActionHandler<"spawnToken"> = (ctx, action) => {
@@ -18,7 +18,7 @@ const spawnTokenHandler: ActionHandler<"spawnToken"> = (ctx, action) => {
         log(state, `${sourceName}：トークン「${action.token}」のカードが見つからない。`)
         return
     }
-    const maintain = minLevelCores(card)
+    const maintain = summonMinCores(state, owner, card)
     let made = 0
     // ponytail: 「N体まで」は払える限り最大数を出し、置くコアの出どころも自動（summonPayPlan）。体数・支払い元を選ばせるなら PendingChoice を足す
     for (let i = 0; i < action.count; i++) {

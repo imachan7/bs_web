@@ -4,7 +4,7 @@ import { effectMagicUseDenial, useMagicByEffect } from "../magic/effectUse"
 import { coreRemovalAllowed } from "../coreGate"
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
-import { getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, shuffle, suspend } from "../GameState"
+import { getCard, log, summonMinCores, opponentOf, pushResumeFrames, resolveInOrder, shuffle, suspend } from "../GameState"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { summonPayPlan } from "../summonCores"
 import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
@@ -136,10 +136,10 @@ function affordable(state: GameState, pid: PlayerId, action: MoveCards, cardId: 
     const player = state.players[pid]
     const card = getCard(cardId)
     const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
-    if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo, action.from === "hand") + summonVoidToll(state, card) : canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card), true)
+    if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= summonMinCores(state, pid, card) + effectiveCost(state, pid, card, false, [], soryo, action.from === "hand") + summonVoidToll(state, card) : canPayFreeSummonSurcharge(state, pid, card, summonMinCores(state, pid, card), true)
     if (action.dest === "cast") return action.pay === "cost" ? canPayMagicCost(state, pid, effectiveCost(state, pid, card)) : true
     if (action.pay === "fieldCoresOnly") return fieldCoresSpendable(state, pid).reduce((sum, x) => sum + x.max, 0) >= effectiveCost(state, pid, card)
-    return player.reserve >= minLevelCores(card)
+    return player.reserve >= summonMinCores(state, pid, card)
 }
 
 // フィールドから取り出せるコア（維持コアぶんは残す。案B-inside：[ソウルコア]は動かさない）
@@ -447,7 +447,7 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
         })
     }
     // 通常のコストを支払う召喚は、リザーブとフィールドのコアで払えるカードに限る（支払い方は revealApplyOne が置くコアの待ちで聞く）
-    const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || summonPayPlan(state, owner, minLevelCores(getCard(id)) + effectiveCost(state, owner, getCard(id), false, [], false, false) + summonVoidToll(state, getCard(id))) !== null
+    const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || summonPayPlan(state, owner, summonMinCores(state, owner, getCard(id)) + effectiveCost(state, owner, getCard(id), false, [], false, false) + summonVoidToll(state, getCard(id))) !== null
     // 召喚を禁じられているカード（コストを支払わなければ召喚できない等）は対象にできない＝候補に入れず、残りのカードとして後の手順へ回る
     const summonable = (id: string): boolean =>
         (dest !== "summon" && dest !== "summonOrPlace") ||

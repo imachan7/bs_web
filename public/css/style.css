@@ -367,6 +367,17 @@ button:active {
     color: var(--text-muted);
 }
 
+.core-icon {
+    height: 1em;
+    width: auto;
+    vertical-align: -0.15em;
+    margin-right: 0.2em;
+}
+
+[id^="mat-"] {
+    display: none;
+}
+
 .player-info .life {
     display: inline-block;
     color: var(--danger);
@@ -1073,6 +1084,8 @@ button:active {
 .combine-badge,
 .as-spirit-badge {
     position: absolute;
+    /* 合体したブレイヴの箱（.brave-combined-box。ホストの右に置く暗い箱）が右下のバッジに重なって隠すため、前に出す */
+    z-index: 5;
     min-width: 44px;
     padding: 4px 10px;
     font-size: 11px;
@@ -1155,6 +1168,27 @@ button:active {
 }
 .detach-badge:hover {
     filter: brightness(1.2);
+}
+
+/* カードの下の操作ボタンの行（fieldCard.ts の cardActions）。中のボタンは角に重ねず、並べて置く */
+.card-actions {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 4px;
+    display: flex;
+    gap: 4px;
+    z-index: 5;
+    white-space: nowrap;
+}
+.card-actions > button {
+    position: static;
+}
+/* ボタンが出ているカードの下に、その行のぶんの隙間を空ける */
+.spirit-zone .card:has(> .card-actions),
+.nexus-zone .card:has(> .card-actions) {
+    margin-bottom: 28px;
 }
 
 /* 合体（メインステップの任意合体。§6.4）。スピリット状態のブレイヴにだけ出る */
@@ -1747,6 +1781,23 @@ button:active {
 /* ---- 増減式の選択（PendingChoice.stepper） ----
    トラッシュに置くコアの数のように「どれを選ぶか」でなく個数だけを決めるものを、
    ボタンの列ではなく −／＋ で選ばせる。候補が20個を超えることがあるため */
+#choice-options .stepper-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+#choice-options .stepper-row > button {
+    flex: none;
+    width: 32px;
+    min-width: 0;
+    padding: 6px 0;
+}
+#choice-options .stepper-row > .stepper-value {
+    min-width: 0;
+    flex: 1;
+    white-space: nowrap;
+}
 #choice-options .stepper-value {
     display: inline-block;
     min-width: 4.5em;
@@ -2521,4 +2572,110 @@ body:has(#notice-banner:not(.hidden)) {
     width: auto;
     height: auto;
     transform: none;
+}
+
+/* 広い画面（PC）では場のカードを大きくする。場の行に対してカードが小さく、余白ばかりが目立ったため（2026-11-24 ユーザー指摘）。
+   中の文字・コア・合体したブレイヴの箱・ボタンの位置を一緒に拡大できるよう、個々の寸法ではなく zoom で倍率を掛ける */
+@media (min-width: 1100px) {
+    .spirit-zone > .card,
+    .nexus-zone > .card,
+    .nexus-zone > .nexus-slot,
+    .burst-zone .burst-slot {
+        zoom: 1.2;
+    }
+    .nexus-zone {
+        min-width: 200px;
+    }
+    /* 手札も同じく、左右に空きが残らないよう大きくする（文字が読みやすくなる） */
+    #hand > .card {
+        zoom: 1.15;
+    }
+    /* バトスピの公式プレイマットの並び。左の列がバースト・ライフ・リザーブ、右の列がデッキ・トラッシュで、
+       相手側は点対称（下の #opponent-area の指定）。
+       場の行を格子にし、バースト（ネクサスの行の中にある）は nexus-row を display: contents でほどいて左の列へ置く */
+    /* ネクサスはスマホと同じくスピリットの下の段（相手側は上の段）に置く（2026-11-24 ユーザー指示） */
+    .field-row {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr) 150px;
+        grid-template-rows: auto auto auto;
+        grid-template-areas:
+            "burst spirits deck"
+            "life spirits trash"
+            "reserve nexus trash";
+        gap: 10px 14px;
+    }
+    /* 相手側は自分側を180度回した形（点対称）。向かい合わせに置いたマットと同じ見え方にする（2026-11-24 ユーザー指示） */
+    #opponent-area .field-row {
+        grid-template-areas:
+            "trash nexus reserve"
+            "trash spirits life"
+            "deck spirits burst";
+    }
+    .field-row .nexus-zone { min-height: 0; min-width: 0; padding: 6px 12px; }
+    /* 場の枠の最低の高さは中のカードに合わせて詰める（縦に長くなって手札が画面の外に出たため） */
+    .field-row > .spirit-zone { min-height: 0; padding: 8px 12px; }
+    .field-row { min-height: 0; gap: 8px 14px; }
+    .field-row > .nexus-row { display: contents; }
+    .field-row .nexus-zone { grid-area: nexus; align-self: stretch; }
+    .field-row > .spirit-zone { grid-area: spirits; align-self: stretch; }
+    .field-row .burst-zone { grid-area: burst; }
+    #opponent-area .field-row .burst-zone { align-self: stretch; }
+    [id^="mat-"] { display: block; }
+    [id$="-life-self"], [id$="-life-opp"] { grid-area: life; }
+    [id^="mat-reserve"] { grid-area: reserve; }
+    [id^="mat-deck"] { grid-area: deck; }
+    [id^="mat-trash"] { grid-area: trash; cursor: pointer; }
+    /* 押せることが分かるように、枠の下に「中身を見る」を出し、載せたら枠を明るくする */
+    [id^="mat-trash"]::after {
+        content: "中身を見る ›";
+        display: block;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+        font-size: 12px;
+        color: var(--accent-hover);
+    }
+    [id^="mat-trash"]:hover { border-color: var(--accent); background: rgba(59, 130, 246, 0.08); }
+    .burst-zone,
+    .mat-box {
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        padding: 14px 8px 8px;
+        min-height: 64px;
+    }
+    /* ラベルは枠の上辺にかぶせる。枠の線がラベルの背後で切れる */
+    .burst-zone::before,
+    .mat-head {
+        position: absolute;
+        top: -0.65em;
+        left: 8px;
+        right: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        line-height: 1.3;
+        color: var(--text-muted);
+    }
+    .burst-zone::before { content: "バースト"; right: auto; width: max-content; padding: 0 4px; background: var(--bg-main); }
+    .mat-head { pointer-events: none; }
+    .mat-head > span:first-child { background: var(--bg-main); padding: 0 4px; }
+    .mat-n { color: var(--text-main); font-size: 13px; font-weight: 700; background: var(--bg-main); padding: 0 4px; }
+    .mat-life .mat-n { color: var(--danger); font-size: 26px; line-height: 1; }
+    .mat-cores { display: flex; flex-wrap: wrap; gap: 2px; font-size: 22px; min-height: 22px; }
+    .mat-cores .core-icon { margin: 0; vertical-align: top; }
+    .mat-half { font-size: 13px; color: var(--text-muted); padding: 4px 0; }
+    .mat-half + .mat-half { border-top: 1px solid rgba(255, 255, 255, 0.18); }
+    .mat-box.targetable, .mat-half.targetable { outline: 2px solid var(--accent); cursor: pointer; }
+    /* 操作ボタンは中央の高さで右端に浮くので、右の列（デッキ・トラッシュ）の左へずらして重ねない */
+    #action-buttons-container { right: 196px; }
+    /* 同じ数を情報の行と二重に出さない */
+    .player-info .life,
+    .player-info .reserve,
+    .player-info .trash-cores,
+    .player-info .deck-n,
+    .player-info .trash-n {
+        display: none;
+    }
 }

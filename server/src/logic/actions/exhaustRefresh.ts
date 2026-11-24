@@ -6,7 +6,7 @@ import { gatePickedTargets, pickTargets } from "../pickTargets"
 import { redirectReentryId, settleList, settleOne } from "../designation"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
-import { currentLevel, getCard, log, minLevelCores } from "../GameState"
+import { currentLevel, getCard, log } from "../GameState"
 import { resolveInOrder } from "../GameState"
 import { currentRecordScope, lastMovedOf, lastTargetsOf, recordMoved, recordTargets } from "../record"
 import {

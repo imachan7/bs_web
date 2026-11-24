@@ -8,7 +8,7 @@ import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
 import type { CardInstance, CardType, Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, Keyword, PlayerId, ResolvedTargetFilter } from "../type"
-import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, pushResumeFrames, suspend, resolveInOrder, withWaitingEvent } from "./GameState"
+import { currentLevel, findInstanceAnywhere, getCard, summonMinCores, opponentOf, pushResumeFrames, suspend, resolveInOrder, withWaitingEvent } from "./GameState"
 import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, bravesOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
@@ -806,7 +806,7 @@ export function tryHandFreeSummonOnOwnNexusDeployed(state: GameState, pid: Playe
         if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnOwnNexusDeployed")
         if (!effect) continue
-        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
+        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), summonMinCores(state, pid, getCard(cardId)))) continue
         noteCoverage(effect, "freeSummonFromHandOnOwnNexusDeployed")
         if (state.interactiveTargets) {
             suspend(state, {
