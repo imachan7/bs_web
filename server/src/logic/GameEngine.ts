@@ -1366,7 +1366,7 @@ export function payBlockDestroyTolls(state: GameState, pid: PlayerId, blockerIns
         const candidates = blockDestroyCandidates(state, pid, blockerInstanceId, rec)
         if (candidates.length === 0) break
         if (state.interactiveTargets && candidates.length > 1) {
-            state.pendingChoice = {
+            suspend(state, {
                 pid,
                 kind: "target",
                 prompt: tolls.length > 1 ? `ブロックのコストとして破壊するスピリットを選んでください（${String(i + 1)}/${String(tolls.length)}体目）` : "ブロックのコストとして破壊するスピリットを選んでください",
@@ -1375,7 +1375,7 @@ export function payBlockDestroyTolls(state: GameState, pid: PlayerId, blockerIns
                 action: { type: "noop" },
                 selfInstanceId: blockerInstanceId,
                 blockExhaustPick: { blockerPid: pid, blockerInstanceId, destroyTollIndex: i },
-            }
+            })
             return null
         }
         destroyBlockToll(state, pid, candidates[0]!, rec)
