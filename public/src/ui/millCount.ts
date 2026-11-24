@@ -1,4 +1,4 @@
-// デッキ破棄（GameEvent mill）を1枚ずつ見せる：デッキとトラッシュの枚数を数え、破棄されたカードを並べる。
+// デッキ破棄（GameEvent mill）を1枚ずつ見せる：デッキとトラッシュの枚数を数え、破棄されたカードを並べる（× で閉じるまで出す）。
 // 盤面は破棄の後の枚数で届くので、まだ数えていないカードを持っておき、デッキには足し・トラッシュからは引いて出す。
 // 数える間は、印（data-mill-deck／data-mill-trash／data-mill-box）の付いた要素の文字とクラスだけを書き換え、盤面は描き直さない
 import type { PlayerId } from "../../../server/src/type"
@@ -6,9 +6,7 @@ import { revealCardEl } from "../renderer"
 
 const queue: { pid: PlayerId; cardId: string }[] = []
 let timer: ReturnType<typeof setTimeout> | null = null
-let hideTimer: ReturnType<typeof setTimeout> | null = null
 let stepMs = 100
-const SHOW_AFTER_MS = 2500
 
 // まだ数えていない枚数（描画はデッキに足し、トラッシュから引く）
 export function millPending(pid: PlayerId): number {
@@ -29,30 +27,29 @@ function tick(): void {
     const next = queue.shift()
     if (next) document.querySelector("#mill-panel .reveal-row")?.appendChild(revealCardEl(next.cardId))
     refreshMillTexts()
-    if (queue.length > 0) {
-        timer = setTimeout(tick, stepMs)
-        return
-    }
-    hideTimer = setTimeout(() => document.getElementById("mill-panel")?.remove(), SHOW_AFTER_MS)
+    if (queue.length > 0) timer = setTimeout(tick, stepMs)
 }
 
 function openPanel(title: string): void {
-    if (hideTimer !== null) clearTimeout(hideTimer)
-    hideTimer = null
     let panel = document.getElementById("mill-panel")
-    if (panel && timer === null) panel.remove() // 前の破棄を見せ終わって残っている分は片付けて、新しく並べ直す
+    if (panel && timer === null) panel.remove() // 前の破棄を並べ終えて出したままの分は片付けて、新しく並べ直す
     panel = document.getElementById("mill-panel")
     if (!panel) {
         panel = document.createElement("div")
         panel.id = "mill-panel"
         const head = document.createElement("div")
         head.className = "reveal-head"
+        const close = document.createElement("button")
+        close.className = "reveal-close"
+        close.textContent = "×"
+        close.addEventListener("click", () => panel?.remove())
+        head.append(document.createElement("span"), close)
         const row = document.createElement("div")
         row.className = "reveal-row"
         panel.append(head, row)
         document.getElementById("game")?.appendChild(panel)
     }
-    panel.querySelector(".reveal-head")!.textContent = title
+    panel.querySelector(".reveal-head > span")!.textContent = title
 }
 
 // 描画した直後にも呼ぶ（数えている途中で描き直されたとき、光らせるクラスを付け直すため）

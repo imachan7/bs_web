@@ -2480,8 +2480,11 @@ body:has(#notice-banner:not(.hidden)) {
     border: 1px solid #4fb3d9;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
 }
-/* 破棄されたカード（ui/millCount.ts）。オープンと同じ形で、縁の色で見分ける。押せないので操作を通す */
-#mill-panel { border-color: #f5b041; pointer-events: none; }
+/* 破棄されたカード（ui/millCount.ts）。オープンと同じ形で、縁の色で見分ける。
+   たくさん破棄しても欄が広がらないよう、5枚ぶんの幅で横にスクロールする */
+#mill-panel { border-color: #f5b041; max-width: min(476px, calc(100vw - 24px)); }
+#mill-panel .reveal-row { flex-wrap: nowrap; overflow-x: auto; max-width: calc(5 * 84px + 4 * 8px); }
+#mill-panel .reveal-card { flex: none; }
 .reveal-head {
     display: flex;
     justify-content: space-between;
@@ -2527,6 +2530,7 @@ body:has(#notice-banner:not(.hidden)) {
     }
     .reveal-row { flex-wrap: nowrap; overflow-x: auto; }
     .reveal-card { flex: none; width: 64px; min-height: 88px; }
+    #mill-panel .reveal-row { max-width: calc(5 * 64px + 4 * 8px); }
     .event-detail { padding: 8px 12px; }
     .event-detail-title { font-size: 14px; }
     /* 効果文を打ち切らない（4行で切ると肝心の効果が見えなかった。2026-11-17 ユーザー指摘）。長いときはバナーの中でスクロール */
