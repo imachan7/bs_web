@@ -470,9 +470,18 @@ function restoreLeavingSlots(): void {
 // オープンしたカード：× で閉じるまで出す（時間で消すと、いつ消えるか分からない。2026-11-24 ユーザー指摘）。
 // 選択待ちのあいだ（公開ゾーンが残っている間）は閉じても出し直す。カードの形で並べ、カーソルを合わせると効果文
 let revealShown: { pid: PlayerId; cardIds: string[] } | null = null
+// 自分がオープンしたカードから選ぶ場面を見せたか。選び終わったあとに同じカードを出し直すのは要らない（2026-11-24 ユーザー指摘）。
+// 相手のオープンは、相手が選んだあとも何が出たかを見られるよう残す
+let ownRevealChosen = false
 function renderRevealPanel(view: GameView): void {
     let panel = document.getElementById("reveal-panel")
     const live = view.revealedCards
+    if (live && live.cardIds.length > 0) {
+        if (live.pid === view.you) ownRevealChosen = true
+    } else if (ownRevealChosen) {
+        ownRevealChosen = false
+        revealShown = null
+    }
     const src = live && live.cardIds.length > 0 ? { pid: live.pid, cardIds: live.cardIds } : revealShown
     if (!src) {
         panel?.remove()
