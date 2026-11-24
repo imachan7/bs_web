@@ -309,7 +309,10 @@
     }
     #card-dock-buttons button:disabled { opacity: 0.4; }
 
-    /* カードの効果の吹き出しは画面の上端に出し（ui/tooltip.ts）、下の欄（最大約140px）と操作ボタンの上で止める。中は縦にスクロール */
+    /* カードの効果の吹き出しは、押したカードの近くで、下の欄（最大約140px）と操作ボタンより上に出す（位置は ui/tooltip.ts の DOCK_RESERVE）。入らなければ中を縦にスクロール */
+    /* 拡大の絵は出さない（手札は下の欄に大きな絵が出る。場のカードは絵の分だけ吹き出しが高くなり、カードの近くに置けなかった） */
+    #effect-tooltip .hover-art { display: none; }
+    #effect-tooltip.with-art { display: block; width: auto; }
     #effect-tooltip { max-height: calc(100dvh - 160px - env(safe-area-inset-bottom)); }
 }
 
