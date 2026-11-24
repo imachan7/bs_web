@@ -557,7 +557,7 @@ export function fieldCardEl(
         }
         // 任意合体モード中：合体先に選べるスピリットを強調する
         if (ui.combineBrave !== null && ui.combineBrave.candidateIds.includes(inst.instanceId)) {
-            el.classList.add("targetable", "clickable")
+            el.classList.add("brave-dest", "clickable")
         }
         // 起動能力（フラッシュ中のバトル／自分のメインステップで任意発動）：バッジのクリックで発動。
         // 出す条件は共有層の activatableAbility が一手に判定する（サーバーの受理条件と同じ実装）
