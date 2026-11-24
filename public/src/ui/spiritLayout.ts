@@ -1,4 +1,4 @@
-// スマホで場のスピリットの並べ方を決める。1段（64px）→2段（48px）→各段の中で重ねる→1段で横スクロール、の順に試す（2026-11-24 ユーザー決定）。
+// スマホで場のスピリットの並べ方を決める。カードの大きさは固定で、1段→2段→…（欄の高さに入る段数まで）→各段の中で重ねる→1段で横スクロール、の順に試す（2026-11-24 ユーザー決定）。
 // 判定はここの1か所に集めた。CSS の個数指定（nth-child）だと、疲労して横向きのカードやブレイヴの絵の幅が入らず、9体目が切れていた
 // 読み込み時に window を触ると、ブラウザの無い smoke（renderer を読み込む part）が落ちるので、使う時点で判定する
 const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches } }
@@ -105,29 +105,43 @@ export function layoutSpirits(): void {
         const cs = getComputedStyle(zone)
         const inner = zone.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight)
         const gap = px(cs.columnGap)
+        // カードの大きさは段数で変わらない（CSS の --card-w）ので、欄の高さに入る段数を先に出す。段の間は .sp-break の2px
+        const cardH = Math.max(...items.map((el) => (el.classList.contains("card") ? el.offsetHeight : 0)), 1)
+        const maxRows = Math.max(1, Math.floor((zone.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) + 2) / (cardH + 2)))
 
-        zone.dataset.rows = "1"
-        if (fit(items, inner, gap).ovs.every((v) => v === 0)) continue
-
-        // 2段の配分は個数で均等にする（上の段が多い側）。幅での均等化はしない。相手側は CSS で段の順を逆にしてあり、先頭の段が下になる
-        if (items.length >= 2) {
-            zone.dataset.rows = "2"
-            const br = document.createElement("div")
-            br.className = "sp-break"
-            const half = Math.ceil(items.length / 2)
-            zone.insertBefore(br, items[half] ?? null)
-            const rows = [items.slice(0, half), items.slice(half)]
-            const fits = rows.map((r) => fit(r, inner, gap))
-            if (fits.every((f) => f.ok)) {
-                rows.forEach((r, i) => applyOverlap(r, fits[i]?.ovs ?? []))
-                // 測った幅と実際がずれても3段目に折り返さないための確認（段は flex の折り返しで分けているので、ずれると消える）。ずれたら横スクロールにする
-                const tops = new Set(items.map((el) => el.offsetTop))
-                if (tops.size <= 2 && zone.scrollWidth <= zone.clientWidth + 1) continue
-            }
-            clear(zone)
+        // 重ねずに入る最小の段数を探す。どの段数でも入らなければ、入る段数いっぱいで重ねる。配分は個数で均等（先頭の段が多い側）
+        const split = (k: number): HTMLElement[][] => {
+            const per = Math.ceil(items.length / k)
+            return Array.from({ length: k }, (_, r) => items.slice(r * per, (r + 1) * per)).filter((r) => r.length > 0)
         }
+        const apply = (rows: HTMLElement[][]): void => {
+            zone.dataset.rows = String(rows.length)
+            rows.slice(1).forEach((r) => {
+                const br = document.createElement("div")
+                br.className = "sp-break"
+                zone.insertBefore(br, r[0] ?? null)
+            })
+        }
+        // 測った幅と実際がずれて段の中で折り返すと、欄に入らない段ができて消える。ずれたらやめる
+        const settled = (k: number): boolean => new Set(items.map((el) => el.offsetTop)).size <= k && zone.scrollWidth <= zone.clientWidth + 1
+        let done = false
+        for (let k = 1; k <= Math.min(maxRows, items.length) && !done; k++) {
+            const rows = split(k)
+            apply(rows)
+            if (rows.every((r) => fit(r, inner, gap).ovs.every((v) => v === 0)) && settled(rows.length)) done = true
+            else clear(zone)
+        }
+        if (done) continue
+        const rows = split(Math.min(maxRows, items.length))
+        apply(rows)
+        const fits = rows.map((r) => fit(r, inner, gap))
+        if (fits.every((f) => f.ok)) {
+            rows.forEach((r, i) => applyOverlap(r, fits[i]?.ovs ?? []))
+            if (settled(rows.length)) continue
+        }
+        clear(zone)
 
-        // 2段でも入らないときは1段で、重ねきって横にスクロールする
+        // 入る段数まで重ねても入らないときは1段で、重ねきって横にスクロールする
         zone.dataset.rows = "scroll"
         applyOverlap(items, fit(items, inner, gap).ovs)
     }
