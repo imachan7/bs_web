@@ -16,8 +16,8 @@
     <!-- 本番ではサーバーが ?v=<中身のハッシュ> を付ける（server/src/assetVersions.ts）。JS は assetUrl() でここから版つきの URL を引く -->
     <meta name="asset" content="/api/cards" />
     <meta name="asset" content="/dist/aiWorker.js" />
-    <link rel="stylesheet" href="/css/style.css" />
-    <link rel="stylesheet" href="/css/battle-mobile.css" />
+    <link rel="stylesheet" href="/css/style.css?v=mb7" />
+    <link rel="stylesheet" href="/css/battle-mobile.css?v=mb7" />
 </head>
 <body>
     <main>
@@ -297,7 +297,7 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/dist/main.js"></script>
+    <script src="/dist/main.js?v=mb7"></script>
 
     <!-- 汎用ツールチップ -->
     <div id="global-tooltip" class="hidden"></div>

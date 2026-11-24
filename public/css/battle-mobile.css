@@ -6,7 +6,9 @@
 #btn-status-menu, #btn-status-menu-close, #mat-tegamoto-self, #mat-tegamoto-opp { display: none; }
 
 @media (max-width: 768px) {
-    :root { --sp-h-ratio: calc(985 / 675); }
+    /* 行の高さ。背の低い画面（下の max-height: 700px）だけ値を詰める（2026-11-24 iPhone SE の Safari で見える高さ約553px に収めるため）。
+       --zone-h はスピリットの欄の高さで、2段のときのカード幅もここから決まる（欄に収まる幅。ui/spiritLayout.ts は測った幅で判定するので値を直接は読まない） */
+    :root { --sp-h-ratio: calc(985 / 675); --zone-h: 150px; --nexus-h: 63px; --info-h: 40px; --hand-w: 48px; --nexus-w: 48px; }
 
     /* 1行：左にターン、中にフェイズ、右に「≡ メニュー」。ログ・表示・バグ報告・支払い・降参は、メニューの欄に縦に並べる。
        トラッシュのボタンはここでは出さない（右下の並びのトラッシュの欄を押すと同じ画面が開く）。
@@ -37,13 +39,13 @@
     #status-menu .display-settings-wrap { display: block; }
     #status-menu .display-settings-wrap > button { width: 100%; }
     #status-menu .display-settings { left: auto; right: 0; }
-    #center-info-area { min-height: 30px; padding: 2px 8px; gap: 2px; }
+    #center-info-area { min-height: 28px; padding: 2px 8px; gap: 2px; }
     .player-area { padding: 4px 8px; gap: 2px; justify-content: flex-start; }
     .opp-hand-area { display: none !important; }
     /* 情報の行は、右に PC と同じマットの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で折り返して出す。
        枠の幅の合計（272px）と合わせて 276px を引く。390px 幅で約 98px。狭い端末では名前の行が詰まって切れる */
     .player-info {
-        height: 40px;
+        height: var(--info-h);
         width: calc(100% - 276px);
         flex-wrap: wrap;
         align-content: center;
@@ -54,15 +56,15 @@
         position: relative;
         z-index: 1;
     }
-    #my-info { margin-top: -42px; }
+    #my-info { margin-top: calc(var(--info-h) * -1 - 2px); }
     #opponent-area .opp-hand-area { order: -1 }
-    #opp-info { margin-bottom: -42px; }
+    #opp-info { margin-bottom: calc(var(--info-h) * -1 - 2px); }
 
     /* 自分は上にスピリット（左にバースト）・下にネクサス、相手はその点対称。バーストはネクサスの行の中にあるので display: contents でほどく */
     .field-row {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
-        grid-template-rows: 150px 63px 40px;
+        grid-template-rows: var(--zone-h) var(--nexus-h) var(--info-h);
         grid-template-areas: "burst spirits" "nexus nexus" ". .";
         gap: 2px 6px;
         position: relative;
@@ -71,7 +73,7 @@
     }
     #opponent-area .field-row {
         grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-rows: 40px 63px 150px;
+        grid-template-rows: var(--info-h) var(--nexus-h) var(--zone-h);
         grid-template-areas: ". ." "nexus nexus" "spirits burst";
     }
     .field-row > .nexus-row { display: contents; }
@@ -92,7 +94,7 @@
         flex-direction: column;
         justify-content: center;
         box-sizing: border-box;
-        height: 40px;
+        height: var(--info-h);
         min-height: 0;
         padding: 2px 4px;
         border-radius: 4px;
@@ -139,7 +141,7 @@
         flex-wrap: nowrap;
         align-items: flex-start;
         gap: 6px;
-        height: 150px;
+        height: var(--zone-h);
         min-height: 0;
         padding: var(--pf) 6px var(--pn);
         overflow-x: auto;
@@ -195,7 +197,7 @@
         flex-direction: row;
         align-items: flex-start;
         gap: 6px;
-        height: 63px;
+        height: var(--nexus-h);
         min-height: 0;
         min-width: 0;
         padding: 8px 6px 0;
@@ -204,7 +206,7 @@
     }
     #opponent-area .nexus-zone { padding: 0 6px 8px; }
     /* 高さは PC のネクサス（68×78）と同じ縦横比。行の高さ（63px）は、この高さ55pxと上のコストバッジのはみ出し8pxの合計 */
-    .nexus-zone .card { width: 48px; height: auto; aspect-ratio: 68 / 78; flex: 0 0 auto; margin: 0; padding: 1px; }
+    .nexus-zone .card { width: var(--nexus-w); height: auto; aspect-ratio: 68 / 78; flex: 0 0 auto; margin: 0; padding: 1px; }
     .nexus-slot { margin-right: 0; }
 
     /* Lv・BP・コアは1行ずつ・見出しなしで下の帯に載せ、シンボルは右上の小さな印にする（右下だとコアの文字に重なった） */
@@ -233,17 +235,17 @@
     .card.dock-selected { outline: 2px solid var(--accent-hover); outline-offset: -3px; }
 
     /* 手札は場のスピリットと同じ大きさ（48px・カードの縦横比）で1行。押すと下の欄（#card-dock）に大きな絵と操作ボタンが出る。
-       行の高さは欄に絵を入れるぶん（96px。スピリットの欄が150pxになった分、124pxから詰めた）を取り、手札が小さいぶんは余白にする（2026-11-24 ユーザー確認） */
-    .my-hand-area { position: relative; min-height: 96px; }
+       欄は画面の下端に固定で手札の上に重なるので、行の高さは手札1枚分だけ。手札が0枚でも、召喚・破棄で画面が上下にずれないよう高さは残す（2026-11-24 ユーザー指摘で 96px から詰めた） */
+    .my-hand-area { position: relative; min-height: calc(var(--hand-w) * var(--sp-h-ratio)); }
     #hand { flex-wrap: nowrap; overflow-x: auto; padding-top: 0; min-width: 0; gap: 4px; align-items: flex-start; }
-    #hand .card { flex: 0 0 auto; width: 48px; height: auto; aspect-ratio: 675 / 985; padding: 2px; font-size: 8px; }
+    #hand .card { flex: 0 0 auto; width: var(--hand-w); height: auto; aspect-ratio: 675 / 985; padding: 2px; font-size: 8px; }
     #hand .card .name { margin: 0; font-size: 8px; }
     #hand .card:not(.has-art) .stats { display: none; }
     #hand .burst-set-badge, #hand .hand-ability-badge, #hand .field-req-badge { display: none; }
     /* 画面の右下に固定し、手札の右に縦1列で出す（#board 基準だと場の下端＝相手の場の上に来て重なった） */
     #action-buttons-container {
         position: fixed;
-        bottom: 8px;
+        bottom: calc(8px + env(safe-area-inset-bottom));
         right: 8px;
         top: auto;
         transform: none;
@@ -256,7 +258,8 @@
     #action-buttons { flex-direction: column; gap: 6px; }
     #action-buttons button { padding: 8px 6px; font-size: 13px; width: 100%; white-space: normal; }
 
-    /* 手札と入れ替えて、大きな絵・カード名・操作ボタン（高さ44px以上）を出す。時間では消えず、もう一度カードを押すか × で閉じる */
+    /* 画面の下端に固定して、手札の上に重ねる（開いている間は手札が隠れる）。ページが画面より高くても、下が見切れて「召喚」が半分になることがない（2026-11-24 iPhone SE で確認）。
+       大きな絵・カード名・操作ボタン（高さ44px以上）を出す。時間では消えず、もう一度カードを押すか × で閉じる */
     #card-dock:not(.hidden) {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
@@ -265,12 +268,11 @@
         align-content: center;
         align-items: center;
         column-gap: 8px;
-        position: absolute;
-        top: 0;
+        position: fixed;
         bottom: 0;
         left: 0;
         right: calc(var(--action-col-width) + 8px);
-        padding: 6px 8px;
+        padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
         background: var(--bg-panel);
         border: 1px solid #444;
         border-radius: 8px;
@@ -293,4 +295,18 @@
         color: var(--text-main);
     }
     #card-dock-buttons button:disabled { opacity: 0.4; }
+}
+
+/* 背の低い画面（iPhone SE は CSS 高さ667px、Safari で実際に見える高さは約553px）。スピリットの欄を150→122pxにして、2段のカード幅は欄に収まる幅（約40px。Lv・BP・コアが読める下限の目安）、
+   ネクサス・情報の行・手札も詰め、375×553 で縦スクロールが出ないようにする。幅の判定（ui/spiritLayout.ts）は測った幅を使うので変えていない。
+   標準の値は、375×667 以上（高さ667px以上）でスピリットの絵を大きく保つため、そのまま（667px で境にしたのは、375×667 の見た目を変えないため）。1段と2段で欄の高さは同じ。
+   --pf・--pn は絵やコストバッジのはみ出し分で、1段・2段・scroll の幅を欄の高さから逆算する */
+@media (max-width: 768px) and (max-height: 666px) {
+    :root { --zone-h: 122px; --nexus-h: 54px; --info-h: 36px; --hand-w: 42px; --nexus-w: 40px; }
+    .player-area { padding-top: 2px; padding-bottom: 2px; }
+    .spirit-zone[data-rows="2"] { --sp-w: calc((var(--zone-h) - 8px) / 2 / var(--sp-h-ratio)); }
+    .spirit-zone:not([data-rows="2"]):not([data-rows="scroll"]) { --sp-w: calc((var(--zone-h) - 55px) / var(--sp-h-ratio)); }
+    .spirit-zone[data-rows="scroll"] { --sp-w: calc((var(--zone-h) - 8px) / 2 / var(--sp-h-ratio)); --pf: calc((var(--zone-h) - var(--sp-h)) / 2); --pn: var(--pf); }
+    #status-bar { padding: 2px 8px; }
+    #center-info-area { min-height: 18px; padding: 0 8px; }
 }
