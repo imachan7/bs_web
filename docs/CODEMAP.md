@@ -1755,6 +1755,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hideWaiting`（fn）
 - `showToast`（fn）
 
+## public/src/ui/cardDock.ts
+
+- `renderCardDock`（fn）：盤面を描き直すたびに呼ぶ。描き直しでカードもボタンも作り直されるので、欄の中身も作り直す。
+- `installCardDock`（fn）
+
 ## public/src/ui/coreIcon.ts
 
 - `coreIcon`（fn）：コアの画像。文字の高さに合わせるため大きさは CSS（.core-icon）で em 指定

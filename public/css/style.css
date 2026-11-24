@@ -1662,14 +1662,6 @@ button:active {
     }
 }
 
-/* スマホではカードが64pxに縮み、縦1列のボタン（最大4個で約140px）が下へはみ出して
-   ライフ・リザーブ表示や次の段のスピリットを覆う。はみ出す分だけ下に余白を取る */
-@media (hover: none) and (max-width: 768px) {
-    .spirit-zone .card:has(.core-buttons) {
-        margin-bottom: 80px;
-    }
-}
-
 /* ---- レスポンシブ: タブレット ---- */
 @media (max-width: 768px) {
     :root {
@@ -1689,52 +1681,6 @@ button:active {
         padding: 3px 6px;
         font-size: 10px;
     }
-    .field-row {
-        flex-direction: column;
-        gap: 8px;
-        min-height: auto;
-    }
-    .nexus-zone {
-        min-width: auto;
-        min-height: auto;
-        flex-direction: row;
-    }
-    .spirit-zone {
-        min-height: auto;
-    }
-    .spirit-zone .card {
-        width: 64px;
-        height: 64px;
-    }
-    .spirit-zone .card .name {
-        font-size: 8px;
-        max-width: 54px;
-    }
-    .nexus-zone .card {
-        width: 55px;
-        height: 64px;
-    }
-    .burst-slot {
-        width: 38px;
-        height: 48px;
-        font-size: 8px;
-    }
-    /* スマホは、上の行にバーストとスピリット、下の行にネクサス。バーストはスピリットのカードと同じ大きさ（カードの縦横比）で左端（2026-11-17 ユーザー指示）。
-       HTML ではバーストがネクサスの行の中にあるので、ネクサスの行を display: contents でほどいて格子に並べ直す */
-    .field-row {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        grid-template-areas: "burst spirits" "nexus nexus";
-        align-items: center;
-    }
-    .field-row > .nexus-row { display: contents; }
-    .field-row .burst-zone { grid-area: burst; }
-    .field-row .nexus-zone { grid-area: nexus; }
-    .field-row > .spirit-zone { grid-area: spirits; }
-    /* 相手側は鏡写し：上からネクサス、その下にバースト＋スピリット（スピリットが中央寄り） */
-    #opponent-area .field-row { grid-template-areas: "nexus nexus" "burst spirits"; }
-    .burst-zone .burst-slot,
-    #opp-burst .burst-slot.burst-revealed { width: 64px; height: auto; aspect-ratio: 675 / 985; }
     .player-area {
         padding: 8px 12px;
         gap: 8px;
@@ -1756,27 +1702,6 @@ button:active {
         font-size: 10px;
     }
 
-    /* 縦画面ではボタンを手札の右に縦1列で置き、手札側はその幅だけ空ける（手札と重ならない） */
-    #action-buttons-container {
-        position: fixed;
-        bottom: 8px;
-        right: 8px;
-        top: auto;
-        transform: none;
-        width: var(--action-col-width);
-        max-height: 45vh;
-        overflow-y: auto;
-    }
-    #action-buttons {
-        flex-direction: column;
-        gap: 6px;
-    }
-    #action-buttons button {
-        padding: 8px 6px;
-        font-size: 13px;
-        width: 100%;
-        white-space: normal;
-    }
     .my-hand-area {
         padding-right: calc(var(--action-col-width) + 8px);
     }
@@ -1804,38 +1729,6 @@ button:active {
     .phase-step:not(.active)::before {
         content: attr(data-short);
         font-size: 10px;
-    }
-    .spirit-zone .card {
-        width: 64px;
-        height: 64px;
-    }
-    .spirit-zone .card .name {
-        font-size: 8px;
-        max-width: 56px;
-    }
-    .spirit-zone .card .stats,
-    .spirit-zone .card .cores,
-    .nexus-zone .card .stats,
-    .nexus-zone .card .cores {
-        font-size: 10px;
-    }
-    .nexus-zone .card {
-        width: 60px;
-        height: 60px;
-    }
-    .nexus-zone .card .name {
-        font-size: 8px;
-    }
-    .burst-slot {
-        width: 32px;
-        height: 42px;
-        font-size: 7px;
-    }
-    .burst-zone .burst-slot,
-    #opp-burst .burst-slot.burst-revealed { width: 64px; height: auto; aspect-ratio: 675 / 985; }
-    .burst-mine .name {
-        max-width: 26px;
-        font-size: 7px;
     }
     #hand .card {
         width: 68px;

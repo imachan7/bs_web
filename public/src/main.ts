@@ -10,6 +10,7 @@ import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeck
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
 import { waitForOpponent, type DeckChoice, type WaitExtra } from "./matchWait"
 import { assetUrl } from "./assetUrl"
+import { installCardDock } from "./ui/cardDock"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
@@ -595,6 +596,7 @@ async function init(): Promise<void> {
     loadChangelog()
     installSecretCardArt(showToast)
     installDisplaySettings()
+    installCardDock()
 
     byId("join-btn").addEventListener("click", () => {
         // 2回目の「対戦ルームに入る」は参加の取り消し

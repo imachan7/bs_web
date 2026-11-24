@@ -1,0 +1,164 @@
+/* スマホ（幅768px以下）の対戦画面の配置。相手の場・自分の場・手札を、上下にスクロールせず1画面に収める（2026-11-24 ユーザー要望）。
+   PC（769px以上）には効かない。場の行の高さは固定で、スピリットの数・合体の有無で変わらない（召喚・破壊で画面が上下にずれない） */
+#card-dock { display: none; }
+
+@media (max-width: 768px) {
+    :root { --sp-h-ratio: calc(985 / 675); }
+
+    #status-bar { padding: 4px 8px; gap: 4px; }
+    #status-bar .log-toggle-btn { padding: 4px 8px; font-size: 11px; }
+    #center-info-area { min-height: 30px; padding: 2px 8px; gap: 2px; }
+    .player-area { padding: 4px 8px; gap: 2px; justify-content: flex-start; }
+    .opp-hand-area:not(:has(button:not(.hidden))) { display: none !important; }
+    .player-info { height: 30px; flex-wrap: nowrap; align-items: center; gap: 10px; overflow-x: auto; white-space: nowrap; }
+
+    /* 自分は上にスピリット（左にバースト）・下にネクサス、相手はその点対称。バーストはネクサスの行の中にあるので display: contents でほどく */
+    .field-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-rows: 104px 50px;
+        grid-template-areas: "burst spirits" "nexus nexus";
+        gap: 2px 6px;
+        min-height: 0;
+        align-items: center;
+    }
+    #opponent-area .field-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: 50px 104px;
+        grid-template-areas: "nexus nexus" "spirits burst";
+    }
+    .field-row > .nexus-row { display: contents; }
+    .field-row .burst-zone { grid-area: burst; }
+    .field-row .nexus-zone { grid-area: nexus; }
+    .field-row > .spirit-zone { grid-area: spirits; }
+    .burst-zone .burst-slot,
+    #opp-burst .burst-slot.burst-revealed { width: 64px; height: auto; aspect-ratio: 675 / 985; }
+
+    /* スピリットは1行。幅は5枚目から48pxに縮め、それでも入らなければこの行の中だけ横にスクロールする。
+       数で切り替えるのは、CSS だけで決められて保守が軽いから（疲労・合体の余白は数えないので、4枚でも余白が重なると少しスクロールする） */
+    .spirit-zone {
+        --sp-w: 64px;
+        --sp-h: calc(var(--sp-w) * var(--sp-h-ratio));
+        flex-wrap: nowrap;
+        align-items: flex-start;
+        gap: 6px;
+        height: 104px;
+        min-height: 0;
+        /* 上はコストバッジのはみ出し（8px）のぶん。相手のカードは180度回るので、はみ出しは下になる */
+        padding: 8px 6px 3px;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    #opponent-area .spirit-zone { padding: 3px 6px 8px; }
+    .spirit-zone:has(> .card:nth-child(5)) { --sp-w: 48px; }
+    .spirit-zone .card {
+        width: var(--sp-w);
+        height: auto;
+        aspect-ratio: 675 / 985;
+        flex: 0 0 auto;
+        margin: 0;
+        padding: 2px;
+    }
+    /* 合体したブレイヴは、ホストの右へ半分はみ出す。絵は行の高さの中（上へ8px）に収める。右斜め上の見せ方は PC より浅い */
+    .spirit-zone .card.has-brave { margin-right: calc(var(--sp-w) / 2 + 3px); }
+    #opponent-area .spirit-zone .card.has-brave { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
+    :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: -8px; }
+    :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: 8px; }
+    :root[data-brave] #opponent-area .spirit-zone:has(.has-brave-art) { padding-top: 3px; }
+    /* 疲労は90度回るので、見た目の幅（縦長の高さ）と実際の幅の差を左右に空ける */
+    .spirit-zone .card.has-art.rested,
+    .spirit-zone .card[data-side="opp"].has-art.rested { margin: 0 calc((var(--sp-h) - var(--sp-w)) / 2); }
+    .spirit-zone .card .name, .nexus-zone .card .name { margin: 0; font-size: 8px; max-width: none; }
+
+    .nexus-zone {
+        flex-wrap: nowrap;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 6px;
+        height: 50px;
+        min-height: 0;
+        min-width: 0;
+        padding: 8px 6px 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    #opponent-area .nexus-zone { padding: 0 6px 8px; }
+    .nexus-zone .card { width: 48px; height: 42px; flex: 0 0 auto; margin: 0; padding: 1px; }
+    .nexus-slot { margin-right: 0; }
+
+    /* Lv・BP・コアは1行ずつ・見出しなしで下の帯に載せ、シンボルは右上の小さな印にする（右下だとコアの文字に重なった） */
+    .stat-label { display: none; }
+    .spirit-zone .card.has-art > .card-overlay { top: 40%; padding: 1px 2px 2px; }
+    .nexus-zone .card.has-art > .card-overlay { top: 25%; padding: 1px 2px 2px; }
+    .spirit-zone .card.has-art > .card-overlay .stats,
+    .spirit-zone .card.has-art > .card-overlay .cores,
+    .nexus-zone .card.has-art > .card-overlay .stats,
+    .nexus-zone .card.has-art > .card-overlay .cores { font-size: 10px; line-height: 1.15; }
+    .spirit-zone .card.has-art > .card-overlay .stat-bp { font-size: 11px; }
+    .spirit-zone .symbols, .nexus-zone .symbols { top: 2px; right: 2px; bottom: auto; gap: 1px; }
+    .spirit-zone .sym-icon, .nexus-zone .sym-icon { width: 11px; height: 11px; }
+
+    /* カードの操作ボタンは画面下の欄（#card-dock。ui/cardDock.ts）に出すので、カードの上では隠す。
+       支払い中の個数の表示（.pay-badge）だけはカードの下端に残す */
+    #board .core-buttons,
+    #board .soul-swap-badge,
+    #board .card-actions > button,
+    #board .detach-badge { display: none; }
+    #board .card-actions { top: auto; bottom: 2px; margin: 0; }
+    #board .pay-badge { position: static; min-width: 0; padding: 1px 4px; font-size: 9px; }
+    .spirit-zone .card:has(> .card-actions),
+    .nexus-zone .card:has(> .card-actions) { margin-bottom: 0; }
+    .card.dock-selected { outline: 2px solid var(--accent-hover); outline-offset: -3px; }
+
+    /* 手札は1行（折り返すと高さが変わる）。手札の右に操作ボタンを縦1列で並べ、場のカードには重ねない */
+    .my-hand-area { position: relative; min-height: 112px; }
+    #hand { flex-wrap: nowrap; overflow-x: auto; padding-top: 0; min-width: 0; }
+    #hand .card { flex: 0 0 auto; }
+    /* 画面の右下に固定し、手札の右に縦1列で出す（#board 基準だと場の下端＝相手の場の上に来て重なった） */
+    #action-buttons-container {
+        position: fixed;
+        bottom: 8px;
+        right: 8px;
+        top: auto;
+        transform: none;
+        width: var(--action-col-width);
+        max-height: 140px;
+        overflow-y: auto;
+    }
+    /* 選択肢の一覧が出ているときだけは長くなるので、上へ伸ばす */
+    #action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) { max-height: 45vh; }
+    #action-buttons { flex-direction: column; gap: 6px; }
+    #action-buttons button { padding: 8px 6px; font-size: 13px; width: 100%; white-space: normal; }
+
+    /* 手札と入れ替えて、カード名と操作ボタン（高さ44px以上）を出す。時間では消えず、もう一度カードを押すか × で閉じる */
+    #card-dock:not(.hidden) {
+        display: flex;
+        flex-wrap: wrap;
+        align-content: center;
+        gap: 6px 8px;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: calc(var(--action-col-width) + 8px);
+        padding: 6px 8px;
+        background: var(--bg-panel);
+        border: 1px solid #444;
+        border-radius: 8px;
+        z-index: 130;
+    }
+    #card-dock-name { order: 1; flex: 1 1 0; min-width: 0; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #card-dock-close { order: 2; min-width: 44px; min-height: 28px; font-size: 18px; line-height: 1; }
+    #card-dock-buttons { order: 3; flex: 0 0 100%; display: flex; gap: 6px; overflow-x: auto; }
+    #card-dock-buttons button {
+        flex: none;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0 12px;
+        font-size: 14px;
+        border-radius: 8px;
+        background: var(--bg-main);
+        border: 1px solid #666;
+        color: var(--text-main);
+    }
+}

@@ -35,6 +35,7 @@ import {
 import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui/tooltip"
 import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
 import { renderField } from "./ui/fieldCard"
+import { renderCardDock } from "./ui/cardDock"
 import { syncEffectNotice } from "./ui/effectNotice"
 import { renderHand } from "./ui/hand"
 import { renderInfo, renderBurst, renderBattle, flashBurstReveal } from "./ui/infoPanels"
@@ -1105,6 +1106,7 @@ export function render(view: GameView, ui: UiState): void {
 
     // 手札
     renderHand(view, ui)
+    renderCardDock()
 
     // 手元ボタン
     const myTegamotoCount = view.players[you].tegamoto?.length ?? 0

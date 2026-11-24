@@ -17,6 +17,7 @@
     <meta name="asset" content="/api/cards" />
     <meta name="asset" content="/dist/aiWorker.js" />
     <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/battle-mobile.css" />
 </head>
 <body>
     <main>
@@ -267,6 +268,12 @@
                 <div class="my-hand-area" style="display: flex; gap: 8px; align-items: flex-start; justify-content: center;">
                     <button id="btn-my-tegamoto" class="log-toggle-btn hidden" style="margin-top: 8px;">手元(0)</button>
                     <div id="hand"></div>
+                    <!-- スマホだけ。押した自分のカードの操作ボタンを、手札と入れ替えてここに出す（ui/cardDock.ts） -->
+                    <div id="card-dock" class="hidden">
+                        <span id="card-dock-name"></span>
+                        <div id="card-dock-buttons"></div>
+                        <button id="card-dock-close" aria-label="閉じる">×</button>
+                    </div>
                 </div>
             </div>
         </div>
