@@ -44,7 +44,9 @@ export function renderInfo(
         myChoiceCandidates.includes(coreZoneChoiceId(zone, pid)) ? coreZoneChoiceId(zone, pid) : undefined
     // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
-        ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
+        ["", (isSelf ? "あなた: " : "相手: ") + p.name],
+        // 別の項目にして、スマホでは出さない（ターンが替わるたびに名前の行の折り返しが変わり、行が揺れた。上の行のターン表示と枠の色で分かる）
+        ...((view.turnPlayer === pid ? [["turn-mark", "⏵ターン中"]] : []) as [string, string][]),
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
         // ソウルコアはコア数値に含まれない（docs/design/SOULCORE.md 案A-outside）。
         // 案B-inside: 数値には最初から[ソウルコア]が含まれる（2026-10-06 ユーザー確定）。所在は別項目で特定する
