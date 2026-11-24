@@ -40,6 +40,10 @@ async function find(doc, text, sel = "button", ms = 2000) {
     await sleep(150)
   }
 }
+async function waitSel(doc, sel, ms = 4000) {
+  for (let t = 0; t < ms; t += 200) { if ([...doc.querySelectorAll(sel)].some(vis)) return; await sleep(200) }
+  throw new Error(`${sel} が見つからない`)
+}
 async function press(doc, text, wait = 650) { (await find(doc, text)).click(); await sleep(wait) }
 async function pressOpt(doc, text, wait = 650) { try { await press(doc, text, wait); return true } catch { return false } }
 async function clickSel(doc, sel, wait = 650) {
@@ -69,8 +73,9 @@ const SCENES = [
   { id: "idle", name: "1 待機", board: standby, run: async () => {} },
   { id: "hand", name: "2 手札を押した", board: standby, run: async (c) => clickSel(c.A, "#hand .card") },
   { id: "spirit", name: "3 場のスピリットを押した", board: standby, run: async (c) => clickSel(c.A, "#my-spirits .card") },
-  { id: "lv", name: "4 召喚の Lv 選択", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await find(c.A, "フィールドから取得") } },
-  { id: "pay", name: "5 召喚の支払い（フィールドから）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await press(c.A, "フィールドから取得") } },
+  // 召喚の支払いは「①コスト → ②置くコア」の2段の画面（ui/payStages.ts）。リザーブが足りないので画面が開く
+  { id: "lv", name: "4 召喚の支払い①（コスト）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await waitSel(c.A, "#choice-options .pay-sheet") } },
+  { id: "pay", name: "5 召喚の支払い②（おまかせ→次へ）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await press(c.A, "おまかせで割り当てる"); await press(c.A, "次へ") } },
   { id: "lampStep", name: "6 効果配置の置くコア数", board: lampBoard, run: lampToStepper },
   { id: "lampPay", name: "7 6 の「決定」後の支払い", board: lampBoard, run: async (c) => { await lampToStepper(c); await press(c.A, "決定") } },
   { id: "lampOpen", name: "8 自分のカードをオープン中", board: lampBoard, run: lampToOpen },

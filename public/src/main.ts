@@ -1440,7 +1440,8 @@ void init()
 // 表示の設定（上の「⚙ 表示」で開く）。<html> の data 属性で CSS を切り替え、その端末に覚える
 // brave：合体したブレイヴを art＝イラストだけ／full＝カード全体。frame：スピリットの色の縁 on／off
 function installDisplaySettings(): void {
-    const settings = { brave: { key: "bs.braveStyle", values: ["art", "full"] }, frame: { key: "bs.frameStyle", values: ["on", "off"] } } as const
+    // hand・menuside はスマホだけで使う（片手で操作する手に合わせる。2026-11-25 ユーザー案）
+    const settings = { brave: { key: "bs.braveStyle", values: ["art", "full"] }, frame: { key: "bs.frameStyle", values: ["on", "off"] }, hand: { key: "bs.handStyle", values: ["center", "left", "right"] }, menuside: { key: "bs.menuSide", values: ["right", "left"] } } as const
     const apply = (name: keyof typeof settings, value: string) => {
         document.documentElement.dataset[name] = value
         const radio = document.querySelector<HTMLInputElement>(`input[name="${name}-style"][value="${value}"]`)

@@ -383,7 +383,9 @@ export function renderPayStageSheet(v: GameView, pay: PayingState, host: HTMLEle
     const fieldTaken = sum(fields)
     sheet.append(div("pay-summary", `リザーブから ${reserveTaken} 個・フィールドから ${fieldTaken} 個`))
     const canTakeReserve = filled < need && (pay.costReserve ?? 0) + (pay.placeReserve ?? 0) < reservePool(v)
-    sheet.append(stepRow(btn("−", "res-", { disabled: reserveTaken <= 0 }), `リザーブ ${reserveTaken} 個`, btn("＋", "res+", { disabled: !canTakeReserve })))
+    // リザーブに残っている数も出す（いくつあるか分からないまま −／＋ を押すことになっていた。2026-11-25 ユーザー指摘）
+    const reserveLeft = reservePool(v) - (pay.costReserve ?? 0) - (pay.placeReserve ?? 0)
+    sheet.append(stepRow(btn("−", "res-", { disabled: reserveTaken <= 0 }), `リザーブから ${reserveTaken} 個（残り ${reserveLeft}）`, btn("＋", "res+", { disabled: !canTakeReserve })))
     const list = div("pay-fields")
     for (const [id, n] of Object.entries(fields)) {
         const inst = fieldInsts(v).find((i) => i.instanceId === id)

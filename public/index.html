@@ -16,8 +16,8 @@
     <!-- 本番ではサーバーが ?v=<中身のハッシュ> を付ける（server/src/assetVersions.ts）。JS は assetUrl() でここから版つきの URL を引く -->
     <meta name="asset" content="/api/cards" />
     <meta name="asset" content="/dist/aiWorker.js" />
-    <link rel="stylesheet" href="/css/style.css?v=mb44" />
-    <link rel="stylesheet" href="/css/battle-mobile.css?v=mb44" />
+    <link rel="stylesheet" href="/css/style.css?v=mb51" />
+    <link rel="stylesheet" href="/css/battle-mobile.css?v=mb51" />
 </head>
 <body>
     <main>
@@ -158,6 +158,17 @@
                         <label><input type="radio" name="frame-style" value="on"> あり</label>
                         <label><input type="radio" name="frame-style" value="off"> なし</label>
                     </fieldset>
+                    <fieldset class="mobile-only">
+                        <legend>操作の寄せ（下に出る選択肢・メニュー）</legend>
+                        <label><input type="radio" name="hand-style" value="center"> 中央</label>
+                        <label><input type="radio" name="hand-style" value="left"> 左</label>
+                        <label><input type="radio" name="hand-style" value="right"> 右</label>
+                    </fieldset>
+                    <fieldset class="mobile-only">
+                        <legend>≡ メニューの位置</legend>
+                        <label><input type="radio" name="menuside-style" value="right"> 右</label>
+                        <label><input type="radio" name="menuside-style" value="left"> 左</label>
+                    </fieldset>
                 </div>
             </span>
             <button id="btn-bug-report" class="log-toggle-btn" style="color: #ffcc00; border-color: #ffaa00;">🐛 バグ報告</button>
@@ -297,7 +308,7 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/dist/main.js?v=mb44"></script>
+    <script src="/dist/main.js?v=mb51"></script>
 
     <!-- 汎用ツールチップ -->
     <div id="global-tooltip" class="hidden"></div>

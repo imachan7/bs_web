@@ -4,6 +4,7 @@
 /* PC では上のボタン類をそのまま並べ、スマホ専用の部品（メニューの開閉・手元の欄）は出さない */
 #status-menu { display: contents; }
 #btn-status-menu, #btn-status-menu-close, #mat-tegamoto-self, #mat-tegamoto-opp { display: none; }
+.display-settings .mobile-only { display: none; }
 
 @media (max-width: 768px) {
     /* 行の高さ。背の低い画面（下の max-height: 700px）だけ値を詰める（2026-11-24 iPhone SE の Safari で見える高さ約553px に収めるため）。
@@ -208,6 +209,10 @@
     /* 疲労（横向き）のときは疲労の余白に任せる。こちらが勝つと相手側で幅の計算が合わず、2段に入るのに横スクロールへ落ちていた */
     .spirit-zone .card.has-brave:not(.rested) { margin-right: calc(var(--sp-w) / 2 + 3px); }
     #opponent-area .spirit-zone .card.has-brave:not(.rested) { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
+    /* ブレイヴ2枚：2枚目は1枚目の右に4割ずらして重ねる（style.css）。そのぶん右を空ける。段の上へは出さない（欄の外は切れる） */
+    .spirit-zone .card.has-brave:has(.brave-combined:nth-child(2)):not(.rested) { margin-right: calc(var(--sp-w) * 0.9 + 3px); }
+    #opponent-area .spirit-zone .card.has-brave:has(.brave-combined:nth-child(2)):not(.rested) { margin-right: 0; margin-left: calc(var(--sp-w) * 0.9 + 3px); }
+    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) { top: 0; }
     :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: calc(var(--br-top) * -1); }
     :root[data-brave] .spirit-zone .brave-combined.has-brave-art { max-height: calc(var(--sp-h) + var(--br-top)); }
     :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: var(--pf); }
@@ -322,7 +327,31 @@
     body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)):has(#reveal-panel, #mill-panel) #event-layer { top: 154px; }
     #choice-options > button { min-height: 44px; }
     /* 召喚・配置の支払い（①コスト／②置くコア）。シート全体を1つの項目として横幅いっぱいに置き、中は自前で並べる。ボタンは44px以上、はみ出すときはシートの中でスクロール */
-    #choice-options > .pay-sheet { grid-column: 1 / -1; max-height: calc(55dvh - 12px); overflow-y: auto; font-size: 14px; }
+    /* 支払いのシートは中で別にスクロールさせない（外の欄と二重にスクロールし、下端に固定した 召喚／配置 のボタンが外の欄の外に隠れた）。
+       外の欄（#action-buttons-container）を少し高くして、その中でスクロールさせる。押し方の説明文は画面の文字で分かるので出さない */
+    /* PC 用の枠（style.css の幅300px・背景・枠線）は外の欄と二重になるので外す */
+    #choice-options > .pay-sheet { grid-column: 1 / -1; font-size: 14px; width: auto; padding: 0; background: none; border: none; box-shadow: none; }
+    /* 「リザーブから n 個（残り m）」は長いので、文字は折り返して −／＋ を欄の内側に収める（はみ出していた） */
+    #choice-options .pay-sheet .stepper-row > .stepper-value { flex: 0 1 auto; min-width: 0; white-space: normal; }
+    /* シートを出している間は、帯の ≡ を隠す（シートの下に重なって押せないのに残っていた） */
+    #game:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #btn-status-menu { visibility: hidden; }
+    #action-buttons-container:has(#choice-options .pay-sheet) { max-height: 75dvh; }
+    /* 高さを詰める：取り分のまとめ（リザーブから n・フィールドから n）はリザーブの行と取った個体の行で分かるので出さない（SE の高さでスクロールせずに収めるため） */
+    #choice-options .pay-summary { display: none; }
+    /* 「対象選択をやめる」はシートの一番下に置く（上に置くと、背の高いシートで画面の上の方になり片手で届かなかった） */
+    #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > #btn-cancel-target { order: 99; }
+    #choice-options .pay-hint { display: none; }
+    .display-settings .mobile-only { display: block; }
+
+    /* 操作の寄せ（⚙ 表示。<html data-hand>）：下に出る選択肢・支払い・メニューのシートを、親指が届く幅で中央・左・右に寄せる（2026-11-25 ユーザー案。既定は中央） */
+    :root { --sheet-w: min(360px, calc(100vw - 16px)); }
+    #action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)),
+    #status-bar.menu-open #status-menu { width: var(--sheet-w); left: 50%; right: auto; transform: translateX(-50%); }
+    :root[data-hand="left"] :is(#action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)), #status-bar.menu-open #status-menu) { left: 8px; transform: none; }
+    :root[data-hand="right"] :is(#action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)), #status-bar.menu-open #status-menu) { left: auto; right: 8px; transform: none; }
+    /* ≡ の位置（<html data-menuside>）。左なら中央の帯の左端に置き、案内はその右側に出す */
+    :root[data-menuside="left"] #center-info-area > #btn-status-menu { right: auto; left: 4px; }
+    :root[data-menuside="left"] #center-info-area { padding-right: 8px; padding-left: 52px; }
     #choice-options .pay-sheet button { min-height: 44px; }
     /* 中がスクロールしても、次へ・戻る・召喚／配置のボタンはシートの下端に見えたままにする（スクロールの先に隠れていた） */
     #choice-options .pay-nav { position: sticky; bottom: 0; background: var(--bg-panel); padding-top: 4px; z-index: 1; }

@@ -1272,6 +1272,24 @@ button:active {
                 var(--frame, linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333))) border-box;
 }
 :root[data-brave="art"] .brave-combined-box:has(> .has-brave-art) { top: -30px; }
+/* ブレイヴが2枚のとき：2枚目は1枚目のさらに右上へずらして重ねる（実物は左右に付けるが、左はコストの丸を隠し、スマホでは幅が増えるため。2026-11-25 ユーザーと決定）。
+   PC はカーソルを0.5秒合わせると前に出る（z-index を遅らせて切り替える。すぐ切り替えると、通り過ぎただけで入れ替わってちらつく） */
+:root:is([data-brave="art"], [data-brave="full"]) .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) {
+    position: absolute;
+    left: 38%;
+    top: -26px;
+    width: 100%;
+    /* z-index: -1 で後ろに回すと、.spirit-zone の背景の下まで沈む（上の .brave-combined-box の注意を参照）。2枚目は DOM の順で前に描かれる */
+}
+:root:is([data-brave="art"], [data-brave="full"]) .brave-combined-box:has(> .has-brave-art) > .brave-combined {
+    transition: z-index 0s;
+}
+@media (hover: hover) {
+    :root:is([data-brave="art"], [data-brave="full"]) .brave-combined-box:has(> .has-brave-art) > .brave-combined:hover {
+        z-index: 6;
+        transition: z-index 0s 0.5s;
+    }
+}
 /* イラストの枠だけを切り出す。カード画像（360×525）でイラストは横 22〜345px・縦 38〜300px（上はコストと名前、左は飾りの縁）。
    縁の写り込みを避けるため、少し内側（横 30〜325px・縦 56〜286px）を取る。
    枠の縦横比を箱に持たせ、画像をその枠の外まで広げてはみ出しを隠す */
