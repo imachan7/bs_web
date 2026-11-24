@@ -305,6 +305,8 @@
     /* 選択肢を下に出している間は、オープン中・破棄したカードの欄を上（上の行の下）へ移す。下のままだと選択肢に隠れて、選ぶ元のカードが見えなかった */
     body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #reveal-panel,
     body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #mill-panel { top: 44px; bottom: auto; }
+    /* そのとき、マジックの効果などの通知（#event-layer。盤面の上から60px）はオープン中の欄（上の行の下から約140px）と重なるので、欄の下へずらす（2026-11-25 ユーザー指摘） */
+    body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)):has(#reveal-panel, #mill-panel) #event-layer { top: 154px; }
     #choice-options > button { min-height: 44px; }
     #action-buttons { flex-direction: column; gap: 6px; }
     /* 召喚・使用の途中（支払い・対象選択など「対象選択をやめる」が出ている間）と、下の欄を開いている間は、アタックステップへ・ターン終了を出さない。
