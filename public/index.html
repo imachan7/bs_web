@@ -141,6 +141,21 @@
         <div id="status-bar">
             <button id="btn-toggle-log" class="log-toggle-btn">💬 ログ</button>
             <button id="btn-toggle-trash" class="log-toggle-btn">🗑 トラッシュ</button>
+            <span class="display-settings-wrap">
+                <button id="btn-display-settings" class="log-toggle-btn" aria-expanded="false" aria-controls="display-settings">⚙ 表示</button>
+                <div id="display-settings" class="display-settings hidden">
+                    <fieldset>
+                        <legend>合体したブレイヴ</legend>
+                        <label><input type="radio" name="brave-style" value="art"> イラスト</label>
+                        <label><input type="radio" name="brave-style" value="full"> カード全体</label>
+                    </fieldset>
+                    <fieldset>
+                        <legend>スピリットの縁</legend>
+                        <label><input type="radio" name="frame-style" value="on"> あり</label>
+                        <label><input type="radio" name="frame-style" value="off"> なし</label>
+                    </fieldset>
+                </div>
+            </span>
             <button id="btn-bug-report" class="log-toggle-btn" style="color: #ffcc00; border-color: #ffaa00;">🐛 バグ報告</button>
             <button id="btn-pay-mode" class="log-toggle-btn">🪙 支払い：自動</button>
             <button id="btn-surrender" class="log-toggle-btn" style="color: #ff8888; border-color: #cc4444;">🏳 降参</button>
