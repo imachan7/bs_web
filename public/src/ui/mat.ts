@@ -21,7 +21,12 @@ function slotOf(key: string, side: string, label: string, count: string): HTMLEl
 function cores(n: number): HTMLDivElement {
     const row = document.createElement("div")
     row.className = "mat-cores"
-    for (let i = 0; i < Math.min(n, MAX_ICONS); i++) row.appendChild(coreIcon())
+    // 並べるのは MAX_ICONS 個まで。超えたら1個と「×N」で数を出す（並べきれず黙って切れていた）
+    if (n > MAX_ICONS) {
+        row.append(coreIcon(), Object.assign(document.createElement("span"), { className: "mat-core-count", textContent: `×${n}` }))
+        return row
+    }
+    for (let i = 0; i < n; i++) row.appendChild(coreIcon())
     return row
 }
 
