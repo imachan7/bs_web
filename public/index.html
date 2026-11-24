@@ -43,6 +43,18 @@
         </div>
         <p id="waiting-message" class="hidden">相手の参加を待っています…</p>
 
+        <!-- いまのロビー -->
+        <div class="lobby-section">
+            <h2 class="lobby-section-title">いまのロビー</h2>
+            <p id="lobby-counts" class="lobby-section-desc">ランダムマッチ待ち -人・対戦中 -卓</p>
+            <ul id="lobby-rooms" class="lobby-rooms"></ul>
+            <button id="pub-room-btn">公開ルームを作って待つ</button>
+            <div id="pub-room-status" class="hidden">
+                <p class="match-waiting-text">公開ルームで相手を待っています…</p>
+                <button id="pub-room-cancel" class="cancel-btn">やめる</button>
+            </div>
+        </div>
+
         <!-- ランダムマッチ -->
         <div class="lobby-section">
             <h2 class="lobby-section-title">ランダムマッチ</h2>

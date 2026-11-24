@@ -86,12 +86,13 @@ app.get("/api/cards", (req, res) => {
 })
 // ---- 接続を張らずに相手を待つ（ランダムマッチ・合言葉ルーム） ----
 // クライアントが数秒おきに問い合わせ、相手が決まったら roomId を返す。受け取った2人が socket をつないでそのルームへ join する。
-// pool は待ち場所の名前で、ランダムマッチは "random"、合言葉ルームは "room:<合言葉>"
+// pool は待ち場所の名前で、ランダムマッチは "random"、合言葉ルームは "room:<合言葉>"、公開ルームは "pub:<id>"
 const matchTickets = new MatchTickets(() => roomManager.newRoomId("match"))
 app.post("/api/match/wait", express.json({ limit: "16kb" }), (req, res) => {
     const body = req.body ?? {}
     const pool = String(body.pool ?? "").slice(0, 100)
-    if (pool !== "random" && !pool.startsWith("room:")) {
+    const isPub = /^pub:[A-Za-z0-9-]{1,40}$/.test(pool)
+    if (pool !== "random" && !pool.startsWith("room:") && !isPub) {
         res.status(400).json({ error: "待ち場所の指定が不正です" })
         return
     }
@@ -102,9 +103,17 @@ app.post("/api/match/wait", express.json({ limit: "16kb" }), (req, res) => {
             res.status(400).json({ error: resolved.error })
             return
         }
-        logSocketJoin(req.headers as Record<string, unknown>, req.socket.remoteAddress, pool === "random" ? "（ランダムマッチ）" : pool.slice("room:".length))
+        logSocketJoin(req.headers as Record<string, unknown>, req.socket.remoteAddress, pool === "random" ? "（ランダムマッチ）" : isPub ? "（公開ルーム）" : pool.slice("room:".length))
     }
-    res.json(matchTickets.poll(body.ticket, pool))
+    // 公開ルーム（pub:）だけが名前の掲示と「入るだけ」を使える
+    const opts = isPub
+        ? { host: body.host ? { name: String(body.host.name ?? "").trim().slice(0, 20) || "プレイヤー" } : undefined, joinOnly: body.joinOnly === true }
+        : {}
+    res.json(matchTickets.poll(body.ticket, pool, opts))
+})
+// ロビーの表示用（認証なし）。待ちの人数と公開ルームの一覧は接続を張らずに数秒おきに取れる
+app.get("/api/lobby", (_req, res) => {
+    res.json({ ...matchTickets.lobby(), playing: roomManager.playingCount })
 })
 // sendBeacon（ページを閉じるとき）からも来る
 app.post("/api/match/cancel", express.json({ limit: "1kb" }), (req, res) => {

@@ -8,7 +8,7 @@ import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../
 import { braveCombineCandidates } from "../../shared/summon"
 import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, rebuildDeckSelects, rememberDeckSelection, rememberLobbyInputs, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
-import { waitForOpponent, type DeckChoice } from "./matchWait"
+import { waitForOpponent, type DeckChoice, type WaitExtra } from "./matchWait"
 import { assetUrl } from "./assetUrl"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
@@ -314,6 +314,13 @@ function showRandomWait(waiting: number | null): void {
     byId("random-match-status").classList.toggle("hidden", waiting === null)
     if (waiting !== null) byId("random-match-count").textContent = String(waiting)
 }
+// 自分が作って待っている公開ルームの pool（一覧で自分の部屋に［入る］を出さないため）
+let myPubPool: string | null = null
+function showPubWait(waiting: number | null): void {
+    byId("pub-room-btn").classList.toggle("hidden", waiting !== null)
+    byId("pub-room-status").classList.toggle("hidden", waiting === null)
+    if (waiting === null) myPubPool = null
+}
 function showRoomWait(waiting: number | null): void {
     if (waiting === null) hideWaiting()
     else showWaiting()
@@ -330,7 +337,9 @@ function cancelWaiting(): void {
     stopWaiting?.()
     stopWaiting = null
     showRandomWait(null)
+    showPubWait(null)
     hideWaiting()
+    void refreshLobby()
 }
 
 // デッキの選択肢の値（構築済みのレシピ名か、カスタムデッキの印つきの名前）から、入っているカードの cardId
@@ -352,7 +361,7 @@ function selectedDeck(): DeckChoice | null {
     return { deckCards }
 }
 
-function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement, showWait: (waiting: number | null) => void): void {
+function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement, showWait: (waiting: number | null) => void, extra: WaitExtra = {}): void {
     const name = (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
     const deck = selectedDeck()
     if (!deck) return
@@ -360,12 +369,26 @@ function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement
     cancelWaiting()
     joinMode = mode
     showWait(1)
+    let listed = false
     stopWaiting = waitForOpponent(pool, deck, {
-        onWaiting: showWait,
+        // 並んだ直後に一覧を取り直す（自分の公開ルームが出た・ランダムの人数が増えたのをすぐ見せる）
+        onWaiting: (waiting) => {
+            if (!listed) {
+                listed = true
+                void refreshLobby()
+            }
+            showWait(waiting)
+        },
         onFailed: (message) => {
             stopWaiting = null
             showWait(null)
             showToast(message)
+        },
+        onGone: () => {
+            stopWaiting = null
+            showWait(null)
+            showToast("その部屋はもう埋まりました")
+            void refreshLobby()
         },
         onMatched: (roomId) => {
             stopWaiting = null
@@ -373,7 +396,7 @@ function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement
             showToast("対戦相手が見つかりました")
             // 同じ内容の join をもう一度送ると、サーバーは参加の取り消しとして扱う
             const join = () => socket.emit("join", { roomId, name, ...deck })
-            const retry = () => startWaiting(mode, pool, button, showWait)
+            const retry = () => startWaiting(mode, pool, button, showWait, extra)
             const timer = setTimeout(() => {
                 if (!arrival) return
                 if (!socket.connected) {
@@ -386,7 +409,64 @@ function startWaiting(mode: "room" | "random", pool: string, button: HTMLElement
             arrival = { timer, join, retry, expired: false }
             connectAndRun(button, join)
         },
-    })
+    }, extra)
+}
+
+// ---- いまのロビー（待ち人数・対戦中の卓・公開ルームの一覧）。socket は使わず3秒おきに取る ----
+// 待ちの問い合わせ（matchWait.ts）と同じ間隔。閉じた部屋が一覧に残って見える時間をこれ以下にするため
+const LOBBY_POLL_MS = 3_000
+type LobbyInfo = { random: number; playing: number; rooms: { pool: string; name: string; since: number }[] }
+let lobbyInfo: LobbyInfo | null = null
+let lobbyTimer: ReturnType<typeof setInterval> | undefined
+
+function renderLobby(): void {
+    if (!lobbyInfo) return
+    byId("lobby-counts").textContent = `ランダムマッチ待ち ${lobbyInfo.random}人・対戦中 ${lobbyInfo.playing}卓`
+    const ul = byId("lobby-rooms")
+    ul.replaceChildren()
+    if (lobbyInfo.rooms.length === 0) {
+        const li = document.createElement("li")
+        li.textContent = "公開ルームはありません"
+        ul.append(li)
+    }
+    for (const r of lobbyInfo.rooms) {
+        const li = document.createElement("li")
+        const name = document.createElement("span")
+        name.className = "lobby-room-name"
+        // 名前は利用者の入力なので textContent で入れる
+        name.textContent = `${r.name}（待ち ${Math.max(0, Math.floor((Date.now() - r.since) / 60_000))}分）`
+        li.append(name)
+        if (r.pool !== myPubPool) {
+            const btn = document.createElement("button")
+            btn.textContent = "入る"
+            btn.addEventListener("click", () => startWaiting("random", r.pool, btn, showPubWait, { joinOnly: true }))
+            li.append(btn)
+        }
+        ul.append(li)
+    }
+}
+
+async function refreshLobby(): Promise<void> {
+    try {
+        lobbyInfo = (await (await fetch("/api/lobby")).json()) as LobbyInfo
+        renderLobby()
+    } catch {
+        // 次の回に任せる（表示は前の値のまま）
+    }
+}
+
+function syncLobbyPolling(): void {
+    const active = document.visibilityState === "visible" && !byId("lobby").classList.contains("hidden")
+    if (active && lobbyTimer === undefined) {
+        void refreshLobby()
+        lobbyTimer = setInterval(() => {
+            if (byId("lobby").classList.contains("hidden")) return syncLobbyPolling()
+            void refreshLobby()
+        }, LOBBY_POLL_MS)
+    } else if (!active && lobbyTimer !== undefined) {
+        clearInterval(lobbyTimer)
+        lobbyTimer = undefined
+    }
 }
 
 onGame("state", (v: GameView) => {
@@ -518,6 +598,18 @@ async function init(): Promise<void> {
     })
 
     byId("random-match-cancel").addEventListener("click", cancelWaiting)
+
+    // ---- 公開ルーム ----
+    byId("pub-room-btn").addEventListener("click", () => {
+        const pool = `pub:${crypto.randomUUID()}`
+        const name = (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
+        startWaiting("random", pool, byId("pub-room-btn"), showPubWait, { host: { name } })
+        myPubPool = pool
+        renderLobby()
+    })
+    byId("pub-room-cancel").addEventListener("click", cancelWaiting)
+    document.addEventListener("visibilitychange", syncLobbyPolling)
+    syncLobbyPolling()
 
     // ---- AI対戦 ----
     byId("start-ai-btn").addEventListener("click", () => {

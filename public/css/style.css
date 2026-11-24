@@ -162,6 +162,33 @@ button:active {
     width: 100%;
 }
 
+.lobby-rooms {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+    font-size: 14px;
+}
+
+.lobby-rooms li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+}
+
+.lobby-rooms .lobby-room-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lobby-section .lobby-rooms button {
+    width: auto;
+    flex: none;
+}
+
 .match-waiting-text {
     color: var(--warning);
     font-size: 14px;
