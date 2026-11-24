@@ -887,6 +887,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `DestroyDenialQuery`（型）
 - `destroyDenial`（fn）：破壊を止める理由（ログ用）。止められないなら null。スピリットに効く禁止は bpCompare だけ
 
+## server/src/logic/effectNotice.ts
+
+- `noticeOf`（fn）：決められないときは何も返さない（違う段落を出すより出さないほうがよい）
+- `emitEffectNotice`（fn）
+- `emitEffectNoticeFor`（fn）：効果の定義が手元にある入口（fieldEvent の解決）から直接出す。fieldEvent は self がイベントの主語になることがあり、
+
 ## server/src/logic/effectTax.ts
 
 - `hasEffectTax`（const）
@@ -1631,6 +1637,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/ui/coreIcon.ts
 
 - `coreIcon`（fn）：コアの画像。文字の高さに合わせるため大きさは CSS（.core-icon）で em 指定
+
+## public/src/ui/effectNotice.ts
+
+- `effectBodyText`（fn）：見出し行から次の見出し行の手前までの本文。見出し行は Lv1･Lv2『…』／【合体時】Lv2『…』のように行頭が見出しの形
+- `syncEffectNotice`（fn）：描画のたびに呼ぶ。新しい出来事を並べ、選び終わっていれば消し、発生源のカードを光らせ直す（描き直しで class が落ちるため）
 
 ## public/src/ui/fieldCard.ts
 

@@ -1400,6 +1400,9 @@ export function resolveAction(
     // self が発生源でない（fieldEvent がイベントの主語を self にする）ときは、self の召喚時効果を発揮したことにしない
     const selfIsSource = self !== null && (sourceCardId === undefined || sourceCardId === self.cardId)
     if (self !== null && selfIsSource && action.type !== "pay" && action.type !== "summonSequence") markSummonEffectResolved(state, self)
+    // 一番外側の新しい解決だけ通知する（入れ子・選択待ちからの再開は effectId を引き継ぐので出ない）。
+    // 召喚の手順の続きとバーストの入口は効果の発揮ではない
+    if (self !== null && selfIsSource && burst !== true && state.currentEffectSource === undefined && state.resumeEffectId === undefined && state.resumeBurst === undefined && action.type !== "summonSequence" && getCard(self.cardId).type !== "magic") emitEffectNotice(state, owner, self, action)
     const opp = opponentOf(owner)
     // 効果の id。一番外側の効果が発行し、入れ子はそれを引き継ぐ。中断からの再開は resumeEffectId で同じ効果の続きになる
     // （derivedSettle：効果の中で待機に入ったカードの列は、この id の効果が終わってから解決する）
@@ -1576,4 +1579,5 @@ export {
 } from "./targeting"
 export { placeBurst, finishBurstActivation, fireOwnBurstActivated, continueBurstActivation, announceBurstActivation, fireEventBursts, eventBurstsFrame, applyDeclaredBursts } from "./keywords/burst"
 import { markSummonEffectResolved } from "./keywords/burst"
+import { emitEffectNotice } from "./effectNotice"
 export { fireSummonSequence, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "./summon"

@@ -2381,37 +2381,43 @@ body:has(#notice-banner:not(.hidden)) {
     to { opacity: 1; transform: none; }
 }
 
-/* 直前に使われたマジック（カーソルを合わせると効果文） */
-#last-magic {
-    position: fixed;
-    left: 12px;
-    bottom: 12px;
-    z-index: 40;
-    max-width: calc(100vw - 24px);
-    padding: 6px 10px;
+/* 解決中の効果（盤面中央の帯。場のカードやボタンを覆わないよう帯の中で並べる） */
+#effect-notice {
+    box-sizing: border-box;
+    width: min(560px, 100%);
+    padding: 6px 12px;
     border-radius: 8px;
-    font-size: 12px;
-    background: rgba(26, 29, 36, 0.85);
-    border: 1px solid #8e6cf0;
+    border: 1px solid;
+    border-left-width: 5px;
+    background: rgba(20, 23, 30, 0.96);
     color: var(--text-main);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-#last-magic .tip-card {
-    cursor: help;
-}
-
-.last-magic-close {
-    border: none;
-    background: none;
-    color: var(--text-main);
-    font-size: 14px;
-    line-height: 1;
-    padding: 2px 4px;
     cursor: pointer;
+    animation: event-detail-in 180ms ease-out;
 }
+#effect-notice { display: flex; gap: 12px; align-items: flex-start; }
+.effect-notice-art { flex: none; width: 120px; aspect-ratio: 675 / 983; border-radius: 6px; }
+.effect-notice-text { min-width: 0; flex: 1; }
+#effect-notice.effect-mine { border-color: #4fb3d9; }
+#effect-notice.effect-opp { border-color: #e0524a; }
+.effect-notice-title { font-size: 14px; font-weight: 700; }
+.effect-notice-body {
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-muted);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    white-space: pre-wrap;
+}
+@media (max-width: 700px) {
+    #effect-notice { padding: 4px 8px; gap: 8px; }
+    .effect-notice-art { width: 56px; }
+    .effect-notice-title { font-size: 13px; }
+    .effect-notice-body { -webkit-line-clamp: 2; font-size: 11px; }
+}
+.card.effect-source { outline: 3px solid #f5c542; outline-offset: 2px; box-shadow: 0 0 16px 4px rgba(245, 197, 66, 0.7); }
 
 /* 場を離れたカードの写し（消滅・破壊・手札/デッキへ戻る） */
 .leave-ghost {
