@@ -2561,7 +2561,8 @@ body:has(#notice-banner:not(.hidden)) {
 .leave-slot { flex: none; }
 
 /* オープン中のカード（選択待ちの間は出しっぱなし。カーソルで効果文） */
-#reveal-panel {
+#reveal-panel,
+#mill-panel {
     position: fixed;
     right: 12px;
     top: 50%;
@@ -2574,6 +2575,11 @@ body:has(#notice-banner:not(.hidden)) {
     border: 1px solid #4fb3d9;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
 }
+/* 破棄されたカード（ui/millCount.ts）。オープンと同じ形で、縁の色で見分ける。
+   たくさん破棄しても欄が広がらないよう、5枚ぶんの幅で横にスクロールする */
+#mill-panel { border-color: #f5b041; max-width: min(476px, calc(100vw - 24px)); }
+#mill-panel .reveal-row { flex-wrap: nowrap; overflow-x: auto; max-width: calc(5 * 84px + 4 * 8px); }
+#mill-panel .reveal-card { flex: none; }
 .reveal-head {
     display: flex;
     justify-content: space-between;
@@ -2607,7 +2613,8 @@ body:has(#notice-banner:not(.hidden)) {
 
 /* スマホ幅：マジックの通知（上）とオープン中のカードが重ならないよう、オープン中のカードは下に横長で出す */
 @media (max-width: 700px) {
-    #reveal-panel {
+    #reveal-panel,
+    #mill-panel {
         top: auto;
         bottom: 48px;
         left: 8px;
@@ -2618,6 +2625,7 @@ body:has(#notice-banner:not(.hidden)) {
     }
     .reveal-row { flex-wrap: nowrap; overflow-x: auto; }
     .reveal-card { flex: none; width: 64px; min-height: 88px; }
+    #mill-panel .reveal-row { max-width: calc(5 * 64px + 4 * 8px); }
     .event-detail { padding: 8px 12px; }
     .event-detail-title { font-size: 14px; }
     /* 効果文を打ち切らない（4行で切ると肝心の効果が見えなかった。2026-11-17 ユーザー指摘）。長いときはバナーの中でスクロール */
@@ -2924,6 +2932,8 @@ body:has(#notice-banner:not(.hidden)) {
     .mat-half { font-size: 13px; color: var(--text-muted); padding: 4px 0; }
     .mat-half + .mat-half { border-top: 1px solid rgba(255, 255, 255, 0.18); }
     .mat-box.targetable, .mat-half.targetable { outline: 2px solid var(--accent); cursor: pointer; }
+    /* デッキ破棄の枚数を数えている間（ui/millCount.ts）。デッキとトラッシュの枠を光らせて、どこからどこへ動いたかを見せる */
+    .mat-box.milling { border-color: var(--warning, #f5b041); box-shadow: 0 0 10px rgba(245, 176, 65, 0.55); }
     /* 操作ボタンは中央の高さで右端に浮くので、右の列（デッキ・トラッシュ）の左へずらして重ねない */
     #action-buttons-container { right: 196px; }
     /* 同じ数を情報の行と二重に出さない */

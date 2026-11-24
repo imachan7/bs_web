@@ -1059,7 +1059,7 @@ function tryReviveOnDestroy(
             }
             const milled = getCard(cardId)
             player.trashCards.push(cardId)
-            noteMilled(state, ownerPid, 1, ownerPid, costSourceType(source))
+            noteMilled(state, ownerPid, [cardId], ownerPid, costSourceType(source))
             log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
             const ok = milled.type === cardType && milled.colors.includes(color)
             if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
@@ -1117,11 +1117,9 @@ function tryReviveOnDestroy(
             // 枚数が足りなければ払えない（2026-09-24 ユーザー確定「数も完全に」。COST_MODEL）
             const n = effect.cost.millSelfCount
             if (player.deck.length < n || millAllowed(state, { pid: ownerPid, count: n, actorPid: ownerPid, sourceType: costSourceType(source) }) < n) return false
-            for (let i = 0; i < n; i++) {
-                const cardId = player.deck.shift()!
-                player.trashCards.push(cardId)
-            }
-            noteMilled(state, ownerPid, n, ownerPid, costSourceType(source))
+            const milledIds = player.deck.splice(0, n)
+            player.trashCards.push(...milledIds)
+            noteMilled(state, ownerPid, milledIds, ownerPid, costSourceType(source))
             log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
             return true
         }

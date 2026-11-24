@@ -1632,6 +1632,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `canDirectAttack`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
 - `matchesDirectedAttackFilter`（fn）：指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）。
 - `escapeHtml`（fn）：innerHTML に差し込む文字列のエスケープ（ツールチップの効果テキスト強調表示で使用）
+- `revealCardEl`（fn）：オープン・破棄で見せるカード1枚（名前・種別・コスト。絵があれば重ねる。カーソルで効果文）
 - `render`（fn）
 - `showWaiting`（fn）：ロビー側の表示制御
 - `hideWaiting`（fn）
@@ -1686,6 +1687,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/ui/mat.ts
 
 - `renderMat`（fn）
+
+## public/src/ui/millCount.ts
+
+- `millPending`（fn）：まだ数えていない枚数（描画はデッキに足し、トラッシュから引く）
+- `startMillCount`（fn）：何枚でも合わせて1秒ほどで数え終わるようにする（1枚ずつの間は 60〜150ms）
+- `refreshMillTexts`（fn）：描画した直後にも呼ぶ（数えている途中で描き直されたとき、光らせるクラスを付け直すため）
+- `markMillCount`（fn）：数える対象の文字の要素に印を付ける。base は破棄の後の（本当の）枚数
 
 ## public/src/ui/payInput.ts
 

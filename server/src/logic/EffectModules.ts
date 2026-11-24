@@ -580,7 +580,7 @@ export function tryLifeDamageMillGuard(
                 log(state, `${player.name}のデッキが尽きているため、${getCard(source.cardId).name}の効果は発揮されなかった。`)
                 return false
             }
-            noteMilled(state, defenderPid, 1, defenderPid, guardType)
+            noteMilled(state, defenderPid, [cardId], defenderPid, guardType)
             const milled = getCard(cardId)
             const guarded =
                 milled.type === effect.match.cardType &&

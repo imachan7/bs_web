@@ -168,6 +168,7 @@ export type GameEvent =
     // instanceId＝場を離れた個体。画面が消える位置にエフェクトを出す（急に消えたように見えないため。2026-11-12 ユーザー要望）
     | { seq: number; type: "destroy"; pid: PlayerId; cardName: string; vanish?: true; instanceId?: string } // 破壊。vanish は消滅（維持コア割れ）
     | { seq: number; type: "draw"; pid: PlayerId; count: number } // ドロー
+    | { seq: number; type: "mill"; pid: PlayerId; cardIds: string[] } // デッキを上から破棄した（コストの破棄も含む）。破棄したカードはトラッシュに表向きで置かれる公開情報。画面が枚数を1枚ずつ減らし、カードを並べて見せる
     | { seq: number; type: "lifeDamage"; pid: PlayerId; amount: number } // ライフのコアが減った（このpidが被弾した側）
     | { seq: number; type: "magic"; pid: PlayerId; cardName: string; cardId?: string; timing?: "main" | "flash" } // マジック使用。画面が使った効果の文面を出す
     // スピリット・ネクサス・ブレイヴの効果が解決を始めた（マジック・バーストは上の出来事）。heading は効果文の見出し行（Lv1･Lv2『このスピリットのアタック時』）

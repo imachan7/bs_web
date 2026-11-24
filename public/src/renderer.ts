@@ -8,6 +8,7 @@ import type {
 } from "../../server/src/type"
 import { CARD_TYPE_LABELS } from "../../data/constants"
 import { attachCardArt } from "./cardArt"
+import { startMillCount } from "./ui/millCount"
 import { setCardLookup } from "../../shared/cardDb"
 import { choiceCounterView } from "./choiceCounter"
 import { effectiveCost } from "../../shared/cost"
@@ -312,6 +313,8 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
             return ev.pid === you ? null : `🃏 相手が${ev.count}枚ドロー`
         case "lifeDamage":
             return null // バナーは出さず、ライフ表示のシェイク演出のみ
+        case "mill":
+            return `🗑 ${ev.pid === you ? "あなた" : "相手"}のデッキを${ev.cardIds.length}枚破棄`
         case "returnToHand":
             return `💨 ${ev.cardName} 手札へ戻る`
         case "returnToDeck":
@@ -462,13 +465,13 @@ function restoreLeavingSlots(): void {
     }
 }
 
-// オープンしたカード：選択待ちのあいだ（公開ゾーンが残っている間）は出しっぱなし、すぐ片付いた場合も8秒は出す。
-// カードの形で並べ、カーソルを合わせると効果文（画像が使える設定なら画像も）
-let revealShown: { pid: PlayerId; cardIds: string[]; until: number } | null = null
+// オープンしたカード：× で閉じるまで出す（時間で消すと、いつ消えるか分からない。2026-11-24 ユーザー指摘）。
+// 選択待ちのあいだ（公開ゾーンが残っている間）は閉じても出し直す。カードの形で並べ、カーソルを合わせると効果文
+let revealShown: { pid: PlayerId; cardIds: string[] } | null = null
 function renderRevealPanel(view: GameView): void {
     let panel = document.getElementById("reveal-panel")
     const live = view.revealedCards
-    const src = live && live.cardIds.length > 0 ? { pid: live.pid, cardIds: live.cardIds } : revealShown && Date.now() < revealShown.until ? revealShown : null
+    const src = live && live.cardIds.length > 0 ? { pid: live.pid, cardIds: live.cardIds } : revealShown
     if (!src) {
         panel?.remove()
         return
@@ -495,22 +498,25 @@ function renderRevealPanel(view: GameView): void {
     head.appendChild(close)
     const row = document.createElement("div")
     row.className = "reveal-row"
-    for (const id of src.cardIds) {
-        const m = master(id)
-        const c = document.createElement("div")
-        c.className = "reveal-card tip-card"
-        c.dataset.cardId = id
-        const name = document.createElement("div")
-        name.className = "reveal-name"
-        name.textContent = m.name
-        const type = document.createElement("div")
-        type.className = "reveal-type"
-        type.textContent = `${CARD_TYPE_LABELS[m.type]}・コスト${m.cost}`
-        c.append(name, type)
-        attachCardArt(c, id, m.name)
-        row.appendChild(c)
-    }
+    for (const id of src.cardIds) row.appendChild(revealCardEl(id))
     panel.append(head, row)
+}
+
+// オープン・破棄で見せるカード1枚（名前・種別・コスト。絵があれば重ねる。カーソルで効果文）
+export function revealCardEl(id: string): HTMLDivElement {
+    const m = master(id)
+    const c = document.createElement("div")
+    c.className = "reveal-card tip-card"
+    c.dataset.cardId = id
+    const name = document.createElement("div")
+    name.className = "reveal-name"
+    name.textContent = m.name
+    const type = document.createElement("div")
+    type.className = "reveal-type"
+    type.textContent = `${CARD_TYPE_LABELS[m.type]}・コスト${m.cost}`
+    c.append(name, type)
+    attachCardArt(c, id, m.name)
+    return c
 }
 
 // view.events のうち前回描画より新しいものだけを処理する：
@@ -526,6 +532,8 @@ function processNewEvents(view: GameView): Set<PlayerId> {
             lifeDamagedPids.add(ev.pid)
             continue
         }
+        // 枚数を1枚ずつ数える（バナーは下の通常の流れで出す）
+        if (ev.type === "mill") startMillCount(ev.pid, ev.cardIds, ev.pid === view.you)
         if ((ev.type === "destroy" || ev.type === "returnToHand" || ev.type === "returnToDeck") && ev.instanceId !== undefined) {
             pendingLeaves.set(ev.instanceId, ev.type === "destroy" ? (ev.vanish ? "vanish" : "destroy") : "bounce")
         }
@@ -540,11 +548,7 @@ function processNewEvents(view: GameView): Set<PlayerId> {
             continue
         }
         if (ev.type === "reveal") {
-            revealShown = { pid: ev.pid, cardIds: ev.cardIds, until: Date.now() + 8000 }
-            setTimeout(() => {
-                const panel = document.getElementById("reveal-panel")
-                if (revealShown && Date.now() >= revealShown.until && panel?.dataset.live !== "1") panel?.remove()
-            }, 8100)
+            revealShown = { pid: ev.pid, cardIds: ev.cardIds }
             continue
         }
         const text = eventBannerText(ev, view.you)

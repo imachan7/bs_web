@@ -2,6 +2,7 @@
 import { coreIcon } from "./coreIcon"
 import { renderMat } from "./mat"
 import { attachCardArt } from "../cardArt"
+import { markMillCount, refreshMillTexts } from "./millCount"
 import type { GameView, PlayerId } from "../../../server/src/type"
 import { effectiveBp, coreZoneChoiceId, canAwakenFromReserve, timedFlashLocked } from "../../../shared/rules"
 import { master, UiState, $ } from "../renderer"
@@ -92,9 +93,12 @@ export function renderInfo(
             if (isReserve || cls === "trash-cores") span.appendChild(coreIcon())
             span.append(text)
         }
+        if (cls === "deck-n") markMillCount(span, "deck", pid, p.deckCount, "デッキ ", "枚")
+        if (cls === "trash-n") markMillCount(span, "trash", pid, p.trashCards.length, "トラッシュ ", "枚")
         el.appendChild(span)
     }
     renderMat(view, ui, pid, isSelf)
+    refreshMillTexts()
 }
 
 // 発動したバーストを表向きにめくって見せる演出（宣言から適用・トラッシュまで1回の操作で済むと、画面に表向きの状態が届かないため）
