@@ -136,6 +136,40 @@ async function join(frame, room) {
   d.querySelector("#join-btn").click()
 }
 
+// 崩れの自動点検。画面のはみ出し・ボタンの重なり・画面外のボタン・文字のはみ出し、スマホでは小さいボタンと上の方の操作ボタン（片手で届かない）を拾う
+function audit(f) {
+  const d = f.contentDocument, w = f.contentWindow
+  if (!d || !d.getElementById("game")) return ["未読込"]
+  const H = w.innerHeight, W = w.innerWidth, mob = W <= 768, out = []
+  const de = d.documentElement
+  if (de.scrollHeight > H + 1) out.push(`縦はみ出し ${de.scrollHeight - H}px`)
+  if (de.scrollWidth > W + 1) out.push(`横はみ出し ${de.scrollWidth - W}px`)
+  const rs = [...d.querySelectorAll("#game button, #card-dock button")]
+    .filter((b) => b.offsetParent && getComputedStyle(b).visibility !== "hidden")
+    .map((b) => ({ b, r: b.getBoundingClientRect(), t: b.textContent.trim().slice(0, 14) }))
+    .filter((x) => x.r.width > 0)
+  for (const x of rs) {
+    if (x.r.bottom > H + 1 || x.r.right > W + 1 || x.r.top < -1) out.push(`画面外: ${x.t}`)
+    if (x.b.scrollWidth > x.b.clientWidth + 2 && getComputedStyle(x.b).textOverflow !== "ellipsis") out.push(`文字はみ出し: ${x.t}`)
+    if (mob && x.b.closest("#action-buttons, #card-dock-buttons, #choice-options")) {
+      if (x.r.height < 36) out.push(`小さいボタン(${Math.round(x.r.height)}px): ${x.t}`)
+      if (x.r.top < H * 0.35) out.push(`上の方のボタン(y${Math.round(x.r.top)}): ${x.t}`)
+    }
+  }
+  const overlap = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 3 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 3
+  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+    if (overlap(rs[i].r, rs[j].r) && !rs[i].b.contains(rs[j].b) && !rs[j].b.contains(rs[i].b)) out.push(`重なり: ${rs[i].t} × ${rs[j].t}`)
+  }
+  const sv = d.querySelector(".stepper-value")
+  if (sv) for (const x of rs) if (overlap(x.r, sv.getBoundingClientRect())) out.push(`数とボタンが重なる: ${x.t}`)
+  return [...new Set(out)]
+}
+const issues = []
+function renderIssues() {
+  const el = document.getElementById("issues")
+  if (el) el.textContent = issues.length === 0 ? "崩れ：まだ見つかっていない" : "崩れ：\n" + issues.join("\n")
+}
+
 async function build(scene, size, cell, head) {
   const log = (s, ok) => { head.textContent = `${scene.name} / ${size.name}：${s}`; head.className = "hd " + (ok === undefined ? "" : ok ? "ok" : "ng") }
   let B
@@ -167,7 +201,9 @@ async function build(scene, size, cell, head) {
     await sleep(1200)
     const c = { A: A.contentDocument, B: B.contentDocument, w: size.w, h: size.h }
     await scene.run(c)
-    log("最後まで進んだ", true)
+    const found = audit(A)
+    if (found.length > 0) { issues.push(`${scene.name} / ${size.name}：${found.join("、")}`); renderIssues() }
+    log(found.length > 0 ? "最後まで進んだ／崩れ：" + found.join("、") : "最後まで進んだ", found.length === 0)
   } catch (e) {
     log("止まった：" + e.message, false)
   } finally {

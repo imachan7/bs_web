@@ -283,18 +283,39 @@
         max-height: 140px;
         overflow-y: auto;
     }
-    /* 選択肢の一覧が出ているときだけは長くなるので、上へ伸ばす */
-    #action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) { max-height: 45vh; }
+    /* 選択肢（召喚の Lv・置くコアの数・効果の選択肢など）が出ている間は、右の細い列ではなく画面の下に横幅いっぱいで2列に並べる。
+       細い列では「Lv1 (1コア・フィールドから取得)」が3行に折れて列が伸び、決定のボタンが画面の外に出た（2026-11-24 点検）。下側なので片手で押せる */
+    #action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) {
+        left: 8px;
+        width: auto;
+        max-height: 55dvh;
+        padding: 6px;
+        background: var(--bg-panel);
+        border: 1px solid #444;
+        border-radius: 10px;
+        box-shadow: 0 -4px 14px #000a;
+    }
+    #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > :is(#choice-options, #choice-counter) { grid-column: 1 / -1; }
+    #choice-options:not(.hidden) { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    #choice-options > .stepper-row { grid-column: 1 / -1; }
+    /* 2列の最後に1つだけ余ったボタン（決定・召喚など）と、選択肢の外のボタン（対象選択をやめる・選ばない）は横幅いっぱいにする（右に空きを残さない） */
+    #choice-options > button:last-child:is(:nth-child(odd), .stepper-row + button),
+    #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > button { grid-column: 1 / -1; }
+    /* 選択肢を下に出している間は、オープン中・破棄したカードの欄を上（上の行の下）へ移す。下のままだと選択肢に隠れて、選ぶ元のカードが見えなかった */
+    body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #reveal-panel,
+    body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #mill-panel { top: 44px; bottom: auto; }
+    #choice-options > button { min-height: 44px; }
     #action-buttons { flex-direction: column; gap: 6px; }
     /* 召喚・使用の途中（支払い・対象選択など「対象選択をやめる」が出ている間）と、下の欄を開いている間は、アタックステップへ・ターン終了を出さない。
        その場で押す場面がなく、狭い画面で欄や支払いのボタンの場所を取っていた（2026-11-24 ユーザー指摘） */
     #game:has(#btn-cancel-target:not(.hidden), #card-dock:not(.hidden)) :is(#btn-attack-phase, #btn-end-turn) { display: none; }
     #action-buttons button { padding: 8px 6px; font-size: 13px; width: 100%; white-space: normal; }
-    /* 増減式の選択（置くコアの数など）は、列の幅（104px）に「−・文面・＋」を1行で並べると文面が −／＋ に重なって読めなかった（2026-11-24 ユーザー指摘）。
-       文面を上の行に出し、−／＋ は下の行で半分ずつ */
-    #choice-options .stepper-row { flex-wrap: wrap; gap: 4px; }
-    #choice-options .stepper-row > .stepper-value { order: -1; flex: 0 0 100%; min-width: 0; white-space: normal; font-size: 13px; }
-    #choice-options .stepper-row > button { flex: 1 1 0; width: auto; min-height: 40px; font-size: 18px; }
+    /* 増減式の選択（置くコアの数など）。選択肢は画面下の横幅いっぱいに出すので「− 文面 ＋」を1行に並べ、−／＋ は押しやすい大きさにする
+       （右の細い列に並べていたときは文面が −／＋ に重なって読めなかった。2026-11-24 ユーザー指摘） */
+    #choice-options .stepper-row { gap: 6px; }
+    #choice-options .stepper-row > .stepper-value { flex: 1 1 auto; min-width: 0; white-space: normal; font-size: 14px; }
+    #choice-options .stepper-row > button { flex: none; width: 64px; min-height: 44px; font-size: 20px; }
 
     /* 画面の下端に固定して、手札の上に重ねる（開いている間は手札が隠れる）。ページが画面より高くても、下が見切れて「召喚」が半分になることがない（2026-11-24 iPhone SE で確認）。
        大きな絵・カード名・操作ボタン（高さ44px以上）を出す。時間では消えず、もう一度カードを押すか × で閉じる */
