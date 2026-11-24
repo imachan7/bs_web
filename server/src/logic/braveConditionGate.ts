@@ -56,6 +56,7 @@ export function separateBravesOverLimit(state: GameState): void {
 // BS11-X02 Lv3「相手は、ブレイヴをスピリット状態にできない」が効いている間、その側のスピリット状態のブレイヴは
 // トラッシュに置く（公式 Q3042・Q16924。2026-11-24 ユーザー確認）。**破壊でも消滅でもない**ので破壊時・消滅時の誘発は出さず、
 // 上のコアはリザーブへ。バトル中の攻撃側・ブロック側でも特別な後始末はしない（バウンスと同じく場から消えるだけ）
+// 効果の途中でも、手を解決するたびに置く（ノヴァ優先。2026-11-24 ユーザー決定）。選択待ちの間は見送り、答えた後の手の出口で置く。
 // 1枚でも置いたら true（呼び出し側が継続効果を組み直す）
 export function trashSpiritStateBravesWhenForbidden(state: GameState): boolean {
     if (state.pendingChoice || state.winner) return false

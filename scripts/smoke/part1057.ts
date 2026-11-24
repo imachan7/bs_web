@@ -1,5 +1,5 @@
 // smoke パート1057（BS11-X02 ノヴァLv3：相手のスピリット状態のブレイヴを解決後にトラッシュへ。issue #691・Q3042・Q16924）
-import { assert, createGame, createInstance, getCard, handleAction, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, getCard, handleAction, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 const NOVA = "BS11-X02"
@@ -71,6 +71,15 @@ console.log("=== 4. 合体中のブレイヴは残る ===")
     s.players.p2.field.combinedBraves.push(brave)
     settle(s)
     assert(s.players.p2.field.combinedBraves.length === 1 && trashed(s, "p2") === 0, "合体中のブレイヴは残る")
+}
+
+console.log("=== 6. 効果の手の出口で置く：handleAction を通さず、効果1手（コア2個配置）でLv3になった時点で相手のブレイヴはトラッシュ ===")
+{
+    const { s } = game("c6", 3)
+    s.players.p2.field.spirits.push(createInstance(BRAVE, s.turn, 2))
+    const nova = s.players.p1.field.spirits.find((i) => i.cardId === NOVA)!
+    resolveAction(s, "p1", nova, { type: "placeCores", from: "void", to: "spirit", target: "self", count: 2 } as never)
+    assert(!onField(s, "p2") && trashed(s, "p2") === 1, "効果の1手が終わった時点で相手のブレイヴはトラッシュにある")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part1057）")
