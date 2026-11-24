@@ -33,6 +33,7 @@ import {
     spiritHasKeyword, type DirectAttackFilter, isEndStepLocked
 } from "../../shared/rules"
 import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui/tooltip"
+import { renderPayStageSheet, payStageHeading } from "./ui/payStages"
 import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
 import { renderField } from "./ui/fieldCard"
 import { renderCardDock } from "./ui/cardDock"
@@ -698,7 +699,7 @@ export function render(view: GameView, ui: UiState): void {
     // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
     // コアが足りていても支払いモードへ入る仕様（tryPlay）とセットで必要になる
-    show("btn-confirm-pay", ui.paying !== null && payingRemaining(view, ui.paying) === 0)
+    show("btn-confirm-pay", ui.paying !== null && ui.paying.step === undefined && payingRemaining(view, ui.paying) === 0)
     show("btn-attack-player", ui.directedAttack !== null && !ui.directedAttack.filter.onlyInstanceIds)
     show("targeting-info", anyMode || pendingChoiceActive)
     show("btn-skip-choice", myPendingChoice?.optional === true)
@@ -715,7 +716,11 @@ export function render(view: GameView, ui: UiState): void {
     // （cardZone:"hand"は手札のカード自体をクリックさせるためここには描画しない）
     const choiceOptionsEl = $("choice-options")
     choiceOptionsEl.innerHTML = ""
-    if (myPendingChoice && myPendingChoice.kind === "option" && myPendingChoice.stepper) {
+    if (ui.paying?.step !== undefined) {
+        // 召喚・配置の支払い（2段）。選択肢の列に、①コスト／②置くコアの画面を組む
+        renderPayStageSheet(view, ui.paying, choiceOptionsEl)
+        show("choice-options", true)
+    } else if (myPendingChoice && myPendingChoice.kind === "option" && myPendingChoice.stepper) {
         // 増減式（PendingChoice.stepper）：ボタンを options の数だけ並べる代わりに −／＋ で数を決める。
         // 「どれを選ぶか」に意味が無く候補数が多くなりうるもの（トラッシュに置くコアの数）に使う
         const opts = myPendingChoice.options ?? []
@@ -952,15 +957,18 @@ export function render(view: GameView, ui: UiState): void {
         $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
-        const alt = payingAltPay(view, ui.paying)
+        // 2段の画面では、代替コスト・肩代わり・破壊払いは①（コスト）だけで選ぶ
+        const staged = ui.paying.step !== undefined
+        const costExtras = ui.paying.step !== "place"
+        const alt = costExtras ? payingAltPay(view, ui.paying) : { kind: null, used: 0, max: 0 }
         // 任意分離（BRAVE.md §6.4）にはコストが無く、置くコアだけなので案内を分ける
         const base =
-            ui.paying.forBraveKeep !== undefined
+            staged
+                ? payStageHeading(view, ui.paying)
+                : ui.paying.forBraveKeep !== undefined
                 ? `💎 残すブレイヴに置くコア: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forMeisai !== undefined
-                ? ui.paying.forMeisai.placing
-                    ? `💎 ${master(ui.paying.forMeisai.cardId).name}：${view.pendingChoice?.effectCostPay?.need ? "コストと" : ""}置くコア 残り ${remaining} 個。${Object.keys(ui.paying.assigned).length > 0 ? "おまかせの払い方を割り当ててあります（変えるときは「割り当てをやり直す」）" : "コアを出すスピリット・ネクサスを押してください"}${vanishingNote(view, ui.paying.assigned)}`
-                    : `💎 ${ui.paying.forMeisai.effectCost ? "効果" : "【迷彩】"}のコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                ? `💎 ${ui.paying.forMeisai.effectCost ? "効果" : "【迷彩】"}のコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forAttack !== undefined
                 ? `💎 アタックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forBlock !== undefined
@@ -1016,7 +1024,7 @@ export function render(view: GameView, ui: UiState): void {
             }
         }
         // kind:"payAssistByExhaust"（BS16-021）：【神速】召喚のとき、疲労させて肩代わりする候補があれば選ばせる
-        const shinsokuCandidates = payingShinsokuAssistCandidates(view, ui.paying)
+        const shinsokuCandidates = costExtras ? payingShinsokuAssistCandidates(view, ui.paying) : []
         if (shinsokuCandidates.length > 0) {
             const buttons = shinsokuCandidates
                 .map((c) => {
@@ -1030,7 +1038,7 @@ export function render(view: GameView, ui: UiState): void {
         }
         // kind:"summonPayOff"：破壊して召喚コストを払ったものとして扱える個体があれば選ばせる
         const payingCardIdNow = payingCardId(view, ui.paying)
-        const payOffOptions = payingCardIdNow === undefined ? [] : summonPayOffOptions(view, view.you, payingCardIdNow)
+        const payOffOptions = payingCardIdNow === undefined || !costExtras ? [] : summonPayOffOptions(view, view.you, payingCardIdNow)
         if (payOffOptions.length > 0) {
             const p = view.players[view.you]
             const buttons = payOffOptions
@@ -1044,7 +1052,7 @@ export function render(view: GameView, ui: UiState): void {
                 .join(" ")
             $("targeting-info").innerHTML += `<br>${buttons}`
         }
-        if (ui.payMode === "manual" || ui.paying.forMeisai?.placing) {
+        if (ui.payMode === "manual" && !staged) {
             const need = payingNeed(view, ui.paying)
             const fromField = Object.values(ui.paying.assigned).reduce((a, b) => a + b, 0)
             const fromReserve = Math.max(0, Math.min(view.players[view.you].reserve, need - fromField))
@@ -1250,14 +1258,6 @@ export function showToast(message: string): void {
 // カードは再描画のたびに作り直されるため、document への委譲で拾う。
 
 
-
-// 割り当てたコアで維持コアを割るスピリットの名前（「〜が消滅します」）。支払いの確定前に見せる
-function vanishingNote(view: GameView, assigned: Record<string, number>): string {
-    const names = view.players[view.you].field.spirits
-        .filter((sp) => (assigned[sp.instanceId] ?? 0) > 0 && sp.cores - (assigned[sp.instanceId] ?? 0) < minLevelCores(master(sp.cardId)))
-        .map((sp) => master(sp.cardId).name)
-    return names.length > 0 ? `／⚠️ ${names.join("、")}が消滅します` : ""
-}
 
 // −・数・＋ を1行にまとめる。選択肢の列はボタンを1つずつ縦に積むので、ばらばらに入れるとスマホで−だけが見えて残りが画面の外に出た
 function stepperRow(...items: HTMLElement[]): HTMLElement {

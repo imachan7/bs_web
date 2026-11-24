@@ -308,6 +308,17 @@
     /* そのとき、マジックの効果などの通知（#event-layer。盤面の上から60px）はオープン中の欄（上の行の下から約140px）と重なるので、欄の下へずらす（2026-11-25 ユーザー指摘） */
     body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)):has(#reveal-panel, #mill-panel) #event-layer { top: 154px; }
     #choice-options > button { min-height: 44px; }
+    /* 召喚・配置の支払い（①コスト／②置くコア）。シート全体を1つの項目として横幅いっぱいに置き、中は自前で並べる。ボタンは44px以上、はみ出すときはシートの中でスクロール */
+    #choice-options > .pay-sheet { grid-column: 1 / -1; max-height: calc(55dvh - 12px); overflow-y: auto; font-size: 14px; }
+    #choice-options .pay-sheet button { min-height: 44px; }
+    /* 中がスクロールしても、次へ・戻る・召喚／配置のボタンはシートの下端に見えたままにする（スクロールの先に隠れていた） */
+    #choice-options .pay-nav { position: sticky; bottom: 0; background: var(--bg-panel); padding-top: 4px; z-index: 1; }
+    #choice-options .pay-levels, #choice-options .pay-tools, #choice-options .pay-nav { flex-direction: row; flex-wrap: wrap; }
+    #choice-options .pay-levels > button, #choice-options .pay-tools > button { flex: 1 1 45%; }
+    #choice-options .pay-nav > button { flex: 1 1 100%; }
+    #choice-options .pay-nav > button:first-child:not(:last-child) { flex: 1 1 30%; }
+    #choice-options .pay-nav > button:last-child:not(:first-child) { flex: 2 1 60%; }
+    #choice-options .pay-field-row > button { width: 64px; min-height: 44px; }
     #action-buttons { flex-direction: column; gap: 6px; }
     /* 召喚・使用の途中（支払い・対象選択など「対象選択をやめる」が出ている間）と、下の欄を開いている間は、アタックステップへ・ターン終了を出さない。
        その場で押す場面がなく、狭い画面で欄や支払いのボタンの場所を取っていた（2026-11-24 ユーザー指摘） */

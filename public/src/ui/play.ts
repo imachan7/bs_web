@@ -3,7 +3,7 @@ import type { CardData, GameAction, PaySource } from "../../../server/src/type"
 import { ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { canDirectAttack, effectiveCost, magicTargetSide, master, matchesDirectedAttackFilter } from "../renderer"
 import { summonPayOffOptions } from "../../../shared/summonPayOff"
-import { exReductionSymbolsFor, type ExReductionGroup, payableFieldCores } from "./paying"
+import { exReductionSymbolsFor, type ExReductionGroup, payableFieldCores, payingStageNeeds } from "./paying"
 import { canAltSummonFromHand, flashSummonFromHandNow, attackTollTotal, attackPayTollCount, instMinLevelCores, placedCoresForSummon, summonLevelCostBonus, summonMinCores, timedContentsOn } from "../../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, exTrashReductionCandidateIndices, ownFieldSymbolColors } from "../../../shared/cost"
 import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } from "../../../shared/summon"
@@ -216,11 +216,36 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
     // 代替召喚（kind:"altSummonFromHand"）は召喚コストを支払わない。維持コアは通常どおり必要
     const cost = altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, exReductionTrashIndices))
     
+    const reserve = view.players[view.you].reserve
+    // 栄光の表彰台Lv1：ネクサスの配置コストを、コアの代わりにデッキ破棄で払える。
+    // **コア払いとの併用はできない**ので全額（＝実効コスト）払えるときだけ選択肢になる
+    // （判定を揃えないと、サーバーが受け付ける配置をクライアントが支払いモードに入れてしまう）
+    const millPayable =
+        card.type === "nexus" &&
+        canPayNexusCostByMill(view, view.you) &&
+        view.players[view.you].deckCount >= cost
+            ? cost
+            : 0
+
+    // BS08ビクティム：スピリットの召喚コストは、コアで足りない分を手札破棄で払える。
+    // **召喚するカード自身は破棄に使えない**ので手札枚数から1枚引く
+    const handDiscardPayable =
+        card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)
+            ? Math.min(cost, Math.max(0, view.players[view.you].handCount - (fromTegamoto === true ? 0 : 1)))
+            : 0
+
+    // 代替コスト（手札破棄／デッキ破棄）が使えるなら、**コアが足りていても支払いモードへ入る**。
+    // 手札破棄はどこまで代替で払うか、デッキ破棄はコアで払うかデッキで払うかをプレイヤーが選ぶ
+    // （そのまま確定すれば従来どおり全額コア払いになる）
+    const payOffAvailable = isSummonableCardType(card.type) && summonPayOffOptions(view, view.you, card.cardId).length > 0
+    const altAvailable = millPayable > 0 || handDiscardPayable > 0 || payOffAvailable
+    // 案B-inside: reserveには[ソウルコア]が含まれる。auto即送信は通常コアで足りるときだけにして、
+    // [ソウルコア]を使うかどうかは支払いモードのトグルでプレイヤーが選ぶ（2026-10-05確定）
+    const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
     // 入れ替え召喚（substituteInstanceId あり）の場合は強制Lv1（維持コア=minLevelCores）になるためレベル選択をスキップする
     // ダイレクトブレイヴ（braveTargetInstanceId あり）は合体状態のLv1固定でコアを置かないため、
     // 入れ替え召喚と同じくレベル選択をスキップする（サーバーもレベル指定を受け付けない）
     if (level === undefined && cores === undefined && substituteInstanceId === undefined && braveTargetInstanceId === undefined && soulWaiver !== true && (card.type === "spirit" || card.type === "nexus")) {
-        const reserve = view.players[view.you].reserve
         const cardIdForField = zoneCards?.[handIndex]
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える（2026-08-01）ため、
         // 選択肢に出すレベルの判定にもフィールドのコアを含める
@@ -236,7 +261,9 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
         // 維持コアより1個でも多く置けるなら選択を出す（Lv の境目以外の数も置けるように。2026-11-24 ユーザー決定：案B）
         const minCores = summonMinCores(view, view.you, card)
         const extraPlaceable = reserve + fieldCores >= cost + minCores + 1
-        if (affordableLevels.length > 1 || extraPlaceable || waiverAvailable) {
+        // Lv／置く数の選択は、自動でリザーブだけで払えるときだけここで聞く。それ以外は2段の支払い画面の②で選ぶ
+        const reserveOnlyOk = ui.payMode === "auto" && !altAvailable && reserve - (soulInReserve ? 1 : 0) >= cost + minCores
+        if (reserveOnlyOk && (affordableLevels.length > 1 || extraPlaceable || waiverAvailable)) {
             const cardId = zoneCards?.[handIndex]
             if (!cardId) return
             ui.targeting = null
@@ -263,33 +290,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
             : card.type === "magic" || braveTargetInstanceId !== undefined
               ? 0
               : placedCoresForSummon(card, level, { cores, levelCostBonus: summonLevelCostBonus(view, view.you, card) })
-    const reserve = view.players[view.you].reserve
 
-    // 栄光の表彰台Lv1：ネクサスの配置コストを、コアの代わりにデッキ破棄で払える。
-    // **コア払いとの併用はできない**ので全額（＝実効コスト）払えるときだけ選択肢になる
-    // （判定を揃えないと、サーバーが受け付ける配置をクライアントが支払いモードに入れてしまう）
-    const millPayable =
-        card.type === "nexus" &&
-        canPayNexusCostByMill(view, view.you) &&
-        view.players[view.you].deckCount >= cost
-            ? cost
-            : 0
-
-    // BS08ビクティム：スピリットの召喚コストは、コアで足りない分を手札破棄で払える。
-    // **召喚するカード自身は破棄に使えない**ので手札枚数から1枚引く
-    const handDiscardPayable =
-        card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)
-            ? Math.min(cost, Math.max(0, view.players[view.you].handCount - (fromTegamoto === true ? 0 : 1)))
-            : 0
-
-    // 代替コスト（手札破棄／デッキ破棄）が使えるなら、**コアが足りていても支払いモードへ入る**。
-    // 手札破棄はどこまで代替で払うか、デッキ破棄はコアで払うかデッキで払うかをプレイヤーが選ぶ
-    // （そのまま確定すれば従来どおり全額コア払いになる）
-    const payOffAvailable = isSummonableCardType(card.type) && summonPayOffOptions(view, view.you, card.cardId).length > 0
-    const altAvailable = millPayable > 0 || handDiscardPayable > 0 || payOffAvailable
-    // 案B-inside: reserveには[ソウルコア]が含まれる。auto即送信は通常コアで足りるときだけにして、
-    // [ソウルコア]を使うかどうかは支払いモードのトグルでプレイヤーが選ぶ（2026-10-05確定）
-    const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
     // waiver配置は維持コア1個を[ソウルコア]が担うため、通常コアはコストぶんだけで足りる
     if (soulWaiver === true && ui.payMode === "auto" && !altAvailable && soulInReserve && reserve - 1 >= cost) {
         sendPlay(card.type, handIndex, targetInstanceId, undefined, undefined, substituteInstanceId, undefined, undefined, braveTargetInstanceId, altSummonNexusInstanceIds, undefined, exReductionTrashIndices, undefined, true, undefined, fromTegamoto)
@@ -339,6 +340,14 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
     // waiver配置（[ソウルコア]1個のみでLv2）を選んだときは[ソウルコア]の使い方を「維持コア」に
     // 固定して支払いモードに入る（3択トグルで「使わない」に変えれば通常のLv1配置に戻る）
     if (soulWaiver === true && soulInReserve) ui.paying.placeSoulCore = true
+    // 召喚・配置は①コスト→②置くコアの2段で払う（マジックは従来の画面）。Lv／置く数は通常の召喚・配置だけ②で選べる
+    if (card.type === "spirit" || card.type === "nexus" || card.type === "brave") {
+        ui.paying.step = payingStageNeeds(view, ui.paying).cost > 0 || altAvailable ? "cost" : "place"
+        ui.paying.costAssigned = {}
+        ui.paying.costReserve = 0
+        ui.paying.placeReserve = 0
+        if (substituteInstanceId === undefined && braveTargetInstanceId === undefined && soulWaiver !== true && card.type !== "brave") ui.paying.levelChoosable = true
+    }
     rerender()
 }
 

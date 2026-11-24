@@ -1835,6 +1835,40 @@ button:active {
     font-weight: 600;
 }
 
+/* ---- 召喚・配置の支払い（①コスト → ②置くコア。ui/payStages.ts）：PC は右の列に縦に積む ---- */
+#choice-options .pay-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    /* 場の上に重なるので、背景と幅を持たせる（背景が無いと場のカードが透けて読めなかった） */
+    box-sizing: border-box;
+    width: 300px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(20, 23, 30, 0.97);
+    border: 1px solid #3a3f4e;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+/* 召喚・使用の途中（「対象選択をやめる」が出ている間）は、アタックステップへ・ターン終了を出さない（押す場面がない。スマホと同じ） */
+#game:has(#btn-cancel-target:not(.hidden)) :is(#btn-attack-phase, #btn-end-turn) { display: none; }
+/* 支払いの画面（右の列）を出している間は、オープン中・破棄したカードの欄を左へ寄せる（右だと支払いの画面と重なった） */
+@media (min-width: 769px) {
+    body:has(#choice-options .pay-sheet) :is(#reveal-panel, #mill-panel) { right: auto; left: 12px; }
+}
+#choice-options .pay-stage-title { font-weight: 700; }
+#choice-options .pay-meter { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+#choice-options .pay-boxes { letter-spacing: 2px; color: #7fd1ff; }
+#choice-options .pay-summary,
+#choice-options .pay-hint { color: #b8b8b8; font-size: 12px; }
+#choice-options .pay-field-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+#choice-options .pay-field-row > button { flex: none; width: 32px; min-width: 0; padding: 4px 0; }
+#choice-options .pay-warn { color: #ffb347; font-size: 12px; }
+#choice-options .pay-levels,
+#choice-options .pay-tools,
+#choice-options .pay-nav { display: flex; flex-direction: column; gap: 6px; }
+#choice-options .pay-sheet button.selected { border-color: #7fd1ff; box-shadow: 0 0 0 1px #7fd1ff inset; }
+
 /* ---- ネクサスのコア移動ボタン ----
    ネクサスは clip-path で六角形に切り抜くため、カード要素の子に置いたボタンは
    まるごとクリップされて消える。ラッパー（.nexus-slot）の直下にカードと兄弟で置き、

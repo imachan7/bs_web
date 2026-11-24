@@ -2,6 +2,7 @@
 import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
 import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
+import { onPayStageClick, openEffectSummonPay, effectSummonNeedsScreen, installPayStages } from "./ui/payStages"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -497,6 +498,8 @@ onGame("state", (v: GameView) => {
     ui.braveSummonSelect = null // ブレイヴの召喚方法選択もリセット
     ui.altSummonSelect = null // 代替召喚の方法選択もリセット
     ui.battleSwapSummon = null // 入れ替え召喚の対象選択もリセット
+    // 効果による召喚・配置で、リザーブだけでは払えない（または手動）なら、置く数の選択も含めて2段の支払い画面で開く
+    if (effectSummonNeedsScreen(v)) openEffectSummonPay(v)
     rerender()
     // 支払い「自動」なら、効果のコストを[ソウルコア]以外のリザーブだけで払えるときは聞かずに払う（「手動」なら毎回支払い元を選ぶ）
     const costPay = v.pendingChoice?.pid === v.you ? v.pendingChoice.effectCostPay : undefined
@@ -599,6 +602,7 @@ async function init(): Promise<void> {
     installSecretCardArt(showToast)
     installDisplaySettings()
     installCardDock()
+    installPayStages({ view: () => view, ui, rerender, submitPaying })
     installStatusMenu()
     installSpiritLayout()
 
@@ -879,7 +883,7 @@ async function init(): Promise<void> {
                 ui.paying.soulPayInstanceId = undefined
                 ui.paying.soulPayMode = undefined
             }
-            if (ui.payMode === "auto" && payingRemaining(view, ui.paying) === 0) {
+            if (ui.payMode === "auto" && ui.paying.step === undefined && payingRemaining(view, ui.paying) === 0) {
                 submitPaying()
             } else {
                 rerender()
@@ -979,7 +983,7 @@ async function init(): Promise<void> {
                 ui.paying.soulPayInstanceId = undefined
                 ui.paying.soulPayMode = undefined
             }
-            if (ui.payMode === "auto" && payingRemaining(view, ui.paying) === 0) {
+            if (ui.payMode === "auto" && ui.paying.step === undefined && payingRemaining(view, ui.paying) === 0) {
                 submitPaying()
             } else {
                 rerender()
@@ -1119,6 +1123,7 @@ async function init(): Promise<void> {
         ui.stepper = null
         send({ type: "resolveChoice" })
     })
+    byId("choice-options").addEventListener("click", onPayStageClick)
     byId("choice-options").addEventListener("click", (e) => {
         // バーストの再セット確認（ui.burstResetConfirm）。サーバーへのpendingChoiceではなく
         // クライアント側だけの確認状態なので、他のdata-optionより先に判定する
@@ -1153,19 +1158,22 @@ async function init(): Promise<void> {
             if (meisai && view) {
                 const me = view.players[view.you]
                 const soulSelectable = me.soulCore !== null && me.soulCore.zone !== "trash"
-                // 効果による召喚の置くコアは、フィールドにコアがあれば自動でも支払い元を選ばせる（アタックステップなどでは後から動かせない）
-                const placing = pc?.effectCostPay?.keepByOption !== undefined && [...me.field.spirits, ...me.field.nexuses].some((x) => x.cores > 0)
-                if (pc?.effectCostPay?.reserveOnly || (!placing && !soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need)) {
+                // 効果による召喚・配置（置く数の選択つき）は、[ソウルコア]以外のリザーブだけで払えるなら送り、足りなければ選んだ置く数のまま2段の画面で開く
+                const summonPlace = pc?.effectCostPay?.keepByOption !== undefined
+                const reservePool = me.reserve - (me.soulCore?.zone === "reserve" ? 1 : 0)
+                if (pc?.effectCostPay?.reserveOnly || (summonPlace ? ui.payMode === "auto" && reservePool >= meisai.need : !soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need)) {
                     send({ type: "resolveChoice", option })
+                    return
+                }
+                if (summonPlace) {
+                    openEffectSummonPay(view, Math.max(0, (pc?.options ?? []).indexOf(option)))
+                    rerender()
                     return
                 }
                 ui.targeting = null
                 ui.awakenTarget = null
                 ui.combineBrave = null
-                // 置くコアの支払いは、おまかせの払い方（サーバーの summonPayPlan）を割り当て済みにして開く。確定は人が押す
-                const suggest = placing ? pc?.effectCostPay?.suggestByOption?.[(pc.options ?? []).indexOf(option)] ?? [] : []
-                const assigned = Object.fromEntries(suggest.map((s) => [s.instanceId, s.count]))
-                ui.paying = { handIndex: -1, forMeisai: { option, cardId: meisai.cardId, need: meisai.need, ...(meisai.effectCost ? { effectCost: true as const } : {}), ...(placing ? { placing: true as const } : {}) }, assigned, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
+                ui.paying = { handIndex: -1, forMeisai: { option, cardId: meisai.cardId, need: meisai.need, ...(meisai.effectCost ? { effectCost: true as const } : {}) }, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
                 rerender()
                 return
             }
