@@ -22,87 +22,91 @@
     <main>
     <!-- ロビー画面 -->
     <div id="lobby">
-        <h1>バトスピWeb対戦</h1>
-        <div class="lobby-form">
-            <label>
+        <header class="lobby-top">
+            <h1>バトスピWeb対戦</h1>
+            <nav class="lobby-links">
+                <a href="https://discord.gg/AJPTAa4kqY" target="_blank" rel="noopener"><svg width="14" height="14" aria-hidden="true" viewBox="0 0 127.14 96.36" fill="currentColor">
+                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1,105.25,105.25,0,0,0,32.19-16.14c2.64-27.38-4.51-51.11-19.32-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.2,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
+                </svg>Discord</a>
+                <a href="/bugreport.html">バグ報告</a>
+                <a href="https://github.com/imachan7/bs_web" target="_blank" rel="noopener">GitHub</a>
+            </nav>
+        </header>
+
+        <!-- 名前とデッキは全部の入り方で共通。いちど選べばどの入り方にも効く -->
+        <div class="lobby-player">
+            <label class="lobby-field lobby-field-name">
                 名前
                 <input id="name-input" type="text" placeholder="プレイヤー" />
             </label>
-            <label>
-                ルームID
-                <input id="room-input" type="text" value="room1" />
-            </label>
-            <label>
+            <label class="lobby-field lobby-field-deck">
                 デッキ
                 <select id="deck-select">
                 </select>
             </label>
+            <a id="deck-builder-link" class="btn-link-outline" href="/deck.html">デッキを作る・直す</a>
             <label class="starter-toggle"><input type="checkbox" data-show-starters /> スタートデッキを表示</label>
-            <button id="join-btn">対戦ルームに入る</button>
-            <a id="deck-builder-link" href="/deck.html">デッキ構築（デッキビルダーを開く）</a>
-        </div>
-        <p id="waiting-message" class="hidden">相手の参加を待っています…</p>
-
-        <!-- いまのロビー -->
-        <div class="lobby-section">
-            <h2 class="lobby-section-title">いまのロビー</h2>
-            <p id="lobby-counts" class="lobby-section-desc">ランダムマッチ待ち -人・対戦中 -卓</p>
-            <ul id="lobby-rooms" class="lobby-rooms"></ul>
-            <button id="pub-room-btn">公開ルームを作って待つ</button>
-            <div id="pub-room-status" class="hidden">
-                <p class="match-waiting-text">公開ルームで相手を待っています…</p>
-                <button id="pub-room-cancel" class="cancel-btn">やめる</button>
-            </div>
         </div>
 
-        <!-- ランダムマッチ -->
-        <div class="lobby-section">
-            <h2 class="lobby-section-title">ランダムマッチ</h2>
-            <p class="lobby-section-desc">合言葉なしで、待っている相手と自動でマッチングします</p>
-            <button id="random-match-btn">ランダムマッチで対戦</button>
-            <div id="random-match-status" class="hidden">
-                <p id="random-match-waiting" class="match-waiting-text">マッチング待機中…（<span id="random-match-count">0</span>人待ち）</p>
-                <button id="random-match-cancel" class="cancel-btn">待機をやめる</button>
-            </div>
-        </div>
+        <div class="lobby-body">
+            <main class="lobby-modes">
+                <h2 class="lobby-heading">対戦する</h2>
+                <div class="mode-grid">
+                    <section class="mode mode-primary">
+                        <h3>ランダムマッチ</h3>
+                        <p>待っている相手と自動で組みます</p>
+                        <button id="random-match-btn">ランダムマッチで対戦</button>
+                        <div id="random-match-status" class="hidden">
+                            <p id="random-match-waiting" class="match-waiting-text">相手を探しています（<span id="random-match-count">0</span>人待ち）</p>
+                            <button id="random-match-cancel" class="cancel-btn">待つのをやめる</button>
+                        </div>
+                    </section>
 
-        <!-- AI対戦 -->
-        <div class="lobby-section">
-            <h2 class="lobby-section-title">AIと対戦</h2>
-            <p class="lobby-section-desc">相手を待たずにAIとすぐに対戦できます</p>
-            <div class="ai-deck-row">
-                <label class="ai-deck-label">
-                    自分のデッキ
-                    <select id="ai-my-deck-select"></select>
-                </label>
-                <label class="ai-deck-label">
-                    AIのデッキ
-                    <select id="ai-opp-deck-select"></select>
-                </label>
-            </div>
-            <label class="starter-toggle"><input type="checkbox" data-show-starters /> 自分のデッキにスタートデッキを表示</label>
-            <button id="start-ai-btn">AIと対戦する</button>
-        </div>
-        
-        <!-- お知らせ（Gitコミット履歴から自動取得） -->
-        <div class="lobby-announcements">
-            <div class="announcement-header">
-                <span class="icon">📢</span> 最新のアップデート
-            </div>
-            <div id="announcement-list" class="announcement-list">
-                <div class="announcement-loading">読み込み中…</div>
-            </div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
-            <a href="/bugreport.html" style="color: #66b3ff; text-decoration: none; font-size: 14px;">バグ報告</a>
-            <a href="https://github.com/imachan7/bs_web" target="_blank" style="color: #66b3ff; text-decoration: none; font-size: 14px;">GitHub リポジトリ</a>
-            <a href="https://discord.gg/AJPTAa4kqY" target="_blank" style="color: #66b3ff; text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 4px;">
-                <svg width="16" height="16" viewBox="0 0 127.14 96.36" fill="currentColor">
-                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1,105.25,105.25,0,0,0,32.19-16.14c2.64-27.38-4.51-51.11-19.32-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.2,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
-                </svg>
-                Discord サーバー
-            </a>
+                    <section class="mode">
+                        <h3>公開ルーム</h3>
+                        <p>ロビーの一覧に載せて、入ってくれる相手を待ちます</p>
+                        <button id="pub-room-btn" class="btn-outline">公開ルームを作って待つ</button>
+                        <div id="pub-room-status" class="hidden">
+                            <p class="match-waiting-text">公開ルームで相手を待っています</p>
+                            <button id="pub-room-cancel" class="cancel-btn">待つのをやめる</button>
+                        </div>
+                    </section>
+
+                    <section class="mode">
+                        <h3>合言葉ルーム</h3>
+                        <p>友達と同じ合言葉を入れて対戦します</p>
+                        <div class="mode-inline">
+                            <input id="room-input" type="text" value="room1" aria-label="合言葉" />
+                            <button id="join-btn" class="btn-outline">入る</button>
+                        </div>
+                        <p id="waiting-message" class="hidden">相手の参加を待っています…</p>
+                    </section>
+
+                    <section class="mode">
+                        <h3>AIと対戦</h3>
+                        <p>待たずにすぐ始められます</p>
+                        <div class="mode-inline">
+                            <select id="ai-opp-deck-select" aria-label="AIのデッキ"></select>
+                            <button id="start-ai-btn" class="btn-outline">対戦する</button>
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <aside class="lobby-side">
+                <section class="lobby-live">
+                    <h2 class="lobby-heading">いまのロビー</h2>
+                    <p id="lobby-counts" class="lobby-counts">ランダムマッチ待ち -人・対戦中 -卓</p>
+                    <ul id="lobby-rooms" class="lobby-rooms"></ul>
+                </section>
+
+                <div class="lobby-announcements">
+                    <div class="announcement-header">最新のアップデート</div>
+                    <div id="announcement-list" class="announcement-list">
+                        <div class="announcement-loading">読み込み中…</div>
+                    </div>
+                </div>
+            </aside>
         </div>
 
         <section class="seo-description" style="margin-top: 60px; text-align: left; padding: 20px; background: rgba(0,0,0,0.5); border-radius: 8px; font-size: 13px; color: #bbb; line-height: 1.6; max-width: 600px;">
