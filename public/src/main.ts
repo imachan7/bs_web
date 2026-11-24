@@ -1,7 +1,7 @@
 // サーバー通信、ユーザー操作の受付、状態購読
 import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
-import { installSecretCardArt, preloadCardArt } from "./cardArt"
+import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -233,6 +233,7 @@ function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
             el.appendChild(badge)
         }
         
+        attachCardArt(el, cardId, m.name)
         el.dataset.cardId = cardId // enable tooltip
         trashContent.appendChild(el)
     })
@@ -1321,6 +1322,18 @@ async function init(): Promise<void> {
         byId("trash-panel").classList.toggle("hidden")
         rerender()
     })
+    // PC のマットのトラッシュの枠から、その側のタブで開く
+    for (const [id, tab] of [["mat-trash-self", "mine"], ["mat-trash-opp", "opp"]] as const) {
+        byId(id).addEventListener("click", (e) => {
+            // コア選択の候補として押したときは、中身を開かず選択を優先する
+            if ((e.target as HTMLElement).closest("[data-corezone]")) return
+            activeTrashTab = tab
+            byId("tab-my-trash").classList.toggle("active", tab === "mine")
+            byId("tab-opp-trash").classList.toggle("active", tab === "opp")
+            byId("trash-panel").classList.remove("hidden")
+            rerender()
+        })
+    }
     byId("btn-close-trash").addEventListener("click", () => {
         byId("trash-panel").classList.add("hidden")
     })

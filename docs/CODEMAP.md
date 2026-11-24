@@ -1627,6 +1627,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hideWaiting`（fn）
 - `showToast`（fn）
 
+## public/src/ui/coreIcon.ts
+
+- `coreIcon`（fn）：コアの画像。文字の高さに合わせるため大きさは CSS（.core-icon）で em 指定
+
 ## public/src/ui/fieldCard.ts
 
 - `renderField`（fn）
@@ -1663,6 +1667,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `CATEGORY_MAP`（const）：コミットメッセージからカテゴリと表示テキストを抽出する
 - `parseReleaseMessage`（fn）
 - `loadChangelog`（fn）
+
+## public/src/ui/mat.ts
+
+- `renderMat`（fn）
 
 ## public/src/ui/payInput.ts
 
