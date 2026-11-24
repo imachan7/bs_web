@@ -3,8 +3,8 @@ import { coreIcon } from "./coreIcon"
 import type { CardInstance, Color, GameView, PlayerId } from "../../../server/src/type"
 import { COLOR_LABELS } from "../../../data/constants"
 import { braveCombineCandidates, braveExchangeTargets } from "../../../shared/summon"
-import { attachCardArt } from "../cardArt"
-import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors } from "../../../shared/rules"
+import { attachCardArt, cardImageUrl } from "../cardArt"
+import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors, instBaseCost } from "../../../shared/rules"
 import { payingCardId } from "./paying"
 import { master, COLOR_SYMBOLS, levelOf, canBlockAttacker, canAwaken, activatableAbility, UiState, matchesDirectedAttackFilter, $ } from "../renderer"
 
@@ -212,6 +212,18 @@ export function fieldCardEl(
                 nameEl.className = "brave-name"
                 nameEl.textContent = braveName
                 row.appendChild(nameEl)
+                // 絵があれば重ねる（見せ方は <html data-brave> で切り替える。読めなければ名前の帯のまま）
+                const artUrl = cardImageUrl(brave.cardId)
+                if (artUrl !== null) {
+                    const art = document.createElement("img")
+                    art.className = "brave-art"
+                    art.alt = ""
+                    art.src = artUrl
+                    art.onload = () => row.classList.add("has-brave-art")
+                    art.onerror = () => art.remove()
+                    if (art.complete && art.naturalWidth > 0) row.classList.add("has-brave-art")
+                    row.appendChild(art)
+                }
                 row.title = `合体中: ${braveName}`
                 // メインステップの任意分離（§6.4）。自分のブレイヴだけ、自分のメインステップに出す
                 if (isMine && myTurn && view.phase === "main" && !view.battle && view.pendingChoice === null) {
@@ -306,7 +318,8 @@ export function fieldCardEl(
     // コストバッジを左上に表示
     const costBadge = document.createElement("div")
     costBadge.className = `cost-badge cost-${m.type}`
-    costBadge.textContent = String(m.cost)
+    // 合体中はブレイヴのコストを足した値（instBaseCost。効果の「コスト◯以下」と同じ値）
+    costBadge.textContent = String(instBaseCost(inst))
     el.appendChild(costBadge)
 
     const cores = document.createElement("div")
