@@ -1870,6 +1870,10 @@ button:active {
 }
 /* 召喚・使用の途中（「対象選択をやめる」が出ている間）は、アタックステップへ・ターン終了を出さない（押す場面がない。スマホと同じ） */
 #game:has(#btn-cancel-target:not(.hidden)) :is(#btn-attack-phase, #btn-end-turn) { display: none; }
+/* 支払いの画面は背が高いので、右の列を上下中央でなく盤面の上端から並べ、入りきらなければ列の中でスクロールする（中央寄せだと「対象選択をやめる」が画面の上へはみ出した） */
+@media (min-width: 769px) {
+    #action-buttons-container:has(#choice-options .pay-sheet) { top: 8px; transform: none; max-height: calc(100vh - 24px); overflow-y: auto; }
+}
 /* 支払いの画面（右の列）を出している間は、オープン中・破棄したカードの欄を左へ寄せる（右だと支払いの画面と重なった） */
 @media (min-width: 769px) {
     body:has(#choice-options .pay-sheet) :is(#reveal-panel, #mill-panel) { right: auto; left: 12px; }
