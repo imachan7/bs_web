@@ -52,7 +52,9 @@
     {#if note}<span class="note {note.status}">{NOTE_LABELS[note.status]}</span>{/if}
     {#if card.limited}<span class="limited">禁止</span>{/if}
     {#if count > 0}<span class="count">×{count}</span>{/if}
-    {#if open}<div class="ctl"><AdjustButtons {card} detailBtn /></div>{/if}
+    <!-- プールは − ＋ を常に出す（入れる操作が主なので。2026-11-24 ユーザー）。デッキ欄は小さく絵が隠れるので押したときだけ -->
+    {#if area === "pool" && !open}<div class="ctl always"><AdjustButtons {card} /></div>
+    {:else if open}<div class="ctl"><AdjustButtons {card} detailBtn /></div>{/if}
 </div>
 
 <style>
@@ -123,6 +125,10 @@
     }
     /* 絵が出ていても読めるよう半透明の帯に載せる */
     .ctl { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px; display: flex; justify-content: center; background: #000b; }
+    /* 常に出す方は帯を敷かず右下に寄せる（効果文の上に帯を重ねない） */
+    .ctl.always { left: auto; padding: 4px; background: none; }
+    .ctl.always :global(.adjust) { gap: 3px; }
+    .ctl.always :global(button) { width: 22px; height: 22px; font-size: 14px; border-radius: 50%; }
     .note.unimplemented { background: #d44a4a; }
     .note.partial { background: #d48a4a; }
     .note.simplified { background: #d4c44a; color: #333; }

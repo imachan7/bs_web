@@ -39,7 +39,7 @@
     <span class="type">{CARD_TYPE_LABELS[card.type]}</span>
     <span class="bp">{bp === null ? "" : `BP${bp}`}</span>
     {#if count > 0}<span class="count">×{count}</span>{/if}
-    {#if open}<AdjustButtons {card} detailBtn />{/if}
+    <AdjustButtons {card} detailBtn={open} />
 </div>
 
 <style>
