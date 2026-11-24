@@ -5,7 +5,7 @@
     import { cardStore } from "../state/cards.svelte"
     import { addBlockReason, deckCards } from "../state/deck.svelte"
     import { selection, toggleSelection } from "../state/selection.svelte"
-    import { hoverCard, selectDetail } from "../state/detail.svelte"
+    import { hoverCard, leaveCard, selectDetail } from "../state/detail.svelte"
     import AdjustButtons from "./AdjustButtons.svelte"
 
     let { card }: { card: CardData } = $props()
@@ -23,6 +23,7 @@
     role="button"
     tabindex="0"
     onpointerenter={(e) => hoverCard(e, card.cardId)}
+    onpointerleave={leaveCard}
     title={card.name}
     style:--c-main="var(--c-{card.colors[0]})"
     onclick={(e) => {

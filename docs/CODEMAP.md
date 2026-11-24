@@ -1650,9 +1650,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## public/src/deck/state/detail.svelte.ts
 
-- `detail`（const）：詳細に出しているカード。マウスが離れても次のカードに載るまで残す。mobile は画面いっぱいの欄を開いているか（スマホ用）
-- `hoverCard`（fn）：タッチのタップでも pointerenter は飛ぶので、マウスのときだけ拾う（スマホのタップは詳細ボタンで開く）
-- `selectDetail`（fn）：タップ・クリックでも詳細カラムを切り替える（幅900以上のタッチ端末＝タブレットはマウスが無く、hoverCard だけでは何も出ない）。
+- `detail`（const）：詳細に出しているカード。mobile は画面いっぱいの欄を開いているか（スマホ用）。pinned はクリック・タップで固定しているか
+- `hoverCard`（fn）：タッチのタップでも pointerenter は飛ぶので、マウスのときだけ拾う。固定中は切り替えない
+- `leaveCard`（fn）
+- `selectDetail`（fn）：クリック・タップしたカードを固定する（幅900以上のタッチ端末はマウスが無いので、これで詳細を出す）。同じカードをもう一度押すと固定を外す
+- `unpinDetail`（fn）
 
 ## public/src/deck/state/filters.svelte.ts
 

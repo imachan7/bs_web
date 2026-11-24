@@ -6,7 +6,7 @@
     import { cardStore } from "../state/cards.svelte"
     import { addBlockReason, deckCards } from "../state/deck.svelte"
     import { selection, toggleSelection } from "../state/selection.svelte"
-    import { hoverCard, selectDetail } from "../state/detail.svelte"
+    import { hoverCard, leaveCard, selectDetail } from "../state/detail.svelte"
     import AdjustButtons from "./AdjustButtons.svelte"
 
     let { card, size, area }: { card: CardData; size: "lg" | "md"; area: "pool" | "deck" } = $props()
@@ -35,6 +35,7 @@
     role="button"
     tabindex="0"
     onpointerenter={(e) => hoverCard(e, card.cardId)}
+    onpointerleave={leaveCard}
     onclick={(e) => {
         e.stopPropagation()
         selectDetail(card.cardId)

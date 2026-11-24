@@ -5,7 +5,7 @@
     import { braveBpGain, braveConditionText, maxBp } from "../logic/cardInfo"
     import { cardStore } from "../state/cards.svelte"
     import { deckCards } from "../state/deck.svelte"
-    import { detail } from "../state/detail.svelte"
+    import { detail, unpinDetail } from "../state/detail.svelte"
     import AdjustButtons from "./AdjustButtons.svelte"
 
     // mobile: 画面いっぱいの欄として出す（絵は軽い md、閉じる × つき）
@@ -55,6 +55,9 @@
     {#if !card}
         <p class="hint">カードにマウスを載せると詳しく表示します</p>
     {:else}
+        {#if detail.pinned && !mobile}
+            <div class="pin"><span>固定中</span><button type="button" onclick={unpinDetail}>固定を外す</button></div>
+        {/if}
         {#key card.cardId}
             {#if art && artFailed !== art}
                 <img class="art" src={art} alt={card.name} onerror={() => (artFailed = art)} />
@@ -87,6 +90,8 @@
     .col.mobile { padding-top: 44px; background: #1a1d2b; position: relative; }
     .close { position: absolute; top: 6px; right: 8px; width: 36px; height: 36px; font-size: 20px; padding: 0; }
     .hint { color: #889; font-size: 13px; }
+    .pin { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #8fa8ff; }
+    .pin button { font-size: 12px; padding: 2px 8px; }
     .art { width: 100%; max-width: 360px; align-self: center; height: auto; aspect-ratio: 675 / 985; border-radius: 8px; background: #0003; }
     .title { display: flex; align-items: center; gap: 6px; font-weight: bold; flex-wrap: wrap; }
     .sym { width: 14px; height: 14px; border-radius: 50%; background-size: cover; box-shadow: 0 1px 2px #0008; }
