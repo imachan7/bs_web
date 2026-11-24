@@ -371,7 +371,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `isSummonableCardType`（fn）：召喚（type:"summon"）で場に出せるカードか。
 - `braveCombineCandidates`（fn）：合体先（ダイレクトブレイヴ）に選べる自分のスピリットの instanceId 一覧。
-- `braveExchangeTargets`（fn）：メインステップの交換（BRAVE.md §6.4.1）で、合体中のブレイヴを移せる自分のスピリットの instanceId 一覧。
+- `braveExchangeMode`（fn）：メインステップの交換（BRAVE.md §6.4.1）で、合体中のブレイヴを to へ移せるか。
+- `braveExchangeTargets`（fn）
 - `braveCombinableWithHost`（fn）：【抜刀】の「このスピリットと合体可能な」（公式 Q800・Q802）：合体条件だけを見る（合体禁止中でも true＝Q798）。
 - `canCombineBraveCount`（fn）：このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
 - `combineLimitFor`（fn）

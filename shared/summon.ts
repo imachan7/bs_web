@@ -40,30 +40,31 @@ export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId:
         .map((host) => host.instanceId)
 }
 
-// メインステップの交換（BRAVE.md §6.4.1）で、合体中のブレイヴを移せる自分のスピリットの instanceId 一覧。
-// 合体していないスピリットへは移すだけ、1体だけ合体しているスピリットとはブレイヴを入れ替える。
-// 合体条件は合体先のスピリットだけで見る（今ついているブレイヴのコストを含めない。Q71）。入れ替えは両側とも満たすときだけ（Q66）
-// ponytail: 2体以上と合体できるスピリット（サジット・アポロドラゴン）の空き枠への移動と、異魔神（左右の枠）は扱わない。プールに要る札が出たら足す
-export function braveExchangeTargets(board: Board, pid: PlayerId, braveInstanceId: string): string[] {
-    const spirits = board.players[pid].field.spirits
+// メインステップの交換（BRAVE.md §6.4.1）で、合体中のブレイヴを to へ移せるか。
+// move＝to の空いている枠へ移す（2体と合体できるスピリットの2枠目も含む。条件は普通の合体と同じ見方）。
+// swap＝to の枠が1つで埋まっているので、そのブレイヴと入れ替える。条件は合体先のスピリットだけで見る（今ついているブレイヴのコストを含めない。Q71）。両側とも満たすときだけ（Q66）。
+// 枠が2つとも埋まっているスピリットは、どちらと入れ替えるかが決まらないので null
+// ponytail: 異魔神（左右の枠）は扱わない。プールに入ったら足す
+export function braveExchangeMode(board: Board, pid: PlayerId, braveInstanceId: string, toInstanceId: string): "move" | "swap" | null {
+    const field = board.players[pid].field
     const refsOf = (sp: CardInstance) => sp.braveRefs ?? []
-    const from = spirits.find((sp) => refsOf(sp).some((r) => r.instanceId === braveInstanceId))
-    if (!from || refsOf(from).length !== 1 || refsOf(from)[0]!.slot !== "single") return []
-    const brave = board.players[pid].field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
-    if (!brave) return []
+    const from = field.spirits.find((sp) => refsOf(sp).some((r) => r.instanceId === braveInstanceId))
+    const to = field.spirits.find((sp) => sp.instanceId === toInstanceId)
+    const brave = field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
+    if (!from || !to || !brave || from.instanceId === to.instanceId) return null
+    if (refsOf(from).some((r) => r.slot !== "single") || refsOf(to).some((r) => r.slot !== "single")) return null
     const has = (sp: CardInstance, type: string) => activeConstraints(board, pid, sp).some((c) => c.type === type)
-    if (has(from, "cantSeparate")) return []
-    return spirits
-        .filter((to) => to.instanceId !== from.instanceId && card(to.cardId).type !== "brave" && !has(to, "cantCombine"))
-        .filter((to) => matchesBraveCondition(board, pid, to, brave.cardId, true))
-        .filter((to) => {
-            const refs = refsOf(to)
-            if (refs.length === 0) return true
-            if (refs.length !== 1 || refs[0]!.slot !== "single" || has(to, "cantSeparate")) return false
-            const other = board.players[pid].field.combinedBraves.find((b) => b.instanceId === refs[0]!.instanceId)
-            return other !== undefined && matchesBraveCondition(board, pid, from, other.cardId, true)
-        })
-        .map((to) => to.instanceId)
+    if (has(from, "cantSeparate") || has(to, "cantCombine") || card(to.cardId).type === "brave") return null
+    if (canCombineBraveCount(board, pid, to, brave.cardId)) return matchesBraveCondition(board, pid, to, brave.cardId) ? "move" : null
+    const refs = refsOf(to)
+    if (refs.length !== 1 || has(to, "cantSeparate")) return null
+    const other = field.combinedBraves.find((b) => b.instanceId === refs[0]!.instanceId)
+    if (!other || !matchesBraveCondition(board, pid, to, brave.cardId, true)) return null
+    return matchesBraveCondition(board, pid, from, other.cardId, true) ? "swap" : null
+}
+
+export function braveExchangeTargets(board: Board, pid: PlayerId, braveInstanceId: string): string[] {
+    return board.players[pid].field.spirits.filter((to) => braveExchangeMode(board, pid, braveInstanceId, to.instanceId) !== null).map((to) => to.instanceId)
 }
 
 // 【抜刀】の「このスピリットと合体可能な」（公式 Q800・Q802）：合体条件だけを見る（合体禁止中でも true＝Q798）。

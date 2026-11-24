@@ -1,4 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
+import { braveExchangeMode } from "../../../shared/summon"
 import { isTrashWaiting } from "../../../shared/rules/waiting"
 import { takeFromTrash } from "./zones/trash"
 import { settleAllLifeZero } from "./lifeGate"
@@ -1061,21 +1062,21 @@ function doDetachBrave(state: GameState, pid: PlayerId, braveInstanceId: string,
 function doExchangeBrave(state: GameState, pid: PlayerId, braveInstanceId: string, toInstanceId: string): string | null {
     const error = validateExchangeBrave(state, pid, braveInstanceId, toInstanceId)
     if (error) return error
+    const swap = braveExchangeMode(state, pid, braveInstanceId, toInstanceId) === "swap"
     const player = state.players[pid]
     const from = player.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     const to = findSpirit(player, toInstanceId)
     if (!from || !to) return "対象のカードが見つかりません"
-    const take = (host: CardInstance): CardInstance | undefined => {
-        const ref = (host.braveRefs ?? [])[0]
-        if (!ref) return undefined
-        delete host.braveRefs
-        const at = player.field.combinedBraves.findIndex((b) => b.instanceId === ref.instanceId)
-        const [brave] = player.field.combinedBraves.splice(at, 1)
+    const take = (host: CardInstance, id: string): CardInstance | undefined => {
+        host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== id)
+        if (host.braveRefs.length === 0) delete host.braveRefs
+        const at = player.field.combinedBraves.findIndex((b) => b.instanceId === id)
+        const [brave] = at === -1 ? [] : player.field.combinedBraves.splice(at, 1)
         if (brave) brave.isRested = host.isRested
         return brave
     }
-    const moving = take(from)
-    const back = take(to)
+    const moving = take(from, braveInstanceId)
+    const back = swap ? take(to, to.braveRefs![0]!.instanceId) : undefined
     if (!moving) return "対象のブレイヴが見つかりません"
     attachBrave(state, pid, to, moving)
     if (back) attachBrave(state, pid, from, back)

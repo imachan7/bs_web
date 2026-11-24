@@ -9,6 +9,7 @@ const ROKU = "BS01-002" // ロクケラトプス（赤・コスト1・効果の�
 const VOLK = "BS01-009" // ヴォルク・バブーン（赤・コスト3・効果の記述あり）
 const BUSTER = "BS10-061" // 剣鎧竜バスター・ドラゴン（ブレイヴ・コスト3・合体条件：効果の記述を持たない）
 const CANNON = "BS10-062" // 砲凰竜フェニック・キャノン（ブレイヴ・コスト5・合体条件：コスト3以上）
+const SAJIT = "BS13-X01" // 光龍騎神サジット・アポロドラゴン（赤・コスト8・ブレイヴ2つまでと合体できる）
 
 console.log("=== 前提: カードの機械確認 ===")
 {
@@ -16,6 +17,7 @@ console.log("=== 前提: カードの機械確認 ===")
     assert(getCard(ROKU).name === "ロクケラトプス" && getCard(ROKU).cost === 1 && getCard(ROKU).effect === "", "ROKUはロクケラトプス（コスト1・記述なし）")
     assert(getCard(VOLK).name === "ヴォルク・バブーン" && getCard(VOLK).effect !== "", "VOLKはヴォルク・バブーン（記述あり）")
     assert(getCard(BUSTER).name === "剣鎧竜バスター・ドラゴン" && getCard(BUSTER).cost === 3 && JSON.stringify(getCard(BUSTER).braveCondition) === '{"vanilla":true}', "BUSTERは記述なしが条件のブレイヴ（コスト3）")
+    assert(getCard(SAJIT).name === "光龍騎神サジット・アポロドラゴン" && getCard(SAJIT).effect.includes("ブレイヴ2つまで"), "SAJITは2つまで合体できる")
     assert(getCard(CANNON).name === "砲凰竜フェニック・キャノン" && JSON.stringify(getCard(CANNON).braveCondition) === '{"minCost":3}', "CANNONはコスト3以上が条件のブレイヴ")
 }
 
@@ -45,6 +47,8 @@ function put(s: GameState, cardId: string, cores: number, brave?: string): Retur
     return inst
 }
 
+const bravesOn = (s: GameState, host: { instanceId: string }): string[] =>
+    (s.players.p1.field.spirits.find((x) => x.instanceId === host.instanceId)?.braveRefs ?? []).map((r) => s.players.p1.field.combinedBraves.find((b) => b.instanceId === r.instanceId)?.cardId ?? "")
 const braveOn = (s: GameState, host: { instanceId: string }): string | undefined => {
     const ref = s.players.p1.field.spirits.find((x) => x.instanceId === host.instanceId)?.braveRefs?.[0]
     return s.players.p1.field.combinedBraves.find((b) => b.instanceId === ref?.instanceId)?.cardId
@@ -131,6 +135,29 @@ console.log("=== 7. できない：メインステップの外・相手のター
     refreshLevelAsOverrides(s)
     assert(act(s, "p1", { type: "exchangeBrave", braveInstanceId: loose.instanceId, toInstanceId: b.instanceId }) !== null, "スピリット状態のブレイヴは交換できない")
     assert(braveOn(s, a) === BUSTER && braveOn(s, b) === undefined, "盤面は変わらない")
+}
+
+console.log("=== 8. 2体と合体できるスピリットの空いている枠へ移す（入れ替えにしない） ===")
+{
+    const s = game("sajit-move")
+    const a = put(s, METAL, 3, CANNON)
+    const sajit = put(s, SAJIT, 3, CANNON)
+    assert(exchange(s, a, sajit) === null, "1体と合体中のサジットへ移せる")
+    assert(bravesOn(s, sajit).length === 2 && braveOn(s, a) === undefined, "サジットは2体と合体し、メタルバーンには何も戻らない")
+}
+
+console.log("=== 9. 2体と合体しているスピリットから1体だけ移す／2枠とも埋まっていれば候補にしない ===")
+{
+    const s = game("sajit-full")
+    const sajit = put(s, SAJIT, 3, CANNON)
+    attachBrave(s, "p1", sajit, createInstance(CANNON, s.turn, 0))
+    refreshLevelAsOverrides(s)
+    const a = put(s, METAL, 3, CANNON)
+    assert(bravesOn(s, sajit).length === 2, "前提：サジットは2体と合体している")
+    assert(exchange(s, a, sajit) !== null, "2枠とも埋まっていると、どちらと入れ替えるか決まらないので交換できない")
+    const b = put(s, METAL, 3)
+    assert(exchange(s, sajit, b) === null, "サジットのブレイヴの1体を、合体していないメタルバーンへ移せる")
+    assert(bravesOn(s, sajit).length === 1 && braveOn(s, b) === CANNON, "サジットには1体が残る")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part1053）")
