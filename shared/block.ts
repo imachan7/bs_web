@@ -82,17 +82,20 @@ export function blockReserveToTrashCount(board: Board, attackerPid: PlayerId, at
     return activeConstraints(board, attackerPid, attackerInst).reduce((n, c) => n + (c.type === "blockReserveToTrash" ? c.count : 0), 0)
 }
 
-// blockCost destroyOwnSpirit を掛けた記録（無ければ undefined）
-export function blockDestroyOwnSpiritRecord(board: Board, attackerInst: CardInstance | undefined): Board["timedEffects"][number] | undefined {
-    if (!attackerInst) return undefined
-    return timedRecordsOn(board, attackerInst).find((r) => r.content.some((c) => c.type === "blockCost" && c.cost === "destroyOwnSpirit"))
+type TimedRecord = Board["timedEffects"][number]
+
+// blockCost destroyOwnSpirit の「破壊1体ぶん」を、記録の count だけ並べたもの。発生源ごとに別の破壊として1体ずつ払う
+// （ザンデ・ミリオン2体なら2体。2026-11-24 ユーザー確認・#700）。破壊の帰属はそれぞれの記録の発生源
+export function blockDestroyTolls(board: Board, attackerInst: CardInstance | undefined): TimedRecord[] {
+    if (!attackerInst) return []
+    return timedRecordsOn(board, attackerInst).flatMap((r) =>
+        r.content.flatMap((c) => (c.type === "blockCost" && c.cost === "destroyOwnSpirit" ? Array.from({ length: c.count }, () => r) : [])),
+    )
 }
 
 // blockCost destroyOwnSpirit で破壊できるスピリット。破壊はアタッカー側の効果なので、【装甲】などで効果を受けない個体は選べず、
 // 1体もいなければブロックできない（BS22-X02 Q4430〜Q4432）。選ぶのは防御側で効果の対象指定ではないので scope は area とした
-export function blockDestroyCandidates(board: Board, blockerPid: PlayerId, blockerInstanceId: string, attackerInst: CardInstance | undefined): CardInstance[] {
-    const rec = blockDestroyOwnSpiritRecord(board, attackerInst)
-    if (!rec) return []
+export function blockDestroyCandidates(board: Board, blockerPid: PlayerId, blockerInstanceId: string, rec: TimedRecord): CardInstance[] {
     return board.players[blockerPid].field.spirits.filter(
         (sp) =>
             sp.instanceId !== blockerInstanceId &&

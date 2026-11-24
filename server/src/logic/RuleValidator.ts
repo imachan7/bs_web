@@ -29,7 +29,7 @@ import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, ac
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { onlyUsableDenial, canDiscardHand, costExhaustLocked, coreIntakeRefused, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, braveExchangeTargets, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
-import { blockDestroyCandidates, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter, mandatoryDirectAttackTargetIds } from "../../../shared/block"
+import { blockDestroyCandidates, blockDestroyTolls, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter, mandatoryDirectAttackTargetIds } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
@@ -1371,15 +1371,22 @@ export function validateBlock(
     const costAttacker = state.battle ? findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId) : undefined
     for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
-        if (c.cost === "destroyOwnSpirit") {
-            if (blockDestroyCandidates(state, pid, instanceId, costAttacker).length === 0) return "破壊できるスピリットがいないためブロックできません"
-            continue
-        }
+        if (c.cost === "destroyOwnSpirit") continue
         if (c.cost === "reserveCoreToTrash" && normalReserveOf(state.players[pid]) < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
         if (c.cost === "discardHand" && (state.players[pid].hand.length < c.count || !canDiscardHand(state, pid))) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && !canDiscardHand(state, pid)) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && state.players[pid].hand.filter((id) => getCard(id).type === "magic").length < c.count) {
             return "手札にマジックカードがないためブロックできません"
+        }
+    }
+    // 発生源ごとに1体ずつ別のスピリットを破壊するので、候補の合計が破壊の数に足りなければブロックできない（#700）。
+    // ponytail: 発生源ごとに耐性が違う場合の割り当て（二部マッチング）はせず、どの破壊にも候補がいて、候補の和集合が数に足りるかだけ見る
+    const destroyTolls = blockDestroyTolls(state, costAttacker)
+    if (destroyTolls.length > 0) {
+        const pools = destroyTolls.map((rec) => blockDestroyCandidates(state, pid, instanceId, rec))
+        const union = new Set(pools.flatMap((pool) => pool.map((sp) => sp.instanceId)))
+        if (pools.some((pool) => pool.length === 0) || union.size < destroyTolls.length) {
+            return destroyTolls.length === 1 ? "破壊できるスピリットがいないためブロックできません" : `破壊できるスピリットが${String(destroyTolls.length)}体いないためブロックできません`
         }
     }
     const reserveToll = blockReserveToTrashCount(state, opponentOf(pid), costAttacker)

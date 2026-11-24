@@ -41,7 +41,7 @@ import { resolveBlockDeclared } from "./blockDeclared"
 import { applyDeclaredBursts, finishSummonEffect } from "./keywords/burst"
 import { markPayConfirmed } from "./actions/pay"
 import { doUseHandBurstEffect } from "./handBurstEffect"
-import { blockDestroyCandidates, blockDestroyOwnSpiritRecord, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
+import { blockDestroyCandidates, blockDestroyTolls, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
 import {
     AWAKEN_FROM_RESERVE,
     timedContentsOn,
@@ -1352,38 +1352,44 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string, paySources
         }
         exhaustBlockToll(state, pid, candidates[0]!)
     }
-    // blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリット1体を破壊する。
-    // ponytail: blockExhaustSpirit の選択待ちと両方が掛かると、破壊の選択は出さずに先頭を破壊する
-    const destroyAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
-    if (blockDestroyOwnSpiritRecord(state, destroyAttacker)) {
-        const candidates = blockDestroyCandidates(state, pid, instanceId, destroyAttacker)
+    return payBlockDestroyTolls(state, pid, instanceId, 0)
+}
+
+// blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリットを、発生源ごとに1体ずつ選んで破壊する（from 番目から）。
+// 払い終えたらブロック宣言の続きへ。対話時は候補が2体以上ならブロックする側が選び、選択からは次の番号で戻ってくる（#700）
+export function payBlockDestroyTolls(state: GameState, pid: PlayerId, blockerInstanceId: string, from: number): string | null {
+    if (!state.battle) return "バトルが発生していません"
+    const tolls = blockDestroyTolls(state, findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId))
+    for (let i = from; i < tolls.length; i++) {
+        const rec = tolls[i]!
+        const candidates = blockDestroyCandidates(state, pid, blockerInstanceId, rec)
+        if (candidates.length === 0) break
         if (state.interactiveTargets && candidates.length > 1) {
             state.pendingChoice = {
                 pid,
                 kind: "target",
-                prompt: "ブロックのコストとして破壊するスピリットを選んでください",
+                prompt: tolls.length > 1 ? `ブロックのコストとして破壊するスピリットを選んでください（${String(i + 1)}/${String(tolls.length)}体目）` : "ブロックのコストとして破壊するスピリットを選んでください",
                 candidates: candidates.map((sp) => sp.instanceId),
                 optional: false,
                 action: { type: "noop" },
-                selfInstanceId: instanceId,
-                blockExhaustPick: { blockerPid: pid, blockerInstanceId: instanceId, destroy: true },
+                selfInstanceId: blockerInstanceId,
+                blockExhaustPick: { blockerPid: pid, blockerInstanceId, destroyTollIndex: i },
             }
             return null
         }
-        destroyBlockToll(state, pid, candidates[0]!)
+        destroyBlockToll(state, pid, candidates[0]!, rec)
     }
-    return continueBlockDeclaration(state, pid, instanceId)
+    return continueBlockDeclaration(state, pid, blockerInstanceId)
 }
 
-// 破壊はアタッカー側の効果（相手によって破壊された扱い。Q4429 で破壊時効果も発揮する）
-export function destroyBlockToll(state: GameState, pid: PlayerId, sp: CardInstance): void {
+// 破壊はアタッカー側の効果（相手によって破壊された扱い。Q4429 で破壊時効果も発揮する）。帰属は rec（その破壊を求めた記録）の発生源
+export function destroyBlockToll(state: GameState, pid: PlayerId, sp: CardInstance, rec: GameState["timedEffects"][number]): void {
     log(state, `${state.players[pid].name}はブロックのため${getCard(sp.cardId).name}を破壊した。`)
-    const rec = state.battle ? blockDestroyOwnSpiritRecord(state, findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)) : undefined
     destroySpirit(state, pid, sp.instanceId, "destroy", {
         sourcePid: opponentOf(pid),
-        ...(rec?.sourceType !== undefined ? { sourceType: rec.sourceType } : {}),
-        ...(rec?.sourceColors !== undefined ? { sourceColors: rec.sourceColors } : {}),
-        ...(rec?.sourceInstanceId !== undefined ? { sourceInstanceId: rec.sourceInstanceId } : {}),
+        ...(rec.sourceType !== undefined ? { sourceType: rec.sourceType } : {}),
+        ...(rec.sourceColors !== undefined ? { sourceColors: rec.sourceColors } : {}),
+        ...(rec.sourceInstanceId !== undefined ? { sourceInstanceId: rec.sourceInstanceId } : {}),
     })
 }
 
