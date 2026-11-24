@@ -21,6 +21,11 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：#703 デッキ構築の Svelte 試験導入 S0（ブランチ `feat/deck-svelte-s0`）
+
+- 設計は issue #703。S0＝ビルドの試作：`scripts/build-client.mjs`（esbuild の JS API＋`esbuild-svelte`）に `build:client`／`dev:client` を移し、既存3エントリはそのまま、新エントリ `public/src/deck-next/main.ts` → `public/dist/deck-next.js` を `public/deck-next.html` に出す（旧 `deck.html` は触らない）
+- S5 の「プリセット」は色別サンプルではなく構築済みデッキの読み込み（`/api/deck-recipes`。2026-11-24 ユーザー「プリセットは誰も使っていない」）
+
 ### 次にやること（2026-11-22 時点。上から順に）
 
 1. **一度も実行されていない効果24件に場面テストを足し、`data/coverage-baseline.json` から消す**
