@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>UI 点検ページ</title>
+<style>
+body{font:13px sans-serif;margin:8px;background:#222;color:#eee}
+#bar{position:sticky;top:0;background:#222;padding:6px 0;z-index:9;border-bottom:1px solid #555}
+label{margin-right:10px;white-space:nowrap}
+table{border-collapse:collapse}td,th{border:1px solid #555;vertical-align:top;padding:2px}
+.cell{position:relative;overflow:hidden}.cell iframe{border:0;position:absolute;left:0;top:0;transform-origin:0 0;background:#000}
+.hd{font-size:11px;height:30px;overflow:hidden}.hd.ng{color:#f88}.hd.ok{color:#8f8}
+</style></head><body>
+<div id="bar"><button id="run">全部作る</button> <span id="prog">待機中</span>
+<div id="scenes"></div><div id="sizes"></div></div>
+<table id="grid"></table>
+<script src="ui-gallery.js"></script></body></html>

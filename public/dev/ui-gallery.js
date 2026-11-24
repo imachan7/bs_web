@@ -1,0 +1,212 @@
+// UI 点検ページ：場面×画面の大きさを iframe で作って並べる（ビルド不要）
+const SIZES = [
+  { id: "pc", name: "PC 1280×800", w: 1280, h: 800, s: 0.3 },
+  { id: "phone", name: "スマホ 375×667", w: 375, h: 667, s: 0.6 },
+  { id: "se", name: "SE Safari 375×553", w: 375, h: 553, s: 0.6 },
+  { id: "pro", name: "Pro Max 430×932", w: 430, h: 932, s: 0.6 },
+]
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const vis = (el) => el && el.offsetParent !== null
+
+// ---- 盤面の部品（カード ID は data/cards を python3 で照合済み） ----
+const GRIP = "BS01-030" // グリプ・ハンズ spirit cost3
+const NEXUS = "BS01-098" // 燃えさかる戦場 nexus cost3
+const LAMP = "BS12-083" // マジックランプ magic cost3
+const BRAVE1 = "BS17-057" // ギョクジーグ brave
+const BRAVE2 = "BS21-055" // ゴルニック・イーグル brave
+const BURST = "BS01-134" // バインディングソーン magic
+const FILL = ["SD06-001", "BS17-010", "BS17-019", "BS17-046"] // 効果なしのスピリット（オードラン他）
+const spirits = (n, rested = 0, cores = 2) =>
+  Array.from({ length: n }, (_, i) => ({ cardId: FILL[i % FILL.length], cores, isRested: i < rested }))
+const base = (o = {}) => ({
+  reserve: 5, hand: [GRIP, GRIP, "SD06-001", "BS17-010", "BS17-019"],
+  field: { spirits: spirits(6), nexuses: [{ cardId: NEXUS, cores: 0 }] }, ...o,
+})
+const standby = () => ({ me: base({ field: { spirits: spirits(9, 2), nexuses: [{ cardId: NEXUS, cores: 0 }] } }), opp: base() })
+// 召喚の Lv 選択：リザーブ少なめ、場にコア
+const lvBoard = () => ({ me: base({ reserve: 1, hand: [GRIP], field: { spirits: spirits(3, 0, 4), nexuses: [] } }), opp: base() })
+const lampBoard = () => ({
+  me: base({ reserve: 3, hand: [LAMP], deck: [NEXUS, GRIP, GRIP, GRIP], field: { spirits: spirits(2, 0, 3), nexuses: [] } }), opp: base(),
+})
+
+// ---- 操作の部品 ----
+const isMobile = (c) => c.w <= 768
+async function find(doc, text, sel = "button", ms = 2000) {
+  const t0 = Date.now()
+  for (;;) {
+    const el = [...doc.querySelectorAll(sel)].find((e) => vis(e) && (e.textContent || "").includes(text))
+    if (el) return el
+    if (Date.now() - t0 > ms) throw new Error(`「${text}」が見つからない`)
+    await sleep(150)
+  }
+}
+async function press(doc, text, wait = 650) { (await find(doc, text)).click(); await sleep(wait) }
+async function pressOpt(doc, text, wait = 650) { try { await press(doc, text, wait); return true } catch { return false } }
+async function clickSel(doc, sel, wait = 650) {
+  const el = [...doc.querySelectorAll(sel)].find(vis)
+  if (!el) throw new Error(`${sel} が見つからない`)
+  el.click(); await sleep(wait)
+}
+// 手札のカードを選んで使う。スマホは欄のボタン（label）、PC はカードを押すだけ
+async function play(c, cardId, label) {
+  await clickSel(c.A, `#hand .card[data-card-id="${cardId}"]`)
+  if (isMobile(c)) await press(c.A, label)
+}
+// マジックランプ → メイン効果 → （開いた状態）
+async function lampToOpen(c) {
+  await play(c, LAMP, "使用")
+  await pressOpt(c.A, "この支払いで確定")
+  await press(c.A, "メイン効果を使う")
+}
+async function lampToStepper(c) {
+  await lampToOpen(c)
+  await press(c.A, "燃えさかる戦場（ネクサス）")
+  await press(c.A, "＋", 500); await press(c.A, "＋", 500)
+}
+
+// ---- 場面（turn: 誰の番か／phase／ me・opp の盤面／ run: 操作。A=見る側、B=相手役） ----
+const SCENES = [
+  { id: "idle", name: "1 待機", board: standby, run: async () => {} },
+  { id: "hand", name: "2 手札を押した", board: standby, run: async (c) => clickSel(c.A, "#hand .card") },
+  { id: "spirit", name: "3 場のスピリットを押した", board: standby, run: async (c) => clickSel(c.A, "#my-spirits .card") },
+  { id: "lv", name: "4 召喚の Lv 選択", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await find(c.A, "フィールドから取得") } },
+  { id: "pay", name: "5 召喚の支払い（フィールドから）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await press(c.A, "フィールドから取得") } },
+  { id: "lampStep", name: "6 効果配置の置くコア数", board: lampBoard, run: lampToStepper },
+  { id: "lampPay", name: "7 6 の「決定」後の支払い", board: lampBoard, run: async (c) => { await lampToStepper(c); await press(c.A, "決定") } },
+  { id: "lampOpen", name: "8 自分のカードをオープン中", board: lampBoard, run: lampToOpen },
+  {
+    id: "oppOpen", name: "9 相手のカードをオープン中", turn: "opp",
+    board: () => ({ me: base(), opp: base({ reserve: 3, hand: [LAMP], deck: [NEXUS, GRIP, GRIP, GRIP], field: { spirits: spirits(2, 0, 3), nexuses: [] } }) }),
+    run: async (c) => { // B が打つ。B はスマホ幅なので手札を押して欄のボタン
+      await clickSel(c.B, `#hand .card[data-card-id="${LAMP}"]`)
+      await press(c.B, "使用"); await pressOpt(c.B, "この支払いで確定")
+      await press(c.B, "メイン効果を使う"); await press(c.B, "燃えさかる戦場（ネクサス）")
+      await pressOpt(c.B, "決定"); await pressOpt(c.B, "この支払いで確定"); await sleep(800)
+    },
+  },
+  {
+    id: "notice", name: "10 効果の通知（召喚直後）",
+    board: () => ({ me: base({ reserve: 6, hand: [GRIP] }), opp: base() }),
+    run: async (c) => {
+      await play(c, GRIP, "召喚")
+      await pressOpt(c.A, "コア", 400) // 「コアN個で召喚（Lv…）」が出たとき
+      await pressOpt(c.A, "この支払いで確定", 300)
+    },
+  },
+  {
+    id: "oppAtk", name: "11 相手のアタック", turn: "opp", phase: "attack",
+    board: () => ({ me: base(), opp: base() }),
+    run: async (c) => { // アタックステップでは、アタックできるスピリットは .clickable で、押すとそのままアタックする（ボタンは出ない）
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      await find(c.A, "パス")
+    },
+  },
+  // 12 対象選択：メインで使える相手スピリット対象のマジックがデータに見つからず省略（報告参照）
+  { id: "menu", name: "13 メニューを開いた", board: standby, run: async (c) => { if (isMobile(c)) await clickSel(c.A, "#btn-status-menu") } },
+  {
+    id: "trash", name: "14 トラッシュを開いた",
+    board: () => ({ me: base({ trashCards: [GRIP, GRIP, "SD06-001", LAMP] }), opp: base({ trashCards: [GRIP] }) }),
+    run: async (c) => clickSel(c.A, isMobile(c) ? "#mat-trash-self" : "#btn-toggle-trash"),
+  },
+  { id: "burst", name: "15 バーストをセット", board: () => ({ me: base({ burst: BURST }), opp: base({ burst: BURST }) }), run: async () => {} },
+  {
+    id: "brave", name: "16 ブレイヴ合体（1体／2体）",
+    board: () => ({
+      me: base({ field: { spirits: [
+        { cardId: FILL[0], cores: 3, braves: [BRAVE1] }, { cardId: FILL[1], cores: 3, braves: [BRAVE1, BRAVE2] }, ...spirits(3),
+      ], nexuses: [] } }), opp: base(),
+    }),
+    run: async () => {},
+  },
+]
+
+// ---- 1 場面×大きさを作る ----
+const post = (roomId, board) =>
+  fetch("/api/debug/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId, board }) }).then((r) => r.json())
+
+function mkFrame(w, h, left) {
+  const f = document.createElement("iframe")
+  f.width = w; f.height = h; f.src = `/?r=${Math.random().toString(36).slice(2)}`
+  if (left !== undefined) f.style.cssText = `position:fixed;left:${left}px;top:0;`
+  return f
+}
+async function join(frame, room) {
+  const d = frame.contentDocument
+  d.querySelector("#room-input").value = room
+  d.querySelector("#join-btn").click()
+}
+
+async function build(scene, size, cell, head) {
+  const log = (s, ok) => { head.textContent = `${scene.name} / ${size.name}：${s}`; head.className = "hd " + (ok === undefined ? "" : ok ? "ok" : "ng") }
+  let B
+  try {
+    log("準備中")
+    localStorage.removeItem("bs_player_ref")
+    const A = mkFrame(size.w, size.h)
+    A.style.transform = `scale(${size.s})`
+    cell.appendChild(A)
+    await sleep(2500)
+    const room = "g" + Math.random().toString(36).slice(2, 8)
+    await join(A, room); await sleep(1500)
+    localStorage.removeItem("bs_player_ref")
+    B = mkFrame(375, 667, -3000)
+    document.body.appendChild(B)
+    await sleep(2500)
+    await join(B, room); await sleep(3000)
+    const roomId = A.contentWindow.ROOM
+    const { me, opp } = scene.board()
+    const mk = (a, p) => ({ turn: 3, turnPlayer: a === "me" ? p.me : p.opp, phase: scene.phase || "main", players: { [p.me]: me, [p.opp]: opp } })
+    // A が p1 か p2 かを調べる
+    let r = await post(roomId, { turnPlayer: "p1", phase: "main" })
+    if (!r.ok) throw new Error("setup 失敗 " + JSON.stringify(r))
+    await sleep(800)
+    const mineIsP1 = A.contentDocument.querySelector("#turn-info").textContent.includes("あなた")
+    const p = mineIsP1 ? { me: "p1", opp: "p2" } : { me: "p2", opp: "p1" }
+    r = await post(roomId, mk(scene.turn || "me", p))
+    if (!r.ok) throw new Error("盤面の差し替え失敗 " + JSON.stringify(r))
+    await sleep(1200)
+    const c = { A: A.contentDocument, B: B.contentDocument, w: size.w, h: size.h }
+    await scene.run(c)
+    log("最後まで進んだ", true)
+  } catch (e) {
+    log("止まった：" + e.message, false)
+  } finally {
+    if (B) B.remove()
+  }
+}
+
+// ---- 画面 ----
+const grid = document.getElementById("grid")
+const cells = {}
+const head = grid.insertRow()
+head.appendChild(document.createElement("th"))
+for (const z of SIZES) { const th = document.createElement("th"); th.textContent = z.name; head.appendChild(th) }
+for (const sc of SCENES) {
+  const tr = grid.insertRow()
+  tr.insertCell().textContent = sc.name
+  for (const z of SIZES) {
+    const td = tr.insertCell()
+    const hd = document.createElement("div"); hd.className = "hd"; hd.style.width = z.w * z.s + "px"
+    const cell = document.createElement("div"); cell.className = "cell"; cell.style.cssText = `width:${z.w * z.s}px;height:${z.h * z.s}px`
+    td.append(hd, cell); cells[sc.id + z.id] = { cell, hd }
+  }
+}
+const box = (id, items) => {
+  const el = document.getElementById(id)
+  for (const it of items) el.insertAdjacentHTML("beforeend", `<label><input type="checkbox" checked value="${it.id}">${it.name}</label>`)
+  return () => [...el.querySelectorAll("input:checked")].map((i) => i.value)
+}
+const pickScenes = box("scenes", SCENES), pickSizes = box("sizes", SIZES)
+document.getElementById("run").onclick = async (ev) => {
+  ev.target.disabled = true
+  const ss = SCENES.filter((s) => pickScenes().includes(s.id)), zz = SIZES.filter((z) => pickSizes().includes(z.id))
+  let n = 0
+  for (const sc of ss) for (const z of zz) {
+    const { cell, hd } = cells[sc.id + z.id]
+    cell.replaceChildren()
+    document.getElementById("prog").textContent = `${++n}/${ss.length * zz.length}：${sc.name} / ${z.name}`
+    await build(sc, z, cell, hd) // 並列にしない（サーバー負荷）
+  }
+  document.getElementById("prog").textContent = `完了（${n} 件）`
+  ev.target.disabled = false
+}
