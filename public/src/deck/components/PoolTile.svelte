@@ -151,6 +151,10 @@
     .ctl.always { left: auto; padding: 4px; background: none; }
     .ctl.always :global(.adjust) { gap: 3px; }
     .ctl.always :global(button) { width: 22px; height: 22px; font-size: 14px; border-radius: 50%; }
+    /* スマホは指で押すので大きく（2026-11-24 ユーザー） */
+    @media (max-width: 899px) {
+        .ctl.always :global(button) { width: 32px; height: 32px; font-size: 18px; }
+    }
     .note.unimplemented { background: #d44a4a; }
     .note.partial { background: #d48a4a; }
     .note.simplified { background: #d4c44a; color: #333; }
