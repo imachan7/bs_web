@@ -8,7 +8,13 @@
 @media (max-width: 768px) {
     /* 行の高さ。背の低い画面（下の max-height: 700px）だけ値を詰める（2026-11-24 iPhone SE の Safari で見える高さ約553px に収めるため）。
        --zone-h はスピリットの欄の高さで、2段のときのカード幅もここから決まる（欄に収まる幅。ui/spiritLayout.ts は測った幅で判定するので値を直接は読まない） */
-    :root { --sp-h-ratio: calc(985 / 675); --zone-h: 150px; --nexus-h: 63px; --info-h: 40px; --hand-w: 48px; --nexus-w: 48px; }
+    :root {
+        --sp-h-ratio: calc(985 / 675); --nexus-h: 63px; --info-h: 40px; --nexus-w: 48px;
+        /* 背の高いスマホで下に余白が残らないよう、手札とスピリットの欄は見えている高さ（dvh）に合わせて伸ばす（2026-11-24 ユーザー指摘：430×932 で下に約270px空いていた）。
+           高さ667px までは今までの値（手札48px・欄150px）。296px は欄2つ・手札以外の行（上の行・情報・ネクサス・中央の帯・余白）の合計の実測 */
+        --hand-w: clamp(48px, calc(8dvh - 5px), 72px);
+        --zone-h: clamp(150px, calc((100dvh - 296px - var(--hand-w) * 985 / 675) / 2), 280px);
+    }
 
     /* 1行：左にターン、中にフェイズ、右に「≡ メニュー」。ログ・表示・バグ報告・支払い・降参は、メニューの欄に縦に並べる。
        トラッシュのボタンはここでは出さない（右下の並びのトラッシュの欄を押すと同じ画面が開く）。
@@ -154,7 +160,7 @@
        "scroll"＝2段でも入らないときの48pxの1段。入らない段は左から重ね（.fanned。重なり幅は --ov）、Lv・BP・コアの左24pxは残す。
        --pf は絵やコストバッジがはみ出す側の余白、--pn は反対側。--br-top は合体ブレイヴの絵を段の上へ出してよい量 */
     .spirit-zone {
-        --sp-w: 64px;
+        --sp-w: calc((var(--zone-h) - 55px) / var(--sp-h-ratio));
         --sp-h: calc(var(--sp-w) * var(--sp-h-ratio));
         --pf: 27px;
         --pn: 28px;
@@ -170,9 +176,9 @@
     }
     #opponent-area .spirit-zone { padding: var(--pn) 6px var(--pf); }
     /* 段の間は .sp-break の高さで取る（改行用の要素も1行として数えられ、row-gap を使うと2回入るため） */
-    .spirit-zone[data-rows="2"] { --sp-w: 48px; --pf: 6px; --pn: 0px; --br-top: 2px; flex-wrap: wrap; align-content: flex-start; gap: 0 6px; }
+    .spirit-zone[data-rows="2"] { --sp-w: calc((var(--zone-h) - 8px) / 2 / var(--sp-h-ratio)); --pf: 6px; --pn: 0px; --br-top: 2px; flex-wrap: wrap; align-content: flex-start; gap: 0 6px; }
     #opponent-area .spirit-zone[data-rows="2"] { flex-wrap: wrap-reverse; }
-    .spirit-zone[data-rows="scroll"] { --sp-w: 48px; --pf: 39px; --pn: 39px; --br-top: 8px; }
+    .spirit-zone[data-rows="scroll"] { --sp-w: calc((var(--zone-h) - 8px) / 2 / var(--sp-h-ratio)); --pf: calc((var(--zone-h) - var(--sp-h)) / 2); --pn: var(--pf); --br-top: 8px; }
     .spirit-zone > .sp-break { flex: 0 0 100%; height: 2px; }
     .spirit-zone .card {
         width: var(--sp-w);
@@ -337,13 +343,10 @@
 /* 背の低い画面（iPhone SE は CSS 高さ667px、Safari で実際に見える高さは約553px）。スピリットの欄を150→122pxにして、2段のカード幅は欄に収まる幅（約40px。Lv・BP・コアが読める下限の目安）、
    ネクサス・情報の行・手札も詰め、375×553 で縦スクロールが出ないようにする。幅の判定（ui/spiritLayout.ts）は測った幅を使うので変えていない。
    標準の値は、375×667 以上（高さ667px以上）でスピリットの絵を大きく保つため、そのまま（667px で境にしたのは、375×667 の見た目を変えないため）。1段と2段で欄の高さは同じ。
-   --pf・--pn は絵やコストバッジのはみ出し分で、1段・2段・scroll の幅を欄の高さから逆算する */
+   カードの幅は .spirit-zone の --sp-w が欄の高さ（--zone-h）から逆算するので、ここでは欄の高さだけ変える */
 @media (max-width: 768px) and (max-height: 666px) {
     :root { --zone-h: 122px; --nexus-h: 54px; --info-h: 36px; --hand-w: 42px; --nexus-w: 40px; }
     .player-area { padding-top: 2px; padding-bottom: 2px; }
-    .spirit-zone[data-rows="2"] { --sp-w: calc((var(--zone-h) - 8px) / 2 / var(--sp-h-ratio)); }
-    .spirit-zone:not([data-rows="2"]):not([data-rows="scroll"]) { --sp-w: calc((var(--zone-h) - 55px) / var(--sp-h-ratio)); }
-    .spirit-zone[data-rows="scroll"] { --sp-w: calc((var(--zone-h) - 8px) / 2 / var(--sp-h-ratio)); --pf: calc((var(--zone-h) - var(--sp-h)) / 2); --pn: var(--pf); }
     #status-bar { padding: 2px 8px; }
     #center-info-area { height: 18px; }
 }
