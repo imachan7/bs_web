@@ -22,14 +22,15 @@ console.log("=== 1. 相手のデッキを3枚破棄：破棄された側と枚�
     const s = game("mill3")
     assert(millDeck(s, "p2", 3, "p1") === 3, "3枚破棄できる")
     const ev = mills(s)
-    assert(ev.length === 1 && ev[0]!.pid === "p2" && ev[0]!.count === 3, `p2 の3枚を1回で知らせる（実際 ${JSON.stringify(ev)}）`)
+    assert(ev.length === 1 && ev[0]!.pid === "p2" && ev[0]!.cardIds.length === 3, `p2 の3枚を1回で知らせる（実際 ${JSON.stringify(ev)}）`)
+    assert(JSON.stringify(ev[0]!.cardIds) === JSON.stringify(s.players.p2.trashCards.slice(-3)), "知らせるカードは、トラッシュに置かれた3枚と同じ")
 }
 
 console.log("=== 2. デッキが足りないときは、実際に破棄した枚数を知らせる ===")
 {
     const s = game("short", 2)
     assert(millDeck(s, "p2", 5, "p1") === 2, "2枚しか破棄できない")
-    assert(mills(s)[0]?.count === 2, "知らせる枚数は2")
+    assert(mills(s)[0]?.cardIds.length === 2, "知らせる枚数は2")
 }
 
 console.log("=== 3. 知らせない：デッキが破棄されないルールが掛かっている／0枚の破棄 ===")

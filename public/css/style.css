@@ -2466,7 +2466,8 @@ body:has(#notice-banner:not(.hidden)) {
 .leave-slot { flex: none; }
 
 /* オープン中のカード（選択待ちの間は出しっぱなし。カーソルで効果文） */
-#reveal-panel {
+#reveal-panel,
+#mill-panel {
     position: fixed;
     right: 12px;
     top: 50%;
@@ -2479,6 +2480,8 @@ body:has(#notice-banner:not(.hidden)) {
     border: 1px solid #4fb3d9;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
 }
+/* 破棄されたカード（ui/millCount.ts）。オープンと同じ形で、縁の色で見分ける。押せないので操作を通す */
+#mill-panel { border-color: #f5b041; pointer-events: none; }
 .reveal-head {
     display: flex;
     justify-content: space-between;
@@ -2512,7 +2515,8 @@ body:has(#notice-banner:not(.hidden)) {
 
 /* スマホ幅：マジックの通知（上）とオープン中のカードが重ならないよう、オープン中のカードは下に横長で出す */
 @media (max-width: 700px) {
-    #reveal-panel {
+    #reveal-panel,
+    #mill-panel {
         top: auto;
         bottom: 48px;
         left: 8px;

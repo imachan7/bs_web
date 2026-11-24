@@ -314,7 +314,7 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
         case "lifeDamage":
             return null // バナーは出さず、ライフ表示のシェイク演出のみ
         case "mill":
-            return `🗑 ${ev.pid === you ? "あなた" : "相手"}のデッキを${ev.count}枚破棄`
+            return `🗑 ${ev.pid === you ? "あなた" : "相手"}のデッキを${ev.cardIds.length}枚破棄`
         case "returnToHand":
             return `💨 ${ev.cardName} 手札へ戻る`
         case "returnToDeck":
@@ -498,22 +498,25 @@ function renderRevealPanel(view: GameView): void {
     head.appendChild(close)
     const row = document.createElement("div")
     row.className = "reveal-row"
-    for (const id of src.cardIds) {
-        const m = master(id)
-        const c = document.createElement("div")
-        c.className = "reveal-card tip-card"
-        c.dataset.cardId = id
-        const name = document.createElement("div")
-        name.className = "reveal-name"
-        name.textContent = m.name
-        const type = document.createElement("div")
-        type.className = "reveal-type"
-        type.textContent = `${CARD_TYPE_LABELS[m.type]}・コスト${m.cost}`
-        c.append(name, type)
-        attachCardArt(c, id, m.name)
-        row.appendChild(c)
-    }
+    for (const id of src.cardIds) row.appendChild(revealCardEl(id))
     panel.append(head, row)
+}
+
+// オープン・破棄で見せるカード1枚（名前・種別・コスト。絵があれば重ねる。カーソルで効果文）
+export function revealCardEl(id: string): HTMLDivElement {
+    const m = master(id)
+    const c = document.createElement("div")
+    c.className = "reveal-card tip-card"
+    c.dataset.cardId = id
+    const name = document.createElement("div")
+    name.className = "reveal-name"
+    name.textContent = m.name
+    const type = document.createElement("div")
+    type.className = "reveal-type"
+    type.textContent = `${CARD_TYPE_LABELS[m.type]}・コスト${m.cost}`
+    c.append(name, type)
+    attachCardArt(c, id, m.name)
+    return c
 }
 
 // view.events のうち前回描画より新しいものだけを処理する：
@@ -530,7 +533,7 @@ function processNewEvents(view: GameView): Set<PlayerId> {
             continue
         }
         // 枚数を1枚ずつ数える（バナーは下の通常の流れで出す）
-        if (ev.type === "mill") startMillCount(ev.pid, ev.count)
+        if (ev.type === "mill") startMillCount(ev.pid, ev.cardIds, ev.pid === view.you)
         if ((ev.type === "destroy" || ev.type === "returnToHand" || ev.type === "returnToDeck") && ev.instanceId !== undefined) {
             pendingLeaves.set(ev.instanceId, ev.type === "destroy" ? (ev.vanish ? "vanish" : "destroy") : "bounce")
         }

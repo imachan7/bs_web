@@ -1629,6 +1629,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `canDirectAttack`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
 - `matchesDirectedAttackFilter`（fn）：指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）。
 - `escapeHtml`（fn）：innerHTML に差し込む文字列のエスケープ（ツールチップの効果テキスト強調表示で使用）
+- `revealCardEl`（fn）：オープン・破棄で見せるカード1枚（名前・種別・コスト。絵があれば重ねる。カーソルで効果文）
 - `render`（fn）
 - `showWaiting`（fn）：ロビー側の表示制御
 - `hideWaiting`（fn）
