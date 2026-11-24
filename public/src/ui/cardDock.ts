@@ -1,12 +1,14 @@
 // スマホの対戦画面で、押した自分のカード（場・手札）の絵と操作ボタンを出す画面下の固定欄
 import { $, master } from "../renderer"
 import { cardImageUrl } from "../cardArt"
-import { ui, view } from "../main"
+import type { GameView } from "../../../server/src/type"
+import type { UiState } from "../renderer"
 
 // 場のカードの下に出すと、押しにくい（32×24px）うえ、場の行の高さが変わって画面が上下にずれる。
 // 欄に出すのは、カードに付いているボタンの複製。押したら元のボタンを押し直すので、押したときの動きは main.ts の既存の処理のまま増えない。
 // 手札も同じで、カード本体を押し直す（召喚・配置・使用）ボタンと、カードに付いたバッジのボタンを並べる
-const mobile = window.matchMedia("(max-width: 768px)")
+// 読み込み時に window を触ると、ブラウザの無い smoke（renderer を読み込む part）が落ちるので、使う時点で判定する
+const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches } }
 const SOURCES = ":scope > .core-buttons > button, :scope > .soul-swap-badge, :scope > .card-actions > button"
 // 分離・交換は合体中のブレイヴごとに付いている。欄では「分離」「交換」を1つずつにまとめ、ブレイヴが2つ以上のときだけ押したあとにどれかを選ばせる
 // （1行ずつ「分離：カード名」と並べると長い名前で欄が横にはみ出した。2026-11-24 ユーザー指摘）
@@ -19,6 +21,9 @@ interface Selection { zone: "field" | "hand"; id: string }
 interface Entry { label: string; title: string; disabled: boolean; els: HTMLElement[]; names?: string[] }
 
 let selected: Selection | null = null
+// 最後に描いた盤面と操作の状態。main.ts を読み込むと renderer 経由で smoke（ブラウザ無し）に通信の初期化まで入るので、描画のたびに受け取って持つ
+let view: GameView | null = null
+let ui: UiState | null = null
 // 欄のボタンが元の要素を押し直すとき、手札の押下を拾う下の処理に二重に拾われないための印
 let passing = false
 // 分離・交換でどのブレイヴかを選んでいる途中なら、その項目の番号
@@ -61,7 +66,7 @@ function entriesOf(sel: Selection, card: HTMLElement): Entry[] {
 
 // 対象選択・支払いなどの途中は、手札を押すとその場で何かが決まるので欄を挟まない（今までの動きのまま）
 function handIsFree(): boolean {
-    return !!view && !view.pendingChoice && ui.paying === null && ui.targeting === null && ui.awakenTarget === null && ui.soulSwapSelect === null && ui.directedAttack === null
+    return !!view && !!ui && !view.pendingChoice && ui.paying === null && ui.targeting === null && ui.awakenTarget === null && ui.soulSwapSelect === null && ui.directedAttack === null
 }
 
 function select(sel: Selection): void {
@@ -73,7 +78,9 @@ function select(sel: Selection): void {
 
 // 盤面を描き直すたびに呼ぶ。描き直しでカードもボタンも作り直されるので、欄の中身も作り直す。
 // 選んだカードが場・手札を離れた・押せるボタンが無くなった（支払い中など別の操作に入った）ときは閉じる
-export function renderCardDock(): void {
+export function renderCardDock(v?: GameView, u?: UiState): void {
+    if (v) view = v
+    if (u) ui = u
     const dock = $("card-dock")
     const card = selected !== null && mobile.matches ? findCard(selected) : null
     const entries = selected && card ? entriesOf(selected, card) : []

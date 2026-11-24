@@ -1108,7 +1108,7 @@ export function render(view: GameView, ui: UiState): void {
 
     // 手札
     renderHand(view, ui)
-    renderCardDock()
+    renderCardDock(view, ui)
 
     // 手元ボタン
     const myTegamotoCount = view.players[you].tegamoto?.length ?? 0

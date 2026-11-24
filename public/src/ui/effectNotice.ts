@@ -25,6 +25,21 @@ export function effectBodyText(cardId: string, heading: string | undefined): str
     return [rest, ...lines.slice(start + 1, end)].filter((l) => l !== "").join("\n")
 }
 
+// 中身は、この効果を出してから増えたログの行（発揮した内容）。効果文そのものは長くて何が起きたか分からなかった（2026-11-24 ユーザー）。
+// 次の効果の通知が出た位置で切る（そこから先は次の効果の内容）。まだ何も起きていない（対象を選んでいる途中など）ときは、選ぶ判断に要る効果文を出す。
+// ログは末尾60行しか届かないので、それより前に流れた行は出ない
+function renderBody(): void {
+    const box = document.getElementById("effect-notice")
+    const b = box?.querySelector<HTMLElement>(".effect-notice-body")
+    if (!box || !b || !current || !lastView) return
+    const first = lastView.logTotal - lastView.log.length
+    const end = queue[0]?.logAt ?? lastView.logTotal
+    const lines = lastView.log.slice(Math.max(0, current.ev.logAt - first), Math.max(0, end - first))
+    box.classList.toggle("effect-result", lines.length > 0)
+    b.textContent = lines.length > 0 ? lines.join("\n") : effectBodyText(current.ev.cardId, current.ev.heading)
+    box.classList.toggle("truncated", b.scrollHeight > b.clientHeight + 1)
+}
+
 function dismiss(): void {
     if (current?.timer !== undefined) clearTimeout(current.timer)
     current = null
@@ -58,15 +73,10 @@ function showNext(): void {
     title.className = "effect-notice-title"
     title.textContent = `${mine ? "あなた" : "相手"}の ${ev.cardName}${ev.heading !== undefined ? ` ${ev.heading.slice(ev.heading.indexOf("『"))}` : "の効果"}${ev.trigger !== undefined ? ` ${ev.trigger}` : ""}`
     text.appendChild(title)
-    const body = effectBodyText(ev.cardId, ev.heading)
-    if (body !== "") {
-        const b = document.createElement("div")
-        b.className = "effect-notice-body"
-        b.textContent = body
-        text.appendChild(b)
-    }
-    // 効果文が途中で切れているときは、1回目のタップで全文を開き（開いている間は時間で消さない）、2回目で閉じる。
-    // スマホは帯に2行しか出せず、長い効果は何が起きているか読めなかった（2026-11-24 ユーザー指摘）
+    const b = document.createElement("div")
+    b.className = "effect-notice-body"
+    text.appendChild(b)
+    // 中身が途中で切れているときは、1回目のタップで全部を開き（開いている間は時間で消さない）、2回目で閉じる
     box.addEventListener("click", () => {
         if (box.classList.contains("truncated") && !box.classList.contains("expanded")) {
             box.classList.add("expanded")
@@ -75,9 +85,8 @@ function showNext(): void {
         dismiss()
     })
     host.prepend(box)
-    const bodyEl = box.querySelector<HTMLElement>(".effect-notice-body")
-    if (bodyEl && bodyEl.scrollHeight > bodyEl.clientHeight + 1) box.classList.add("truncated")
     current = { ev, choiceSeen: lastView.pendingChoice != null, timer: undefined }
+    renderBody()
     const me = current
     // 選ぶ場面が続いている間は出したまま。無いままなら一定時間で消す
     me.timer = window.setTimeout(() => {
@@ -95,6 +104,7 @@ export function syncEffectNotice(view: GameView, newEvents: GameEvent[]): void {
         else if (current.choiceSeen) dismiss()
     }
     if (!current) showNext()
+    else renderBody()
     const id = current?.ev.instanceId
     if (id !== undefined) document.querySelector(`.card[data-instance-id="${CSS.escape(id)}"]`)?.classList.add("effect-source")
 }

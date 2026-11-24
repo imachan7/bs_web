@@ -172,7 +172,7 @@ export type GameEvent =
     | { seq: number; type: "lifeDamage"; pid: PlayerId; amount: number } // ライフのコアが減った（このpidが被弾した側）
     | { seq: number; type: "magic"; pid: PlayerId; cardName: string; cardId?: string; timing?: "main" | "flash" } // マジック使用。画面が使った効果の文面を出す
     // スピリット・ネクサス・ブレイヴの効果が解決を始めた（マジック・バーストは上の出来事）。heading は効果文の見出し行（Lv1･Lv2『このスピリットのアタック時』）
-    | { seq: number; type: "effect"; pid: PlayerId; cardId: string; cardName: string; instanceId?: string; heading?: string; trigger?: string }
+    | { seq: number; type: "effect"; pid: PlayerId; cardId: string; cardName: string; instanceId?: string; heading?: string; trigger?: string; logAt: number } // logAt＝出した時点の state.log の行数。画面がこの効果で増えたログの行（発揮した内容）を切り出すのに使う
     | { seq: number; type: "reveal"; pid: PlayerId; cardIds: string[] } // デッキ・バーストのカードをオープンした（pid＝オープンしたカードの持ち主）
     | { seq: number; type: "burst"; pid: PlayerId; cardName: string; cardId?: string }
     // バウンス／デッキ戻し。
@@ -397,6 +397,7 @@ export interface GameView {
     battle: BattleState | null
     players: Record<PlayerId, PlayerView>
     log: string[]
+    logTotal: number // state.log の全行数。log は末尾60行だけなので、GameEvent の logAt と突き合わせるのに要る
     winner: PlayerId | null
     you: PlayerId
     timedEffects: TimedRecord[] // 公開情報

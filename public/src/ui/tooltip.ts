@@ -3,7 +3,6 @@ import { effectLineSegments } from "../effectText"
 import { master, COLOR_SYMBOLS, escapeHtml } from "../renderer"
 import { hoverArt } from "../cardArt"
 
-const mobile = window.matchMedia("(max-width: 768px)")
 // battle-mobile.css の #effect-tooltip の max-height で引いている値と同じ
 const DOCK_RESERVE = 160
 
@@ -174,7 +173,7 @@ export function setupEffectTooltip(): void {
         if (top < 4) top = rect.bottom + 8
         // スマホは画面の下端に押したカードの欄（#card-dock。高さ最大約140px）と操作ボタンが出る。タップでも mouseover が来て欄と同時に開くので、
         // 欄が開く前のこの時点で、欄の上端より上（下から DOCK_RESERVE px）に収まるようずらす。視線の移動が少ないようカードの近くに置く（2026-11-24 ユーザー）
-        if (mobile.matches) {
+        if (window.matchMedia("(max-width: 768px)").matches) {
             // カードを隠さないよう、上と下の空いている広い側に置き、入りきらなければその側の高さに縮めて中をスクロールさせる
             const limit = window.innerHeight - DOCK_RESERVE
             const roomAbove = Math.min(rect.top, limit) - 8 - 4

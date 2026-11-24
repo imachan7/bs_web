@@ -2405,6 +2405,8 @@ body:has(#notice-banner:not(.hidden)) {
     .effect-notice-title { font-size: 13px; }
     .effect-notice-body { -webkit-line-clamp: 2; font-size: 11px; }
 }
+/* 発揮した内容（ログの行）を出しているときは、効果文より目立たせる */
+#effect-notice.effect-result .effect-notice-body { color: var(--text-main); }
 .card.effect-source { outline: 3px solid #f5c542; outline-offset: 2px; box-shadow: 0 0 16px 4px rgba(245, 197, 66, 0.7); }
 
 /* 場を離れたカードの写し（消滅・破壊・手札/デッキへ戻る） */
