@@ -623,6 +623,8 @@ button:active {
     top: -6px;
     right: -6px;
     font-size: 10px;
+    /* カードの絵（attachCardArt が最後に足す）より上に出す */
+    z-index: 1;
 }
 
 /* 手札のバーストセットボタン */

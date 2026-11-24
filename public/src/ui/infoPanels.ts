@@ -178,6 +178,8 @@ export function renderBurst(id: string, view: GameView, pid: PlayerId, isMine: b
         name.className = "name"
         name.textContent = m.name
         el.appendChild(name)
+        // 自分には何をセットしたかを絵で見せる（名前だけの黒い枠では、セットしているのが見えにくかった。2026-11-24 ユーザー指摘）。🔒 は相手には裏向きの印
+        attachCardArt(el, player.burst, m.name)
     } else {
         // 相手のバースト：伏せてあることだけが公開情報。中身は絶対に出さない
         el.classList.add("burst-back")
