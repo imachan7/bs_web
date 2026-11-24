@@ -1,4 +1,5 @@
 <script lang="ts">
+    import PinIcon from "./PinIcon.svelte"
     import type { CardData } from "../../../../server/src/type"
     import { CARD_TYPE_LABELS } from "../../../../data/constants"
     import { cardArt } from "../actions/cardArt"
@@ -6,7 +7,7 @@
     import { cardStore } from "../state/cards.svelte"
     import { addBlockReason, deckCards } from "../state/deck.svelte"
     import { selection, toggleSelection } from "../state/selection.svelte"
-    import { hoverCard, leaveCard, pressPoolCard, selectDetail } from "../state/detail.svelte"
+    import { detail, hoverCard, leaveCard, pressPoolCard, selectDetail } from "../state/detail.svelte"
     import AdjustButtons from "./AdjustButtons.svelte"
 
     let { card, size, area }: { card: CardData; size: "lg" | "md"; area: "pool" | "deck" } = $props()
@@ -14,6 +15,7 @@
     const count = $derived(deckCards.get(card.cardId) ?? 0)
     // プールだけグレーにする。デッキ欄は入っているカードなので常に通常表示
     const maxed = $derived(area === "pool" && addBlockReason(card) !== null)
+    const pinned = $derived(detail.pinned && detail.cardId === card.cardId)
     const open = $derived(selection.key === `${area}:${card.cardId}`)
 
     const NOTE_LABELS = { unimplemented: "未実装", partial: "一部未実装", simplified: "簡略化" }
@@ -40,6 +42,7 @@
 <div
     class="tile"
     class:maxed
+    class:pinned
     role="button"
     tabindex="0"
     onpointerenter={(e) => hoverCard(e, card.cardId)}
@@ -58,6 +61,7 @@
     <div class="sub">{sub}</div>
     {#if note}<span class="note {note.status}">{NOTE_LABELS[note.status]}</span>{/if}
     {#if card.limited}<span class="limited">禁止</span>{/if}
+    {#if pinned}<span class="pinmark" title="詳細に固定中"><PinIcon /></span>{/if}
     {#if count > 0}<span class="count">×{count}</span>{/if}
     <!-- プールは − ＋ を常に出す（入れる操作が主なので。2026-11-24 ユーザー）。デッキ欄は小さく絵が隠れるので押したときだけ -->
     {#if area === "pool"}<div class="ctl always"><AdjustButtons {card} /></div>
@@ -91,7 +95,9 @@
     }
     .tile:global(.has-art) > :global(.card-art) { opacity: 1; }
     /* attachCardArt は絵をタイルの最後に足すので、何もしないとバッジと − ＋ が絵の下に隠れる */
-    .note, .limited, .count, .ctl { z-index: 1; }
+    .note, .limited, .count, .ctl, .pinmark { z-index: 1; }
+    .tile.pinned { outline: 2px solid #ffd23e; outline-offset: -2px; }
+    .pinmark { position: absolute; bottom: 6px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: #ffd23e; color: #111; display: flex; align-items: center; justify-content: center; }
     .tile:global(.has-art) .cost,
     .tile:global(.has-art) .name,
     .tile:global(.has-art) .sub { display: none; }

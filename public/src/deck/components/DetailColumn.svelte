@@ -1,4 +1,5 @@
 <script lang="ts">
+    import PinIcon from "./PinIcon.svelte"
     import { COLOR_LABELS, CARD_TYPE_LABELS } from "../../../../data/constants"
     import { cardImageUrl } from "../../cardArt"
     import { effectLineSegments } from "../../effectText"
@@ -55,7 +56,7 @@
         <p class="hint">カードにマウスを載せると詳しく表示します</p>
     {:else}
         {#if detail.pinned && !mobile}
-            <div class="pin"><span>固定中</span><button type="button" onclick={unpinDetail}>固定を外す</button></div>
+            <div class="pin"><span><PinIcon /> 固定中</span><button type="button" onclick={unpinDetail}>固定を外す</button></div>
         {/if}
         {#key card.cardId}
             {#if art && artFailed !== art}
