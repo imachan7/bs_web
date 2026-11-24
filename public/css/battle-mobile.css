@@ -98,7 +98,6 @@
     }
     /* 項目は1行ずつ、入らない分は「…」で切る（名前の長さやターンで折り返しが変わると文字が上下に揺れた） */
     .player-info > span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .player-info > .turn-mark { display: none; }
     #my-info { margin-top: calc(var(--info-h) * -1 - 2px); }
     #opponent-area .opp-hand-area { order: -1 }
     #opp-info { margin-bottom: calc(var(--info-h) * -1 - 2px); }

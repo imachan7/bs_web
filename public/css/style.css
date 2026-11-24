@@ -476,11 +476,6 @@ button:active {
     100% { opacity: 0; transform: translateY(-6px); }
 }
 
-.player-info .turn-mark {
-    color: var(--warning);
-    font-weight: 600;
-}
-
 /* 覚醒モード中にリザーブからコアを移せるときのハイライト */
 .player-info span.targetable {
     color: var(--danger);
