@@ -146,14 +146,11 @@
                 <span id="deck-count">0 / 40</span>
             </div>
             <div id="deck-validation"></div>
+            <div id="cost-curve" title="コスト別の枚数"></div>
             <div id="deck-list"></div>
 
             <div id="deck-stats">
                 <h2>統計</h2>
-                <div class="stats-block">
-                    <h3>コストカーブ</h3>
-                    <div id="cost-curve"></div>
-                </div>
                 <div class="stats-columns">
                     <div class="stats-block">
                         <h3>色内訳</h3>
@@ -180,13 +177,10 @@
                 </div>
                 <div id="import-result" class="hidden"></div>
                 <div class="io-row">
-                    <span class="io-label">プリセット</span>
-                    <button class="preset-btn chip-red" data-preset="red">赤</button>
-                    <button class="preset-btn chip-purple" data-preset="purple">紫</button>
-                    <button class="preset-btn chip-green" data-preset="green">緑</button>
-                    <button class="preset-btn chip-white" data-preset="white">白</button>
-                    <button class="preset-btn chip-yellow" data-preset="yellow">黄</button>
-                    <button class="preset-btn chip-blue" data-preset="blue">青</button>
+                    <span class="io-label">構築済みデッキ</span>
+                    <select id="recipe-select">
+                        <option value="">読み込むデッキを選ぶ</option>
+                    </select>
                 </div>
             </div>
         </section>

@@ -147,6 +147,11 @@ input[type="text"] {
     padding: 10px;
 }
 
+/* 欄の合計が高さを超えたら、欄を縮めずに #deck-pane ごとスクロールする */
+#deck-pane > * {
+    flex-shrink: 0;
+}
+
 /* 広い画面：ページ自体は動かさず、一覧とデッキがそれぞれ中でスクロールする（デッキは常に右に見える） */
 @media (min-width: 900px) {
     body {
@@ -828,8 +833,6 @@ input[type="text"] {
     border-radius: 8px;
     padding: 6px;
     min-height: 120px;
-    max-height: 320px;
-    overflow-y: auto;
 }
 
 .deck-empty,
@@ -948,6 +951,16 @@ input[type="text"] {
     color: #ffd968;
 }
 
+.deck-type-heading {
+    margin: 6px 2px 2px;
+    font-size: 11px;
+    color: #b8bdd4;
+}
+
+.deck-type-heading:first-child {
+    margin-top: 0;
+}
+
 .stats-block h3 {
     margin: 4px 0;
     font-size: 12px;
@@ -963,38 +976,39 @@ input[type="text"] {
     flex: 1;
 }
 
-.curve-row {
+#cost-curve {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    margin-bottom: 2px;
-}
-
-.curve-label {
-    width: 22px;
-    text-align: right;
-    color: #b8bdd4;
-}
-
-.curve-track {
-    flex: 1;
-    height: 10px;
+    gap: 3px;
+    height: 64px;
+    padding: 4px 6px;
     background: #14161f;
-    border-radius: 5px;
-    overflow: hidden;
+    border-radius: 8px;
 }
 
-.curve-bar {
-    height: 100%;
-    background: #4a6cd4;
-    border-radius: 5px;
-    transition: width 0.15s;
+.curve-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    font-size: 10px;
+    min-width: 0;
 }
 
 .curve-value {
-    width: 20px;
     color: #cdd2e8;
+}
+
+.curve-bar {
+    width: 100%;
+    max-width: 18px;
+    background: #4a6cd4;
+    border-radius: 3px 3px 0 0;
+    transition: height 0.15s;
+}
+
+.curve-label {
+    color: #8a90ac;
 }
 
 .stat-row {
@@ -1121,35 +1135,9 @@ input[type="text"] {
     margin-bottom: 4px;
 }
 
-.preset-btn {
-    border: 1px solid #555;
-    background: #2c3044;
-}
-
-.preset-btn.chip-red {
-    background: #a43a32;
-}
-
-.preset-btn.chip-purple {
-    background: #6e34a0;
-}
-
-.preset-btn.chip-green {
-    background: #2f7a3a;
-}
-
-.preset-btn.chip-white {
-    background: #8a8fa8;
-    color: #1a1d2b;
-}
-
-.preset-btn.chip-yellow {
-    background: #b09a2a;
-    color: #1a1d2b;
-}
-
-.preset-btn.chip-blue {
-    background: #2f4aa0;
+#recipe-select {
+    flex: 1;
+    min-width: 0;
 }
 
 /* ---- トースト ---- */

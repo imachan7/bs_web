@@ -18,6 +18,7 @@ const STORAGE_KEY = "bsweb:decks"
 const POOL_PAGE = 200 // カード一覧の段階表示の1回分
 const COST_CHIP_MAX = 8 // コストのチップは 0〜7 と「8以上」
 
+const DECK_TYPE_ORDER: CardType[] = ["spirit", "brave", "nexus", "magic"]
 const TYPE_LABELS = CARD_TYPE_LABELS // 表の実体は data/constants.ts（renderer と共有）
 
 const SERIES_LABELS: Record<string, string> = {
@@ -755,13 +756,13 @@ function renderDeck(): void {
         }
     }
 
-    // デッキ内容（コスト順 → cardId 順）
+    // デッキ内容（種類ごと → コスト順 → cardId 順）
     const list = $("deck-list")
     list.textContent = ""
     const entries = [...deck.entries()].sort((a, b) => {
         const ca = master(a[0])
         const cb = master(b[0])
-        return ca.cost - cb.cost || a[0].localeCompare(b[0])
+        return DECK_TYPE_ORDER.indexOf(ca.type) - DECK_TYPE_ORDER.indexOf(cb.type) || ca.cost - cb.cost || a[0].localeCompare(b[0])
     })
 
     if (entries.length === 0) {
@@ -772,7 +773,17 @@ function renderDeck(): void {
         return
     }
 
+    let currentType: CardType | null = null
     for (const [cardId, count] of entries) {
+        const cardType = master(cardId).type
+        if (cardType !== currentType) {
+            currentType = cardType
+            const heading = document.createElement("div")
+            heading.className = "deck-type-heading"
+            const n = entries.filter(([id]) => master(id).type === cardType).reduce((sum, [, c]) => sum + c, 0)
+            heading.textContent = `${TYPE_LABELS[cardType]}　${n}枚`
+            list.appendChild(heading)
+        }
         const card = master(cardId)
         const row = document.createElement("div")
         row.className = "deck-row"
@@ -845,39 +856,27 @@ function renderDeck(): void {
 // ---- 統計表示 ----
 
 function renderStats(): void {
-    // コストカーブ（コスト別枚数の簡易バー）
+    // コストカーブ（コスト別枚数の縦棒。列はデッキ内の最大コストまで、最低 0〜7）
     const curve = $("cost-curve")
     curve.textContent = ""
-    const maxCost = Math.max(...cards.map((c) => c.cost))
-    const byCost = new Array<number>(maxCost + 1).fill(0)
-    for (const [cardId, count] of deck) {
-        const cost = master(cardId).cost
-        byCost[cost] = (byCost[cost] ?? 0) + count
-    }
+    const deckMaxCost = Math.max(7, ...[...deck.keys()].map((id) => master(id).cost))
+    const byCost = new Array<number>(deckMaxCost + 1).fill(0)
+    for (const [cardId, count] of deck) byCost[master(cardId).cost] = (byCost[master(cardId).cost] ?? 0) + count
     const peak = Math.max(1, ...byCost)
     byCost.forEach((count, cost) => {
-        const row = document.createElement("div")
-        row.className = "curve-row"
-
+        const col = document.createElement("div")
+        col.className = "curve-col"
+        const value = document.createElement("span")
+        value.className = "curve-value"
+        value.textContent = count > 0 ? String(count) : ""
+        const bar = document.createElement("div")
+        bar.className = "curve-bar"
+        bar.style.height = `${(count / peak) * 36}px`
         const label = document.createElement("span")
         label.className = "curve-label"
         label.textContent = String(cost)
-        row.appendChild(label)
-
-        const track = document.createElement("div")
-        track.className = "curve-track"
-        const bar = document.createElement("div")
-        bar.className = "curve-bar"
-        bar.style.width = `${(count / peak) * 100}%`
-        track.appendChild(bar)
-        row.appendChild(track)
-
-        const value = document.createElement("span")
-        value.className = "curve-value"
-        value.textContent = String(count)
-        row.appendChild(value)
-
-        curve.appendChild(row)
+        col.append(value, bar, label)
+        curve.appendChild(col)
     })
 
     // 色内訳・タイプ内訳
@@ -1217,47 +1216,25 @@ function importDeckFile(file: File): void {
     reader.readAsText(file)
 }
 
-// ---- プリセット生成 ----
+// ---- 構築済みデッキ ----
 
-// data/constants.ts の DECK_RECIPES と同じ構成方針で自動生成する:
-// その色の低コスト順に スピリット9種×3 + ネクサス2種（3+1）+ マジック3種×3 = 40枚
-function buildPreset(color: Color): Record<string, number> | null {
-    // 単色サンプルなので多色カードは対象外にする（colors.length === 1 の判定）
-    const pool = cards.filter((c) => c.colors.length === 1 && c.colors[0] === color && !c.limited)
-    const byCost = (a: CardData, b: CardData) =>
-        a.cost - b.cost || a.cardId.localeCompare(b.cardId)
-    const spirits = pool
-        .filter((c) => c.type === "spirit")
-        .sort(byCost)
-        .slice(0, 9)
-    const nexuses = pool
-        .filter((c) => c.type === "nexus")
-        .sort(byCost)
-        .slice(0, 2)
-    const magics = pool
-        .filter((c) => c.type === "magic")
-        .sort(byCost)
-        .slice(0, 3)
-    if (spirits.length < 9 || nexuses.length < 2 || magics.length < 3) {
-        return null
+async function setupRecipeSelect(): Promise<void> {
+    const select = $("recipe-select") as HTMLSelectElement
+    const recipes: Record<string, { label: string; cards: Record<string, number> }> = await (await fetch("/api/deck-recipes")).json()
+    for (const [key, { label }] of Object.entries(recipes)) {
+        const option = document.createElement("option")
+        option.value = key
+        option.textContent = label
+        select.appendChild(option)
     }
-    const result: Record<string, number> = {}
-    for (const card of spirits) result[card.cardId] = 3
-    nexuses.forEach((card, index) => {
-        result[card.cardId] = index === 0 ? 3 : 1
+    select.addEventListener("change", () => {
+        const recipe = recipes[select.value]
+        select.value = ""
+        if (!recipe) return
+        if (deck.size > 0 && !confirm("編集中のデッキを破棄して構築済みデッキを読み込みますか？")) return
+        applyDeck(recipe.cards, recipe.label.replace(/（構築済み\d+枚）$/, ""))
+        showToast(`「${recipe.label}」を読み込みました`)
     })
-    for (const card of magics) result[card.cardId] = 3
-    return result
-}
-
-function applyPreset(color: Color): void {
-    const preset = buildPreset(color)
-    if (!preset) {
-        showToast(`${COLOR_LABELS[color]}のプリセットを構成できませんでした`)
-        return
-    }
-    applyDeck(preset, `${COLOR_LABELS[color]}単色サンプル`)
-    showToast(`${COLOR_LABELS[color]}単色サンプル（40枚）を読み込みました`)
 }
 
 // ---- イベント登録 ----
@@ -1507,15 +1484,7 @@ function setupDeckIo(): void {
         fileInput.value = "" // 同じファイルを再選択できるようにリセット
     })
 
-    for (const btn of document.querySelectorAll<HTMLButtonElement>(".preset-btn")) {
-        btn.addEventListener("click", () => {
-            const color = btn.dataset.preset as Color
-            if (deck.size > 0 && !confirm("編集中のデッキを破棄してプリセットを読み込みますか？")) {
-                return
-            }
-            applyPreset(color)
-        })
-    }
+    void setupRecipeSelect()
 
     // プール外クリックで詳細の固定選択を解除（ホバー表示に戻す）
     $("pool-grid").addEventListener("mouseleave", () => {
