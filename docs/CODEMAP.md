@@ -1589,6 +1589,52 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `choiceCounterView`（fn）：トグル選択の「選んだ量／上限」表示。上限ちょうどで見た目を変えるのは、これ以上選べないと一目で分かるようにするため
 
+## public/src/deck-next/actions/cardArt.ts
+
+- `cardArt`（fn）
+
+## public/src/deck-next/logic/cardInfo.ts
+
+- `maxBp`（fn）：スピリット状態の最高レベルBP（ネクサス・マジックは null）。ブレイヴもスピリット状態のBPを表示する
+- `braveConditionText`（fn）：合体条件の表示文言（例: "系統：「神星」" "コスト3以上" "「○○」" "効果の記述を持たないスピリット"）
+- `braveBpGain`（fn）：合体時に加算されるBP（braveLevels の最高値。cores は常に0なので levels は1件想定）
+
+## public/src/deck-next/logic/families.ts
+
+- `FAMILY_GROUPS`（const）
+- `familyColors`（fn）：系統を持つカードの色のうち最多の色が7割以上ならその色、そうでなければ多色。持つカードが無い系統も多色
+- `buildMentionedFamilies`（fn）：効果文の「系統：「X」「X・Y」」から拾った系統（cardId -> 系統の集合）
+
+## public/src/deck-next/logic/series.ts
+
+- `seriesOf`（fn）：プロモ（P001・PX01・X003A 等）は「-」が無く番号まで cardId なので、数字より前を弾とする
+- `seriesGroupOf`（fn）：弾の絞り込み用の枠。P13・SJ12・X003A のように年代や末尾の英字で割れるものを頭の英字にまとめる（seriesOf と画像の置き場は変えない）
+- `MERGED_SERIES_LABELS`（const）
+- `seriesLabel`（fn）
+
+## public/src/deck-next/state/cards.svelte.ts
+
+- `NoteStatus`（型）
+- `CardNote`（型）
+- `cardStore`（const）
+- `loadCards`（fn）
+
+## public/src/deck-next/state/filters.svelte.ts
+
+- `COST_CHIP_MAX`（const）
+- `SortOrder`（型）
+- `filters`（const）
+- `filterColors`（const）
+- `filterTypes`（const）
+- `filterCosts`（const）
+- `filterFlags`（const）
+- `filterSeries`（const）
+- `filterKeywords`（const）
+- `filterFamilies`（const）
+- `filterNotes`（const）
+- `passesFilter`（fn）
+- `visibleCards`（fn）：絞り込んで並べたカード。cardStore.cards は cardId 順なので、ID順はそのまま
+
 ## public/src/effectText.ts
 
 - `EffectSegment`（型）

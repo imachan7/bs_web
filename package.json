@@ -10,7 +10,7 @@
     "build:client": "node scripts/build-client.mjs && node scripts/build-ai-worker.mjs",
     "build": "npm run build:client",
     "start": "tsx server/src/index.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && svelte-check --threshold error",
     "smoke": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts",
     "smoke:quiet": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet",
     "smoke:interactive": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet --interactive",
@@ -69,6 +69,7 @@
     "esbuild-svelte": "^0.9.5",
     "socket.io-client": "^4.8.3",
     "svelte": "^5.59.1",
+    "svelte-check": "^4.7.8",
     "typescript": "^6.0.3"
   }
 }
