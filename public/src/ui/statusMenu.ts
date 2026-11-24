@@ -3,6 +3,8 @@ import { $ } from "../renderer"
 
 export function installStatusMenu(): void {
     const bar = $("status-bar")
+    // スマホは ≡ を自分と相手の場の間（中央の帯）の右端に移す。上の右端は片手で届かないため（2026-11-25 ユーザー案・試作）
+    if (window.matchMedia("(max-width: 768px)").matches) $("center-info-area").appendChild($("btn-status-menu"))
     const toggle = (open: boolean) => {
         bar.classList.toggle("menu-open", open)
         $("btn-status-menu").setAttribute("aria-expanded", String(open))
