@@ -259,6 +259,9 @@
     /* 選択肢の一覧が出ているときだけは長くなるので、上へ伸ばす */
     #action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) { max-height: 45vh; }
     #action-buttons { flex-direction: column; gap: 6px; }
+    /* 召喚・使用の途中（支払い・対象選択など「対象選択をやめる」が出ている間）と、下の欄を開いている間は、アタックステップへ・ターン終了を出さない。
+       その場で押す場面がなく、狭い画面で欄や支払いのボタンの場所を取っていた（2026-11-24 ユーザー指摘） */
+    #game:has(#btn-cancel-target:not(.hidden), #card-dock:not(.hidden)) :is(#btn-attack-phase, #btn-end-turn) { display: none; }
     #action-buttons button { padding: 8px 6px; font-size: 13px; width: 100%; white-space: normal; }
 
     /* 画面の下端に固定して、手札の上に重ねる（開いている間は手札が隠れる）。ページが画面より高くても、下が見切れて「召喚」が半分になることがない（2026-11-24 iPhone SE で確認）。
@@ -281,6 +284,8 @@
         border-radius: 8px;
         z-index: 130;
     }
+    /* 右の操作ボタンが1つも出ていないときは、欄を画面の右端まで広げる */
+    #game:not(:has(#action-buttons > :not(.hidden, #btn-attack-phase, #btn-end-turn))) #card-dock:not(.hidden) { right: 0; }
     #card-dock-art { grid-area: art; height: 82px; aspect-ratio: 675 / 985; border-radius: 6px; }
     #card-dock-art:not([hidden]) { display: block; }
     #card-dock-name { grid-area: name; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -303,6 +308,9 @@
         color: var(--text-main);
     }
     #card-dock-buttons button:disabled { opacity: 0.4; }
+
+    /* カードの効果の吹き出しは画面の上端に出し（ui/tooltip.ts）、下の欄（最大約140px）と操作ボタンの上で止める。中は縦にスクロール */
+    #effect-tooltip { max-height: calc(100dvh - 160px - env(safe-area-inset-bottom)); }
 }
 
 /* 背の低い画面（iPhone SE は CSS 高さ667px、Safari で実際に見える高さは約553px）。スピリットの欄を150→122pxにして、2段のカード幅は欄に収まる幅（約40px。Lv・BP・コアが読める下限の目安）、
