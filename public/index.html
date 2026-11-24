@@ -140,6 +140,9 @@
     <!-- ゲーム画面 -->
     <div id="game" class="hidden">
         <div id="status-bar">
+            <!-- スマホでは「≡ メニュー」の下に開く欄になる（ui/statusMenu.ts）。PC では display: contents で、外した場合と同じ並び -->
+            <div id="status-menu">
+                <button id="btn-status-menu-close" class="log-toggle-btn" aria-label="閉じる">×</button>
             <button id="btn-toggle-log" class="log-toggle-btn">💬 ログ</button>
             <button id="btn-toggle-trash" class="log-toggle-btn">🗑 トラッシュ</button>
             <span class="display-settings-wrap">
@@ -160,6 +163,7 @@
             <button id="btn-bug-report" class="log-toggle-btn" style="color: #ffcc00; border-color: #ffaa00;">🐛 バグ報告</button>
             <button id="btn-pay-mode" class="log-toggle-btn">🪙 支払い：自動</button>
             <button id="btn-surrender" class="log-toggle-btn" style="color: #ff8888; border-color: #cc4444;">🏳 降参</button>
+            </div>
             <label id="lbl-pay-to-negate" class="hidden" style="margin-left: 12px; display: flex; align-items: center; gap: 4px; font-size: 12px; color: #ffeb3b; cursor: pointer; border: 1px solid #ffeb3b; padding: 2px 6px; border-radius: 4px; background: rgba(0,0,0,0.5);">
                 <input type="checkbox" id="chk-pay-to-negate">
                 手札破棄で防ぐ（竜騎集う円卓）
@@ -176,6 +180,7 @@
                 <span class="phase-step" data-phase="attack" data-short="ア">アタック</span>
                 <span class="phase-step" data-phase="end" data-short="エ">エンド</span>
             </div>
+            <button id="btn-status-menu" class="log-toggle-btn" aria-expanded="false" aria-controls="status-menu">≡ メニュー</button>
         </div>
 
         <div id="board">
@@ -195,6 +200,7 @@
                     <div id="mat-reserve-opp"></div>
                     <div id="mat-deck-opp"></div>
                     <div id="mat-trash-opp" title="トラッシュを開く"></div>
+                    <div id="mat-tegamoto-opp" title="手元を開く"></div>
                 </div>
             </div>
 
@@ -263,13 +269,15 @@
                     <div id="mat-reserve-self"></div>
                     <div id="mat-deck-self"></div>
                     <div id="mat-trash-self" title="トラッシュを開く"></div>
+                    <div id="mat-tegamoto-self" title="手元を開く"></div>
                 </div>
                 <div id="my-info" class="player-info"></div>
                 <div class="my-hand-area" style="display: flex; gap: 8px; align-items: flex-start; justify-content: center;">
                     <button id="btn-my-tegamoto" class="log-toggle-btn hidden" style="margin-top: 8px;">手元(0)</button>
                     <div id="hand"></div>
-                    <!-- スマホだけ。押した自分のカードの操作ボタンを、手札と入れ替えてここに出す（ui/cardDock.ts） -->
+                    <!-- スマホだけ。押した自分のカード（場・手札）の絵と操作ボタンを、手札と入れ替えてここに出す（ui/cardDock.ts） -->
                     <div id="card-dock" class="hidden">
+                        <img id="card-dock-art" alt="" hidden>
                         <span id="card-dock-name"></span>
                         <div id="card-dock-buttons"></div>
                         <button id="card-dock-close" aria-label="閉じる">×</button>

@@ -11,6 +11,8 @@ import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, chan
 import { waitForOpponent, type DeckChoice, type WaitExtra } from "./matchWait"
 import { assetUrl } from "./assetUrl"
 import { installCardDock } from "./ui/cardDock"
+import { installStatusMenu } from "./ui/statusMenu"
+import { installSpiritFan } from "./ui/spiritFan"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
@@ -597,6 +599,8 @@ async function init(): Promise<void> {
     installSecretCardArt(showToast)
     installDisplaySettings()
     installCardDock()
+    installStatusMenu()
+    installSpiritFan()
 
     byId("join-btn").addEventListener("click", () => {
         // 2回目の「対戦ルームに入る」は参加の取り消し
@@ -1391,6 +1395,9 @@ async function init(): Promise<void> {
         byId("tegamoto-panel").classList.remove("hidden")
         rerender()
     })
+    // スマホの「手元 N」の欄（ui/mat.ts）。開く処理は上の2つのボタンのまま
+    byId("mat-tegamoto-self").addEventListener("click", () => byId("btn-my-tegamoto").click())
+    byId("mat-tegamoto-opp").addEventListener("click", () => byId("btn-opp-tegamoto").click())
     byId("btn-close-tegamoto").addEventListener("click", () => {
         byId("tegamoto-panel").classList.add("hidden")
     })

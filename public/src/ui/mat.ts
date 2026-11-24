@@ -77,4 +77,12 @@ export function renderMat(view: GameView, ui: UiState, pid: PlayerId, isSelf: bo
         mark(co, coreZoneChoiceId("trash", pid))
         trash.append(cards, co)
     }
+
+    // 手元は PC では出さない（CSS）。スマホだけ、カードがあるときの欄。無いときは空にして場所も取らない
+    const n = p.tegamoto?.length ?? 0
+    const tegamoto = slotOf("tegamoto", side, "手元", String(n))
+    if (tegamoto && n === 0) {
+        tegamoto.className = ""
+        tegamoto.replaceChildren()
+    }
 }

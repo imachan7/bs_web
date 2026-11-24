@@ -1,15 +1,45 @@
 /* スマホ（幅768px以下）の対戦画面の配置。相手の場・自分の場・手札を、上下にスクロールせず1画面に収める（2026-11-24 ユーザー要望）。
    PC（769px以上）には効かない。場の行の高さは固定で、スピリットの数・合体の有無で変わらない（召喚・破壊で画面が上下にずれない） */
 #card-dock { display: none; }
+/* PC では上のボタン類をそのまま並べ、スマホ専用の部品（メニューの開閉・手元の欄）は出さない */
+#status-menu { display: contents; }
+#btn-status-menu, #btn-status-menu-close, #mat-tegamoto-self, #mat-tegamoto-opp { display: none; }
 
 @media (max-width: 768px) {
     :root { --sp-h-ratio: calc(985 / 675); }
 
-    #status-bar { padding: 4px 8px; gap: 4px; }
+    /* 1行：左にターン、中にフェイズ、右に「≡ メニュー」。ログ・表示・バグ報告・支払い・降参は、メニューの欄に縦に並べる。
+       トラッシュのボタンはここでは出さない（右下の並びのトラッシュの欄を押すと同じ画面が開く）。
+       「手札破棄で防ぐ」の選択と封印の表示は状況があるときだけ出る印なので、隠さず、出たときは次の行に折り返す */
+    #status-bar { position: relative; padding: 4px 8px; gap: 4px; }
     #status-bar .log-toggle-btn { padding: 4px 8px; font-size: 11px; }
+    #status-bar #turn-info { margin-left: 0 !important; white-space: nowrap; }
+    #phase-bar { margin: 0 auto; }
+    #btn-toggle-trash { display: none; }
+    #btn-status-menu { display: inline-block; flex: none; }
+    #status-menu { display: none; }
+    #status-bar.menu-open #status-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        position: absolute;
+        top: 100%;
+        right: 8px;
+        z-index: 200;
+        padding: 8px;
+        background: var(--bg-panel);
+        border: 1px solid #444;
+        border-radius: 8px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+    }
+    #status-menu .log-toggle-btn { min-height: 40px; font-size: 13px; text-align: left; white-space: nowrap; }
+    #status-menu #btn-status-menu-close { display: block; align-self: flex-end; min-height: 28px; font-size: 18px; line-height: 1; text-align: center; }
+    #status-menu .display-settings-wrap { display: block; }
+    #status-menu .display-settings-wrap > button { width: 100%; }
+    #status-menu .display-settings { left: auto; right: 0; }
     #center-info-area { min-height: 30px; padding: 2px 8px; gap: 2px; }
     .player-area { padding: 4px 8px; gap: 2px; justify-content: flex-start; }
-    .opp-hand-area:not(:has(button:not(.hidden))) { display: none !important; }
+    .opp-hand-area { display: none !important; }
     /* 情報の行は、右に PC と同じマットの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で折り返して出す。
        枠の幅の合計（272px）と合わせて 276px を引く。390px 幅で約 98px。狭い端末では名前の行が詰まって切れる */
     .player-info {
@@ -74,6 +104,16 @@
     .field-row > [id^="mat-deck"] { right: 68px; width: 60px; }
     .field-row > [id^="mat-reserve"] { right: 132px; width: 68px; }
     .field-row > [id^="mat-life"] { right: 204px; width: 68px; }
+    /* 手元は、カードがあるときだけ出る小さな欄（ui/mat.ts）。押すと手元の欄（#tegamoto-panel）が開く。
+       出ているときは、トラッシュの幅を詰めて場所を作り、情報の行を狭める */
+    .field-row > #mat-tegamoto-self.mat-box,
+    .field-row > #mat-tegamoto-opp.mat-box { display: flex; right: 0; width: 36px; cursor: pointer; }
+    .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-trash"] { right: 40px; width: 52px; padding: 2px 3px; }
+    .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-deck"] { right: 96px; }
+    .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-reserve"] { right: 160px; }
+    .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-life"] { right: 232px; }
+    .player-area:has(.field-row > [id^="mat-tegamoto"].mat-box) .player-info { width: calc(100% - 304px); }
+    #btn-my-tegamoto, #btn-opp-tegamoto { display: none !important; }
     .mat-box .mat-head { position: static; gap: 4px; justify-content: flex-start; font-size: 9px; line-height: 11px; }
     .mat-box .mat-head > span:first-child { background: none; padding: 0; }
     /* 枠が狭いので、見出しと数を1語ずつ折らずに、入らなければ数を次の行へ送る（「デッ／キ」と割れていた） */
@@ -86,8 +126,9 @@
     .mat-box .mat-half { font-size: 8px; line-height: 10px; padding: 0; }
     .mat-box .mat-half + .mat-half { border-top: none; }
 
-    /* スピリットは1行。幅は5枚目から48pxに縮め、それでも入らなければこの行の中だけ横にスクロールする。
-       数で切り替えるのは、CSS だけで決められて保守が軽いから（疲労・合体の余白は数えないので、4枚でも余白が重なると少しスクロールする） */
+    /* スピリットは1行。幅は5枚目から48pxに縮め、入りきらなければ左から重ねる（.fan。重なり幅は ui/spiritFan.ts が測って --ov に入れる）。
+       重ねても入らない（Lv・BP・コアの左24pxを残す限界。目安13体）ときだけ、この行の中で横にスクロールする。
+       幅の切り替えを数で決めるのは、CSS だけで決められて保守が軽いから */
     .spirit-zone {
         --sp-w: 64px;
         --sp-h: calc(var(--sp-w) * var(--sp-h-ratio));
@@ -117,6 +158,18 @@
     :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: -8px; }
     :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: 8px; }
     :root[data-brave] #opponent-area .spirit-zone:has(.has-brave-art) { padding-top: 3px; }
+    /* 重ねたカードは、左24pxに Lv・BP・コアを寄せる（後ろのカードが右側を隠す）。相手のカードは180度回っているので、枠の右側が見た目の左になる。
+       疲労したカードは重ねない（余白で場所を取り、能力値の枠も別の置き方をしている） */
+    .spirit-zone.fan > .card:not(.rested) { margin-right: calc(var(--ov) * -1); }
+    .spirit-zone.fan > .card.has-brave:not(.rested) { margin-right: calc(var(--sp-w) / 2 + 3px - var(--ov)); }
+    #opponent-area .spirit-zone.fan > .card:not(.rested),
+    #opponent-area .spirit-zone.fan > .card.has-brave:not(.rested) { margin-right: calc(var(--ov) * -1); }
+    .spirit-zone.fan .card.has-art:not(.rested) > .card-overlay { left: 0; right: auto; width: 24px; padding: 1px 0 2px; overflow: hidden; white-space: nowrap; }
+    .spirit-zone.fan .card[data-side="opp"].has-art:not(.rested) > .card-overlay { left: auto; right: 0; }
+    .spirit-zone.fan .card.has-art:not(.rested) > .card-overlay .stats,
+    .spirit-zone.fan .card.has-art:not(.rested) > .card-overlay .cores,
+    .spirit-zone.fan .card.has-art:not(.rested) > .card-overlay .stat-bp { font-size: 8px; }
+    .spirit-zone.fan .card.dock-selected { z-index: 5; }
     /* 疲労は90度回るので、見た目の幅（縦長の高さ）と実際の幅の差を左右に空ける */
     .spirit-zone .card.has-art.rested,
     .spirit-zone .card[data-side="opp"].has-art.rested { margin: 0 calc((var(--sp-h) - var(--sp-w)) / 2); }
@@ -163,10 +216,14 @@
     .nexus-zone .card:has(> .card-actions) { margin-bottom: 0; }
     .card.dock-selected { outline: 2px solid var(--accent-hover); outline-offset: -3px; }
 
-    /* 手札は1行（折り返すと高さが変わる）。手札の右に操作ボタンを縦1列で並べ、場のカードには重ねない */
-    .my-hand-area { position: relative; min-height: 112px; }
-    #hand { flex-wrap: nowrap; overflow-x: auto; padding-top: 0; min-width: 0; }
-    #hand .card { flex: 0 0 auto; }
+    /* 手札は場のスピリットと同じ大きさ（48px・カードの縦横比）で1行。押すと下の欄（#card-dock）に大きな絵と操作ボタンが出る。
+       行の高さは欄に絵を入れるぶん（124px）を取り、手札が小さいぶんは余白にする（2026-11-24 ユーザー確認） */
+    .my-hand-area { position: relative; min-height: 124px; }
+    #hand { flex-wrap: nowrap; overflow-x: auto; padding-top: 0; min-width: 0; gap: 4px; align-items: flex-start; }
+    #hand .card { flex: 0 0 auto; width: 48px; height: auto; aspect-ratio: 675 / 985; padding: 2px; font-size: 8px; }
+    #hand .card .name { margin: 0; font-size: 8px; }
+    #hand .card:not(.has-art) .stats { display: none; }
+    #hand .burst-set-badge, #hand .hand-ability-badge, #hand .field-req-badge { display: none; }
     /* 画面の右下に固定し、手札の右に縦1列で出す（#board 基準だと場の下端＝相手の場の上に来て重なった） */
     #action-buttons-container {
         position: fixed;
@@ -183,12 +240,15 @@
     #action-buttons { flex-direction: column; gap: 6px; }
     #action-buttons button { padding: 8px 6px; font-size: 13px; width: 100%; white-space: normal; }
 
-    /* 手札と入れ替えて、カード名と操作ボタン（高さ44px以上）を出す。時間では消えず、もう一度カードを押すか × で閉じる */
+    /* 手札と入れ替えて、大きな絵・カード名・操作ボタン（高さ44px以上）を出す。時間では消えず、もう一度カードを押すか × で閉じる */
     #card-dock:not(.hidden) {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-rows: auto auto;
+        grid-template-areas: "art name close" "art buttons buttons";
         align-content: center;
-        gap: 6px 8px;
+        align-items: center;
+        column-gap: 8px;
         position: absolute;
         top: 0;
         bottom: 0;
@@ -200,9 +260,11 @@
         border-radius: 8px;
         z-index: 130;
     }
-    #card-dock-name { order: 1; flex: 1 1 0; min-width: 0; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #card-dock-close { order: 2; min-width: 44px; min-height: 28px; font-size: 18px; line-height: 1; }
-    #card-dock-buttons { order: 3; flex: 0 0 100%; display: flex; gap: 6px; overflow-x: auto; }
+    #card-dock-art { grid-area: art; height: 108px; aspect-ratio: 675 / 985; border-radius: 6px; }
+    #card-dock-art:not([hidden]) { display: block; }
+    #card-dock-name { grid-area: name; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #card-dock-close { grid-area: close; min-width: 44px; min-height: 28px; font-size: 18px; line-height: 1; }
+    #card-dock-buttons { grid-area: buttons; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; overflow-y: auto; max-height: 80px; }
     #card-dock-buttons button {
         flex: none;
         min-width: 44px;
@@ -214,4 +276,5 @@
         border: 1px solid #666;
         color: var(--text-main);
     }
+    #card-dock-buttons button:disabled { opacity: 0.4; }
 }

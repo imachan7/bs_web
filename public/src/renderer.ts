@@ -36,6 +36,7 @@ import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui
 import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
 import { renderField } from "./ui/fieldCard"
 import { renderCardDock } from "./ui/cardDock"
+import { fanSpirits } from "./ui/spiritFan"
 import { syncEffectNotice } from "./ui/effectNotice"
 import { renderHand } from "./ui/hand"
 import { renderInfo, renderBurst, renderBattle, flashBurstReveal } from "./ui/infoPanels"
@@ -1098,6 +1099,7 @@ export function render(view: GameView, ui: UiState): void {
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
     renderField("my-spirits", "my-nexuses", view, ui, you, true)
     restoreLeavingSlots()
+    fanSpirits()
     renderRevealPanel(view)
 
     // バーストエリア（docs/design/BURST.md）。相手のバーストは常に裏面のみ（cardIdは来ない）
