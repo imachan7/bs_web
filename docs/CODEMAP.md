@@ -170,7 +170,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lifeDamageLimit`（fn）：このアタックで、防御側のライフが1回に減る**上限**を返す唯一の入口。
 - `LifeLossQuery`（型）
 - `lifeLossAllowed`（fn）：ライフを減らす処理の制限を1か所に集めた問い合わせ。0〜amount の「減らせる量」を返す。
-- `cantReduceOpponentLife`（fn）：BS11-X06 Lv3「このスピリットが回復状態の間、相手のライフを減らせない」。効くのは発生源の個体自身が減らそうとするときだけで、
+- `cantReduceOpponentLife`（fn）：BS11-X06 Lv3「このスピリットが回復状態の間、相手のライフを減らせない」は『このスピリットのアタック時』の効果なので、
 - `mustAttackThisTurn`（fn）：このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか
 - `mustAttackFirst`（fn）：「このステップの最初に必ずアタックする」（until:"firstAttack"）を受けているか。受けている間は他のスピリットでアタックできない
 - `canBlockWhileRestedThisTurn`（fn）：このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のタ…

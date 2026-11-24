@@ -923,7 +923,7 @@ export interface LifeLossQuery {
 // 原因を問わず効く扱いは EFFECT_GATE §4 の 4（2026-10-30 ユーザー確認）
 export function lifeLossAllowed(board: Board, q: LifeLossQuery): number {
     const { pid } = q
-    if (q.actorPid !== pid && cantReduceOpponentLife(q.sourceInstance)) return 0
+    if (q.actorPid !== pid && cantReduceOpponentLife(board, q.sourceInstance)) return 0
     // noLifeDamage の includeEffects（BS19-106）：減らしに来た効果の発生源が「アタック/効果では減らない」を
     // 指定されたスピリットそのもののときは減らせない
     if (q.cause === "effect" && q.actorPid !== pid && q.sourceInstance?.lifeDamageEffectsNegatedFor === pid) return 0
@@ -953,11 +953,11 @@ function ownLifeFloorByCostSelfToTrash(board: Board, pid: PlayerId): number {
     return floor
 }
 
-// BS11-X06 Lv3「このスピリットが回復状態の間、相手のライフを減らせない」。効くのは発生源の個体自身が減らそうとするときだけで、
-// 同じプレイヤーの別スピリットのアタック・効果ダメージは止めない（2026-11-24 ユーザー確認。公式 Q3069）。
-// 原因（アタック/効果/コスト）は問わない。発生源が不明（sourceInstance なし）のときは止めない
-export function cantReduceOpponentLife(source: CardInstance | undefined): boolean {
-    if (!source || source.isRested) return false
+// BS11-X06 Lv3「このスピリットが回復状態の間、相手のライフを減らせない」は『このスピリットのアタック時』の効果なので、
+// 効くのは発生源の個体自身がアタック中（バトルのアタッカー）で回復状態のときだけ（2026-11-24 ユーザー確認。公式 Q3069）。
+// 同じプレイヤーの別スピリットのアタックや、アタック中でないときの効果ダメージは止めない。アタック中は原因（アタック/効果）を問わない
+export function cantReduceOpponentLife(board: Board, source: CardInstance | undefined): boolean {
+    if (!source || source.isRested || board.battle?.attackerInstanceId !== source.instanceId) return false
     return card(source.cardId).effects.some(
         (effect) =>
             effect.kind === "globalConstraint" &&

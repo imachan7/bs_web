@@ -18,7 +18,7 @@ export type GlobalConstraintDef =
     | { type: "cantBlockByCost"; costs: number[] } // cantAttackByCost のブロック版（両陣営）
     | { type: "cantBounce"; by?: "effect"; to?: ("hand" | "deck")[]; target?: ResolvedTargetFilter } // 両陣営のスピリットは、フィールドから to（省略＝手札のみ。デッキへ戻すのは止めない）へ戻らない。by:"effect" は効果による戻し（「〜することで」の支払いとして戻すのも効果のうち。2026-11-07 ユーザー確認）だけを止め、省略は原因を問わない。target＝戻される側の絞り込み。phase/turn はエントリ直下を見る（bounceDenial）
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た相手のネクサスは疲労させられない（【強襲】の疲労元等も止める）。phase 指定時はそのステップ中のみ
-    | { type: "cantReduceOpponentLifeWhileSelfRefreshed" } // 発生源が回復状態の間、発生源自身は相手のライフを減らせない（同じ持ち主の別スピリットは止めない。2026-11-24 ユーザー確認。2026-09-02 の「広い読み」は撤回）
+    | { type: "cantReduceOpponentLifeWhileSelfRefreshed" } // 発生源が自分のアタック中に回復状態なら、そのアタックの間は発生源自身が相手のライフを減らせない（同じ持ち主の別スピリット・アタック外の効果は止めない。2026-11-24 ユーザー確認。2026-09-02 の「広い読み」は撤回）
     | { type: "noDrawInMain" } // 両陣営とも、メインステップの間はドローできない
     | { type: "noHandDiscardInMain" } // 両陣営とも、メインステップの間は手札を破棄できない（判定は shared/rules.ts の canDiscardHand。コストとしての破棄も止まる＝COST_MODEL.md §1）
     | { type: "handTrashSpiritEffectsDisabled" } // 両陣営の手札・トラッシュにあるスピリットカード自身の効果が発揮されない（判定は shared/rules/constraints.ts の zoneSpiritEffectsDisabled。2026-10-23 ユーザー確認）
