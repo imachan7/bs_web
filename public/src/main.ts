@@ -114,7 +114,7 @@ function connectAndRun(button: HTMLElement, action: () => void): void {
 
 
 export let view: GameView | null = null
-export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, burstResetConfirm: null }
+export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, summonCores: null, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -1249,6 +1249,21 @@ async function init(): Promise<void> {
             ui.exReductionSelect = null
             // 空配列＝「使わない」を選んだ済み（選択モードへ再入しない）
             tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, picked.length > 0 ? picked : [], undefined, undefined, fromTegamoto)
+            return
+        }
+        const coresStepEl = closestData(e, "data-summon-cores-step")
+        if (coresStepEl && ui.summonLevelSelect) {
+            ui.summonCores = (ui.summonCores ?? 0) + Number(coresStepEl.dataset.summonCoresStep)
+            rerender()
+            return
+        }
+        const coresEl = closestData(e, "data-summon-cores")
+        if (coresEl && ui.summonLevelSelect) {
+            const cores = Number(coresEl.dataset.summonCores)
+            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
+            ui.summonLevelSelect = null
+            ui.summonCores = null
+            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, undefined, fromTegamoto, cores)
             return
         }
         const levelEl = closestData(e, "data-summon-level")

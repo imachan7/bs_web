@@ -1781,6 +1781,23 @@ button:active {
 /* ---- 増減式の選択（PendingChoice.stepper） ----
    トラッシュに置くコアの数のように「どれを選ぶか」でなく個数だけを決めるものを、
    ボタンの列ではなく −／＋ で選ばせる。候補が20個を超えることがあるため */
+#choice-options .stepper-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+#choice-options .stepper-row > button {
+    flex: none;
+    width: 32px;
+    min-width: 0;
+    padding: 6px 0;
+}
+#choice-options .stepper-row > .stepper-value {
+    min-width: 0;
+    flex: 1;
+    white-space: nowrap;
+}
 #choice-options .stepper-value {
     display: inline-block;
     min-width: 4.5em;
