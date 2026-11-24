@@ -239,12 +239,6 @@ export function onPayStageClick(e: Event): void {
         case "submit":
             if (payingStageFilled(pay, "cost") === needs.cost && payingStageFilled(pay, "place") === needs.place) deps?.submitPaying()
             break
-        case "lv":
-            changePlace(pay, () => {
-                pay.level = Number(t.dataset.lv)
-                delete pay.cores
-            })
-            break
         case "waiver":
             changePlace(pay, () => {
                 delete pay.level
@@ -278,12 +272,11 @@ export function onPayStageClick(e: Event): void {
 
 // ---- 描画 ----
 
-function btn(label: string, ps: string, opts: { id?: string; disabled?: boolean; lv?: number; on?: boolean } = {}): HTMLButtonElement {
+function btn(label: string, ps: string, opts: { id?: string; disabled?: boolean; on?: boolean } = {}): HTMLButtonElement {
     const b = document.createElement("button")
     b.dataset.ps = ps
     b.textContent = label
     if (opts.id !== undefined) b.dataset.id = opts.id
-    if (opts.lv !== undefined) b.dataset.lv = String(opts.lv)
     if (opts.disabled) b.disabled = true
     if (opts.on) b.classList.add("selected")
     return b
@@ -324,18 +317,17 @@ function levelControls(v: GameView, pay: PayingState, needs: { cost: number; pla
     const reserve = v.players[v.you].reserve
     const field = payableFieldCores(v, cardId)
     const bonus = summonLevelCostBonus(v, v.you, card)
-    const lvRow = div("pay-levels")
-    for (const l of card.levels.filter((x) => reserve + field >= needs.cost + x.cores + bonus)) {
-        lvRow.append(btn(`Lv${l.level}（${l.cores + bonus}コア）`, "lv", { lv: l.level, on: pay.placeSoulCore !== true && l.cores + bonus === needs.place }))
-    }
-    // 《真界放》：[ソウルコア]1個だけで Lv2 にする置き方（2026-10-07 ユーザー裁定）
+    // Lv ごとのボタンは置かない（下の増減の「Nコア（LvM）」と同じことを二重に出していた。2026-11-25 ユーザー指摘）
+    // 《真界放》：[ソウルコア]1個だけで Lv2 にする置き方（2026-10-07 ユーザー裁定）は増減では選べないので残す
     if (card.levels.some((l) => l.soulCoreRequired === true) && v.players[v.you].soulCore?.zone === "reserve" && reserve + field >= needs.cost + 1) {
+        const lvRow = div("pay-levels")
         lvRow.append(btn("Lv2を[ソウルコア]で置く（1コア）", "waiver", { on: pay.placeSoulCore === true && needs.place === 1 }))
+        out.push(lvRow)
     }
-    out.push(lvRow)
     const min = summonMinCores(v, v.you, card)
     const max = reserve + field - needs.cost
-    if (max > min) out.push(stepRow(btn("−", "cores-", { disabled: needs.place <= min }), `${needs.place}コア`, btn("＋", "cores+", { disabled: needs.place >= max })))
+    const lv = [...card.levels].sort((a, b) => a.cores - b.cores).filter((l) => l.cores + bonus <= needs.place).at(-1)?.level ?? card.levels[0]?.level ?? 1
+    if (max > min) out.push(stepRow(btn("−", "cores-", { disabled: needs.place <= min }), `${needs.place}コア（Lv${lv}）`, btn("＋", "cores+", { disabled: needs.place >= max })))
     return out
 }
 
@@ -366,26 +358,27 @@ export function renderPayStageSheet(v: GameView, pay: PayingState, host: HTMLEle
     const hasPlaceStage = needs.place > 0
     const sheet = div("pay-sheet")
 
-    sheet.append(div("pay-stage-title", stage === "cost" ? "① コストを払う" : "② 置くコア"))
-    if (stage === "place") for (const c of levelControls(v, pay, needs)) sheet.append(c)
-
+    // 見出しと払った数は1行にまとめる（「② 置くコア」と「置くコア 1 / 1」、取り分のまとめとリザーブの行が同じことを重ねて出していた。2026-11-25 ユーザー指摘）
     const meter = div("pay-meter")
+    const title = document.createElement("span")
+    title.className = "pay-stage-title"
+    title.textContent = `${stage === "cost" ? "① コスト" : "② 置くコア"}　${filled} / ${need}`
     const boxes = document.createElement("span")
     boxes.className = "pay-boxes"
     boxes.textContent = "■".repeat(Math.min(filled, need)) + "□".repeat(Math.max(need - filled, 0))
-    const num = document.createElement("span")
-    num.textContent = `${stage === "cost" ? "コスト" : "置くコア"} ${filled} / ${need}`
-    meter.append(num, boxes)
+    meter.append(title, boxes)
     sheet.append(meter)
+    if (stage === "place") for (const c of levelControls(v, pay, needs)) sheet.append(c)
 
     const fields = stageField(pay, stage)
     const reserveTaken = (stage === "cost" ? pay.costReserve : pay.placeReserve) ?? 0
     const fieldTaken = sum(fields)
-    sheet.append(div("pay-summary", `リザーブから ${reserveTaken} 個・フィールドから ${fieldTaken} 個`))
     const canTakeReserve = filled < need && (pay.costReserve ?? 0) + (pay.placeReserve ?? 0) < reservePool(v)
-    // リザーブに残っている数も出す（いくつあるか分からないまま −／＋ を押すことになっていた。2026-11-25 ユーザー指摘）
-    const reserveLeft = reservePool(v) - (pay.costReserve ?? 0) - (pay.placeReserve ?? 0)
-    sheet.append(stepRow(btn("−", "res-", { disabled: reserveTaken <= 0 }), `リザーブから ${reserveTaken} 個（残り ${reserveLeft}）`, btn("＋", "res+", { disabled: !canTakeReserve })))
+    // 「リザーブ 使う数 / 使える数」。使える数はもう一方の段で使った分を除く（いくつあるか分からないまま −／＋ を押すことになっていた。2026-11-25 ユーザー指摘）
+    const reserveUsable = reservePool(v) - ((stage === "cost" ? pay.placeReserve : pay.costReserve) ?? 0)
+    // 使えるリザーブが無いときは −／＋ を出さない（押せそうに見えるのに押しても何も起きなかった）
+    if (reserveUsable > 0) sheet.append(stepRow(btn("−", "res-", { disabled: reserveTaken <= 0 }), `リザーブ ${reserveTaken} / ${reserveUsable}`, btn("＋", "res+", { disabled: !canTakeReserve })))
+    else sheet.append(div("pay-hint pay-no-reserve", "リザーブ 0（使えるコアなし）"))
     const list = div("pay-fields")
     for (const [id, n] of Object.entries(fields)) {
         const inst = fieldInsts(v).find((i) => i.instanceId === id)
@@ -393,11 +386,11 @@ export function renderPayStageSheet(v: GameView, pay: PayingState, host: HTMLEle
         const total = pay.assigned[id] ?? n
         const row = div("pay-field-row")
         const label = document.createElement("span")
-        label.textContent = `${master(inst.cardId).name}　${inst.cores}→${inst.cores - total}（${n}個）`
+        label.textContent = `${master(inst.cardId).name}　コア ${inst.cores}→${inst.cores - total}`
         row.append(label, btn("−", "fld-", { id }))
         list.append(row)
     }
-    if (fieldTaken === 0 && filled < need) list.append(div("pay-hint", "フィールドから取るときは、場のスピリット／ネクサスを押してください"))
+    if (fieldTaken === 0 && filled < need) list.append(div("pay-hint", "場のスピリット／ネクサスを押すと、そこから取れます"))
     sheet.append(list)
     const note = vanishingNote(v, pay.assigned)
     if (note) sheet.append(div("pay-warn", note))

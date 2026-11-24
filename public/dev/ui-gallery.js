@@ -175,7 +175,17 @@ function renderIssues() {
   if (el) el.textContent = issues.length === 0 ? "崩れ：まだ見つかっていない" : "崩れ：\n" + issues.join("\n")
 }
 
+// 1枚ごとの上限。部屋に入れないまま止まると、後ろの場面が全部作られなかった
+const CELL_LIMIT_MS = 90000
 async function build(scene, size, cell, head) {
+  let timer
+  await Promise.race([
+    buildInner(scene, size, cell, head),
+    new Promise((r) => { timer = setTimeout(() => { head.textContent = `${scene.name} / ${size.name}：止まった：${CELL_LIMIT_MS / 1000}秒で終わらない`; head.className = "hd ng"; r() }, CELL_LIMIT_MS) }),
+  ])
+  clearTimeout(timer)
+}
+async function buildInner(scene, size, cell, head) {
   const log = (s, ok) => { head.textContent = `${scene.name} / ${size.name}：${s}`; head.className = "hd " + (ok === undefined ? "" : ok ? "ok" : "ng") }
   let B
   try {
@@ -192,7 +202,10 @@ async function build(scene, size, cell, head) {
     document.body.appendChild(B)
     await sleep(2500)
     await join(B, room); await sleep(3000)
+    // 2人そろって対戦が始まるまで待つ（重いときは ROOM が入るのが遅れ、盤面の差し替えが「roomId を指定してください」で落ちた）
+    for (let t = 0; t < 15000 && !A.contentWindow.ROOM; t += 300) await sleep(300)
     const roomId = A.contentWindow.ROOM
+    if (!roomId) throw new Error("対戦が始まらない（ROOM が入らない）")
     const { me, opp } = scene.board()
     const mk = (a, p) => ({ turn: 3, turnPlayer: a === "me" ? p.me : p.opp, phase: scene.phase || "main", players: { [p.me]: me, [p.opp]: opp } })
     // A が p1 か p2 かを調べる

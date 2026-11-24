@@ -1881,7 +1881,6 @@ button:active {
 #choice-options .pay-stage-title { font-weight: 700; }
 #choice-options .pay-meter { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
 #choice-options .pay-boxes { letter-spacing: 2px; color: #7fd1ff; }
-#choice-options .pay-summary,
 #choice-options .pay-hint { color: #b8b8b8; font-size: 12px; }
 #choice-options .pay-field-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #choice-options .pay-field-row > button { flex: none; width: 32px; min-width: 0; padding: 4px 0; }

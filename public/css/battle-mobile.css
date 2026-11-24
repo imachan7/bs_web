@@ -336,11 +336,10 @@
     /* シートを出している間は、帯の ≡ を隠す（シートの下に重なって押せないのに残っていた） */
     #game:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #btn-status-menu { visibility: hidden; }
     #action-buttons-container:has(#choice-options .pay-sheet) { max-height: 75dvh; }
-    /* 高さを詰める：取り分のまとめ（リザーブから n・フィールドから n）はリザーブの行と取った個体の行で分かるので出さない（SE の高さでスクロールせずに収めるため） */
-    #choice-options .pay-summary { display: none; }
     /* 「対象選択をやめる」はシートの一番下に置く（上に置くと、背の高いシートで画面の上の方になり片手で届かなかった） */
     #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > #btn-cancel-target { order: 99; }
-    #choice-options .pay-hint { display: none; }
+    #choice-options .pay-hint:not(.pay-no-reserve) { display: none; }
+    #choice-options .pay-no-reserve { text-align: center; }
     .display-settings .mobile-only { display: block; }
 
     /* 操作の寄せ（⚙ 表示。<html data-hand>）：下に出る選択肢・支払い・メニューのシートを、親指が届く幅で中央・左・右に寄せる（2026-11-25 ユーザー案。既定は中央） */
