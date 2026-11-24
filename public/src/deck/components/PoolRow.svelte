@@ -53,7 +53,8 @@
         border-radius: 4px;
         font-size: 13px;
     }
-    .row.maxed { opacity: 0.45; }
+    /* ボタンは薄くしない（− を押して減らせることが分かるように） */
+    .row.maxed > :not(:global(.adjust)) { opacity: 0.45; }
     .count { color: #8fa8ff; font-weight: bold; }
     .cost { width: 20px; text-align: center; font-weight: bold; }
     .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

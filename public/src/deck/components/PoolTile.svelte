@@ -111,7 +111,9 @@
     }
     .note { top: 24px; }
     .limited { bottom: 3px; background: #000c; }
-    .tile.maxed { filter: grayscale(1) brightness(0.55); }
+    /* 灰色にするのは絵だけ（タイルごとにかけると − ＋ まで灰色になる） */
+    .tile.maxed > :global(.card-art) { filter: grayscale(1) brightness(0.55); }
+    .tile.maxed:not(:global(.has-art)) { background: #3a3d44; }
     .count {
         position: absolute;
         top: 3px;
