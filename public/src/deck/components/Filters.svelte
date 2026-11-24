@@ -130,7 +130,7 @@
             <span class="label">タイプ</span>
             <div class="chips">
                 {#each TYPES as [t, text] (t)}
-                    <button type="button" class="chip" class:active={filterTypes.has(t)} onclick={() => flip(filterTypes, t)}>{text}</button>
+                    <button type="button" class="chip type-{t}" class:active={filterTypes.has(t)} onclick={() => flip(filterTypes, t)}>{text}</button>
                 {/each}
             </div>
         </div>
@@ -138,7 +138,7 @@
             <span class="label">コスト</span>
             <div class="chips">
                 {#each COSTS as n (n)}
-                    <button type="button" class="chip" class:active={filterCosts.has(n)} onclick={() => flip(filterCosts, n)}>{n === COST_CHIP_MAX ? `${n}以上` : n}</button>
+                    <button type="button" class="chip cost" class:active={filterCosts.has(n)} onclick={() => flip(filterCosts, n)}>{n === COST_CHIP_MAX ? `${n}以上` : n}</button>
                 {/each}
             </div>
         </div>
@@ -176,7 +176,7 @@
                 <h3>注意</h3>
                 <div class="chips">
                     {#each NOTES as [n, text] (n)}
-                        <button type="button" class="chip" class:active={draftNotes.has(n)} onclick={() => flip(draftNotes, n)}>{text}</button>
+                        <button type="button" class="chip note-{n}" class:active={draftNotes.has(n)} onclick={() => flip(draftNotes, n)}>{text}</button>
                     {/each}
                 </div>
             </section>
@@ -216,6 +216,32 @@
     .chip.active.chip-white { background: #8a8fa8; border-color: #d8dcef; color: #1a1d2b; }
     .chip.active.chip-yellow { background: #b09a2a; border-color: #e8cf4a; color: #1a1d2b; }
     .chip.active.chip-blue { background: #2f4aa0; border-color: #4a6cd4; }
+    /* 段ごとに色で見分けられるようにする（2026-11-24 ユーザー）。押していなくても下線でその色を出し、押すとその色で塗る */
+    .chip-red { box-shadow: inset 0 -3px 0 #d4564a; }
+    .chip-purple { box-shadow: inset 0 -3px 0 #9a4ad4; }
+    .chip-green { box-shadow: inset 0 -3px 0 #4ad45e; }
+    .chip-white { box-shadow: inset 0 -3px 0 #d8dcef; }
+    .chip-yellow { box-shadow: inset 0 -3px 0 #e8cf4a; }
+    .chip-blue { box-shadow: inset 0 -3px 0 #4a8cf0; }
+    /* タイプは統計のタイプ内訳と同じ色 */
+    .type-spirit { box-shadow: inset 0 -3px 0 #6ea8ff; }
+    .type-brave { box-shadow: inset 0 -3px 0 #f7ce46; }
+    .type-nexus { box-shadow: inset 0 -3px 0 #46a758; }
+    .type-magic { box-shadow: inset 0 -3px 0 #b18cff; }
+    .chip.active.type-spirit { background: #3e6fc4; border-color: #6ea8ff; }
+    .chip.active.type-brave { background: #b8962a; border-color: #f7ce46; color: #1a1d2b; }
+    .chip.active.type-nexus { background: #2f7a3a; border-color: #46a758; }
+    .chip.active.type-magic { background: #6e4ab8; border-color: #b18cff; }
+    /* コストは色の付かない段（白で塗る） */
+    .chip.active.cost { background: #e8e8e8; border-color: #e8e8e8; color: #111; font-weight: bold; }
+    /* 注意はプールの注記バッジと同じ色 */
+    .note-unimplemented { box-shadow: inset 0 -3px 0 #d44a4a; }
+    .note-partial { box-shadow: inset 0 -3px 0 #d48a4a; }
+    .note-simplified { box-shadow: inset 0 -3px 0 #d4c44a; }
+    .chip.active.note-unimplemented { background: #d44a4a; border-color: #d44a4a; }
+    .chip.active.note-partial { background: #d48a4a; border-color: #d48a4a; }
+    .chip.active.note-simplified { background: #d4c44a; border-color: #d4c44a; color: #333; }
+    .winbody :global(.sec h3) { border-left: 3px solid #ffd23e; padding-left: 6px; }
     .row input { flex: 1 1 160px; min-width: 0; }
     .ghost { background: transparent; border: 1px solid #555; color: #cdd2e8; }
     .ghost:hover { background: #2c3044; }
