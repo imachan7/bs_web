@@ -21,11 +21,6 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：バグ #691・#700（ブランチ `fix/nova-zande`。規則は BRAVE.md・TIMING_CHART ＞３-1B に書いた）
-
-- #700：`shared/block.ts` `blockDestroyTolls`（記録の count だけ並べた破壊1体ぶんの列）→ `GameEngine.payBlockDestroyTolls(from)` が1体ずつ選ばせて破壊、選択は `blockExhaustPick.destroyTollIndex` で次の番号から戻る。検証は候補の和集合≧数。実装済み・テスト待ち
-- #691：`braveConditionGate.ts` に、`cantSpiritStateBrave` が立つ側のスピリット状態のブレイヴ（`field.spirits` の brave）をトラッシュへ置く掃除を足し、`settleAfterResolution` の `separateBravesBelowMinCost` の隣で呼ぶ。破壊・消滅の経路を通さない・コアはリザーブ・待機中は飛ばす
-
 ### 次にやること（2026-11-22 時点。上から順に）
 
 1. **一度も実行されていない効果24件に場面テストを足し、`data/coverage-baseline.json` から消す**
