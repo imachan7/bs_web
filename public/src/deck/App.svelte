@@ -39,7 +39,7 @@
 <style>
     .layout {
         display: grid;
-        grid-template-columns: 1fr 290px 420px;
+        grid-template-columns: 1fr 360px 420px;
         max-width: 1760px;
         height: 100%;
         margin: 0 auto;

@@ -75,7 +75,7 @@
     .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; background: #2a2f45; font-size: 12px; }
     .chip b { font-size: 14px; }
     i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-    .curve { display: flex; align-items: stretch; gap: 3px; height: 110px; }
+    .curve { display: flex; align-items: stretch; gap: 3px; height: 64px; }
     .col { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
     .num { font-size: 11px; height: 14px; }
     .bar { width: 100%; min-height: 0; border-radius: 3px 3px 0 0; background: linear-gradient(#6f8be8, #3a55a8); flex-shrink: 0; }
