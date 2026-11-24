@@ -1,4 +1,5 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
+import { blockDestroyTolls } from "../../../shared/block"
 import { isReturnWaiting, isTrashWaiting } from "../../../shared/rules/waiting"
 import { summonPayPlan } from "./summonCores"
 import { payMagicCostThenResolve } from "./magic/payThenResolve"
@@ -48,7 +49,7 @@ import { doCastMagic } from "./magic/cast"
 import { resumeBraveDestroy } from "./brave"
 import { tryBraveFreeSummon } from "./braveFreeSummon"
 import { doSummonFromTegamoto } from "./tegamotoSummon"
-import { applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
+import { applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, payBlockDestroyTolls, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
 import { newRecordScope } from "./record"
 import { levelStillMet } from "./levelRecheck"
@@ -168,13 +169,18 @@ function resolveChoiceInner(
     // ブロックのコスト（blockExhaustSpirit）で疲労させるスピリットの選択待ち。action は解決しない
     if (pending.blockExhaustPick) {
         if (instanceId === undefined || !pending.candidates.includes(instanceId)) return "選択できない対象です"
-        const { blockerPid, blockerInstanceId, destroy } = pending.blockExhaustPick
+        const { blockerPid, blockerInstanceId, destroyTollIndex } = pending.blockExhaustPick
         const chosen = findSpirit(state.players[blockerPid], instanceId)
         state.pendingChoice = null
         if (!state.battle || !chosen) return null
-        if (destroy) destroyBlockToll(state, blockerPid, chosen)
-        else exhaustBlockToll(state, blockerPid, chosen)
-        continueBlockDeclaration(state, blockerPid, blockerInstanceId)
+        if (destroyTollIndex === undefined) {
+            exhaustBlockToll(state, blockerPid, chosen)
+            payBlockDestroyTolls(state, blockerPid, blockerInstanceId, 0)
+        } else {
+            const rec = blockDestroyTolls(state, findSpirit(state.players[opponentOf(blockerPid)], state.battle.attackerInstanceId))[destroyTollIndex]
+            if (rec) destroyBlockToll(state, blockerPid, chosen, rec)
+            payBlockDestroyTolls(state, blockerPid, blockerInstanceId, destroyTollIndex + 1)
+        }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

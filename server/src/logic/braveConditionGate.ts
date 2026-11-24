@@ -5,6 +5,9 @@ import { boardResistanceAgainst, braveExtraMinCostFor, instCostWithoutBraves } f
 import { braveSlotsUsed } from "../../../shared/rules/braveExtraCombine"
 import { combineLimitFor } from "../../../shared/summon"
 import { detachBraveByOwnerChoice } from "./brave"
+import { cantSpiritStateBrave } from "../../../shared/rules/constraints"
+import { soulCoreLeavesField } from "./soulCore"
+import { getCard, log } from "./GameState"
 
 // handleAction の後始末（継続効果を組み直した後）で呼ぶ。
 // 分離したブレイヴは持ち主が残すかトラッシュかを選ぶ（detachBraveByOwnerChoice＝相手の効果による分離と同じ手順）。
@@ -48,4 +51,28 @@ export function separateBravesOverLimit(state: GameState): void {
             }
         }
     }
+}
+
+// BS11-X02 Lv3「相手は、ブレイヴをスピリット状態にできない」が効いている間、その側のスピリット状態のブレイヴは
+// トラッシュに置く（公式 Q3042・Q16924。2026-11-24 ユーザー確認）。**破壊でも消滅でもない**ので破壊時・消滅時の誘発は出さず、
+// 上のコアはリザーブへ。バトル中の攻撃側・ブロック側でも特別な後始末はしない（バウンスと同じく場から消えるだけ）
+// 効果の途中でも、手を解決するたびに置く（ノヴァ優先。2026-11-24 ユーザー決定）。選択待ちの間は見送り、答えた後の手の出口で置く。
+// 1枚でも置いたら true（呼び出し側が継続効果を組み直す）
+export function trashSpiritStateBravesWhenForbidden(state: GameState): boolean {
+    if (state.pendingChoice || state.winner) return false
+    let trashed = false
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        if (!cantSpiritStateBrave(state, pid)) continue
+        const player = state.players[pid]
+        for (const brave of [...player.field.spirits]) {
+            if (getCard(brave.cardId).type !== "brave" || isWaiting(brave)) continue
+            player.field.spirits.splice(player.field.spirits.indexOf(brave), 1)
+            player.trashCards.push(brave.cardId)
+            soulCoreLeavesField(player, brave)
+            player.reserve += brave.cores
+            log(state, `${player.name}の${getCard(brave.cardId).name}は、ブレイヴをスピリット状態にできないためトラッシュに置かれた。`)
+            trashed = true
+        }
+    }
+    return trashed
 }

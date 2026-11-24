@@ -202,7 +202,7 @@ export interface PendingChoice {
         // **action は解決しない**。選ばれたら疲労させて宣言の続き（continueBlockDeclaration）へ進む
         blockerPid: PlayerId
         blockerInstanceId: string
-        destroy?: true // 疲労でなく破壊（timedEffect blockCost destroyOwnSpirit）
+        destroyTollIndex?: number // 疲労でなく破壊（blockCost destroyOwnSpirit）。blockDestroyTolls の何番目の破壊か
     }
     attackEffectsToll?: {
         // BS20-072 Lv2：アタックした側がリザーブのコア1個をトラッシュに置くかの確認待ち。**action は解決しない**。
