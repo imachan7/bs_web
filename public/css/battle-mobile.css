@@ -188,9 +188,6 @@
     /* 疲労は90度回るので、見た目の幅（縦長の高さ）と実際の幅の差を左右に空ける */
     .spirit-zone .card.has-art.rested,
     .spirit-zone .card[data-side="opp"].has-art.rested { margin: 0 calc((var(--sp-h) - var(--sp-w)) / 2); }
-    /* 疲労（90度）のカードのシンボルは、能力値の文字と重ならない角（見た目の左下／右上の反対側。カード枠では左下）に置く。
-       既定の右上は、回ると相手側で文字の先頭（Lv の L）に重なった */
-    .spirit-zone .card.has-art.rested:not(.heavy-rested) .symbols { top: auto; bottom: 2px; left: 2px; right: auto; }
     .spirit-zone .card .name, .nexus-zone .card .name { margin: 0; font-size: 8px; max-width: none; }
 
     .nexus-zone {
@@ -219,7 +216,8 @@
     .nexus-zone .card.has-art > .card-overlay .stats,
     .nexus-zone .card.has-art > .card-overlay .cores { font-size: 10px; line-height: 1.15; }
     .spirit-zone .card.has-art > .card-overlay .stat-bp { font-size: 11px; }
-    .spirit-zone .symbols, .nexus-zone .symbols { top: 2px; right: 2px; bottom: auto; gap: 1px; }
+    /* シンボルの位置は PC と同じ右下のまま（2026-11-24 ユーザー「変えないでほしい」）。スマホは見出し（BP・コア）を出さないので数字と重ならない */
+    .spirit-zone .symbols, .nexus-zone .symbols { gap: 1px; }
     .spirit-zone .sym-icon, .nexus-zone .sym-icon { width: 11px; height: 11px; }
 
     /* カードの操作ボタンは画面下の欄（#card-dock。ui/cardDock.ts）に出すので、カードの上では隠す（自分の場は #board の外の #player-area にあるので #game で指す）。
