@@ -1404,6 +1404,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `TICKET_ALIVE_MS`（const）：この時間問い合わせが無い待ちは、閉じられたものとして捨てる（クライアントの間隔は3秒）
 - `PollResult`（型）
+- `PollOpts`（型）
 - `MatchTickets`（class）
 
 ## server/src/roomManager.ts
@@ -1594,6 +1595,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `DeckChoice`（型）
 - `WaitHandlers`（型）
+- `WaitExtra`（型）
 - `waitForOpponent`（fn）：待ちを始める。返り値を呼ぶと待ちをやめる（サーバーの列からも外す）
 
 ## public/src/renderer.ts

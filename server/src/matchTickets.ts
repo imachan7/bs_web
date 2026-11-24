@@ -7,9 +7,11 @@ import { randomUUID } from "node:crypto"
 // この時間問い合わせが無い待ちは、閉じられたものとして捨てる（クライアントの間隔は3秒）
 export const TICKET_ALIVE_MS = 10_000
 
-export type PollResult = { ticket: string; waiting: number } | { roomId: string }
+export type PollResult = { ticket: string; waiting: number } | { roomId: string } | { gone: true }
+export type PollOpts = { host?: { name: string } | undefined; joinOnly?: boolean }
 
-type Ticket = { pool: string; seenAt: number; roomId?: string }
+// host は公開ルームの一覧に出す名前（公開ルームを作った側だけが持つ）。since は並んだ時刻で、seenAt と違い問い合わせのたびには変わらない
+type Ticket = { pool: string; seenAt: number; since: number; roomId?: string; host?: { name: string } | undefined }
 
 export class MatchTickets {
     private tickets = new Map<string, Ticket>()
@@ -27,11 +29,12 @@ export class MatchTickets {
 
     // 問い合わせ1回。相手が決まっていれば roomId、まだなら自分の ticket と待ち人数（自分を含む）を返す。
     // 知らない ticket（初回・期限切れ・サーバーの再起動後）は、新しく列の最後に並ぶ
-    poll(ticket: unknown, pool: string): PollResult {
+    poll(ticket: unknown, pool: string, opts: PollOpts = {}): PollResult {
         this.sweep()
         const id = typeof ticket === "string" && this.tickets.has(ticket) ? ticket : randomUUID()
-        const mine: Ticket = this.tickets.get(id) ?? { pool, seenAt: 0 }
-        mine.seenAt = this.now()
+        const t0 = this.now()
+        const mine: Ticket = this.tickets.get(id) ?? { pool, seenAt: 0, since: t0, host: opts.host }
+        mine.seenAt = t0
         this.tickets.set(id, mine)
         if (mine.roomId !== undefined) {
             this.tickets.delete(id)
@@ -45,9 +48,27 @@ export class MatchTickets {
             this.tickets.delete(id)
             return { roomId }
         }
+        // 一覧で見えた部屋を訪ねただけの人は、空振りなら列に残さない（残すと、入りに来た人が新しい公開ルームの主になってしまう）
+        if (opts.joinOnly) {
+            this.tickets.delete(id)
+            return { gone: true }
+        }
         let waiting = 0
         for (const t of this.tickets.values()) if (t.pool === mine.pool && t.roomId === undefined) waiting++
         return { ticket: id, waiting }
+    }
+
+    // ロビー表示用。公開ルームの名前は利用者の入力なので、表示側で必ずエスケープする
+    lobby(): { random: number; rooms: { pool: string; name: string; since: number }[] } {
+        this.sweep()
+        let random = 0
+        const rooms: { pool: string; name: string; since: number }[] = []
+        for (const t of this.tickets.values()) {
+            if (t.roomId !== undefined) continue
+            if (t.pool === "random") random++
+            else if (t.pool.startsWith("pub:") && t.host) rooms.push({ pool: t.pool, name: t.host.name, since: t.since })
+        }
+        return { random, rooms: rooms.sort((a, b) => a.since - b.since) }
     }
 
     cancel(ticket: unknown): void {
