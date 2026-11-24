@@ -285,11 +285,15 @@
     #card-dock-art:not([hidden]) { display: block; }
     #card-dock-name { grid-area: name; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #card-dock-close { grid-area: close; min-width: 44px; min-height: 28px; font-size: 18px; line-height: 1; }
-    #card-dock-buttons { grid-area: buttons; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; overflow-y: auto; max-height: 80px; }
+    #card-dock-buttons { grid-area: buttons; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; overflow: hidden auto; max-height: 80px; }
     /* 折り返した行の右に空きが残らないよう、行ごとにボタンを横へ伸ばして埋める（2026-11-24 ユーザー指摘：「− Lv1 Lv3 ＋」の右が空いていた） */
     #card-dock-buttons button {
         flex: 1 0 auto;
         min-width: 44px;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         min-height: 44px;
         padding: 0 12px;
         font-size: 14px;
