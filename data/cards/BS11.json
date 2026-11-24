@@ -5660,7 +5660,8 @@
       "神星",
       "光導",
       "星魂"
-     ]
+     ],
+     "excludeSelf": true
     },
     "fromHandOnly": true,
     "action": {
