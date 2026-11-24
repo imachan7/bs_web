@@ -6,7 +6,6 @@ const ZONES = ["my-spirits", "opp-spirits"]
 const SLICE = 24
 
 const px = (v: string): number => Number.parseFloat(v) || 0
-const movable = (el: HTMLElement): boolean => el.classList.contains("card") && !el.classList.contains("rested")
 
 // 行に要る幅を、各要素の幅・余白・間隔の合計で出す。並べて測ると入りきらずに折り返した行の幅が分からないため。
 // 合体のブレイヴの絵は、相手側（180度回転）は先頭の左、自分側は末尾の右へ余白より大きくはみ出すので、その分を余白の代わりに取る。
@@ -29,68 +28,107 @@ function rowWidth(row: HTMLElement[], gap: number): number {
     return total
 }
 
-// 0 は重ね不要、null は重ねても入らない。重ねるのは疲労していないカード（末尾は重ねても後ろが無いので数えない）
-function overlapFor(row: HTMLElement[], inner: number, gap: number, max: number): number | null {
-    const need = rowWidth(row, gap) - inner
-    if (need <= 0) return 0
-    const gaps = row.slice(0, -1).filter(movable).length
-    if (gaps === 0) return null
-    const ov = Math.ceil(need / gaps)
-    return ov <= max ? ov : null
+// 重ねるのは末尾以外の、90度回らない重疲労（180度）でないカード。重ねたあとも左 SLICE px は見せるので、重ねられる量はカードの見た目の幅 - SLICE。
+// 疲労（90度）のカードの見た目の幅は、横に回った高さ（CSS が左右の余白に取った分を足した値）
+function caps(row: HTMLElement[]): number[] {
+    return row.map((el, i) => {
+        if (i === row.length - 1 || !el.classList.contains("card") || el.classList.contains("heavy-rested")) return 0
+        const rested = el.classList.contains("rested")
+        return Math.max(0, el.offsetWidth - SLICE + (rested ? 2 * px(getComputedStyle(el).marginLeft) : 0))
+    })
 }
 
-function applyOverlap(row: HTMLElement[], ov: number): void {
-    if (ov <= 0) return
-    for (const el of row.filter(movable)) {
+// 各カードの重なり幅（px）を返す。全部0なら重ね不要。ok=false は、重ねられる限り重ねても入らない（そのときの値は最大の重なり）
+function fit(row: HTMLElement[], inner: number, gap: number): { ovs: number[]; ok: boolean } {
+    const cap = caps(row)
+    const need = rowWidth(row, gap) - inner
+    if (need <= 0) return { ovs: cap.map(() => 0), ok: true }
+    // 全カードに同じ幅で重ね、上限のあるカード（左右に余白のない正位置のカード）はそこで止める。合計が足りる最小の幅を探す
+    for (let u = 1; u <= Math.max(0, ...cap); u++) {
+        if (cap.reduce((sum, c) => sum + Math.min(u, c), 0) >= need) return { ovs: cap.map((c) => Math.min(u, c)), ok: true }
+    }
+    return { ovs: cap, ok: false }
+}
+
+function applyOverlap(row: HTMLElement[], ovs: number[]): void {
+    row.forEach((el, i) => {
+        const ov = ovs[i] ?? 0
+        if (ov <= 0) return
         el.style.setProperty("--ov", `${ov}px`)
         el.classList.add("fanned")
-    }
+    })
 }
 
+function clear(zone: HTMLElement): void {
+    zone.querySelectorAll(":scope > .sp-break").forEach((el) => el.remove())
+    zone.querySelectorAll<HTMLElement>(":scope > .fanned").forEach((el) => {
+        el.classList.remove("fanned")
+        el.style.removeProperty("--ov")
+    })
+    delete zone.dataset.rows
+}
+
+// 描画の直後はカードの絵がまだ読み込まれておらず、読み込まれて .has-art が付くとカードの大きさが変わる。
+// その時点で並べ直さないと、小さいときの幅で決めた段の中で折り返して3段目が欄の外に消える（2026-11-24 に実画面で確認）。
+// カードの大きさが変わったら次のフレームで1回だけ並べ直す（重ねは余白を変えるだけで大きさは変えないので、ここから並べ直しが繰り返されることはない）
+// observe() した直後にも1回呼ばれるので、前に測った大きさと違うときだけ並べ直す（そうしないと毎フレーム並べ直し続ける）
+let pending = false
+const lastSize = new WeakMap<Element, string>()
+const sizeWatch = typeof ResizeObserver === "function"
+    ? new ResizeObserver((entries) => {
+        let changed = false
+        for (const e of entries) {
+            const size = `${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`
+            if (lastSize.get(e.target) !== size) changed = true
+            lastSize.set(e.target, size)
+        }
+        if (!changed || pending) return
+        pending = true
+        requestAnimationFrame(() => {
+            pending = false
+            layoutSpirits()
+        })
+    })
+    : null
+
 export function layoutSpirits(): void {
+    sizeWatch?.disconnect()
     for (const id of ZONES) {
         const zone = document.getElementById(id)
         if (!zone) continue
-        zone.querySelectorAll(":scope > .sp-break").forEach((el) => el.remove())
-        zone.querySelectorAll<HTMLElement>(":scope > .fanned").forEach((el) => {
-            el.classList.remove("fanned")
-            el.style.removeProperty("--ov")
-        })
-        delete zone.dataset.rows
+        clear(zone)
         const items = [...zone.children] as HTMLElement[]
+        if (mobile.matches) items.forEach((el) => sizeWatch?.observe(el))
         if (!mobile.matches || items.length === 0) continue
 
         const cs = getComputedStyle(zone)
         const inner = zone.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight)
         const gap = px(cs.columnGap)
-        const cardW = (): number => zone.querySelector<HTMLElement>(":scope > .card")?.offsetWidth ?? 0
 
         zone.dataset.rows = "1"
-        if (overlapFor(items, inner, gap, 0) === 0) continue
+        if (fit(items, inner, gap).ovs.every((v) => v === 0)) continue
 
         // 2段の配分は個数で均等にする（上の段が多い側）。幅での均等化はしない。相手側は CSS で段の順を逆にしてあり、先頭の段が下になる
-        const half = Math.ceil(items.length / 2)
         if (items.length >= 2) {
             zone.dataset.rows = "2"
             const br = document.createElement("div")
             br.className = "sp-break"
+            const half = Math.ceil(items.length / 2)
             zone.insertBefore(br, items[half] ?? null)
             const rows = [items.slice(0, half), items.slice(half)]
-            const max = cardW() - SLICE
-            const ovs = rows.map((r) => overlapFor(r, inner, gap, max))
-            if (ovs.every((v) => v !== null)) {
-                rows.forEach((r, i) => applyOverlap(r, ovs[i] ?? 0))
-                continue
+            const fits = rows.map((r) => fit(r, inner, gap))
+            if (fits.every((f) => f.ok)) {
+                rows.forEach((r, i) => applyOverlap(r, fits[i]?.ovs ?? []))
+                // 測った幅と実際がずれても3段目に折り返さないための確認（段は flex の折り返しで分けているので、ずれると消える）。ずれたら横スクロールにする
+                const tops = new Set(items.map((el) => el.offsetTop))
+                if (tops.size <= 2 && zone.scrollWidth <= zone.clientWidth + 1) continue
             }
-            br.remove()
+            clear(zone)
         }
 
-        // 2段でも入らない（目安25体以上）ときは1段に戻し、重ねきって横にスクロールする
+        // 2段でも入らないときは1段で、重ねきって横にスクロールする
         zone.dataset.rows = "scroll"
-        const max = cardW() - SLICE
-        const need = rowWidth(items, gap) - inner
-        const gaps = items.slice(0, -1).filter(movable).length
-        applyOverlap(items, gaps > 0 ? Math.min(max, Math.ceil(need / gaps)) : 0)
+        applyOverlap(items, fit(items, inner, gap).ovs)
     }
 }
 

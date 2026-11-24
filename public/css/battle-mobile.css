@@ -160,27 +160,37 @@
         padding: 2px;
     }
     /* 合体したブレイヴは、ホストの右へ半分はみ出す。絵は段の中（上へ --br-top まで）に収める。右斜め上の見せ方は PC より浅い */
-    .spirit-zone .card.has-brave { margin-right: calc(var(--sp-w) / 2 + 3px); }
-    #opponent-area .spirit-zone .card.has-brave { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
+    /* 疲労（横向き）のときは疲労の余白に任せる。こちらが勝つと相手側で幅の計算が合わず、2段に入るのに横スクロールへ落ちていた */
+    .spirit-zone .card.has-brave:not(.rested) { margin-right: calc(var(--sp-w) / 2 + 3px); }
+    #opponent-area .spirit-zone .card.has-brave:not(.rested) { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
     :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: calc(var(--br-top) * -1); }
     :root[data-brave] .spirit-zone .brave-combined.has-brave-art { max-height: calc(var(--sp-h) + var(--br-top)); }
     :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: var(--pf); }
     :root[data-brave] #opponent-area .spirit-zone:has(.has-brave-art) { padding-top: var(--pn); }
     /* 重ねたカードは、左24pxに Lv・BP・コアを寄せる（後ろのカードが右側を隠す）。相手のカードは180度回っているので、枠の右側が見た目の左になる。
-       疲労したカードは重ねない（余白で場所を取り、能力値の枠も別の置き方をしている） */
+       疲労（90度）のカードも重ねる。見た目の幅は回った高さで、右の余白を --ov だけ削る。能力値の枠は逆回転で正位置のままなので、幅24pxの枠を見た目の左端へ
+       (var(--sp-h) - 24px) / 2 ずらす（枠の座標は90度回っているため、ずらす向きは top の上下。自分は下、相手は上）。重疲労（180度）は重ねない */
     .spirit-zone > .card.fanned:not(.rested) { margin-right: calc(var(--ov) * -1); }
     .spirit-zone > .card.fanned.has-brave:not(.rested) { margin-right: calc(var(--sp-w) / 2 + 3px - var(--ov)); }
     #opponent-area .spirit-zone > .card.fanned:not(.rested),
     #opponent-area .spirit-zone > .card.fanned.has-brave:not(.rested) { margin-right: calc(var(--ov) * -1); }
-    .spirit-zone .card.fanned.has-art:not(.rested) > .card-overlay { left: 0; right: auto; width: 24px; padding: 1px 0 2px; overflow: hidden; white-space: nowrap; }
-    .spirit-zone .card.fanned[data-side="opp"].has-art:not(.rested) > .card-overlay { left: auto; right: 0; }
-    .spirit-zone .card.fanned.has-art:not(.rested) > .card-overlay .stats,
-    .spirit-zone .card.fanned.has-art:not(.rested) > .card-overlay .cores,
-    .spirit-zone .card.fanned.has-art:not(.rested) > .card-overlay .stat-bp { font-size: 8px; }
+    .spirit-zone .card.fanned.has-art.rested[data-side] { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 - var(--ov)); }
+    .spirit-zone .card.fanned.has-art > .card-overlay { left: 0; right: auto; width: 24px; padding: 1px 0 2px; overflow: hidden; white-space: nowrap; }
+    .spirit-zone .card.fanned[data-side="opp"].has-art > .card-overlay { left: auto; right: 0; }
+    .spirit-zone .card.fanned.has-art.rested > .card-overlay { left: 50%; right: auto; top: calc(50% + (var(--sp-h) - 24px) / 2); }
+    .spirit-zone .card.fanned[data-side="opp"].has-art.rested > .card-overlay { left: 50%; right: auto; top: calc(50% - (var(--sp-h) - 24px) / 2); padding: 0 0 1px; }
+    .spirit-zone .card.fanned.has-art > .card-overlay .stats,
+    .spirit-zone .card.fanned.has-art > .card-overlay .cores,
+    .spirit-zone .card.fanned.has-art > .card-overlay .stat-bp { font-size: 8px; }
+    .spirit-zone .card.fanned.has-art.rested > .card-overlay .stat-lv,
+    .spirit-zone .card.fanned.has-art.rested > .card-overlay .stat-bp { display: block; }
     .spirit-zone .card.fanned.dock-selected { z-index: 5; }
     /* 疲労は90度回るので、見た目の幅（縦長の高さ）と実際の幅の差を左右に空ける */
     .spirit-zone .card.has-art.rested,
     .spirit-zone .card[data-side="opp"].has-art.rested { margin: 0 calc((var(--sp-h) - var(--sp-w)) / 2); }
+    /* 疲労（90度）のカードのシンボルは、能力値の文字と重ならない角（見た目の左下／右上の反対側。カード枠では左下）に置く。
+       既定の右上は、回ると相手側で文字の先頭（Lv の L）に重なった */
+    .spirit-zone .card.has-art.rested:not(.heavy-rested) .symbols { top: auto; bottom: 2px; left: 2px; right: auto; }
     .spirit-zone .card .name, .nexus-zone .card .name { margin: 0; font-size: 8px; max-width: none; }
 
     .nexus-zone {
@@ -212,14 +222,14 @@
     .spirit-zone .symbols, .nexus-zone .symbols { top: 2px; right: 2px; bottom: auto; gap: 1px; }
     .spirit-zone .sym-icon, .nexus-zone .sym-icon { width: 11px; height: 11px; }
 
-    /* カードの操作ボタンは画面下の欄（#card-dock。ui/cardDock.ts）に出すので、カードの上では隠す。
+    /* カードの操作ボタンは画面下の欄（#card-dock。ui/cardDock.ts）に出すので、カードの上では隠す（自分の場は #board の外の #player-area にあるので #game で指す）。
        支払い中の個数の表示（.pay-badge）だけはカードの下端に残す */
-    #board .core-buttons,
-    #board .soul-swap-badge,
-    #board .card-actions > button,
-    #board .detach-badge { display: none; }
-    #board .card-actions { top: auto; bottom: 2px; margin: 0; }
-    #board .pay-badge { position: static; min-width: 0; padding: 1px 4px; font-size: 9px; }
+    #game .core-buttons,
+    #game .soul-swap-badge,
+    #game .card-actions > button,
+    #game .detach-badge { display: none; }
+    #game .card-actions { top: auto; bottom: 2px; margin: 0; }
+    #game .pay-badge { position: static; min-width: 0; padding: 1px 4px; font-size: 9px; }
     .spirit-zone .card:has(> .card-actions),
     .nexus-zone .card:has(> .card-actions) { margin-bottom: 0; }
     .card.dock-selected { outline: 2px solid var(--accent-hover); outline-offset: -3px; }

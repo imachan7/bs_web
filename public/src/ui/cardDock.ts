@@ -89,7 +89,8 @@ export function installCardDock(): void {
     // その状態では欄は開かない（ボタンが要る起動・覚醒はアタックと同時に出ない）
     for (const id of ["my-spirits", "my-nexuses"]) {
         $(id).addEventListener("click", (e) => {
-            if (!mobile.matches) return
+            // 欄から元のボタンを押し直したときは、カードを選び直さずに main.ts の処理へ通す（手札と同じ印）
+            if (!mobile.matches || passing) return
             const card = (e.target as HTMLElement).closest<HTMLElement>(".card[data-instance-id]")
             if (!card || card.classList.contains("clickable") || sourcesOf(card).length === 0) return
             e.stopPropagation()
