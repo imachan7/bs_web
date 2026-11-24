@@ -6,7 +6,7 @@
     import { cardStore } from "../state/cards.svelte"
     import { addBlockReason, deckCards } from "../state/deck.svelte"
     import { selection, toggleSelection } from "../state/selection.svelte"
-    import { hoverCard, leaveCard, selectDetail } from "../state/detail.svelte"
+    import { hoverCard, leaveCard, pressPoolCard, selectDetail } from "../state/detail.svelte"
     import AdjustButtons from "./AdjustButtons.svelte"
 
     let { card, size, area }: { card: CardData; size: "lg" | "md"; area: "pool" | "deck" } = $props()
@@ -27,6 +27,14 @@
         if (gain !== null) parts.push(`合体+${gain}`)
         return parts.join(" / ")
     })
+    function press(): void {
+        if (area === "pool") {
+            pressPoolCard(card.cardId)
+            return
+        }
+        selectDetail(card.cardId)
+        toggleSelection(`${area}:${card.cardId}`)
+    }
 </script>
 
 <div
@@ -38,10 +46,9 @@
     onpointerleave={leaveCard}
     onclick={(e) => {
         e.stopPropagation()
-        selectDetail(card.cardId)
-        toggleSelection(`${area}:${card.cardId}`)
+        press()
     }}
-    onkeydown={(e) => e.key === "Enter" && toggleSelection(`${area}:${card.cardId}`)}
+    onkeydown={(e) => e.key === "Enter" && press()}
     style:--c-main="var(--c-{card.colors[0]})"
     style:--c-sub="var(--c-{card.colors[card.colors.length > 1 ? 1 : 0]})"
     use:cardArt={{ cardId: card.cardId, name: card.name, size }}
@@ -53,7 +60,7 @@
     {#if card.limited}<span class="limited">禁止</span>{/if}
     {#if count > 0}<span class="count">×{count}</span>{/if}
     <!-- プールは − ＋ を常に出す（入れる操作が主なので。2026-11-24 ユーザー）。デッキ欄は小さく絵が隠れるので押したときだけ -->
-    {#if area === "pool" && !open}<div class="ctl always"><AdjustButtons {card} /></div>
+    {#if area === "pool"}<div class="ctl always"><AdjustButtons {card} /></div>
     {:else if open}<div class="ctl"><AdjustButtons {card} detailBtn /></div>{/if}
 </div>
 

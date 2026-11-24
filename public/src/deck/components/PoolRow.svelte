@@ -4,8 +4,7 @@
     import { maxBp } from "../logic/cardInfo"
     import { cardStore } from "../state/cards.svelte"
     import { addBlockReason, deckCards } from "../state/deck.svelte"
-    import { selection, toggleSelection } from "../state/selection.svelte"
-    import { hoverCard, leaveCard, selectDetail } from "../state/detail.svelte"
+    import { hoverCard, leaveCard, pressPoolCard } from "../state/detail.svelte"
     import AdjustButtons from "./AdjustButtons.svelte"
 
     let { card }: { card: CardData } = $props()
@@ -14,7 +13,6 @@
     const bp = $derived(maxBp(card))
     const count = $derived(deckCards.get(card.cardId) ?? 0)
     const maxed = $derived(addBlockReason(card) !== null)
-    const open = $derived(selection.key === `pool:${card.cardId}`)
 </script>
 
 <div
@@ -28,10 +26,9 @@
     style:--c-main="var(--c-{card.colors[0]})"
     onclick={(e) => {
         e.stopPropagation()
-        selectDetail(card.cardId)
-        toggleSelection(`pool:${card.cardId}`)
+        pressPoolCard(card.cardId)
     }}
-    onkeydown={(e) => e.key === "Enter" && toggleSelection(`pool:${card.cardId}`)}
+    onkeydown={(e) => e.key === "Enter" && pressPoolCard(card.cardId)}
 >
     <span class="cost">{card.cost}</span>
     <span class="name">{card.name}</span>
@@ -39,7 +36,7 @@
     <span class="type">{CARD_TYPE_LABELS[card.type]}</span>
     <span class="bp">{bp === null ? "" : `BP${bp}`}</span>
     {#if count > 0}<span class="count">×{count}</span>{/if}
-    <AdjustButtons {card} detailBtn={open} />
+    <AdjustButtons {card} />
 </div>
 
 <style>

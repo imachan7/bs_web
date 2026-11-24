@@ -32,3 +32,13 @@ export function selectDetail(cardId: string): void {
 export function unpinDetail(): void {
     detail.pinned = false
 }
+
+// プールのカードを押したとき。− ＋ はカードに常に出ているので押しても出さない。スマホ（幅900未満）は詳細カラムが無いので画面いっぱいの欄で開く
+export function pressPoolCard(cardId: string): void {
+    if (matchMedia("(max-width: 899px)").matches) {
+        detail.cardId = cardId
+        detail.mobile = true
+        return
+    }
+    selectDetail(cardId)
+}
