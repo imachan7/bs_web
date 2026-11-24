@@ -1646,6 +1646,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `detail`（const）：詳細に出しているカード。マウスが離れても次のカードに載るまで残す。mobile は画面いっぱいの欄を開いているか（スマホ用）
 - `hoverCard`（fn）：タッチのタップでも pointerenter は飛ぶので、マウスのときだけ拾う（スマホのタップは詳細ボタンで開く）
+- `selectDetail`（fn）：タップ・クリックでも詳細カラムを切り替える（幅900以上のタッチ端末＝タブレットはマウスが無く、hoverCard だけでは何も出ない）。
 
 ## public/src/deck-next/state/filters.svelte.ts
 

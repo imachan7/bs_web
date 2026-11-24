@@ -1,7 +1,8 @@
 <script lang="ts">
     import { cardStore } from "../state/cards.svelte"
-    import { filters, visibleCards } from "../state/filters.svelte"
+    import { visibleCards } from "../state/filters.svelte"
     import { artEpoch } from "../state/artEpoch.svelte"
+    import Filters from "./Filters.svelte"
     import PoolTile from "./PoolTile.svelte"
     import PoolRow from "./PoolRow.svelte"
 
@@ -21,18 +22,11 @@
 </script>
 
 <section class="pool">
-    <div class="bar">
-        <input type="search" placeholder="名前・効果文で検索" bind:value={filters.search} />
-        <select bind:value={filters.sort} aria-label="並び順">
-            <option value="id">ID順</option>
-            <option value="cost-asc">コスト昇順</option>
-            <option value="cost-desc">コスト降順</option>
-        </select>
+    <Filters count={visible.length}>
         <button type="button" onclick={() => (mode = mode === "grid" ? "list" : "grid")}>
             {mode === "grid" ? "リスト表示" : "グリッド表示"}
         </button>
-        <span class="count">{visible.length} / {cardStore.cards.length} 枚を表示中</span>
-    </div>
+    </Filters>
 
     {#if cardStore.error}
         <p>{cardStore.error}</p>
@@ -60,9 +54,7 @@
 
 <style>
     .pool { display: flex; flex-direction: column; min-height: 0; height: 100%; }
-    .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px; }
-    .bar input { flex: 1; min-width: 140px; }
-    .count { font-size: 12px; color: #aab; }
+    .pool > :global(.filters) { margin: 8px; }
     .body { overflow-y: auto; padding: 8px; flex: 1; }
     /* タイルが overflow: hidden なので、行の高さを中身に固定しないと枠の高さに合わせて行が潰れ、タイルが重なる */
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); grid-auto-rows: max-content; gap: 8px; align-content: start; }
