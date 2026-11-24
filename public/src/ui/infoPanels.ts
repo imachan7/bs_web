@@ -55,9 +55,10 @@ export function renderInfo(
             : []) as [string, string][]),
         // デッキの横に置かれたコア（BS12-078 カシオペアシール）。置かれているときだけ出す
         ...((p.deckSideCores > 0 ? [["", `デッキ横のコア ${p.deckSideCores}`]] : []) as [string, string][]),
-        // バーストのセット状況（公開情報）。中身は出さない。自分側だけターン1回制限の消化を添える
-        ...((p.burstSet
-            ? [["", `バースト セット中${isSelf && p.burstSetThisTurn ? "（このターンはセット済み）" : ""}`]]
+        // セットしているかはバーストの枠（裏面）で分かるので文字にしない（2026-11-24 ユーザー）。
+        // ターン1回の制限を使ったことは枠からは分からないので、自分側だけ残す
+        ...((isSelf && p.burstSet && p.burstSetThisTurn
+            ? [["", "バーストはこのターンセット済み"]]
             : []) as [string, string][]),
         ["deck-n", `デッキ ${p.deckCount}枚`],
         ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
@@ -156,6 +157,7 @@ export function renderBurst(id: string, view: GameView, pid: PlayerId, isMine: b
 
     const el = document.createElement("div")
     el.className = "burst-slot"
+    el.setAttribute("aria-label", "バースト：セット中")
 
     if (isMine && player.burst) {
         // 自分のバースト：裏向き（相手には見えない）だが、自分にはカード名を出し、
