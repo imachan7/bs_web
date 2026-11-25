@@ -153,10 +153,16 @@ export function installCardDock(): void {
         e.stopPropagation()
         select({ zone: "hand", id: card.dataset.cardId ?? "" })
     }, true)
-    $("card-dock-close").addEventListener("click", () => {
+    const close = (): void => {
         selected = null
+        picking = null
         document.querySelectorAll(".dock-selected").forEach((el) => el.classList.remove("dock-selected"))
         renderCardDock()
+    }
+    $("card-dock-close").addEventListener("click", close)
+    // 欄の外を押したら閉じる（効果の吹き出しと同じ。2026-11-25 ユーザー案）。カードを押したときは上の取り込みで止めて選び直すので、ここへは来ない
+    document.addEventListener("click", (e) => {
+        if (selected !== null && !(e.target as HTMLElement).closest("#card-dock")) close()
     })
     $("card-dock-buttons").addEventListener("click", (e) => {
         if ((e.target as HTMLElement).closest("[data-dock-back]")) {

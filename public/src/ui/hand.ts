@@ -114,7 +114,7 @@ export function renderHand(view: GameView, ui: UiState): void {
         
         // スマホの欄に出す、必要なコアと払える元の見比べ（手札のカードは小さく「盤面コア必要」のバッジを隠している。2026-11-25 ユーザー指摘）
         if (isUsableState && need > 0) {
-            const lvPart = lv1 && lv1.cores > 0 && m.type !== "magic" ? `＋Lv1 ${lv1.cores}` : ""
+            const lvPart = lv1 && lv1.cores > 0 && m.type !== "magic" ? `＋Lv1の${lv1.cores}` : ""
             const fromField = Math.max(0, need - reserve)
             // 場のコアは、リザーブで足りないときだけ出す（足りるときに場の合計を出しても見比べに要らない）
             const fieldPart = reserve >= need ? "" : usableField ? ` → 場から${fromField}` : `・場 ${fieldCores}`

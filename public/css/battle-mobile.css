@@ -10,7 +10,10 @@
     /* 行の高さ。背の低い画面（下の max-height: 700px）だけ値を詰める（2026-11-24 iPhone SE の Safari で見える高さ約553px に収めるため）。
        --zone-h はスピリットの欄の高さで、2段のときのカード幅もここから決まる（欄に収まる幅。ui/spiritLayout.ts は測った幅で判定するので値を直接は読まない） */
     /* 長押しで説明を出すので、ボタンやカードの文字が選択状態にならないようにする（2026-11-25 ユーザー指摘）。ログは写せるよう残す */
-    #game :not(#log, #log *) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    /* 効果の吹き出しは #game の外（body の直下）にあるので、対戦中は body ごと止める。絵も長押しで選択・保存の欄が出ないようにする */
+    body:has(#game:not(.hidden)) :not(#log, #log *) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    body:has(#game:not(.hidden)) img { -webkit-user-drag: none; }
+    #log, #log * { -webkit-user-select: text; user-select: text; }
 
     :root {
         --sp-h-ratio: calc(985 / 675); --nexus-h: 63px; --info-h: 40px; --nexus-w: 48px;
@@ -376,12 +379,13 @@
     #choice-options .stepper-row > button { flex: none; width: 64px; min-height: 44px; font-size: 20px; }
 
     /* 画面の下端に固定して、手札の上に重ねる（開いている間は手札が隠れる）。ページが画面より高くても、下が見切れて「召喚」が半分になることがない（2026-11-24 iPhone SE で確認）。
-       大きな絵・カード名・操作ボタン（高さ44px以上）を出す。時間では消えず、もう一度カードを押すか × で閉じる */
+       大きな絵・カード名・操作ボタン（高さ44px以上）を出す。時間では消えず、欄の外を押すか × で閉じる。
+       × は角ではなくボタンの行の右隣に置く（右上の角は親指が届きにくい。2026-11-25 ユーザー指摘） */
     #card-dock:not(.hidden) {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
         grid-template-rows: auto auto;
-        grid-template-areas: "art name close" "art buttons buttons";
+        grid-template-areas: "art name name" "art buttons close";
         align-content: center;
         align-items: center;
         column-gap: 8px;
@@ -401,7 +405,7 @@
     #card-dock-art:not([hidden]) { display: block; }
     #card-dock-name { grid-area: name; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #card-dock-name .dock-pay-info { display: block; font-weight: 400; font-size: 11px; color: var(--text-muted, #9aa3b2); white-space: normal; }
-    #card-dock-close { grid-area: close; min-width: 44px; min-height: 28px; font-size: 18px; line-height: 1; }
+    #card-dock-close { grid-area: close; align-self: end; min-width: 44px; min-height: 44px; margin-top: 6px; font-size: 18px; line-height: 1; }
     #card-dock-buttons { grid-area: buttons; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; overflow: hidden auto; max-height: 80px; }
     /* 折り返した行の右に空きが残らないよう、行ごとにボタンを横へ伸ばして埋める（2026-11-24 ユーザー指摘：「− Lv1 Lv3 ＋」の右が空いていた） */
     #card-dock-buttons button {
