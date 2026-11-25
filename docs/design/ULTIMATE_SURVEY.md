@@ -78,5 +78,5 @@
 - 担当の分け方：弾ごとに `colors[0]` で6色に分け、1色＝調査役1体（Sonnet）。同時に2体まで。1体で5時間枠の約4%
   `python3 -c "import json,collections;d=json.load(open('data/staging/BS27.json'));g=collections.defaultdict(list);[g[c['colors'][0]].append(c['cardId']) for c in d];[print(k,len(v),' '.join(v)) for k,v in g.items()]"`
 - 終わった表は `python3 scripts/check_plan_table.py` を通してから1色1コミット。ユーザーは開発サーバーの /dev/plan-review.html で答える（PLAN_REVIEW_DIR をこのワークツリーの docs/design に向けて起動）
-- 済み：BS25〜BS28 の6色。BS29 は git log で確かめて続ける
+- 済み：BS25〜BS29 の6色。残りは BS30 の6色
 - BS24〜BS30 はブロックアイコン《1》の区分（batspi「カードリスト/ブロックアイコン」2026-11-26 確認）。バースト効果に「召喚する」とだけ書かれていても**コストを支払わない**（BURST.md「《1》までは無償」2026-09-28 ユーザー確認）。確かめたいことに入れない
