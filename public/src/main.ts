@@ -2,7 +2,7 @@
 import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
 import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
-import { onPayStageClick, openEffectSummonPay, openEffectSummonScreen, installPayStages } from "./ui/payStages"
+import { onPayStageClick, openBravePay, openEffectSummonPay, openEffectSummonScreen, installPayStages } from "./ui/payStages"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -637,10 +637,7 @@ function cardButtonAction(t: HTMLElement): boolean {
         if (ui.payMode === "auto" && view.players[view.you].reserve - (view.players[view.you].soulCore?.zone === "reserve" ? 1 : 0) >= need) {
             send({ type: "detachBrave", braveInstanceId })
         } else {
-            ui.targeting = null
-            ui.awakenTarget = null
-            ui.combineBrave = null
-            ui.paying = { handIndex: -1, forDetachBraveInstanceId: braveInstanceId, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
+            openBravePay(view, { forDetachBraveInstanceId: braveInstanceId })
             rerender()
         }
         return true
@@ -1095,18 +1092,8 @@ async function init(): Promise<void> {
                 return
             }
             const keep = view?.pendingChoice?.braveKeep
-            if (keep) {
-                ui.targeting = null
-                ui.awakenTarget = null
-                ui.combineBrave = null
-                ui.paying = {
-                    handIndex: -1,
-                    forBraveKeep: { option, cardId: keep.cardId, need: keep.need },
-                    assigned: {},
-                    discardHandIndices: [],
-                    millPay: 0,
-                    shinsokuAssistInstanceIds: [],
-                }
+            if (keep && view) {
+                openBravePay(view, { forBraveKeep: { option, cardId: keep.cardId, need: keep.need } })
                 rerender()
                 return
             }
