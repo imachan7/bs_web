@@ -259,10 +259,11 @@
     .spirit-zone .card.rested:not(.heavy-rested),
     .spirit-zone .card[data-side="opp"].rested:not(.heavy-rested) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2); margin-right: calc((var(--sp-h) - var(--sp-w)) / 2); }
     /* 合体中の疲労：ブレイヴの絵は立てたまま、横倒しのスピリットの右（相手は左）に半分重ねて並べる。カードと一緒に回すと横倒しで下の段へはみ出した。
-       枠をカードの左上に置いて逆向きに90度回すと、カードの回転と打ち消し合って、見た目ではスピリットの右上（相手は点対称で左下）に立つ。上からの位置＝重ねる幅（--sp-w / 2 - 3px） */
-    :root .spirit-zone .card.rested:not(.heavy-rested) > .brave-combined-box { left: 0; right: auto; top: calc(var(--sp-w) / 2 - 3px); bottom: auto; transform-origin: 0 0; transform: rotate(-90deg); }
-    #player-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) / 2 + 3px); }
-    #opponent-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) / 2 + 3px); margin-right: calc((var(--sp-h) - var(--sp-w)) / 2); }
+       枠をカードの左上に置いて逆向きに90度回すと、カードの回転と打ち消し合って、見た目ではスピリットの右上（相手は点対称で左下）に立つ。上からの位置＝重ねる幅（18px。横倒しでは重なる所に BP の数字が来るので、立っているとき（約30px）より浅くする）。
+       回すと重なり順が DOM の順になり、後ろにあるスピリットの絵・能力値（z-index 1）がブレイヴの上に来たので、その上（コスト・コアの印 10 より下）に置く */
+    :root .spirit-zone .card.rested:not(.heavy-rested) > .brave-combined-box { left: 0; right: auto; top: 18px; bottom: auto; transform-origin: 0 0; transform: rotate(-90deg); z-index: 2; }
+    #player-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) - 15px); }
+    #opponent-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) - 15px); margin-right: calc((var(--sp-h) - var(--sp-w)) / 2); }
 
     .spirit-zone .card .name, .nexus-zone .card .name { margin: 0; font-size: 8px; max-width: none; }
 
