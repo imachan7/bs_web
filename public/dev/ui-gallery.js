@@ -135,6 +135,18 @@ const SCENES = [
     run: async () => {},
   },
   {
+    id: "braveRow", name: "16c 合体スピリットが並ぶ（1枚／2枚・立ち／疲労）",
+    board: () => {
+      const side = () => base({ field: { spirits: [
+        { cardId: FILL[0], cores: 3, braves: [BRAVE1] }, { cardId: FILL[1], cores: 3, braves: [BRAVE1, BRAVE2] },
+        { cardId: FILL[2], cores: 3, braves: [BRAVE2] }, { cardId: FILL[3], cores: 3, braves: [BRAVE1, BRAVE2], isRested: true },
+        { cardId: FILL[0], cores: 3, braves: [BRAVE1], isRested: true }, { cardId: FILL[1], cores: 3, braves: [BRAVE2] },
+      ], nexuses: [] } })
+      return { me: side(), opp: side() }
+    },
+    run: async () => {},
+  },
+  {
     id: "braveRested", name: "16b 合体して疲労（1体／2体）・疲労4体",
     board: () => {
       const side = () => base({ field: { spirits: [
