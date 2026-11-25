@@ -358,11 +358,11 @@
     /* 2列の最後に1つだけ余ったボタン（決定・召喚など）と、選択肢の外のボタン（対象選択をやめる・選ばない）は横幅いっぱいにする（右に空きを残さない） */
     #choice-options > button:last-child:is(:nth-child(odd), .stepper-row + button),
     #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > button { grid-column: 1 / -1; }
-    /* 選択肢を下に出している間は、オープン中・破棄したカードの欄を上（上の行の下）へ移す。下のままだと選択肢に隠れて、選ぶ元のカードが見えなかった */
-    body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #reveal-panel,
-    body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #mill-panel { top: 44px; bottom: auto; }
-    /* そのとき、マジックの効果などの通知（#event-layer。盤面の上から60px）はオープン中の欄（上の行の下から約140px）と重なるので、欄の下へずらす（2026-11-25 ユーザー指摘） */
-    body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)):has(#reveal-panel, #mill-panel) #event-layer { top: 154px; }
+    /* オープン中・破棄したカードの欄は、いつも上（上の行の下）に出す。下だと選択肢に隠れて選ぶ元のカードが見えず、選ぶ間だけ上へ移していたが、
+       選び終えると欄が下へ飛び、相手のデッキの破棄が自分の側にもう一度出たように見えた（2026-11-25 ユーザー指摘） */
+    #reveal-panel, #mill-panel { top: 44px; bottom: auto; transform: none; }
+    /* マジックの効果などの通知（#event-layer。盤面の上から60px）は欄（上の行の下から約140px）と重なるので、欄の下へずらす */
+    body:has(#reveal-panel, #mill-panel) #event-layer { top: 154px; }
     #choice-options > button { min-height: 44px; }
     /* 召喚・配置の支払い（①コスト／②置くコア）。シート全体を1つの項目として横幅いっぱいに置き、中は自前で並べる。ボタンは44px以上、はみ出すときはシートの中でスクロール */
     /* 支払いのシートは中で別にスクロールさせない（外の欄と二重にスクロールし、下端に固定した 召喚／配置 のボタンが外の欄の外に隠れた）。
