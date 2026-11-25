@@ -44,7 +44,8 @@ export function renderInfo(
         myChoiceCandidates.includes(coreZoneChoiceId(zone, pid)) ? coreZoneChoiceId(zone, pid) : undefined
     // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
-        ["", (isSelf ? "あなた: " : "相手: ") + p.name],
+        // 名前だけ出す。「あなた:」「相手:」は場の位置と枠の色で分かる（2026-11-25 ユーザー指摘）
+        ["", p.name],
         // 「⏵ターン中」は出さない。上の行の「ターンN（あなた／相手）」と場の枠の色で分かり、同じことの二重だった（2026-11-25 ユーザー指摘で PC も外した）
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
         // ソウルコアはコア数値に含まれない（docs/design/SOULCORE.md 案A-outside）。

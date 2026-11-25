@@ -171,6 +171,50 @@ function audit(f) {
   for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
     if (overlap(rs[i].r, rs[j].r) && !rs[i].b.contains(rs[j].b) && !rs[j].b.contains(rs[i].b)) out.push(`重なり: ${rs[i].t} × ${rs[j].t}`)
   }
+  // 盤面の区画どうしの重なり：区画（情報の行・バースト・ネクサス・スピリット・マット・中央の帯・手札）の中の末端の部品が、
+  // 別の区画の部品と見えている所で重なっていたら出す（ネクサスのシンボルが名前の行にかかっていた。2026-11-25）。
+  // はみ出しが親の overflow で切られて見えていない部品は数えない
+  const BLOCKS = ["#opp-info", "#opp-burst", "#opp-nexuses", "#opp-spirits", "#my-info", "#my-burst", "#my-nexuses", "#my-spirits", "#center-info-area", "#hand",
+    ...["life", "reserve", "deck", "trash", "tegamoto"].flatMap((k) => [`#mat-${k}-opp`, `#mat-${k}-self`])]
+  const clipped = (el, x, y) => {
+    for (let a = el.parentElement; a && a !== d.body; a = a.parentElement) {
+      const cs = w.getComputedStyle(a)
+      if (cs.overflowX !== "visible" || cs.overflowY !== "visible") {
+        const r = a.getBoundingClientRect()
+        if (x < r.left || x > r.right || y < r.top || y > r.bottom) return true
+      }
+    }
+    return false
+  }
+  const leaves = []
+  for (const sel of BLOCKS) {
+    const blk = d.querySelector(sel)
+    if (!blk || !blk.offsetParent) continue
+    for (const el of blk.querySelectorAll("*")) {
+      if (el.children.length > 0 || w.getComputedStyle(el).visibility === "hidden") continue
+      const r = el.getBoundingClientRect()
+      if (r.width < 2 || r.height < 2) continue
+      if (!el.textContent.trim() && el.tagName !== "IMG" && !String(el.className).includes("icon")) continue
+      leaves.push({ el, r, blk: sel })
+    }
+  }
+  // 見切れ：部品の一部が、はみ出しを切る（overflow: hidden／clip）親の端で切られている。ネクサスのシンボルが欄の下端で欠けていた
+  for (const l of leaves) {
+    for (let a = l.el.parentElement; a && a !== d.body; a = a.parentElement) {
+      const cs = w.getComputedStyle(a), r = a.getBoundingClientRect()
+      const cutY = /hidden|clip/.test(cs.overflowY) && (l.r.top < r.top - 2 || l.r.bottom > r.bottom + 2) && l.r.bottom > r.top && l.r.top < r.bottom
+      const cutX = /hidden|clip/.test(cs.overflowX) && (l.r.left < r.left - 2 || l.r.right > r.right + 2) && l.r.right > r.left && l.r.left < r.right
+      if (cutY || cutX) { out.push(`見切れ: ${l.blk}の${(l.el.textContent.trim() || l.el.className || l.el.tagName).toString().slice(0, 12)}`); break }
+    }
+  }
+  for (let i = 0; i < leaves.length; i++) for (let j = i + 1; j < leaves.length; j++) {
+    const a = leaves[i], b = leaves[j]
+    if (a.blk === b.blk || !overlap(a.r, b.r)) continue
+    const x = (Math.max(a.r.left, b.r.left) + Math.min(a.r.right, b.r.right)) / 2, y = (Math.max(a.r.top, b.r.top) + Math.min(a.r.bottom, b.r.bottom)) / 2
+    if (clipped(a.el, x, y) || clipped(b.el, x, y)) continue
+    const name = (l) => `${l.blk}の${(l.el.textContent.trim() || l.el.className || l.el.tagName).toString().slice(0, 10)}`
+    out.push(`区画の重なり: ${name(a)} × ${name(b)}`)
+  }
   const sv = d.querySelector(".stepper-value")
   if (sv) for (const x of rs) if (overlap(x.r, sv.getBoundingClientRect())) out.push(`数とボタンが重なる: ${x.t}`)
   return [...new Set(out)]

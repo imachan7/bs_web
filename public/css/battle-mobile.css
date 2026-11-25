@@ -113,12 +113,13 @@
     #opponent-area .opp-hand-area { order: -1 }
     #opp-info { margin-bottom: calc(var(--info-h) * -1 - 2px); }
 
-    /* 自分は上にスピリット（左にバースト）・下にネクサス、相手はその点対称。バーストはネクサスの行の中にあるので display: contents でほどく */
+    /* 自分は上にスピリット・下にネクサス（左端にバースト）、相手はその点対称。バーストはネクサスの行の中にあるので display: contents でほどく。
+       バーストをスピリットの横の列に置くと、場の高さいっぱいの列になって上下が空いた（2026-11-25 ユーザー指摘）ので、ネクサスの行へ移してスピリットに幅を回す */
     .field-row {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
         grid-template-rows: var(--zone-h) var(--nexus-h) var(--info-h);
-        grid-template-areas: "burst spirits" "nexus nexus" ". .";
+        grid-template-areas: "spirits spirits" "burst nexus" ". .";
         gap: 2px 6px;
         position: relative;
         min-height: 0;
@@ -127,16 +128,16 @@
     #opponent-area .field-row {
         grid-template-columns: minmax(0, 1fr) auto;
         grid-template-rows: var(--info-h) var(--nexus-h) var(--zone-h);
-        grid-template-areas: ". ." "nexus nexus" "spirits burst";
+        grid-template-areas: ". ." "nexus burst" "spirits spirits";
     }
     .field-row > .nexus-row { display: contents; }
     .field-row .burst-zone { grid-area: burst; }
     .field-row .nexus-zone { grid-area: nexus; }
     .field-row > .spirit-zone { grid-area: spirits; }
     .burst-zone .burst-slot,
-    #opp-burst .burst-slot.burst-revealed { width: 48px; height: auto; aspect-ratio: 675 / 985; }
+    #opp-burst .burst-slot.burst-revealed { width: auto; height: calc(var(--nexus-h) - 4px); aspect-ratio: 675 / 985; }
     /* 伏せていないときは細くして、スピリットの行に幅を回す */
-    .burst-zone .burst-slot.burst-empty { width: 24px; font-size: 0; }
+    .burst-zone .burst-slot.burst-empty { width: 24px; aspect-ratio: auto; font-size: 0; }
     .burst-empty::before { content: "B"; font-size: 11px; }
 
     /* ライフ・リザーブ・デッキ・トラッシュは PC と同じ枠（ui/mat.ts）を小さくして、情報の行の右に並べる。
@@ -278,6 +279,8 @@
     .spirit-zone .card.has-art > .card-overlay .stat-bp { font-size: 11px; }
     /* シンボルの位置は PC と同じ右下のまま（2026-11-24 ユーザー「変えないでほしい」）。スマホは見出し（BP・コア）を出さないので数字と重ならない */
     .spirit-zone .symbols, .nexus-zone .symbols { gap: 1px; }
+    /* ネクサスのシンボルはカードの内側の右下に置く。外へ 4px はみ出すと、下の名前・ライフの行に重なった（2026-11-25 ユーザー指摘） */
+    .nexus-zone .symbols { bottom: 1px; right: 1px; }
     .spirit-zone .sym-icon, .nexus-zone .sym-icon { width: 11px; height: 11px; }
 
     /* カードの操作ボタンは画面下の欄（#card-dock。ui/cardDock.ts）に出すので、カードの上では隠す（自分の場は #board の外の #player-area にあるので #game で指す）。
