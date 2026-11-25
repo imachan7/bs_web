@@ -325,6 +325,9 @@
        押すと下の欄が開くので、帯自体は押せないようにする（欄の「バーストをセット」で選ぶ） */
     #hand .burst-set-badge { min-height: 0; height: 14px; padding: 0; font-size: 0; pointer-events: none; border-radius: 0 0 4px 4px; }
     #hand .burst-set-badge::before { content: "バースト"; font-size: 9px; line-height: 14px; }
+    /* 同じカードの枚数（x2）はカードの内側の右上に置く。PC と同じく下端の外へ 6px はみ出すと、横スクロールの手札が縦にも動いた（2026-11-25 ユーザー指摘）。
+       下端はバースト・盤面コアの帯、左上はコストの丸が使っている */
+    #hand .count-badge { top: 1px; right: 1px; bottom: auto; padding: 0 4px; font-size: 9px; line-height: 14px; }
     /* 画面の右下に固定し、手札の右に縦1列で出す（#board 基準だと場の下端＝相手の場の上に来て重なった） */
     #action-buttons-container {
         position: fixed;
