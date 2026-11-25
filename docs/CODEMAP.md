@@ -1766,6 +1766,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hideWaiting`（fn）
 - `showToast`（fn）
 
+## public/src/ui/cardDock.ts
+
+- `renderCardDock`（fn）：盤面を描き直すたびに呼ぶ。描き直しでカードもボタンも作り直されるので、欄の中身も作り直す。
+- `installCardDock`（fn）
+
 ## public/src/ui/coreIcon.ts
 
 - `coreIcon`（fn）：コアの画像。文字の高さに合わせるため大きさは CSS（.core-icon）で em 指定
@@ -1838,11 +1843,25 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `assignPayCore`（fn）：支払いモード中、指定スピリットにコアを1個割り当てる。合計が必要数に達したら自動送信する。
 - `assignOneCore`（fn）：支払い元1つにコアを1個割り当て、必要数に達したら送信する。
 
+## public/src/ui/payStages.ts
+
+- `installPayStages`（fn）
+- `openEffectSummonPay`（fn）：効果による召喚・配置の支払いを2段の画面で開く。②の置く数は index 番目から始める
+- `effectSummonNeedsScreen`（fn）：画面を出さずに済む判定（自動で、リザーブだけで最小の置くコアまで払える）。通常の召喚と同じ
+- `summonLevelChoosable`（fn）：通常の召喚・配置：②で Lv／置く数を選べるか
+- `fillFromReserve`（fn）：自動でリザーブだけで払えるときに、最小の置き方までリザーブで埋めて②から始める（play.tryPlay から）
+- `assignPayStageCore`（fn）：フィールドの個体を押したときの入口（payInput.assignPayCore から呼ぶ）
+- `onPayStageClick`（fn）
+- `payStageHeading`（fn）：見出し（#targeting-info に出す1行）
+- `renderPayStageSheet`（fn）
+
 ## public/src/ui/paying.ts
 
 - `payableFieldCores`（fn）：支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
 - `payingIsCostOnly`（fn）：コストだけの支払い（ブロックの追加コスト・【迷彩】）。置くコアが無いので[ソウルコア]は「コストに使う」だけ選べる
+- `payingStageNeeds`（fn）：支払いモードで満たすべきコア数を、コスト（①）と置くコア（②）に分けて返す。
 - `payingNeed`（fn）：支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
+- `payingStageFilled`（fn）：2段の画面で、その段にいま積んである数（リザーブ・フィールド・[ソウルコア]）。
 - `payingRemaining`（fn）：支払いモードでの残り不足コア数（0なら送信可能）
 - `PayingState`（型）：支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
 - `AltPayInfo`（型）：この支払いで使える代替コストの種類と上限。
@@ -1872,6 +1891,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `onMySpiritClick`（fn）
 - `sendAttack`（fn）：アタックの追加コスト（attackPayToll）：リザーブで払えるならそのまま送り、足りなければ支払いモードへ入る（ブロックと同じ。2026-10-11 ユーザー確認）
 - `onOppSpiritClick`（fn）
+
+## public/src/ui/spiritLayout.ts
+
+- `layoutSpirits`（fn）
+- `installSpiritLayout`（fn）
+
+## public/src/ui/statusMenu.ts
+
+- `installStatusMenu`（fn）
 
 ## public/src/ui/tooltip.ts
 

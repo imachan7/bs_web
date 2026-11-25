@@ -44,7 +44,9 @@ export function renderInfo(
         myChoiceCandidates.includes(coreZoneChoiceId(zone, pid)) ? coreZoneChoiceId(zone, pid) : undefined
     // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
-        ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
+        // 名前だけ出す。「あなた:」「相手:」は場の位置と枠の色で分かる（2026-11-25 ユーザー指摘）
+        ["", p.name],
+        // 「⏵ターン中」は出さない。上の行の「ターンN（あなた／相手）」と場の枠の色で分かり、同じことの二重だった（2026-11-25 ユーザー指摘で PC も外した）
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
         // ソウルコアはコア数値に含まれない（docs/design/SOULCORE.md 案A-outside）。
         // 案B-inside: 数値には最初から[ソウルコア]が含まれる（2026-10-06 ユーザー確定）。所在は別項目で特定する
@@ -55,9 +57,10 @@ export function renderInfo(
             : []) as [string, string][]),
         // デッキの横に置かれたコア（BS12-078 カシオペアシール）。置かれているときだけ出す
         ...((p.deckSideCores > 0 ? [["", `デッキ横のコア ${p.deckSideCores}`]] : []) as [string, string][]),
-        // バーストのセット状況（公開情報）。中身は出さない。自分側だけターン1回制限の消化を添える
-        ...((p.burstSet
-            ? [["", `バースト セット中${isSelf && p.burstSetThisTurn ? "（このターンはセット済み）" : ""}`]]
+        // セットしているかはバーストの枠（裏面）で分かるので文字にしない（2026-11-24 ユーザー）。
+        // ターン1回の制限を使ったことは枠からは分からないので、自分側だけ残す
+        ...((isSelf && p.burstSet && p.burstSetThisTurn
+            ? [["", "バーストはこのターンセット済み"]]
             : []) as [string, string][]),
         ["deck-n", `デッキ ${p.deckCount}枚`],
         ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
@@ -156,6 +159,7 @@ export function renderBurst(id: string, view: GameView, pid: PlayerId, isMine: b
 
     const el = document.createElement("div")
     el.className = "burst-slot"
+    el.setAttribute("aria-label", "バースト：セット中")
 
     if (isMine && player.burst) {
         // 自分のバースト：裏向き（相手には見えない）だが、自分にはカード名を出し、
@@ -174,6 +178,8 @@ export function renderBurst(id: string, view: GameView, pid: PlayerId, isMine: b
         name.className = "name"
         name.textContent = m.name
         el.appendChild(name)
+        // 自分には何をセットしたかを絵で見せる（名前だけの黒い枠では、セットしているのが見えにくかった。2026-11-24 ユーザー指摘）。🔒 は相手には裏向きの印
+        attachCardArt(el, player.burst, m.name)
     } else {
         // 相手のバースト：伏せてあることだけが公開情報。中身は絶対に出さない
         el.classList.add("burst-back")
@@ -225,7 +231,7 @@ export function renderBattle(view: GameView): void {
         // ブロック宣言後の追加フラッシュ
         if (isDefender) {
             if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}追加でフラッシュマジックを使うか「パス」してください。`
+                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}フラッシュマジックを使うか「パス」してください。`
             } else {
                 message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}相手の対応を待っています…`
             }
@@ -240,7 +246,7 @@ export function renderBattle(view: GameView): void {
         if (view.isFlashTiming && !hasPriority) {
             message = `⚔ ${m.name}（BP${bp}）がアタック中。相手がフラッシュの優先権を持っています…`
         } else if (view.isFlashTiming) {
-            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュマジックを使うか「パス」してください。パス後にブロック／「ライフで受ける」を選べます。`
+            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュマジックを使うか「パス」してください。`
         } else {
             message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュ終了。ブロックするスピリットを選ぶか「ライフで受ける」を押してください。`
         }
@@ -266,5 +272,12 @@ export function renderBattle(view: GameView): void {
         message += " 相手はフラッシュ封印中（手札のカードを使用できない）。"
     }
 
-    el.textContent = message
+    // 何が起きているか（最初の「！」「。」まで）と、何をすればよいかを分けて出す。スマホは後ろを小さくする（長い1文だと何が起きたか分からなかった。2026-11-24 ユーザー）
+    const cut = message.search(/[！。]/) + 1
+    const head = document.createElement("b")
+    head.textContent = cut > 0 ? message.slice(0, cut) : message
+    const hint = document.createElement("span")
+    hint.className = "battle-hint"
+    hint.textContent = cut > 0 ? message.slice(cut).trim() : ""
+    el.replaceChildren(head, " ", hint)
 }

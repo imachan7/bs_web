@@ -2,6 +2,7 @@
 import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
 import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
+import { onPayStageClick, openEffectSummonPay, effectSummonNeedsScreen, installPayStages } from "./ui/payStages"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -10,6 +11,9 @@ import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeck
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
 import { waitForOpponent, type DeckChoice, type WaitExtra } from "./matchWait"
 import { assetUrl } from "./assetUrl"
+import { installCardDock } from "./ui/cardDock"
+import { installStatusMenu } from "./ui/statusMenu"
+import { installSpiritLayout } from "./ui/spiritLayout"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
@@ -121,7 +125,7 @@ function connectAndRun(button: HTMLElement, action: () => void): void {
 
 
 export let view: GameView | null = null
-export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, summonCores: null, burstResetConfirm: null }
+export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -485,7 +489,6 @@ onGame("state", (v: GameView) => {
     ui.awakenTarget = null // 覚醒モードもリセット（続けて移す場合は再度バッジをクリック）
     ui.paying = null // 支払いモードもリセット
     ui.directedAttack = null // 指定アタックの対象選択モードもリセット
-    ui.summonLevelSelect = null // レベル選択もリセット
     ui.exReductionSelect = null // 《継召》の除外カード選択もリセット
     ui.soulCoreOnlySelect = null // 《ソウルマジック》の選択もリセット
     ui.magicTimingSelect = null
@@ -494,6 +497,8 @@ onGame("state", (v: GameView) => {
     ui.braveSummonSelect = null // ブレイヴの召喚方法選択もリセット
     ui.altSummonSelect = null // 代替召喚の方法選択もリセット
     ui.battleSwapSummon = null // 入れ替え召喚の対象選択もリセット
+    // 効果による召喚・配置で、リザーブだけでは払えない（または手動）なら、置く数の選択も含めて2段の支払い画面で開く
+    if (effectSummonNeedsScreen(v)) openEffectSummonPay(v)
     rerender()
     // 支払い「自動」なら、効果のコストを[ソウルコア]以外のリザーブだけで払えるときは聞かずに払う（「手動」なら毎回支払い元を選ぶ）
     const costPay = v.pendingChoice?.pid === v.you ? v.pendingChoice.effectCostPay : undefined
@@ -595,6 +600,10 @@ async function init(): Promise<void> {
     loadChangelog()
     installSecretCardArt(showToast)
     installDisplaySettings()
+    installCardDock()
+    installPayStages({ view: () => view, ui, rerender, submitPaying })
+    installStatusMenu()
+    installSpiritLayout()
 
     byId("join-btn").addEventListener("click", () => {
         // 2回目の「対戦ルームに入る」は参加の取り消し
@@ -873,7 +882,7 @@ async function init(): Promise<void> {
                 ui.paying.soulPayInstanceId = undefined
                 ui.paying.soulPayMode = undefined
             }
-            if (ui.payMode === "auto" && payingRemaining(view, ui.paying) === 0) {
+            if (ui.payMode === "auto" && ui.paying.step === undefined && payingRemaining(view, ui.paying) === 0) {
                 submitPaying()
             } else {
                 rerender()
@@ -973,7 +982,7 @@ async function init(): Promise<void> {
                 ui.paying.soulPayInstanceId = undefined
                 ui.paying.soulPayMode = undefined
             }
-            if (ui.payMode === "auto" && payingRemaining(view, ui.paying) === 0) {
+            if (ui.payMode === "auto" && ui.paying.step === undefined && payingRemaining(view, ui.paying) === 0) {
                 submitPaying()
             } else {
                 rerender()
@@ -1097,7 +1106,6 @@ async function init(): Promise<void> {
         ui.awakenTarget = null
         ui.paying = null
         ui.directedAttack = null
-        ui.summonLevelSelect = null
         ui.battleSwapSummon = null
         ui.braveSummonSelect = null
         ui.altSummonSelect = null
@@ -1113,6 +1121,7 @@ async function init(): Promise<void> {
         ui.stepper = null
         send({ type: "resolveChoice" })
     })
+    byId("choice-options").addEventListener("click", onPayStageClick)
     byId("choice-options").addEventListener("click", (e) => {
         // バーストの再セット確認（ui.burstResetConfirm）。サーバーへのpendingChoiceではなく
         // クライアント側だけの確認状態なので、他のdata-optionより先に判定する
@@ -1147,19 +1156,22 @@ async function init(): Promise<void> {
             if (meisai && view) {
                 const me = view.players[view.you]
                 const soulSelectable = me.soulCore !== null && me.soulCore.zone !== "trash"
-                // 効果による召喚の置くコアは、フィールドにコアがあれば自動でも支払い元を選ばせる（アタックステップなどでは後から動かせない）
-                const placing = pc?.effectCostPay?.keepByOption !== undefined && [...me.field.spirits, ...me.field.nexuses].some((x) => x.cores > 0)
-                if (pc?.effectCostPay?.reserveOnly || (!placing && !soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need)) {
+                // 効果による召喚・配置（置く数の選択つき）は、[ソウルコア]以外のリザーブだけで払えるなら送り、足りなければ選んだ置く数のまま2段の画面で開く
+                const summonPlace = pc?.effectCostPay?.keepByOption !== undefined
+                const reservePool = me.reserve - (me.soulCore?.zone === "reserve" ? 1 : 0)
+                if (pc?.effectCostPay?.reserveOnly || (summonPlace ? ui.payMode === "auto" && reservePool >= meisai.need : !soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need)) {
                     send({ type: "resolveChoice", option })
+                    return
+                }
+                if (summonPlace) {
+                    openEffectSummonPay(view, Math.max(0, (pc?.options ?? []).indexOf(option)))
+                    rerender()
                     return
                 }
                 ui.targeting = null
                 ui.awakenTarget = null
                 ui.combineBrave = null
-                // 置くコアの支払いは、おまかせの払い方（サーバーの summonPayPlan）を割り当て済みにして開く。確定は人が押す
-                const suggest = placing ? pc?.effectCostPay?.suggestByOption?.[(pc.options ?? []).indexOf(option)] ?? [] : []
-                const assigned = Object.fromEntries(suggest.map((s) => [s.instanceId, s.count]))
-                ui.paying = { handIndex: -1, forMeisai: { option, cardId: meisai.cardId, need: meisai.need, ...(meisai.effectCost ? { effectCost: true as const } : {}), ...(placing ? { placing: true as const } : {}) }, assigned, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
+                ui.paying = { handIndex: -1, forMeisai: { option, cardId: meisai.cardId, need: meisai.need, ...(meisai.effectCost ? { effectCost: true as const } : {}) }, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
                 rerender()
                 return
             }
@@ -1275,37 +1287,6 @@ async function init(): Promise<void> {
             tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, picked.length > 0 ? picked : [], undefined, undefined, fromTegamoto)
             return
         }
-        const coresStepEl = closestData(e, "data-summon-cores-step")
-        if (coresStepEl && ui.summonLevelSelect) {
-            ui.summonCores = (ui.summonCores ?? 0) + Number(coresStepEl.dataset.summonCoresStep)
-            rerender()
-            return
-        }
-        const coresEl = closestData(e, "data-summon-cores")
-        if (coresEl && ui.summonLevelSelect) {
-            const cores = Number(coresEl.dataset.summonCores)
-            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
-            ui.summonLevelSelect = null
-            ui.summonCores = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, undefined, fromTegamoto, cores)
-            return
-        }
-        const levelEl = closestData(e, "data-summon-level")
-        if (levelEl && ui.summonLevelSelect) {
-            const level = Number(levelEl.dataset.summonLevel)
-            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
-            ui.summonLevelSelect = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, level, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, undefined, fromTegamoto)
-            return
-        }
-        // 《真界放》のwaiver配置ボタン（[ソウルコア]1個のみでLv2。2026-10-07）
-        const waiverEl = closestData(e, "data-soul-waiver")
-        if (waiverEl && ui.summonLevelSelect) {
-            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
-            ui.summonLevelSelect = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, true, fromTegamoto)
-            return
-        }
     })
     
     byId("btn-toggle-log").addEventListener("click", () => {
@@ -1324,7 +1305,6 @@ async function init(): Promise<void> {
                            : ui.paying ? "paying" 
                            : ui.directedAttack ? "directedAttack" 
                            : ui.exReductionSelect ? "exReductionSelect" 
-                           : ui.summonLevelSelect ? "summonLevelSelect" 
                            : "normal"
             const clientContext = {
                 phase: view.phase,
@@ -1389,6 +1369,9 @@ async function init(): Promise<void> {
         byId("tegamoto-panel").classList.remove("hidden")
         rerender()
     })
+    // スマホの「手元 N」の欄（ui/mat.ts）。開く処理は上の2つのボタンのまま
+    byId("mat-tegamoto-self").addEventListener("click", () => byId("btn-my-tegamoto").click())
+    byId("mat-tegamoto-opp").addEventListener("click", () => byId("btn-opp-tegamoto").click())
     byId("btn-close-tegamoto").addEventListener("click", () => {
         byId("tegamoto-panel").classList.add("hidden")
     })
@@ -1423,7 +1406,8 @@ void init()
 // 表示の設定（上の「⚙ 表示」で開く）。<html> の data 属性で CSS を切り替え、その端末に覚える
 // brave：合体したブレイヴを art＝イラストだけ／full＝カード全体。frame：スピリットの色の縁 on／off
 function installDisplaySettings(): void {
-    const settings = { brave: { key: "bs.braveStyle", values: ["art", "full"] }, frame: { key: "bs.frameStyle", values: ["on", "off"] } } as const
+    // hand・menuside はスマホだけで使う（片手で操作する手に合わせる。2026-11-25 ユーザー案）
+    const settings = { brave: { key: "bs.braveStyle", values: ["art", "full"] }, frame: { key: "bs.frameStyle", values: ["on", "off"] }, hand: { key: "bs.handStyle", values: ["center", "left", "right"] }, menuside: { key: "bs.menuSide", values: ["right", "left"] } } as const
     const apply = (name: keyof typeof settings, value: string) => {
         document.documentElement.dataset[name] = value
         const radio = document.querySelector<HTMLInputElement>(`input[name="${name}-style"][value="${value}"]`)

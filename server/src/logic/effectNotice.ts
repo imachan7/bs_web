@@ -170,5 +170,5 @@ export function emitEffectNoticeFor(state: GameState, owner: PlayerId, source: C
     if (last?.type === "effect" && last.instanceId === source.instanceId) return
     const card = getCard(source.cardId)
     const { heading, trigger } = effect ? noticeOf(source.cardId, effect) : ({} as { heading?: string; trigger?: string })
-    emitEvent(state, { type: "effect", pid: owner, cardId: source.cardId, cardName: card.name, instanceId: source.instanceId, ...(heading !== undefined ? { heading } : {}), ...(trigger !== undefined ? { trigger } : {}) })
+    emitEvent(state, { type: "effect", pid: owner, cardId: source.cardId, cardName: card.name, instanceId: source.instanceId, ...(heading !== undefined ? { heading } : {}), ...(trigger !== undefined ? { trigger } : {}), logAt: state.log.length })
 }

@@ -836,6 +836,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
             p2: playerView(state.players.p2, viewer === "p2", state.players.p1, burstRevealedOf(state, "p2")),
         },
         log: state.log.slice(-60),
+        logTotal: state.log.length,
         winner: state.winner,
         you: viewer,
         timedEffects: [...state.timedEffects],
