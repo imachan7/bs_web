@@ -245,10 +245,11 @@
     /* 合体したブレイヴは、ホストの右へ半分はみ出す。絵は段の中（上へ --br-top まで）に収める。右斜め上の見せ方は PC より浅い */
     .spirit-zone .card.has-brave { margin-right: calc(var(--sp-w) / 2 + 3px); }
     #opponent-area .spirit-zone .card.has-brave { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
-    /* ブレイヴ2枚：2枚目は1枚目の右に4割ずらして重ねる（style.css）。そのぶん右を空ける。段の上へは出さない（欄の外は切れる） */
-    .spirit-zone .card.has-brave:has(.brave-combined:nth-child(2)) { margin-right: calc(var(--sp-w) * 0.9 + 3px); }
-    #opponent-area .spirit-zone .card.has-brave:has(.brave-combined:nth-child(2)) { margin-right: 0; margin-left: calc(var(--sp-w) * 0.9 + 3px); }
-    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) { top: 0; }
+    /* ブレイヴ2枚：2枚目は1枚目の下へ縦にずらして重ねる（右へずらすと1枚目がほとんど隠れた。公式の合体の絵のように縦にずらす。2026-11-25 ユーザー案）。
+       幅は1枚のときと同じなので、右の余白も同じ */
+    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) { left: 0; top: 55%; }
+    /* 疲労して横倒しのときは高さがカードの幅しかないので、ずらす量を減らす */
+    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .card.rested .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) { top: 42%; }
     :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: calc(var(--br-top) * -1); }
     :root[data-brave] .spirit-zone .brave-combined.has-brave-art { max-height: calc(var(--sp-h) + var(--br-top)); }
     :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: var(--pf); }
@@ -261,9 +262,8 @@
        枠をカードの左上に置いて逆向きに90度回すと、カードの回転と打ち消し合って、見た目ではスピリットの右上（相手は点対称で左下）に立つ。上からの位置＝重ねる幅（--sp-w / 2 - 3px） */
     :root .spirit-zone .card.rested:not(.heavy-rested) > .brave-combined-box { left: 0; right: auto; top: calc(var(--sp-w) / 2 - 3px); bottom: auto; transform-origin: 0 0; transform: rotate(-90deg); }
     #player-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) / 2 + 3px); }
-    #player-area .spirit-zone .card.rested.has-brave:not(.heavy-rested):has(.brave-combined:nth-child(2)) { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) * 0.9 + 3px); }
     #opponent-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) / 2 + 3px); margin-right: calc((var(--sp-h) - var(--sp-w)) / 2); }
-    #opponent-area .spirit-zone .card.rested.has-brave:not(.heavy-rested):has(.brave-combined:nth-child(2)) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) * 0.9 + 3px); }
+
     .spirit-zone .card .name, .nexus-zone .card .name { margin: 0; font-size: 8px; max-width: none; }
 
     .nexus-zone {
