@@ -80,6 +80,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `magicUseTiming`（fn）：使えないタイミングを求められたら null
 - `magicTimingChoosable`（fn）：メインステップで「メイン効果／フラッシュ効果」を選ばせるか。フラッシュ側がすべて「メインステップでは使えない」なら選ばせない
 
+## shared/randomId.ts
+
+- `randomId`（fn）：使い捨ての ID。crypto.randomUUID は https か localhost で開いたページでしか使えない。エンジンは AI 戦でブラウザ（aiWorker）でも動…
+
 ## shared/rules/activation.ts
 
 - `sokuPayableInstanceIds`（fn）：【覚醒】を現在レベルで持っているか。
@@ -1906,6 +1910,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/ui/tooltip.ts
 
 - `currentHoverCard`（let）
+- `showCardLarge`（fn）
+- `cardLargeShown`（fn）
 - `suppressEffectTooltip`（fn）
 - `hideEffectTooltip`（fn）
 - `setupEffectTooltip`（fn）

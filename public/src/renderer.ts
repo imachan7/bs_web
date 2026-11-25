@@ -527,8 +527,20 @@ function renderRevealPanel(view: GameView): void {
     panel.append(head, row)
 }
 
+// PC はバーストの発動で、そのカードを画面の左に大きく出す（盤面のバーストの欄は 55×67 で、何が発動したかが見えにくかった。2026-11-25 ユーザー案）。
+// 押すか、文字の通知と同じ時間で消える。スマホは画面が狭く、盤面のバーストの欄と文字の通知で足りるので作らない
+function showBurstCard(cardId: string, mine: boolean): void {
+    if (window.matchMedia("(max-width: 768px)").matches) return
+    // 幅 220px で出すので、絵は大きい方（lg）を読む
+    const c = revealCardEl(cardId, "lg")
+    c.classList.add("burst-reveal-big")
+    c.addEventListener("click", () => c.remove())
+    document.body.appendChild(c)
+    setTimeout(() => c.remove(), mine ? 4000 : 8000)
+}
+
 // オープン・破棄で見せるカード1枚（名前・種別・コスト。絵があれば重ねる。カーソルで効果文）
-export function revealCardEl(id: string): HTMLDivElement {
+export function revealCardEl(id: string, artSize: "lg" | "md" = "md"): HTMLDivElement {
     const m = master(id)
     const c = document.createElement("div")
     c.className = "reveal-card tip-card"
@@ -540,7 +552,7 @@ export function revealCardEl(id: string): HTMLDivElement {
     type.className = "reveal-type"
     type.textContent = `${CARD_TYPE_LABELS[m.type]}・コスト${m.cost}`
     c.append(name, type)
-    attachCardArt(c, id, m.name)
+    attachCardArt(c, id, m.name, artSize)
     return c
 }
 
@@ -569,7 +581,10 @@ function processNewEvents(view: GameView): Set<PlayerId> {
             continue
         }
         if (ev.type === "burst" && layer) {
-            if (ev.cardId !== undefined) flashBurstReveal(ev.pid, ev.cardId)
+            if (ev.cardId !== undefined) {
+                flashBurstReveal(ev.pid, ev.cardId)
+                showBurstCard(ev.cardId, mine)
+            }
             showDetailBanner(layer, "burst", `${mine ? "あなた" : "相手"}の ${ev.cardName} バースト発動`, ev.cardId !== undefined ? burstEffectText(ev.cardId) : "", mine, "burst")
             continue
         }
