@@ -7,6 +7,8 @@ const ZONES = ["my-spirits", "opp-spirits"]
 const SLICE = 24
 
 const px = (v: string): number => Number.parseFloat(v) || 0
+// 幅は小数のまま測る（offsetWidth は整数に丸め、66.28px のカードを3枚並べると1px近く足りずに折り返した）。回転（疲労）の影響を受けない CSS の幅を使う
+const widthOf = (el: HTMLElement): number => px(getComputedStyle(el).width) || el.offsetWidth
 
 // 行に要る幅を、各要素の幅・余白・間隔の合計で出す。並べて測ると入りきらずに折り返した行の幅が分からないため。
 // 合体のブレイヴの絵は、相手側（180度回転）は先頭の左、自分側は末尾の右へ余白より大きくはみ出すので、その分を余白の代わりに取る。
@@ -24,7 +26,7 @@ function rowWidth(row: HTMLElement[], gap: number): number {
             if (i === 0) left = Math.max(left, a.left - b.left)
             if (i === row.length - 1) right = Math.max(right, b.right - a.right)
         }
-        total += el.offsetWidth + left + right
+        total += widthOf(el) + left + right
     })
     return total
 }
@@ -35,14 +37,15 @@ function caps(row: HTMLElement[]): number[] {
     return row.map((el, i) => {
         if (i === row.length - 1 || !el.classList.contains("card") || el.classList.contains("heavy-rested")) return 0
         const rested = el.classList.contains("rested")
-        return Math.max(0, el.offsetWidth - SLICE + (rested ? 2 * px(getComputedStyle(el).marginLeft) : 0))
+        return Math.max(0, widthOf(el) - SLICE + (rested ? 2 * px(getComputedStyle(el).marginLeft) : 0))
     })
 }
 
 // 各カードの重なり幅（px）を返す。全部0なら重ね不要。ok=false は、重ねられる限り重ねても入らない（そのときの値は最大の重なり）
 function fit(row: HTMLElement[], inner: number, gap: number): { ovs: number[]; ok: boolean } {
     const cap = caps(row)
-    const need = rowWidth(row, gap) - inner
+    // ちょうど幅いっぱいに詰めると、重ねの幅の端数で折り返すことがあるので 2px 余らせる
+    const need = rowWidth(row, gap) - (inner - 2)
     if (need <= 0) return { ovs: cap.map(() => 0), ok: true }
     // 全カードに同じ幅で重ね、上限のあるカード（左右に余白のない正位置のカード）はそこで止める。合計が足りる最小の幅を探す
     for (let u = 1; u <= Math.max(0, ...cap); u++) {

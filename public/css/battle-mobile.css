@@ -17,10 +17,11 @@
 
     :root {
         --sp-h-ratio: calc(985 / 675); --nexus-h: 63px; --info-h: 40px; --nexus-w: 48px;
-        /* カード（場・手札共通）は画面の幅と高さの小さい側に合わせる。375×667 で53px、412×830 で66px、430×932（Pro Max）で70px。
+        /* カード（場・手札共通）は画面の幅と高さの小さい側に合わせる。375×667 で47px、412×830 で66px、430×932（Pro Max）で70px。
            体数では変えない。145pxまで大きくしたときは大きすぎて手札と釣り合わず（2026-11-24）、412px幅で54pxは小さかった（2026-11-25 ユーザー）。
            高さは svh（アドレスバーが出ているときの高さ）で測る。dvh だとアドレスバーが隠れる・出るたびに場が伸び縮みする */
-        --card-w: clamp(48px, min(19vw - 12px, 8svh), 72px); --hand-w: var(--card-w);
+        /* (100svh - 322px) / 7.3 は、下の --zone-h の式でスピリットが2段入る上限（375×667 で47px）。これを超えると2段が入らず1段の横スクロールになった */
+        --card-w: clamp(44px, min(19vw - 12px, 8svh, (100svh - 322px) / 7.3), 72px); --hand-w: var(--card-w);
         /* 背の高いスマホで下に余白が残らないよう、スピリットの欄は画面の高さ（svh）に合わせて伸ばす（2026-11-24 ユーザー指摘：430×932 で下に約270px空いていた）。
            カードは大きくせず、段を増やせる広さにする。高さ667px までは150px（48pxのカードで2段）。306px は欄2つ・手札以外の行（上の行・情報・ネクサス・中央の帯・余白）の合計の実測 */
         --zone-h: max(150px, calc((100svh - 306px - var(--hand-w) * 985 / 675) / 2));
@@ -247,9 +248,11 @@
     /* 重ねたカードは、左24pxに Lv・BP・コアを寄せる（後ろのカードが右側を隠す）。相手のカードは180度回っているので、枠の右側が見た目の左になる。
        疲労（90度）のカードも重ねる。見た目の幅は回った高さで、右の余白を --ov だけ削る。能力値の枠は逆回転で正位置のままなので、幅24pxの枠を見た目の左端へ
        (var(--sp-h) - 24px) / 2 ずらす（枠の座標は90度回っているため、ずらす向きは top の上下。自分は下、相手は上）。重疲労（180度）は重ねない */
-    .spirit-zone > .card.fanned:not(.rested) { margin-right: calc(var(--ov) * -1); }
+    /* 絵のない疲労カードは回らないので、ふつうのカードと同じに重ねる（抜けていて重ならず、4段に折り返して1段の横スクロールに落ちていた） */
+    .spirit-zone > .card.fanned:not(.rested), .spirit-zone > .card.fanned.rested:not(.has-art) { margin-right: calc(var(--ov) * -1); }
     .spirit-zone > .card.fanned.has-brave:not(.rested) { margin-right: calc(var(--sp-w) / 2 + 3px - var(--ov)); }
     #opponent-area .spirit-zone > .card.fanned:not(.rested),
+    #opponent-area .spirit-zone > .card.fanned.rested:not(.has-art),
     #opponent-area .spirit-zone > .card.fanned.has-brave:not(.rested) { margin-right: calc(var(--ov) * -1); }
     .spirit-zone .card.fanned.has-art.rested[data-side] { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 - var(--ov)); }
     .spirit-zone .card.fanned.has-art > .card-overlay { left: 0; right: auto; width: 24px; padding: 1px 0 2px; overflow: hidden; white-space: nowrap; }
@@ -484,6 +487,7 @@
 @media (max-width: 768px) and (min-height: 667px) and (max-height: 700px) {
     :is([id^="mat-life"], [id^="mat-reserve"]).mat-box { padding: 2px; }
     :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-head { flex-wrap: nowrap; gap: 1px; font-size: 8px; }
+    [id^="mat-life"].mat-box .mat-head { flex-direction: column; align-items: center; line-height: 10px; }
     :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n { font-size: 12px; }
     :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n::before { padding-left: 10px; font-size: 9px; background-size: 9px; }
 }

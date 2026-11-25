@@ -75,6 +75,10 @@ async function lampToStepper(c) {
 const SCENES = [
   { id: "idle", name: "1 待機", board: standby, run: async () => {} },
   { id: "hand", name: "2 手札を押した", board: standby, run: async (c) => clickSel(c.A, "#hand .card") },
+  { id: "many", name: "2d 場にいっぱい（スピリット15・ネクサス3・バースト）", board: () => {
+    const side = () => base({ burst: "BS14-092", field: { spirits: spirits(15, 3), nexuses: [{ cardId: NEXUS, cores: 1 }, { cardId: NEXUS, cores: 0 }, { cardId: NEXUS, cores: 2 }] } })
+    return { me: side(), opp: side() }
+  }, run: async () => {} },
   { id: "burstHand", name: "2c コストが足りないバーストのマジック（セットはできる）", board: () => ({ me: base({ reserve: 0, hand: ["BS14-092", GRIP], field: { spirits: [], nexuses: [] } }), opp: base() }), run: async () => {} }, // 烈光閃刃（バーストを持つマジック・コスト4）
   { id: "short", name: "2b コアが足りない手札を押した", board: () => ({ me: base({ reserve: 1, hand: [GRIP], field: { spirits: [], nexuses: [] } }), opp: base() }), run: async (c) => clickSel(c.A, "#hand .card") },
   { id: "spirit", name: "3 場のスピリットを押した", board: standby, run: async (c) => clickSel(c.A, "#my-spirits .card") },
