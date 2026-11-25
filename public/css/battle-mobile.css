@@ -432,8 +432,11 @@
     }
     /* 右の操作ボタンが1つも出ていないときは、欄を画面の右端まで広げる */
     #game:not(:has(#action-buttons > :not(.hidden, #btn-attack-phase, #btn-end-turn))) #card-dock:not(.hidden) { right: 0; }
-    #card-dock-art { grid-area: art; height: 82px; aspect-ratio: 675 / 985; border-radius: 6px; }
-    #card-dock-art:not([hidden]) { display: block; }
+    #card-dock-zoom { grid-area: art; position: relative; padding: 0; border: 0; background: none; min-height: 0; }
+    #card-dock-zoom:not([hidden]) { display: block; }
+    #card-dock-art { display: block; height: 82px; aspect-ratio: 675 / 985; border-radius: 6px; }
+    /* 絵を押すと大きく出せることを示す札 */
+    #card-dock-zoom .dock-zoom-label { position: absolute; right: 2px; bottom: 2px; padding: 0 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.5); color: #fff; font-size: 10px; line-height: 15px; }
     #card-dock-name { grid-area: name; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #card-dock-name .dock-pay-info { display: block; font-weight: 400; font-size: 11px; color: var(--text-muted, #9aa3b2); white-space: normal; }
     #card-dock-close { grid-area: close; align-self: end; min-width: 44px; min-height: 44px; margin-top: 6px; font-size: 18px; line-height: 1; }

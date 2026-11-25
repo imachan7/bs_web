@@ -3,6 +3,7 @@ import { $, master } from "../renderer"
 import { cardImageUrl } from "../cardArt"
 import type { GameView } from "../../../server/src/type"
 import type { UiState } from "../renderer"
+import { showCardLarge } from "./tooltip"
 import { dockActionsOf } from "./fieldCard"
 
 // 場のカードの下に出すと、押しにくい（32×24px）うえ、場の行の高さが変わって画面が上下にずれる。
@@ -106,10 +107,12 @@ export function renderCardDock(v?: GameView, u?: UiState): void {
         line.textContent = info
         nameEl.append(line)
     }
+    // 絵は押すと大きく出す（長押しと同じ表示。2026-11-25 ユーザー案）。押せることは右下の「拡大」の札で示す
+    const zoom = $("card-dock-zoom")
     const art = $("card-dock-art") as HTMLImageElement
     const url = selected.zone === "hand" ? cardImageUrl(selected.id, "lg") : null
-    art.hidden = url === null
-    art.onerror = () => { art.hidden = true }
+    zoom.hidden = url === null
+    art.onerror = () => { zoom.hidden = true }
     if (url !== null) art.src = url
     const pick = picking !== null ? entries[picking] : undefined
     if (pick?.names === undefined || pick.els.length < 2) picking = null
@@ -156,6 +159,10 @@ export function installCardDock(fieldAction: (btn: HTMLElement) => void): void {
         renderCardDock()
     }
     $("card-dock-close").addEventListener("click", close)
+    $("card-dock-zoom").addEventListener("click", () => {
+        const card = selected ? findCard(selected) : null
+        if (card) showCardLarge(card)
+    })
     // 欄の外を押したら閉じる（効果の吹き出しと同じ。2026-11-25 ユーザー案）。カードを押したときは上の取り込みで止めて選び直すので、ここへは来ない
     // 押した時点の経路で見る。欄のボタンは押すと欄ごと描き直され、ここに届くときには外れているので closest では欄の外に見えた
     const dock = $("card-dock")

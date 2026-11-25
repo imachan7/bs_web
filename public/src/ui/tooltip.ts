@@ -8,6 +8,12 @@ const DOCK_RESERVE = 160
 
 export let currentHoverCard: HTMLElement | null = null
 
+// カードの絵を大きく出す（スマホの長押しと同じ表示）。下の欄の絵を押したとき（ui/cardDock.ts）にも使う
+let showLarge: (card: HTMLElement) => void = () => {}
+export function showCardLarge(card: HTMLElement): void {
+    showLarge(card)
+}
+
 // 効果を出す対象。.tip-card は選択待ちのカードの選択肢・発生源の表示（2026-11-12 ユーザー要望）
 const TIP_SELECTOR = ".card, .brave-combined, .log-card-name, .tip-card"
 
@@ -196,6 +202,8 @@ export function setupEffectTooltip(): void {
         tip.style.top = `${top}px`
         tip.style.left = `${left}px`
     }
+
+    showLarge = (card) => showFor(card, true)
 
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
