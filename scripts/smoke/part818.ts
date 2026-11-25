@@ -242,7 +242,7 @@ function flashCast(s: GameState, attacker: Inst, picks: string[], payable = true
 }
 {
     const s = game("res-combined", "attack")
-    const host = put(s, "p1", METAL, 1)
+    const host = put(s, "p1", STIRA, 1) // コスト5（カラクリバッタの合体条件コスト4以上を満たす）
     combine(s, "p1", host, KARAKURI)
     const o1 = put(s, "p2", VAN, 1)
     flashCast(s, host, [host.instanceId, o1.instanceId], false)
