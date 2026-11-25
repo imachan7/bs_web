@@ -75,6 +75,7 @@ async function lampToStepper(c) {
 const SCENES = [
   { id: "idle", name: "1 待機", board: standby, run: async () => {} },
   { id: "hand", name: "2 手札を押した", board: standby, run: async (c) => clickSel(c.A, "#hand .card") },
+  { id: "burstHand", name: "2c コストが足りないバーストのマジック（セットはできる）", board: () => ({ me: base({ reserve: 0, hand: ["BS14-092", GRIP], field: { spirits: [], nexuses: [] } }), opp: base() }), run: async () => {} }, // 烈光閃刃（バーストを持つマジック・コスト4）
   { id: "short", name: "2b コアが足りない手札を押した", board: () => ({ me: base({ reserve: 1, hand: [GRIP], field: { spirits: [], nexuses: [] } }), opp: base() }), run: async (c) => clickSel(c.A, "#hand .card") },
   { id: "spirit", name: "3 場のスピリットを押した", board: standby, run: async (c) => clickSel(c.A, "#my-spirits .card") },
   // 召喚の支払いは「①コスト → ②置くコア」の2段の画面（ui/payStages.ts）。リザーブが足りないので画面が開く
@@ -169,12 +170,16 @@ function audit(f) {
   }
   const overlap = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 3 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 3
   for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+    // 開いた欄（メニュー・選択肢・手元の欄・トラッシュ）が下のボタンに重なるのは作りどおりなので数えない
+    const layer = (b) => b.closest("#status-menu, #card-dock, #trash-panel, #tegamoto-panel, #action-buttons-container:has(#choice-options:not(.hidden))")
+    if (layer(rs[i].b) !== layer(rs[j].b)) continue
     if (overlap(rs[i].r, rs[j].r) && !rs[i].b.contains(rs[j].b) && !rs[j].b.contains(rs[i].b)) out.push(`重なり: ${rs[i].t} × ${rs[j].t}`)
   }
   // 盤面の区画どうしの重なり：区画（情報の行・バースト・ネクサス・スピリット・マット・中央の帯・手札）の中の末端の部品が、
   // 別の区画の部品と見えている所で重なっていたら出す（ネクサスのシンボルが名前の行にかかっていた。2026-11-25）。
   // はみ出しが親の overflow で切られて見えていない部品は数えない
-  const BLOCKS = ["#opp-info", "#opp-burst", "#opp-nexuses", "#opp-spirits", "#my-info", "#my-burst", "#my-nexuses", "#my-spirits", "#center-info-area", "#hand",
+  // 中央の帯は、入りきらない案内を場の上に重ねる作り（2026-11-24 決定）なので区画に入れない
+  const BLOCKS = ["#opp-info", "#opp-burst", "#opp-nexuses", "#opp-spirits", "#my-info", "#my-burst", "#my-nexuses", "#my-spirits", "#hand",
     ...["life", "reserve", "deck", "trash", "tegamoto"].flatMap((k) => [`#mat-${k}-opp`, `#mat-${k}-self`])]
   const clipped = (el, x, y) => {
     for (let a = el.parentElement; a && a !== d.body; a = a.parentElement) {
@@ -200,6 +205,7 @@ function audit(f) {
   }
   // 見切れ：部品の一部が、はみ出しを切る（overflow: hidden／clip）親の端で切られている。ネクサスのシンボルが欄の下端で欠けていた
   for (const l of leaves) {
+    if (l.el.tagName === "IMG") continue // カードの絵は枠で切り抜いて見せる作り（合体ブレイヴの絵など）
     for (let a = l.el.parentElement; a && a !== d.body; a = a.parentElement) {
       const cs = w.getComputedStyle(a), r = a.getBoundingClientRect()
       const cutY = /hidden|clip/.test(cs.overflowY) && (l.r.top < r.top - 2 || l.r.bottom > r.bottom + 2) && l.r.bottom > r.top && l.r.top < r.bottom

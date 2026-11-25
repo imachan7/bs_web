@@ -93,10 +93,10 @@
     #center-info-area > :not(.hidden) { max-width: 100%; box-sizing: border-box; min-width: 0; background: var(--bg-panel); border-radius: 6px; padding: 2px 8px; font-size: 12px; text-align: center; box-shadow: 0 2px 8px #000a; }
     .player-area { padding: 4px 8px; gap: 2px; justify-content: flex-start; }
     .opp-hand-area { display: none !important; }
-    /* 情報の行は、右にデッキ・トラッシュの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で出す（枠の幅の合計 128px＋4px を引く） */
+    /* 情報の行は、右にデッキ・トラッシュの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で出す（枠の幅の合計 140px＋4px を引く） */
     .player-info {
         height: var(--info-h);
-        width: calc(100% - 132px);
+        width: calc(100% - 144px);
         flex-wrap: wrap;
         align-content: center;
         gap: 0 6px;
@@ -158,8 +158,10 @@
     }
     #player-area .field-row > .mat-box { bottom: 0; }
     #opponent-area .field-row > .mat-box { top: 0; }
-    .field-row > [id^="mat-trash"] { right: 0; width: 64px; cursor: pointer; opacity: 0.8; border-color: rgba(255, 255, 255, 0.1); }
-    .field-row > [id^="mat-deck"] { right: 68px; width: 60px; }
+    /* トラッシュは押すと中身が開く。押せると分かるよう、枠を青くして右端に「›」を出す（2026-11-25 ユーザー指摘） */
+    .field-row > [id^="mat-trash"] { right: 0; width: 76px; padding-right: 14px; cursor: pointer; border-color: var(--accent); background: rgba(59, 130, 246, 0.08); }
+    .field-row > [id^="mat-trash"]::after { content: "›"; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 18px; line-height: 1; color: var(--accent-hover, #60a5fa); }
+    .field-row > [id^="mat-deck"] { right: 80px; width: 60px; }
     /* ライフ・リザーブはスピリットの横の列（バーストの下）に置く。幅がカード1枚ぶんなので、コアの丸印は出さず「ライフ 5」の1行 */
     .field-row > [id^="mat-life"].mat-box, .field-row > [id^="mat-reserve"].mat-box { position: static; width: var(--card-w); height: auto; padding: 3px; }
     .field-row > [id^="mat-life"] { grid-area: life; margin-top: 2px; }
@@ -168,7 +170,9 @@
     #opponent-area .field-row > [id^="mat-reserve"] { margin: 0 0 2px; }
     /* ライフは見出しとコアの絵（列の上の空きを使う。数字は出さない）、リザーブは見出しなしでコア1個の絵と「×N」（2026-11-25 ユーザー案） */
     [id^="mat-life"].mat-box .mat-n { display: none; }
-    [id^="mat-life"].mat-box .mat-cores { display: flex; flex-wrap: wrap; gap: 1px; max-width: none; font-size: 11px; min-height: 0; }
+    /* 実際のゲームのライフと同じく、1段に3個まで（5個なら上3・下2）。2026-11-25 ユーザー指摘 */
+    [id^="mat-life"].mat-box .mat-cores { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; max-width: calc(3em + 2px); margin: 0 auto; font-size: 13px; min-height: 0; }
+    [id^="mat-life"].mat-box .mat-cores .core-icon { width: 1em; margin: 0; }
     [id^="mat-reserve"].mat-box .mat-cores { display: none; }
     [id^="mat-reserve"].mat-box .mat-head { flex-wrap: nowrap; justify-content: center; align-items: center; }
     [id^="mat-reserve"].mat-box .mat-head > span:first-child { display: none; }
@@ -310,11 +314,15 @@
     /* 手札は場のスピリットと同じ大きさ（48px・カードの縦横比）で1行。押すと下の欄（#card-dock）に大きな絵と操作ボタンが出る。
        欄は画面の下端に固定で手札の上に重なるので、行の高さは手札1枚分だけ。手札が0枚でも、召喚・破棄で画面が上下にずれないよう高さは残す（2026-11-24 ユーザー指摘で 96px から詰めた） */
     .my-hand-area { position: relative; min-height: calc(var(--hand-w) * var(--sp-h-ratio)); }
-    #hand { flex-wrap: nowrap; overflow-x: auto; padding-top: 0; min-width: 0; gap: 4px; align-items: flex-start; }
+    #hand { scrollbar-width: none; flex-wrap: nowrap; overflow-x: auto; padding-top: 0; min-width: 0; gap: 4px; align-items: flex-start; }
     #hand .card { flex: 0 0 auto; width: var(--hand-w); height: auto; aspect-ratio: 675 / 985; padding: 2px; font-size: 8px; }
     #hand .card .name { margin: 0; font-size: 8px; }
     #hand .card:not(.has-art) .stats { display: none; }
-    #hand .burst-set-badge, #hand .hand-ability-badge, #hand .field-req-badge { display: none; }
+    #hand .hand-ability-badge, #hand .field-req-badge, #hand .burst-set-badge.disabled { display: none; }
+    /* バーストとしてセットできるカードは、下端に細い「バースト」の帯を明るく出す。コストが足りないマジックはカードが暗くなり、セットできることを見落とした（2026-11-25 ユーザー指摘）。
+       押すと下の欄が開くので、帯自体は押せないようにする（欄の「バーストをセット」で選ぶ） */
+    #hand .burst-set-badge { min-height: 0; height: 14px; padding: 0; font-size: 0; pointer-events: none; border-radius: 0 0 4px 4px; }
+    #hand .burst-set-badge::before { content: "バースト"; font-size: 9px; line-height: 14px; }
     /* 画面の右下に固定し、手札の右に縦1列で出す（#board 基準だと場の下端＝相手の場の上に来て重なった） */
     #action-buttons-container {
         position: fixed;
