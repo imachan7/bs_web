@@ -1907,6 +1907,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `currentHoverCard`（let）
 - `showCardLarge`（fn）
+- `cardLargeShown`（fn）
 - `suppressEffectTooltip`（fn）
 - `hideEffectTooltip`（fn）
 - `setupEffectTooltip`（fn）
