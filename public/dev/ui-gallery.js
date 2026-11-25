@@ -80,6 +80,7 @@ const SCENES = [
     return { me: side(), opp: side() }
   }, run: async () => {} },
   { id: "burstHand", name: "2c コストが足りないバーストのマジック（セットはできる）", board: () => ({ me: base({ reserve: 0, hand: ["BS14-092", GRIP], field: { spirits: [], nexuses: [] } }), opp: base() }), run: async () => {} }, // 烈光閃刃（バーストを持つマジック・コスト4）
+  { id: "fieldReq", name: "2e 場のコアも使えば出せる手札（＋バーストのマジック）", board: () => ({ me: base({ reserve: 1, hand: [GRIP, "BS14-092"], field: { spirits: spirits(3, 0, 4), nexuses: [] } }), opp: base() }), run: async () => {} },
   { id: "short", name: "2b コアが足りない手札を押した", board: () => ({ me: base({ reserve: 1, hand: [GRIP], field: { spirits: [], nexuses: [] } }), opp: base() }), run: async (c) => clickSel(c.A, "#hand .card") },
   { id: "spirit", name: "3 場のスピリットを押した", board: standby, run: async (c) => clickSel(c.A, "#my-spirits .card") },
   // 召喚の支払いは「①コスト → ②置くコア」の2段の画面（ui/payStages.ts）。リザーブが足りないので画面が開く

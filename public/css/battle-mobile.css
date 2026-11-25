@@ -320,7 +320,12 @@
     #hand .card { flex: 0 0 auto; width: var(--hand-w); height: auto; aspect-ratio: 675 / 985; padding: 2px; font-size: 8px; }
     #hand .card .name { margin: 0; font-size: 8px; }
     #hand .card:not(.has-art) .stats { display: none; }
-    #hand .hand-ability-badge, #hand .field-req-badge, #hand .burst-set-badge.disabled { display: none; }
+    #hand .hand-ability-badge, #hand .burst-set-badge.disabled { display: none; }
+    /* 場のコアも使えば出せるカードは、下端に「盤面コア」の帯を出す。点線の枠だけでは、リザーブで出せるカードと見分けがつかなかった（2026-11-25 ユーザー指摘）。
+       上端はコストの丸と重なる。「必要」まで入れると 42〜47px の手札に収まらないので削った。バーストの帯があるときはその上に積む */
+    #hand .field-req-badge { top: auto; bottom: 0; left: 0; right: 0; transform: none; height: 14px; padding: 0; font-size: 0; line-height: 14px; text-align: center; border-radius: 0 0 4px 4px; box-shadow: none; }
+    #hand .card:has(> .burst-set-badge:not(.disabled)) > .field-req-badge { bottom: 14px; border-radius: 0; }
+    #hand .field-req-badge::before { content: "盤面コア"; font-size: 9px; }
     /* バーストとしてセットできるカードは、下端に細い「バースト」の帯を明るく出す。コストが足りないマジックはカードが暗くなり、セットできることを見落とした（2026-11-25 ユーザー指摘）。
        押すと下の欄が開くので、帯自体は押せないようにする（欄の「バーストをセット」で選ぶ） */
     #hand .burst-set-badge { min-height: 0; height: 14px; padding: 0; font-size: 0; pointer-events: none; border-radius: 0 0 4px 4px; }
