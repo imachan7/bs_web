@@ -110,8 +110,9 @@ def parse_cost_line(line, fallback_colors):
             reduction = [colors[0]] * int(inner)
         else:
             # 多色表記 9(赤3白3)：色ごとの個数
-            for ch, n in re.findall(r"([赤紫緑白黄青])(\d+)", inner):
-                reduction.extend([COLOR_MAP[ch]] * int(n))
+            # 極＝アルティメットの軽減シンボル（BS28 で初登場。ULTIMATE.md の SymbolMark "ultimate"）
+            for ch, n in re.findall(r"([赤紫緑白黄青極])(\d+)", inner):
+                reduction.extend([COLOR_MAP.get(ch, "ultimate")] * int(n))
             if not reduction:
                 raise ValueError(f"軽減シンボル表記を解釈できない: {line!r}")
 
