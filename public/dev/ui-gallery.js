@@ -131,6 +131,19 @@ const SCENES = [
     board: () => ({ me: base({ trashCards: [GRIP, GRIP, "SD06-001", LAMP] }), opp: base({ trashCards: [GRIP] }) }),
     run: async (c) => clickSel(c.A, isMobile(c) ? "#mat-trash-self" : "#btn-toggle-trash"),
   },
+  // スクショと同じ流れ：相手のアタックでライフが減り、賢者の樹の実（ライフが減ったときコア1個）の効果のあとに絶甲氷盾のバーストが発動する。
+  // 賢者の樹の実の効果の通知に、バーストの発動と効果の行が入らないこと
+  {
+    id: "burstAfterEffect", name: "15c 効果のあとにバースト発動（賢者の樹の実→絶甲氷盾）", turn: "opp", phase: "attack",
+    board: () => ({ me: base({ burst: "SD06-016", field: { spirits: spirits(3), nexuses: [{ cardId: "BS06-081", cores: 0 }] } }), opp: base() }),
+    run: async (c) => {
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      for (let i = 0; i < 12 && !(await pressOpt(c.A, "発動する", 300)); i++) {
+        if (!(await pressOpt(c.A, "ライフで受ける", 300)) && !(await pressOpt(c.A, "パス", 300))) await pressOpt(c.B, "パス", 300)
+      }
+      await sleep(1000)
+    },
+  },
   { id: "burst", name: "15 バーストをセット", board: () => ({ me: base({ burst: BURST }), opp: base({ burst: BURST }) }), run: async () => {} },
   {
     id: "brave", name: "16 ブレイヴ合体（1体／2体）",

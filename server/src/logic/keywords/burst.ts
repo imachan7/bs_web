@@ -46,9 +46,10 @@ export function placeBurst(state: GameState, pid: PlayerId, cardId: string): voi
 // 発動した時点でバーストは公開される。効果の解決（対象選択を含む）より前に相手へ見せる
 export function announceBurstActivation(state: GameState, pid: PlayerId, cardId: string): void {
     const name = getCard(cardId).name
+    const logAt = state.log.length
     log(state, `${state.players[pid].name}はバースト（${name}）を発動した。`)
     state.players[pid].burstRevealedCardId = cardId
-    emitEvent(state, { type: "burst", pid, cardName: name, cardId })
+    emitEvent(state, { type: "burst", pid, cardName: name, cardId, logAt })
 }
 
 // バースト効果の解決から後を進める：thenPay（その後コストを支払うことで〜）→ カードをトラッシュへ → 「自分のバースト発動後」。

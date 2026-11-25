@@ -9,10 +9,13 @@ const MAX_WAITING = 3 // 溜まりすぎたら古いものから飛ばす（2026
 const MINE_MS = 2500
 const OPP_MS = 4000
 
-// endAt：中身に出すログの終わり（state.log の行数）。効果の解決が終わった（選択の待ちが無い）状態が届いた時点の行数で固める。
+// endAt：中身に出すログの終わり（state.log の行数）。効果の解決が終わった（選択の待ちが無いか、別の効果の待ちになった）状態が届いた時点の行数で固める。
 // 固めないと、次の効果の通知が来ない限り、出している間に増えたログ（相手の次の行動・ターンの終わりなど）まで中身に積み重なった（2026-11-25 ユーザー指摘）
 interface Item { ev: EffectEvent; endAt?: number }
 let queue: Item[] = []
+// マジック・バーストの発動の位置。前の効果の通知の中身はここで切る（相手のアタックで減ったライフの効果の通知に、続くバーストの発動と効果まで入っていた。2026-11-25 ユーザー指摘）。
+// 選ぶ場面が続くと endAt が固まらないので、こちらで切る
+let cuts: number[] = []
 let current: (Item & { choiceSeen: boolean; timer: number | undefined }) | null = null
 let lastView: GameView | null = null
 
@@ -36,7 +39,8 @@ function renderBody(): void {
     const b = box?.querySelector<HTMLElement>(".effect-notice-body")
     if (!box || !b || !current || !lastView) return
     const first = lastView.logTotal - lastView.log.length
-    const end = Math.min(queue[0]?.ev.logAt ?? Infinity, current.endAt ?? lastView.logTotal)
+    const cut = cuts.find((n) => n > current!.ev.logAt) ?? Infinity
+    const end = Math.min(queue[0]?.ev.logAt ?? Infinity, cut, current.endAt ?? lastView.logTotal)
     const lines = lastView.log.slice(Math.max(0, current.ev.logAt - first), Math.max(0, end - first))
     box.classList.toggle("effect-result", lines.length > 0)
     b.textContent = lines.length > 0 ? lines.join("\n") : effectBodyText(current.ev.cardId, current.ev.heading)
@@ -101,12 +105,19 @@ function showNext(): void {
 // 描画のたびに呼ぶ。新しい出来事を並べ、選び終わっていれば消し、発生源のカードを光らせ直す（描き直しで class が落ちるため）
 export function syncEffectNotice(view: GameView, newEvents: GameEvent[]): void {
     lastView = view
-    for (const ev of newEvents) if (ev.type === "effect") queue.push({ ev })
-    if (queue.length > MAX_WAITING) queue = queue.slice(-MAX_WAITING)
-    if (view.pendingChoice == null) {
-        for (const item of queue) item.endAt ??= view.logTotal
-        if (current) current.endAt ??= view.logTotal
+    for (const ev of newEvents) {
+        if (ev.type === "effect") queue.push({ ev })
+        if (ev.type === "magic" || ev.type === "burst") cuts.push(ev.logAt)
     }
+    // 出している通知より前の位置は要らない
+    const from = current?.ev.logAt ?? queue[0]?.ev.logAt
+    cuts = from === undefined ? [] : cuts.filter((n) => n > from)
+    if (queue.length > MAX_WAITING) queue = queue.slice(-MAX_WAITING)
+    // 選択の待ちが無い、または待ちがこの効果の発生源のものでない（バーストの発動確認など別の効果）なら、この効果の解決は終わっている
+    const pc = view.pendingChoice
+    const done = (item: Item): boolean => pc == null || (item.ev.instanceId !== undefined && pc.selfInstanceId !== item.ev.instanceId && pc.effectSource?.instanceId !== item.ev.instanceId)
+    for (const item of queue) if (done(item)) item.endAt ??= view.logTotal
+    if (current && done(current)) current.endAt ??= view.logTotal
     if (current) {
         if (view.pendingChoice != null) current.choiceSeen = true
         else if (current.choiceSeen) dismiss()
