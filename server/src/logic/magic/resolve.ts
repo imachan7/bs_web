@@ -16,6 +16,7 @@ import { resolveMagic } from "./cast"
 import { hasKeywordAtLevel } from "../keywords/kobo"
 import { hasEffectTax, withEffectTax } from "../effectTax"
 import { isOnceNameUsed, markOnceNameUsed } from "../oncePerTurn"
+import { randomId } from "../../../../shared/randomId"
 
 // マジックの効果本体の解決。resolveMagic から（無効化されなかったときに）呼ぶ。
 // usedMagicCardIds への記録と emitEvent は resolveMagic 側で済ませてあるので、ここでは行わない
@@ -217,7 +218,7 @@ export function runMagicActions(
     const taxed = hasEffectTax(state, owner, "magic")
     const collected: EffectAction[] = []
     // エントリは別々に解決するが、1枚のマジックの効果は1つ。破壊・戻すの派生は、全エントリを解決し終えてから解決する
-    const effectId = crypto.randomUUID()
+    const effectId = randomId()
     const prevHold = state.holdDerivedFor
     state.holdDerivedFor = effectId
     try {
