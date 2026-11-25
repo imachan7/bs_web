@@ -132,6 +132,19 @@ const SCENES = [
     run: async (c) => clickSel(c.A, isMobile(c) ? "#mat-trash-self" : "#btn-toggle-trash"),
   },
   { id: "burst", name: "15 バーストをセット", board: () => ({ me: base({ burst: BURST }), opp: base({ burst: BURST }) }), run: async () => {} },
+  // 相手のアタックをブロックせずライフが減り、自分の伏せた烈光閃刃（【バースト：自分のライフ減少後】）が発動する。PC は左に大きくカードが出る
+  {
+    id: "burstFire", name: "15b バースト発動（相手のアタックでライフ減少）", turn: "opp", phase: "attack",
+    board: () => ({ me: base({ burst: "BS14-092" }), opp: base() }),
+    run: async (c) => {
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      // 途中で出るボタン（フラッシュのパス・ライフで受ける・バーストの発動）を押せるものから押していく
+      for (let i = 0; i < 12 && ![...c.A.querySelectorAll(".burst-reveal-big, .event-detail.event-burst")].some(vis); i++) {
+        if (!(await pressOpt(c.A, "発動", 400)) && !(await pressOpt(c.A, "ライフで受ける", 400)) && !(await pressOpt(c.A, "パス", 400))) await pressOpt(c.B, "パス", 400)
+      }
+      await waitSel(c.A, ".event-detail.event-burst", 3000)
+    },
+  },
   {
     id: "brave", name: "16 ブレイヴ合体（1体／2体）",
     board: () => ({
