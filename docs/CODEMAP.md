@@ -1782,6 +1782,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## public/src/ui/fieldCard.ts
 
+- `DockAction`（型）
+- `dockActionsOf`（fn）
 - `renderField`（fn）
 - `coreButtonsEl`（fn）：コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
 - `fieldCardEl`（fn）
@@ -1847,7 +1849,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `installPayStages`（fn）
 - `openEffectSummonPay`（fn）：効果による召喚・配置の支払いを2段の画面で開く。②の置く数は index 番目から始める
-- `effectSummonNeedsScreen`（fn）：画面を出さずに済む判定（自動で、リザーブだけで最小の置くコアまで払える）。通常の召喚と同じ
+- `openEffectSummonScreen`（fn）：効果による召喚・配置で置く数を聞かれたら、−／＋ だけの画面でなく、手札からの召喚と同じ支払いの画面で開く
 - `summonLevelChoosable`（fn）：通常の召喚・配置：②で Lv／置く数を選べるか
 - `fillFromReserve`（fn）：自動でリザーブだけで払えるときに、最小の置き方までリザーブで埋めて②から始める（play.tryPlay から）
 - `assignPayStageCore`（fn）：フィールドの個体を押したときの入口（payInput.assignPayCore から呼ぶ）
