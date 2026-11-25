@@ -263,7 +263,10 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
         const extraPlaceable = reserve + fieldCores >= cost + minCores + 1
         const reserveOnlyOk = ui.payMode === "auto" && !altAvailable && reserve - (soulInReserve ? 1 : 0) >= cost + minCores
         // 選べるときも Lv の画面は出さず、支払いのシートの②で選ぶ（Lv のボタンは1回押すと召喚まで進み、ほかの道と動きが違った。2026-11-25 ユーザー指摘）
-        chooseInSheet = reserveOnlyOk && (affordableLevels.length > 1 || extraPlaceable || waiverAvailable)
+        // PC は選ぶものが無くても1回シートを挟む（手札を1回押しただけで召喚まで進んでいた。2026-11-25 ユーザー指摘）。
+        // スマホは手札を押すと下の欄の「召喚」を挟むので、選ぶものが無ければそのまま出す
+        const pc = !window.matchMedia("(max-width: 768px)").matches
+        chooseInSheet = reserveOnlyOk && (pc || affordableLevels.length > 1 || extraPlaceable || waiverAvailable)
     }
 
     // 置くコア数。サーバー（placedCoresForSummon）と同じ計算。soulWaiver＝《真界放》の

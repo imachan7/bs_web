@@ -101,7 +101,15 @@ export function renderCardDock(v?: GameView, u?: UiState): void {
         return
     }
     card.classList.add("dock-selected")
-    $("card-dock-name").textContent = card.querySelector(".name")?.textContent ?? ""
+    const nameEl = $("card-dock-name")
+    nameEl.textContent = card.querySelector(".name")?.textContent ?? ""
+    const info = selected.zone === "hand" ? card.dataset.payInfo : undefined
+    if (info !== undefined) {
+        const line = document.createElement("span")
+        line.className = "dock-pay-info"
+        line.textContent = info
+        nameEl.append(line)
+    }
     const art = $("card-dock-art") as HTMLImageElement
     const url = selected.zone === "hand" ? cardImageUrl(selected.id, "lg") : null
     art.hidden = url === null
