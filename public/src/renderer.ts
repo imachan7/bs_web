@@ -937,16 +937,12 @@ export function render(view: GameView, ui: UiState): void {
         const base =
             staged
                 ? payStageHeading(view, ui.paying)
-                : ui.paying.forBraveKeep !== undefined
-                ? `💎 残すブレイヴに置くコア: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forMeisai !== undefined
                 ? `💎 ${ui.paying.forMeisai.effectCost ? "効果" : "【迷彩】"}のコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forAttack !== undefined
                 ? `💎 アタックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forBlock !== undefined
                 ? `💎 ブロックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
-                : ui.paying.forDetachBraveInstanceId !== undefined
-                ? `💎 分離するブレイヴに置くコア: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください`
                 : `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
         if (alt.kind === "handDiscard") {
             // 破棄する手札は「どれを捨てるか」を選ぶので、手札そのものをクリックさせる
