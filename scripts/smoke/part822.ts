@@ -208,7 +208,7 @@ for (const [label, siliCores, expectAlive] of [["Lv2", 2, true], ["Lv1", 1, fals
 {
     const s = game("sili-grant-combined")
     put(s, "p1", SILI, 2)
-    const van = put(s, "p1", VAN, 1)
+    const van = put(s, "p1", "BS03-018", 1) // ダークレイス（紫・コスト4・BP2000・効果なし）。カラクリバッタ（コスト4以上）の合体条件を満たし、合体BP6000でBP6000以下の破壊を受ける
     combine(s, "p1", van, KARAKURI)
     const atk = put(s, "p2", SABER, 1)
     s.turnPlayer = "p2"

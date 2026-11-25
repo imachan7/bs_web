@@ -61,6 +61,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `noteGrantSource`（fn）：付与先に付与元の __eid を載せ、読む側の計測点で引けるようにする（alsoCostGrant のように付与元を残さない状態用）
 - `noteGrantedFrom`（fn）：kind は付与元の kind（coverage:effects が計測点のある kind として数える）
 
+## shared/deckLimit.ts
+
+- `MAX_COPIES`（const）
+- `deckCopyLimit`（fn）
+
 ## shared/handBurstEffect.ts
 
 - `handBurstEffectDenial`（fn）：使えない理由（使えるなら null）。コストを払えるかは含まない。
@@ -170,7 +175,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lifeDamageLimit`（fn）：このアタックで、防御側のライフが1回に減る**上限**を返す唯一の入口。
 - `LifeLossQuery`（型）
 - `lifeLossAllowed`（fn）：ライフを減らす処理の制限を1か所に集めた問い合わせ。0〜amount の「減らせる量」を返す。
-- `cantReduceOpponentLife`（fn）：attackerPid は「ライフを減らそうとしている側」。その持ち主のフィールドに
+- `cantReduceOpponentLife`（fn）：BS11-X06 Lv3「このスピリットが回復状態の間、相手のライフを減らせない」は『このスピリットのアタック時』の効果なので、
 - `mustAttackThisTurn`（fn）：このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか
 - `mustAttackFirst`（fn）：「このステップの最初に必ずアタックする」（until:"firstAttack"）を受けているか。受けている間は他のスピリットでアタックできない
 - `canBlockWhileRestedThisTurn`（fn）：このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のタ…
@@ -805,7 +810,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/braveConditionGate.ts
 
-- `separateBravesBelowMinCost`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ。
+- `separateBravesLostCondition`（fn）：効果の手ごとの出口（EffectModules）と handleAction の後始末（継続効果を組み直した後）で呼ぶ（#707）。
 - `separateBravesOverLimit`（fn）：合体数の上限を上げていた効果（BS23-X01 など）が消えて、上限を超えたホストの分離（Q4588）。
 - `trashSpiritStateBravesWhenForbidden`（fn）：BS11-X02 Lv3「相手は、ブレイヴをスピリット状態にできない」が効いている間、その側のスピリット状態のブレイヴは
 
@@ -1116,12 +1121,16 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyMagicRepeatChoice`（fn）：pendingChoice（再発揮の確認）の後処理。GameEngine.doResolveChoice から呼ぶ
 - `resumeMagicEntryHandler`（const）：選択待ちで止まったマジックの、残りのエントリ1つ（runMagicActions が積む内部専用）
 - `runMagicActions`（fn）：マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
-- `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
 
 ## server/src/logic/magic/targetRequirement.ts
 
 - `magicTargetMissing`（fn）
+
+## server/src/logic/magic/usedTriggers.ts
+
+- `decideMagicUsedTriggers`（fn）：集めるだけで解決しない。「ターンに1回」は処理する時点で消費する（相手側 opponentMagicUsed に oncePerTurn つきの効果はデータに無い）
+- `runMagicUsedTriggers`（fn）：効果が無効にされたマジックも通す（使用宣言とコストの支払いは済んでいるため）
 
 ## server/src/logic/oncePerTurn.ts
 
@@ -1271,6 +1280,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `recordTimed`（fn）：期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
 - `recordPlayerRule`（fn）：pid にこのターンの間の制約を掛ける（効果の中の「さらに、このターンの間〜」から書く）
 - `recordBp`（fn）：1体を BP+（このターン／このバトルの間）。ownerPid＝効果を出した側
+- `braveCompositeOf`（fn）：ブレイヴ群がホストへ足すぶん。合体条件の確かめ直しが「そのブレイヴを除いた」ホストを作るときにも使う
 - `refreshLevelAsOverrides`（fn）
 
 ## server/src/logic/state/exhaust.ts
@@ -1483,7 +1493,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/types/choice.ts
 
-- `EventBurstCheck`（型）：バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
+- `MagicUsedDecision`（型）：バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
+- `EventBurstCheck`（型）
 - `DeclaredBurst`（型）：発動を宣言したバースト（BURST.md §1.4「宣言と適用は別の時点」）。適用は applyDeclaredBursts が、以降に解決する効果が無くなってから行う。
 - `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
 - `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。

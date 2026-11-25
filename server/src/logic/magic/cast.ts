@@ -11,7 +11,8 @@ import { canPayMagicCost, payMagicCostThenResolve } from "./payThenResolve"
 import { effectMagicUseDenial } from "./effectUse"
 import { askBothSidesRedirect } from "./redirect"
 import { findMagicNegateSource, payMagicNegate } from "./negate"
-import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
+import { resolveMagicEffects } from "./resolve"
+import { decideMagicUsedTriggers, runMagicUsedTriggers } from "./usedTriggers"
 import { beginMagicUse, finishMagicUseOrDefer } from "./inUse"
 import { handCardBanned, matchesTarget, magicPayAssistCandidates } from "../../../../shared/rules"
 import { noteCoverage } from "../../../../shared/coverage"
@@ -67,6 +68,8 @@ function resolveMagicInner(
     delete state.magicFreeDeclined
     if (!declinedFree) consumeOncePerBattleMagicFree(state, owner, card)
     emitEvent(state, { type: "magic", pid: owner, cardName: card.name, cardId, timing })
+    // 「マジックを使用したとき」に反応するものは、コストを払い終えた今ここで決める（効果の解決中に出たものは入らない）
+    const triggers = decideMagicUsedTriggers(state, owner, card, timing, paidCost)
 
     // マジックの無効化（鏡の回廊Lv2／今後の【氷壁】）。効果を1つも解決する前に判定する。
     // 実対戦（interactiveTargets）では防御側に「無効にするか」を確認し、
@@ -89,6 +92,7 @@ function resolveMagicInner(
                     targetInstanceId,
                     sourceInstanceId: negate.inst.instanceId,
                     paidCost,
+                    triggers,
                 },
                 action: { type: "noop" },
                 selfInstanceId: negate.inst.instanceId,
@@ -96,12 +100,12 @@ function resolveMagicInner(
             return
         }
         payMagicNegate(state, negate, card)
-        fireMagicUsedTriggers(state, owner, card, timing, paidCost)
+        runMagicUsedTriggers(state, owner, card, triggers)
         return
     }
 
-    if (askBothSidesRedirect(state, owner, card, timing, targetInstanceId, paidCost)) return
-    resolveMagicEffects(state, owner, cardId, timing, targetInstanceId, paidCost)
+    if (askBothSidesRedirect(state, owner, card, timing, targetInstanceId, paidCost, triggers)) return
+    resolveMagicEffects(state, owner, cardId, timing, targetInstanceId, paidCost, triggers)
 }
 
 // oncePerBattle の magicFreeGrant を「このバトルで1枚使った」として記録する。
