@@ -79,6 +79,7 @@ import {
     timedBattleContents,
     timedContentsFor,
 } from "../../../shared/rules"
+import { randomId } from "../../../shared/randomId"
 
 export type { KeywordInfo }
 export {
@@ -1010,7 +1011,7 @@ export function destroyTargetsBatch(
         familiesByPid[t.pid] = [...new Set([...(familiesByPid[t.pid] ?? []), ...grantedFamilies(state, t.pid, inst)])]
     }
     // 「破壊した数」はバッチを始めた効果の枠に書く（まとめての確定は中断明けに走ることがあり、そのときの recordScope は別の効果のもの）
-    state.destroyGroup = { id: crypto.randomUUID(), memberIds: targets.map((t) => t.instanceId), used: [], familiesByPid, recordScope: currentRecordScope(state) }
+    state.destroyGroup = { id: randomId(), memberIds: targets.map((t) => t.instanceId), used: [], familiesByPid, recordScope: currentRecordScope(state) }
     const frame: DestroyBatchFrame = {
         kind: "destroyBatch",
         ownerPid,
@@ -1475,7 +1476,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
     const ranked = fresh.filter((m) => m.inst.waiting?.kind === "return" && m.inst.waiting.rank !== undefined).sort((a, b) => (a.inst.waiting as { rank: number }).rank - (b.inst.waiting as { rank: number }).rank)
     if (order === undefined && ranked.length > 0) order = ranked.map((m) => m.inst.instanceId)
     // 1回でまとめて戻すカードは同じ出来事（互いの誘発から対象に取れる。C2）
-    const event = crypto.randomUUID()
+    const event = randomId()
     for (const { inst } of fresh) {
         if (inst.waiting?.kind === "return") inst.waiting = { ...inst.waiting, event, resolving: true }
     }

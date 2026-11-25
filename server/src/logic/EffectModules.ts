@@ -80,6 +80,7 @@ import {
     fieldColorCount,
    
 } from "../../../shared/rules"
+import { randomId } from "../../../shared/randomId"
 import { lastCoresCount, lastDestroyedCountOf, lastDrawnCount, lastEmptiedSpiritsOf, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
 import { checkExhaustOnCoreChange } from "./state/exhaust"
 export type { KeywordInfo }
@@ -1407,7 +1408,7 @@ export function resolveAction(
     const opp = opponentOf(owner)
     // 効果の id。一番外側の効果が発行し、入れ子はそれを引き継ぐ。中断からの再開は resumeEffectId で同じ効果の続きになる
     // （derivedSettle：効果の中で待機に入ったカードの列は、この id の効果が終わってから解決する）
-    const effectId = state.currentEffectSource?.effectId ?? state.resumeEffectId ?? crypto.randomUUID()
+    const effectId = state.currentEffectSource?.effectId ?? state.resumeEffectId ?? randomId()
     if (state.currentEffectSource === undefined) delete state.resumeEffectId
     const sourceName = self ? getCard(selfIsSource ? self.cardId : sourceCardId!).name : "効果"
     const srcColors = sourceColors ?? (self ? instColors(self) : undefined)
