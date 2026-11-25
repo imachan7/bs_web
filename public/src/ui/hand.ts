@@ -120,7 +120,11 @@ export function renderHand(view: GameView, ui: UiState): void {
             badge.textContent = "盤面コア必要"
             el.appendChild(badge)
         }
-        else el.classList.add("unusable")
+        else {
+            el.classList.add("unusable")
+            // 出せる場面なのにコアだけが足りないときは、欄の「召喚」を押せない形で残して足りない数を出す（コストと Lv1 の維持コアの合計で見る。2026-11-25 ユーザー指摘）
+            if (isUsableState) el.dataset.short = String(need - reserve - fieldCores)
+        }
 
         if (targetable) {
             el.classList.add("targetable", "clickable")

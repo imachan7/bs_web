@@ -60,7 +60,13 @@ function entriesOf(sel: Selection, card: HTMLElement): Entry[] {
         return [...plain, ...brave]
     }
     // .clickable は召喚・使用できるカード。できないカードも絵と名前だけは見せる
-    const play: Entry[] = card.classList.contains("clickable") ? [{ els: [card], title: "", disabled: false, label: PLAY_LABEL[master(sel.id).type] }] : []
+    const verb = PLAY_LABEL[master(sel.id).type]
+    const short = card.dataset.short
+    const play: Entry[] = card.classList.contains("clickable")
+        ? [{ els: [card], title: "", disabled: false, label: verb }]
+        : short !== undefined
+          ? [{ els: [card], title: "", disabled: true, label: `${verb}できない（コアがあと${short}個）` }]
+          : []
     return [...play, ...[...card.querySelectorAll<HTMLButtonElement>(HAND_SOURCES)].map((src) => ({ els: [src], title: src.title, disabled: src.disabled, label: src.textContent ?? "" }))]
 }
 

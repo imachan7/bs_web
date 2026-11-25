@@ -4,6 +4,7 @@ const SIZES = [
   { id: "phone", name: "スマホ 375×667", w: 375, h: 667, s: 0.6 },
   { id: "se", name: "SE Safari 375×553", w: 375, h: 553, s: 0.6 },
   { id: "pro", name: "Pro Max 430×932", w: 430, h: 932, s: 0.6 },
+  { id: "and", name: "Android 412×830", w: 412, h: 830, s: 0.6 },
 ]
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const vis = (el) => el && el.offsetParent !== null
@@ -74,11 +75,12 @@ async function lampToStepper(c) {
 const SCENES = [
   { id: "idle", name: "1 待機", board: standby, run: async () => {} },
   { id: "hand", name: "2 手札を押した", board: standby, run: async (c) => clickSel(c.A, "#hand .card") },
+  { id: "short", name: "2b コアが足りない手札を押した", board: () => ({ me: base({ reserve: 1, hand: [GRIP], field: { spirits: [], nexuses: [] } }), opp: base() }), run: async (c) => clickSel(c.A, "#hand .card") },
   { id: "spirit", name: "3 場のスピリットを押した", board: standby, run: async (c) => clickSel(c.A, "#my-spirits .card") },
   // 召喚の支払いは「①コスト → ②置くコア」の2段の画面（ui/payStages.ts）。リザーブが足りないので画面が開く
   { id: "lv", name: "4 召喚の支払い①（コスト）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await waitSel(c.A, "#choice-options .pay-sheet") } },
   { id: "lvres", name: "4b リザーブで足りる召喚（②から・置く数は取った数）", board: lvResBoard, run: async (c) => { await play(c, GRIP, "召喚"); await waitSel(c.A, "#choice-options .pay-sheet"); await press(c.A, "＋") } },
-  { id: "pay", name: "5 召喚の支払い②（おまかせ→次へ）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await press(c.A, "おまかせで割り当てる"); await press(c.A, "次へ") } },
+  { id: "pay", name: "5 召喚の支払い②（リザーブ＋場から→次へ）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await press(c.A, "＋"); c.A.querySelector("#my-spirits .card").click(); await sleep(300); await press(c.A, "次へ") } },
   { id: "lampStep", name: "6 効果配置の置くコア数", board: lampBoard, run: lampToStepper },
   { id: "lampPay", name: "7 6 の「決定」後の支払い", board: lampBoard, run: async (c) => { await lampToStepper(c); await press(c.A, "決定") } },
   { id: "lampOpen", name: "8 自分のカードをオープン中", board: lampBoard, run: lampToOpen },

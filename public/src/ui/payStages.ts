@@ -123,58 +123,25 @@ export function summonLevelChoosable(v: GameView, pay: PayingState): boolean {
     return pay.levelChoosable === true && pay.forMeisai === undefined && payingCardId(v, pay) !== undefined
 }
 
-// ---- おまかせで割り当てる ----
+// ---- リザーブで埋める ----
 
-function autoFieldList(v: GameView, pay: PayingState, count: number): string[] {
-    if (count <= 0) return []
-    const m = pay.forMeisai
-    const sug = m?.placing === true ? v.pendingChoice?.effectCostPay?.suggestByOption?.[m.optionIndex ?? 0] : undefined
-    if (sug !== undefined && sum(Object.fromEntries(sug.map((s) => [s.instanceId, s.count]))) === count) {
-        return sug.flatMap((s) => Array<string>(s.count).fill(s.instanceId))
-    }
-    // 維持コアを残して払える個体から多い順に取り、足りなければスピリットを消滅させる払い方まで進む
-    const spiritIds = new Set(v.players[v.you].field.spirits.map((s) => s.instanceId))
-    const free = new Map<string, number>()
-    const rest = new Map<string, number>()
-    for (const inst of fieldInsts(v)) {
-        const u = usableOn(v, pay, inst)
-        const keep = spiritIds.has(inst.instanceId) ? minLevelCores(master(inst.cardId)) : 0
-        free.set(inst.instanceId, Math.max(0, u - keep))
-        rest.set(inst.instanceId, u - Math.max(0, u - keep))
-    }
-    const out: string[] = []
-    while (out.length < count) {
-        const pick = (from: Map<string, number>) => [...from.entries()].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1])[0]
-        const hit = pick(free) ?? pick(rest)
-        if (!hit) break
-        const pool = (free.get(hit[0]) ?? 0) > 0 ? free : rest
-        pool.set(hit[0], (pool.get(hit[0]) ?? 0) - 1)
-        out.push(hit[0])
-    }
-    return out
-}
-
-function applyAutoPlan(v: GameView, pay: PayingState): void {
+function fillReserve(v: GameView, pay: PayingState): void {
     const needs = payingStageNeeds(v, pay)
     const soulCost = (pay.useSoulCore === true ? 1 : 0) + (pay.soulPayInstanceId !== undefined && pay.soulPayMode !== "maintain" ? 1 : 0)
     const soulPlace = (pay.placeSoulCore === true ? 1 : 0) + (pay.soulPayInstanceId !== undefined && pay.soulPayMode === "maintain" ? 1 : 0)
     const costT = Math.max(0, needs.cost - soulCost)
     const placeT = Math.max(0, needs.place - soulPlace)
-    const pool = reservePool(v)
-    const list = autoFieldList(v, pay, Math.max(0, costT + placeT - pool))
-    const reserveN = Math.min(pool, costT + placeT - list.length)
+    const reserveN = Math.min(reservePool(v), costT + placeT)
     const r1 = Math.min(costT, reserveN)
-    const toRecord = (ids: string[]) => ids.reduce<Record<string, number>>((o, id) => ({ ...o, [id]: (o[id] ?? 0) + 1 }), {})
-    const costIds = list.slice(0, costT - r1)
-    pay.costAssigned = toRecord(costIds)
-    pay.assigned = toRecord(list)
+    pay.costAssigned = {}
+    pay.assigned = {}
     pay.costReserve = r1
     pay.placeReserve = reserveN - r1
 }
 
 // 自動でリザーブだけで払えるときに、最小の置き方までリザーブで埋めて②から始める（play.tryPlay から）
 export function fillFromReserve(v: GameView, pay: PayingState): void {
-    applyAutoPlan(v, pay)
+    fillReserve(v, pay)
     pay.step = "place"
 }
 
@@ -244,9 +211,6 @@ export function onPayStageClick(e: Event): void {
         }
         case "reset":
             resetStage(pay, stage)
-            break
-        case "auto":
-            applyAutoPlan(v, pay)
             break
         case "next":
             if (payingStageFilled(pay, "cost") === needs.cost) pay.step = "place"
@@ -406,7 +370,8 @@ export function renderPayStageSheet(v: GameView, pay: PayingState, host: HTMLEle
     if (note) sheet.append(div("pay-warn", note))
 
     const tools = div("pay-tools")
-    tools.append(btn("やり直す", "reset"), btn("おまかせで割り当てる", "auto"))
+    // 「おまかせで割り当てる」は置かない（取る場所はリザーブの ＋ と場のカードで選べる。2026-11-25 ユーザー判断）
+    tools.append(btn("やり直す", "reset"))
     sheet.append(tools)
 
     const nav = div("pay-nav")
