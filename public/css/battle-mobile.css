@@ -9,6 +9,9 @@
 @media (max-width: 768px) {
     /* 行の高さ。背の低い画面（下の max-height: 700px）だけ値を詰める（2026-11-24 iPhone SE の Safari で見える高さ約553px に収めるため）。
        --zone-h はスピリットの欄の高さで、2段のときのカード幅もここから決まる（欄に収まる幅。ui/spiritLayout.ts は測った幅で判定するので値を直接は読まない） */
+    /* 長押しで説明を出すので、ボタンやカードの文字が選択状態にならないようにする（2026-11-25 ユーザー指摘）。ログは写せるよう残す */
+    #game :not(#log, #log *) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
     :root {
         --sp-h-ratio: calc(985 / 675); --nexus-h: 63px; --info-h: 40px; --nexus-w: 48px;
         /* カード（場・手札共通）は画面の幅と高さの小さい側に合わせる。375×667 で53px、412×830 で66px、430×932（Pro Max）で70px。
