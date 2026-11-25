@@ -113,6 +113,7 @@ const SCENES = [
   },
   // 12 対象選択：メインで使える相手スピリット対象のマジックがデータに見つからず省略（報告参照）
   { id: "menu", name: "13 メニューを開いた", board: standby, run: async (c) => { if (isMobile(c)) await clickSel(c.A, "#btn-status-menu") } },
+  { id: "settings", name: "13b ⚙ 表示を開いた", board: standby, run: async (c) => { if (isMobile(c)) await clickSel(c.A, "#btn-status-menu"); await clickSel(c.A, "#btn-display-settings") } },
   {
     id: "trash", name: "14 トラッシュを開いた",
     board: () => ({ me: base({ trashCards: [GRIP, GRIP, "SD06-001", LAMP] }), opp: base({ trashCards: [GRIP] }) }),
