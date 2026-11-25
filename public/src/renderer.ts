@@ -306,6 +306,7 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
             return ev.vanish ? `💨 ${ev.cardName} 消滅` : `💥 ${ev.cardName} 破壊`
         case "magic": return `${ev.cardName} 使用`
         case "burst": return null // 詳しい表示（showDetailBanner）で出す
+        case "burstMagicEffect": return null // 同上
         case "effect": return null // 解決中の効果の表示（ui/effectNotice.ts）で出す
         case "draw":
             // 自分のドローは手札の増加で分かるため表示しない。相手のドローのみ通知する
@@ -588,6 +589,12 @@ function processNewEvents(view: GameView): Set<PlayerId> {
             showDetailBanner(layer, "burst", `${mine ? "あなた" : "相手"}の ${ev.cardName} バースト発動`, ev.cardId !== undefined ? burstEffectText(ev.cardId) : "", mine, "burst")
             continue
         }
+        // バーストのあとに発揮するメイン効果・フラッシュ効果。何の効果を発揮したかを出す（2026-11-25 ユーザー指摘：絶甲氷盾のフラッシュ効果の中身が分からなかった）
+        if (ev.type === "burstMagicEffect" && layer) {
+            const label = ev.timing === "flash" ? "フラッシュ" : "メイン"
+            showDetailBanner(layer, "burst", `${mine ? "あなた" : "相手"}の ${ev.cardName} の${label}効果を発揮`, magicEffectText(ev.cardId, ev.timing), mine, ev.timing)
+            continue
+        }
         if (ev.type === "reveal") {
             revealShown = { pid: ev.pid, cardIds: ev.cardIds }
             continue
@@ -776,6 +783,14 @@ export function render(view: GameView, ui: UiState): void {
         choiceOptionsEl.append(stepperRow(minus, readout, plus), confirm)
         show("choice-options", true)
     } else if (myPendingChoice && myPendingChoice.kind === "option") {
+        // バーストのあとにコストを払って発揮するかの確認では、発揮する効果の中身を一緒に出す（払うか決めるのに要る。2026-11-25 ユーザー指摘）
+        const thenPay = myPendingChoice.burstThenPay
+        if (thenPay) {
+            const text = document.createElement("div")
+            text.className = "choice-effect-text"
+            text.textContent = `${thenPay.timing === "flash" ? "フラッシュ" : "メイン"}：${magicEffectText(thenPay.cardId, thenPay.timing)}`
+            choiceOptionsEl.appendChild(text)
+        }
         for (const opt of myPendingChoice.options ?? []) {
             const b = document.createElement("button")
             b.dataset.option = opt
