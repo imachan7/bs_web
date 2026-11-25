@@ -392,7 +392,8 @@ export function fieldCardEl(
     // 効果解決中の選択待ち（自分宛）：候補なら最優先でハイライトし、他の操作モードは無視する。
     // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う（2026-08-23）・効果のコストや効果による召喚・配置を払う）のときは、
     // コアの割り当てを続けられるよう下の支払いモードへ通す（効果による召喚・配置で、取れるスピリットが光っていなかった。2026-11-25）
-    const payingForChoice = ui.paying?.forChoiceCardIndex !== undefined || ui.paying?.forMeisai !== undefined
+    // 選択の待ちの間に支払っているのは、どれも選択の解決のための支払い（起動効果の召喚・効果のコスト・効果による召喚・ブレイヴを残す）。ブレイヴを残すが抜けていて光っていなかった（2026-11-25）
+    const payingForChoice = ui.paying !== null
     if (view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice) {
         if (view.pendingChoice.candidates.includes(inst.instanceId)) {
             el.classList.add("targetable", "clickable")
