@@ -202,7 +202,7 @@
     /* 場のカードは体数・画面の大きさで大きさを変えない（--card-w。手札と同じ48px）。召喚のたびに全部のカードが縮むと画面が揺れ、
        大きい画面で大きくすると手札と釣り合わなかった（2026-11-24 ユーザー決定）。画面が高いぶんは欄（--zone-h）を高くして、段を増やせるようにする。
        並べ方は ui/spiritLayout.ts が実際の幅を測って data-rows に入れる："1"〜"N"＝その段数（個数で均等。相手側は段の順が逆で、先頭の段が中央寄り）、
-       "scroll"＝入る段数まで重ねても入らないときの1段。入らない段は左から重ね（.fanned。重なり幅は --ov）、Lv・BP・コアの左24pxは残す。
+       "vscroll"＝入る段数で入らないとき。段は自然に折り返し、欄の中を縦にスクロールする（2026-11-25 ユーザー決定。以前は重ねて1段の横スクロール）。
        --pf は絵やコストバッジがはみ出す側の余白、--pn は反対側。--br-top は合体ブレイヴの絵を段の上へ出してよい量。段は中央の帯の側から詰める */
     .spirit-zone {
         --sp-w: var(--card-w);
@@ -222,8 +222,17 @@
     }
     #opponent-area .spirit-zone { padding: var(--pn) 6px var(--pf); flex-wrap: wrap-reverse; }
     /* 段の間は .sp-break の高さで取る（改行用の要素も1行として数えられ、row-gap を使うと2回入るため） */
-    .spirit-zone[data-rows="scroll"] { --pf: calc((var(--zone-h) - var(--sp-h)) / 2); --pn: var(--pf); --br-top: 8px; flex-wrap: nowrap; }
-    #opponent-area .spirit-zone[data-rows="scroll"] { flex-wrap: nowrap; }
+    .spirit-zone[data-rows="vscroll"] { overflow-x: hidden; overflow-y: auto; row-gap: 2px; overscroll-behavior: contain; scrollbar-width: none; }
+    /* 相手側は中央の帯に近い下の段から見せる（spiritLayout が下までスクロールする）。wrap-reverse だと上へあふれた段にスクロールで届かない */
+    #opponent-area .spirit-zone[data-rows="vscroll"] { flex-wrap: wrap; }
+    /* 隠れているカードの数。自分は下端、相手は上端に貼りつける */
+    .spirit-zone[data-more]::after,
+    #opponent-area .spirit-zone[data-more]::before {
+        content: "▼ あと" attr(data-more) "体"; position: sticky; bottom: 0; flex: 0 0 100%; z-index: 6;
+        text-align: center; font-size: 11px; line-height: 18px; color: #fff; background: rgba(15, 17, 22, 0.85); pointer-events: none;
+    }
+    #opponent-area .spirit-zone[data-more]::after { content: none; }
+    #opponent-area .spirit-zone[data-more]::before { content: "▲ あと" attr(data-more) "体"; top: 0; bottom: auto; order: -1; }
     .spirit-zone > .sp-break { flex: 0 0 100%; height: 2px; }
     .spirit-zone .card {
         width: var(--sp-w);
@@ -245,26 +254,6 @@
     :root[data-brave] .spirit-zone .brave-combined.has-brave-art { max-height: calc(var(--sp-h) + var(--br-top)); }
     :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: var(--pf); }
     :root[data-brave] #opponent-area .spirit-zone:has(.has-brave-art) { padding-top: var(--pn); }
-    /* 重ねたカードは、左24pxに Lv・BP・コアを寄せる（後ろのカードが右側を隠す）。相手のカードは180度回っているので、枠の右側が見た目の左になる。
-       疲労（90度）のカードも重ねる。見た目の幅は回った高さで、右の余白を --ov だけ削る。能力値の枠は逆回転で正位置のままなので、幅24pxの枠を見た目の左端へ
-       (var(--sp-h) - 24px) / 2 ずらす（枠の座標は90度回っているため、ずらす向きは top の上下。自分は下、相手は上）。重疲労（180度）は重ねない */
-    /* 絵のない疲労カードは回らないので、ふつうのカードと同じに重ねる（抜けていて重ならず、4段に折り返して1段の横スクロールに落ちていた） */
-    .spirit-zone > .card.fanned:not(.rested), .spirit-zone > .card.fanned.rested:not(.has-art) { margin-right: calc(var(--ov) * -1); }
-    .spirit-zone > .card.fanned.has-brave:not(.rested) { margin-right: calc(var(--sp-w) / 2 + 3px - var(--ov)); }
-    #opponent-area .spirit-zone > .card.fanned:not(.rested),
-    #opponent-area .spirit-zone > .card.fanned.rested:not(.has-art),
-    #opponent-area .spirit-zone > .card.fanned.has-brave:not(.rested) { margin-right: calc(var(--ov) * -1); }
-    .spirit-zone .card.fanned.has-art.rested[data-side] { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 - var(--ov)); }
-    .spirit-zone .card.fanned.has-art > .card-overlay { left: 0; right: auto; width: 24px; padding: 1px 0 2px; overflow: hidden; white-space: nowrap; }
-    .spirit-zone .card.fanned[data-side="opp"].has-art > .card-overlay { left: auto; right: 0; }
-    .spirit-zone .card.fanned.has-art.rested > .card-overlay { left: 50%; right: auto; top: calc(50% + (var(--sp-h) - 24px) / 2); }
-    .spirit-zone .card.fanned[data-side="opp"].has-art.rested > .card-overlay { left: 50%; right: auto; top: calc(50% - (var(--sp-h) - 24px) / 2); padding: 0 0 1px; }
-    .spirit-zone .card.fanned.has-art > .card-overlay .stats,
-    .spirit-zone .card.fanned.has-art > .card-overlay .cores,
-    .spirit-zone .card.fanned.has-art > .card-overlay .stat-bp { font-size: 8px; }
-    .spirit-zone .card.fanned.has-art.rested > .card-overlay .stat-lv,
-    .spirit-zone .card.fanned.has-art.rested > .card-overlay .stat-bp { display: block; }
-    .spirit-zone .card.fanned.dock-selected { z-index: 5; }
     /* 疲労は90度回るので、見た目の幅（縦長の高さ）と実際の幅の差を左右に空ける */
     .spirit-zone .card.has-art.rested,
     .spirit-zone .card[data-side="opp"].has-art.rested { margin: 0 calc((var(--sp-h) - var(--sp-w)) / 2); }
@@ -478,16 +467,14 @@
     #status-bar { padding: 2px 8px; }
     #center-info-area { height: 18px; }
 }
-/* 背の低い画面では列の上に空きが無いので、ライフもリザーブと同じ「コア1個の絵と ×N」にする（コアの絵を並べると列が伸びて下がはみ出した） */
-@media (max-width: 768px) and (max-height: 700px) {
+/* SE（高さ666px以下）は列の上に空きが無いので、ライフもリザーブと同じ「コア1個の絵と ×N」にする（コアの絵を並べると列が欄より高くなった）。
+   375×667 はバーストの上の空きにコアの絵が入る（2026-11-25 ユーザー案） */
+@media (max-width: 768px) and (max-height: 666px) {
     [id^="mat-life"].mat-box .mat-cores { display: none; }
-    [id^="mat-life"].mat-box .mat-n { display: inline; font-size: 14px; line-height: 16px; white-space: nowrap; }
-    [id^="mat-life"].mat-box .mat-n::before { content: "×"; padding-left: 12px; font-size: 11px; background: url(/imgs/ui/core.png) left center / 11px no-repeat; }}
-/* 375×667 前後は列が53px。見出し・コアの絵・×N を1行に詰める（2行に折れると列が欄より高くなった） */
-@media (max-width: 768px) and (min-height: 667px) and (max-height: 700px) {
-    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box { padding: 2px; }
-    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-head { flex-wrap: nowrap; gap: 1px; font-size: 8px; }
-    [id^="mat-life"].mat-box .mat-head { flex-direction: column; align-items: center; line-height: 10px; }
-    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n { font-size: 12px; }
-    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n::before { padding-left: 10px; font-size: 9px; background-size: 9px; }
+    [id^="mat-life"].mat-box .mat-n { display: inline; font-size: 13px; line-height: 13px; white-space: nowrap; }
+    [id^="mat-life"].mat-box .mat-n::before { content: "×"; padding-left: 12px; font-size: 11px; background: url(/imgs/ui/core.png) left center / 11px no-repeat; }
+}
+/* 375×667 前後は列の上の空きが小さいので、ライフのコアの絵を少し小さくして2段に収める */
+@media (max-width: 768px) and (min-height: 667px) and (max-height: 760px) {
+    [id^="mat-life"].mat-box .mat-cores { font-size: 11px; }
 }

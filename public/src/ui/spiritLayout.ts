@@ -1,10 +1,9 @@
-// スマホで場のスピリットの並べ方を決める。カードの大きさは固定で、1段→2段→…（欄の高さに入る段数まで）→各段の中で重ねる→1段で横スクロール、の順に試す（2026-11-24 ユーザー決定）。
+// スマホで場のスピリットの並べ方を決める。カードの大きさは固定で、1段→2段→…（欄の高さに入る段数まで）の順に試し、
+// それでも入らなければ段を増やして欄の中を縦にスクロールする（2026-11-25 ユーザー決定。以前は各段の中で重ね、最後は1段の横スクロールにしていた）。
 // 判定はここの1か所に集めた。CSS の個数指定（nth-child）だと、疲労して横向きのカードやブレイヴの絵の幅が入らず、9体目が切れていた
 // 読み込み時に window を触ると、ブラウザの無い smoke（renderer を読み込む part）が落ちるので、使う時点で判定する
 const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches } }
 const ZONES = ["my-spirits", "opp-spirits"]
-// 重ねても Lv・BP・コアを読ませる左側の幅。これより詰めないと決めて、それでも入らなければ横スクロール
-const SLICE = 24
 
 const px = (v: string): number => Number.parseFloat(v) || 0
 // 幅は小数のまま測る（offsetWidth は整数に丸め、66.28px のカードを3枚並べると1px近く足りずに折り返した）。回転（疲労）の影響を受けない CSS の幅を使う
@@ -31,45 +30,22 @@ function rowWidth(row: HTMLElement[], gap: number): number {
     return total
 }
 
-// 重ねるのは末尾以外の、90度回らない重疲労（180度）でないカード。重ねたあとも左 SLICE px は見せるので、重ねられる量はカードの見た目の幅 - SLICE。
-// 疲労（90度）のカードの見た目の幅は、横に回った高さ（CSS が左右の余白に取った分を足した値）
-function caps(row: HTMLElement[]): number[] {
-    return row.map((el, i) => {
-        if (i === row.length - 1 || !el.classList.contains("card") || el.classList.contains("heavy-rested")) return 0
-        const rested = el.classList.contains("rested")
-        return Math.max(0, widthOf(el) - SLICE + (rested ? 2 * px(getComputedStyle(el).marginLeft) : 0))
-    })
-}
-
-// 各カードの重なり幅（px）を返す。全部0なら重ね不要。ok=false は、重ねられる限り重ねても入らない（そのときの値は最大の重なり）
-function fit(row: HTMLElement[], inner: number, gap: number): { ovs: number[]; ok: boolean } {
-    const cap = caps(row)
-    // ちょうど幅いっぱいに詰めると、重ねの幅の端数で折り返すことがあるので 2px 余らせる
-    const need = rowWidth(row, gap) - (inner - 2)
-    if (need <= 0) return { ovs: cap.map(() => 0), ok: true }
-    // 全カードに同じ幅で重ね、上限のあるカード（左右に余白のない正位置のカード）はそこで止める。合計が足りる最小の幅を探す
-    for (let u = 1; u <= Math.max(0, ...cap); u++) {
-        if (cap.reduce((sum, c) => sum + Math.min(u, c), 0) >= need) return { ovs: cap.map((c) => Math.min(u, c)), ok: true }
-    }
-    return { ovs: cap, ok: false }
-}
-
-function applyOverlap(row: HTMLElement[], ovs: number[]): void {
-    row.forEach((el, i) => {
-        const ov = ovs[i] ?? 0
-        if (ov <= 0) return
-        el.style.setProperty("--ov", `${ov}px`)
-        el.classList.add("fanned")
-    })
-}
-
 function clear(zone: HTMLElement): void {
     zone.querySelectorAll(":scope > .sp-break").forEach((el) => el.remove())
-    zone.querySelectorAll<HTMLElement>(":scope > .fanned").forEach((el) => {
-        el.classList.remove("fanned")
-        el.style.removeProperty("--ov")
-    })
     delete zone.dataset.rows
+    delete zone.dataset.more
+}
+
+// 縦スクロールのとき、見えていないカードの数を data-more に入れる（CSS が「▼ あとN体」を出す）。相手側は上に隠れる
+function markHidden(zone: HTMLElement): void {
+    const top = zone.scrollTop
+    const bottom = top + zone.clientHeight
+    const hidden = [...zone.children].filter((el) => {
+        const e = el as HTMLElement
+        return e.offsetTop + e.offsetHeight / 2 < top || e.offsetTop + e.offsetHeight / 2 > bottom
+    }).length
+    if (hidden > 0) zone.dataset.more = String(hidden)
+    else delete zone.dataset.more
 }
 
 // 描画の直後はカードの絵がまだ読み込まれておらず、読み込まれて .has-art が付くとカードの大きさが変わる。
@@ -112,7 +88,7 @@ export function layoutSpirits(): void {
         const cardH = Math.max(...items.map((el) => (el.classList.contains("card") ? el.offsetHeight : 0)), 1)
         const maxRows = Math.max(1, Math.floor((zone.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) + 2) / (cardH + 2)))
 
-        // 重ねずに入る最小の段数を探す。どの段数でも入らなければ、入る段数いっぱいで重ねる。配分は個数で均等（先頭の段が多い側）
+        // 入る最小の段数を探す。配分は個数で均等（先頭の段が多い側）
         const split = (k: number): HTMLElement[][] => {
             const per = Math.ceil(items.length / k)
             return Array.from({ length: k }, (_, r) => items.slice(r * per, (r + 1) * per)).filter((r) => r.length > 0)
@@ -131,25 +107,19 @@ export function layoutSpirits(): void {
         for (let k = 1; k <= Math.min(maxRows, items.length) && !done; k++) {
             const rows = split(k)
             apply(rows)
-            if (rows.every((r) => fit(r, inner, gap).ovs.every((v) => v === 0)) && settled(rows.length)) done = true
+            // 幅は端数で数px ずれることがあるので 2px 余らせる
+            if (rows.every((r) => rowWidth(r, gap) <= inner - 2) && settled(rows.length)) done = true
             else clear(zone)
         }
         if (done) continue
-        const rows = split(Math.min(maxRows, items.length))
-        apply(rows)
-        const fits = rows.map((r) => fit(r, inner, gap))
-        if (fits.every((f) => f.ok)) {
-            rows.forEach((r, i) => applyOverlap(r, fits[i]?.ovs ?? []))
-            if (settled(rows.length)) continue
-        }
-        clear(zone)
-
-        // 入る段数まで重ねても入らないときは1段で、重ねきって横にスクロールする
-        zone.dataset.rows = "scroll"
-        applyOverlap(items, fit(items, inner, gap).ovs)
+        // 入る段数で入らなければ、段は自然に折り返させて欄の中を縦にスクロールする。相手側は中央の帯に近い（下の）段から見せる
+        zone.dataset.rows = "vscroll"
+        if (id === "opp-spirits") zone.scrollTop = zone.scrollHeight
+        markHidden(zone)
     }
 }
 
 export function installSpiritLayout(): void {
     window.addEventListener("resize", layoutSpirits)
+    for (const id of ZONES) document.getElementById(id)?.addEventListener("scroll", (e) => markHidden(e.currentTarget as HTMLElement), { passive: true })
 }
