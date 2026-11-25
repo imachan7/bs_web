@@ -354,6 +354,8 @@
     #status-bar.menu-open #status-menu { width: var(--sheet-w); left: 50%; right: auto; transform: translateX(-50%); }
     :root[data-hand="left"] :is(#action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)), #status-bar.menu-open #status-menu) { left: 8px; transform: none; }
     :root[data-hand="right"] :is(#action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)), #status-bar.menu-open #status-menu) { left: auto; right: 8px; transform: none; }
+    /* 手元の欄は画面幅いっぱいなので、左寄せのときは中の並びを左右反転する（× を左手の親指側に置く） */
+    :root[data-hand="left"] #card-dock:not(.hidden) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "name name art" "close buttons art"; }
     /* ≡ の位置（<html data-menuside>）。左なら中央の帯の左端に置き、案内はその右側に出す */
     :root[data-menuside="left"] #center-info-area > #btn-status-menu { right: auto; left: 4px; }
     :root[data-menuside="left"] #center-info-area { padding-right: 8px; padding-left: 52px; }
