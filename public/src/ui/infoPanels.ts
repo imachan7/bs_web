@@ -230,7 +230,7 @@ export function renderBattle(view: GameView): void {
         // ブロック宣言後の追加フラッシュ
         if (isDefender) {
             if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}追加でフラッシュマジックを使うか「パス」してください。`
+                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}フラッシュマジックを使うか「パス」してください。`
             } else {
                 message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}相手の対応を待っています…`
             }
@@ -245,7 +245,7 @@ export function renderBattle(view: GameView): void {
         if (view.isFlashTiming && !hasPriority) {
             message = `⚔ ${m.name}（BP${bp}）がアタック中。相手がフラッシュの優先権を持っています…`
         } else if (view.isFlashTiming) {
-            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュマジックを使うか「パス」してください。パス後にブロック／「ライフで受ける」を選べます。`
+            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュマジックを使うか「パス」してください。`
         } else {
             message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュ終了。ブロックするスピリットを選ぶか「ライフで受ける」を押してください。`
         }

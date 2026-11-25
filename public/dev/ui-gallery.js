@@ -25,6 +25,8 @@ const base = (o = {}) => ({
 const standby = () => ({ me: base({ field: { spirits: spirits(9, 2), nexuses: [{ cardId: NEXUS, cores: 0 }] } }), opp: base() })
 // 召喚の Lv 選択：リザーブ少なめ、場にコア
 const lvBoard = () => ({ me: base({ reserve: 1, hand: [GRIP], field: { spirits: spirits(3, 0, 4), nexuses: [] } }), opp: base() })
+// リザーブだけで払えて、置く数を選べる（自動のとき②から始まる）
+const lvResBoard = () => ({ me: base({ reserve: 6, hand: [GRIP], field: { spirits: spirits(3, 0, 4), nexuses: [] } }), opp: base() })
 const lampBoard = () => ({
   me: base({ reserve: 3, hand: [LAMP], deck: [NEXUS, GRIP, GRIP, GRIP], field: { spirits: spirits(2, 0, 3), nexuses: [] } }), opp: base(),
 })
@@ -75,6 +77,7 @@ const SCENES = [
   { id: "spirit", name: "3 場のスピリットを押した", board: standby, run: async (c) => clickSel(c.A, "#my-spirits .card") },
   // 召喚の支払いは「①コスト → ②置くコア」の2段の画面（ui/payStages.ts）。リザーブが足りないので画面が開く
   { id: "lv", name: "4 召喚の支払い①（コスト）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await waitSel(c.A, "#choice-options .pay-sheet") } },
+  { id: "lvres", name: "4b リザーブで足りる召喚（②から・置く数は取った数）", board: lvResBoard, run: async (c) => { await play(c, GRIP, "召喚"); await waitSel(c.A, "#choice-options .pay-sheet"); await press(c.A, "＋") } },
   { id: "pay", name: "5 召喚の支払い②（おまかせ→次へ）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await press(c.A, "おまかせで割り当てる"); await press(c.A, "次へ") } },
   { id: "lampStep", name: "6 効果配置の置くコア数", board: lampBoard, run: lampToStepper },
   { id: "lampPay", name: "7 6 の「決定」後の支払い", board: lampBoard, run: async (c) => { await lampToStepper(c); await press(c.A, "決定") } },

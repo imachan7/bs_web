@@ -125,7 +125,7 @@ function connectAndRun(button: HTMLElement, action: () => void): void {
 
 
 export let view: GameView | null = null
-export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, summonCores: null, burstResetConfirm: null }
+export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -489,7 +489,6 @@ onGame("state", (v: GameView) => {
     ui.awakenTarget = null // 覚醒モードもリセット（続けて移す場合は再度バッジをクリック）
     ui.paying = null // 支払いモードもリセット
     ui.directedAttack = null // 指定アタックの対象選択モードもリセット
-    ui.summonLevelSelect = null // レベル選択もリセット
     ui.exReductionSelect = null // 《継召》の除外カード選択もリセット
     ui.soulCoreOnlySelect = null // 《ソウルマジック》の選択もリセット
     ui.magicTimingSelect = null
@@ -1107,7 +1106,6 @@ async function init(): Promise<void> {
         ui.awakenTarget = null
         ui.paying = null
         ui.directedAttack = null
-        ui.summonLevelSelect = null
         ui.battleSwapSummon = null
         ui.braveSummonSelect = null
         ui.altSummonSelect = null
@@ -1289,37 +1287,6 @@ async function init(): Promise<void> {
             tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, picked.length > 0 ? picked : [], undefined, undefined, fromTegamoto)
             return
         }
-        const coresStepEl = closestData(e, "data-summon-cores-step")
-        if (coresStepEl && ui.summonLevelSelect) {
-            ui.summonCores = (ui.summonCores ?? 0) + Number(coresStepEl.dataset.summonCoresStep)
-            rerender()
-            return
-        }
-        const coresEl = closestData(e, "data-summon-cores")
-        if (coresEl && ui.summonLevelSelect) {
-            const cores = Number(coresEl.dataset.summonCores)
-            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
-            ui.summonLevelSelect = null
-            ui.summonCores = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, undefined, fromTegamoto, cores)
-            return
-        }
-        const levelEl = closestData(e, "data-summon-level")
-        if (levelEl && ui.summonLevelSelect) {
-            const level = Number(levelEl.dataset.summonLevel)
-            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
-            ui.summonLevelSelect = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, level, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, undefined, fromTegamoto)
-            return
-        }
-        // 《真界放》のwaiver配置ボタン（[ソウルコア]1個のみでLv2。2026-10-07）
-        const waiverEl = closestData(e, "data-soul-waiver")
-        if (waiverEl && ui.summonLevelSelect) {
-            const { handIndex, fromTegamoto, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
-            ui.summonLevelSelect = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, true, fromTegamoto)
-            return
-        }
     })
     
     byId("btn-toggle-log").addEventListener("click", () => {
@@ -1338,7 +1305,6 @@ async function init(): Promise<void> {
                            : ui.paying ? "paying" 
                            : ui.directedAttack ? "directedAttack" 
                            : ui.exReductionSelect ? "exReductionSelect" 
-                           : ui.summonLevelSelect ? "summonLevelSelect" 
                            : "normal"
             const clientContext = {
                 phase: view.phase,

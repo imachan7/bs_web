@@ -70,7 +70,7 @@ function uiIsFree(): boolean {
     if (!view || !ui || view.pendingChoice) return false
     const u = ui
     // renderer.ts の anyMode（「対象選択をやめる」を出す条件）と同じ並び
-    return [u.targeting, u.awakenTarget, u.paying, u.directedAttack, u.summonLevelSelect, u.battleSwapSummon, u.braveSummonSelect, u.altSummonSelect, u.exReductionSelect, u.soulCoreOnlySelect, u.magicTimingSelect, u.soulSwapSelect, u.burstResetConfirm, u.combineBrave].every((m) => m === null)
+    return [u.targeting, u.awakenTarget, u.paying, u.directedAttack, u.battleSwapSummon, u.braveSummonSelect, u.altSummonSelect, u.exReductionSelect, u.soulCoreOnlySelect, u.magicTimingSelect, u.soulSwapSelect, u.burstResetConfirm, u.combineBrave].every((m) => m === null)
 }
 
 function select(sel: Selection): void {

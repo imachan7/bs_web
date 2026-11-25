@@ -217,8 +217,6 @@ export interface UiState {
     paying: PayingState | null
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
     directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
-    // 召喚・配置レベル選択モード
-    summonLevelSelect: { handIndex: number; fromTegamoto?: true; cardId: string; targetInstanceId?: string; altSummonNexusInstanceIds?: string[]; exReductionTrashIndices?: number[] } | null
     // 《継召》(kind:"exTrashReduction")の除外カード選択モード。手札のスピリット/ブレイヴが効果を持ち、
     // トラッシュにEXシンボル持ちカードがあるとき、コストを支払う通常の召喚の前に開く。
     // candidateIndices/selected はどちらも自分の trashCards 内インデックス
@@ -245,8 +243,6 @@ export interface UiState {
     combineBrave: { braveInstanceId: string; candidateIds: string[]; exchange?: true } | null // exchange＝合体中のブレイヴの交換（§6.4.1）
     // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
     stepper: number | null
-    // 召喚・配置で置くコアの数の増減（レベル選択の下）。選択を閉じたら null に戻す
-    summonCores: number | null
     // バーストを再セットするときの確認待ち（既存のバーストはトラッシュへ送られるため確認をはさむ）
     burstResetConfirm: { handIndex: number } | null
 }
@@ -694,7 +690,7 @@ export function render(view: GameView, ui: UiState): void {
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.exReductionSelect !== null || ui.soulCoreOnlySelect !== null || ui.magicTimingSelect !== null || ui.soulSwapSelect !== null || ui.burstResetConfirm !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.exReductionSelect !== null || ui.soulCoreOnlySelect !== null || ui.magicTimingSelect !== null || ui.soulSwapSelect !== null || ui.burstResetConfirm !== null
     show("btn-cancel-target", anyMode)
     // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
@@ -837,64 +833,6 @@ export function render(view: GameView, ui: UiState): void {
             confirmEx.textContent =
                 picked.length > 0 ? `決定（コスト${String(base)}→${String(reduced)}）` : `使わない（コスト${String(base)}）`
             choiceOptionsEl.appendChild(confirmEx)
-        }
-        show("choice-options", true)
-    } else if (ui.summonLevelSelect) {
-        const card = master(ui.summonLevelSelect.cardId)
-        // 代替召喚（ネクサスをデッキの下に戻して払う）では召喚コストが0になる
-        const cost = ui.summonLevelSelect.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, ui.summonLevelSelect.exReductionTrashIndices))
-        const reserve = view.players[view.you].reserve
-        // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
-        // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
-        const fieldCores = payableFieldCores(view, ui.summonLevelSelect.cardId)
-        const lvBonus = summonLevelCostBonus(view, view.you, card)
-        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores + lvBonus)
-        for (const l of affordableLevels) {
-            const b = document.createElement("button")
-            b.dataset.summonLevel = String(l.level)
-            const needsField = reserve < cost + l.cores + lvBonus
-            b.textContent = needsField
-                ? `Lv${l.level} (${l.cores + lvBonus}コア・フィールドから取得)`
-                : `Lv${l.level} (${l.cores + lvBonus}コア)`
-            if (needsField) b.classList.add("needs-field-cores")
-            choiceOptionsEl.appendChild(b)
-        }
-        // 《真界放》のwaiver配置: [ソウルコア]1個だけでLv2にする置き方（2026-10-07 ユーザー裁定。
-        // レベル選択の3パターン「Lv1分置く/Lv2分置く/Lv2を[ソウルコア]で置く」の3つ目）
-        const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
-        const marked = card.levels.some((l) => l.soulCoreRequired === true)
-        if (marked && soulInReserve && reserve + fieldCores >= cost + 1) {
-            const b = document.createElement("button")
-            b.dataset.soulWaiver = "1"
-            const needsField = reserve < cost + 1
-            b.textContent = needsField
-                ? "Lv2を[ソウルコア]で置く (1コア・フィールドから取得)"
-                : "Lv2を[ソウルコア]で置く (1コア)"
-            if (needsField) b.classList.add("needs-field-cores")
-            choiceOptionsEl.appendChild(b)
-        }
-        // 置くコアの数を Lv の境目以外にも決められる（最小Lvの維持コア以上〜払える数まで）
-        const minCores = summonMinCores(view, view.you, card)
-        const maxCores = reserve + fieldCores - cost
-        if (maxCores > minCores) {
-            if (ui.summonCores === null || ui.summonCores < minCores || ui.summonCores > maxCores) ui.summonCores = minCores
-            const n = ui.summonCores
-            const lv = card.levels.filter((l) => l.cores + lvBonus <= n).at(-1)?.level ?? 1
-            const minus = document.createElement("button")
-            minus.dataset.summonCoresStep = "-1"
-            minus.textContent = "−"
-            minus.disabled = n <= minCores
-            const readout = document.createElement("span")
-            readout.className = "stepper-value"
-            readout.textContent = `${String(n)}コア`
-            const plus = document.createElement("button")
-            plus.dataset.summonCoresStep = "+1"
-            plus.textContent = "＋"
-            plus.disabled = n >= maxCores
-            const go = document.createElement("button")
-            go.dataset.summonCores = String(n)
-            go.textContent = `コア${String(n)}個で召喚（Lv${String(lv)}）`
-            choiceOptionsEl.append(stepperRow(minus, readout, plus), go)
         }
         show("choice-options", true)
     } else if (ui.braveSummonSelect) {
@@ -1082,9 +1020,6 @@ export function render(view: GameView, ui: UiState): void {
             ui.exReductionSelect.phase === "ask"
                 ? `《継召》：トラッシュのEXシンボルを除外して、コスト${String(effectiveCost(view, view.you, master(ui.exReductionSelect.cardId)))}を軽減できます`
                 : `《継召》：除外するトラッシュのカードを選んでください（同じカードはまとめて1枚のボタンです）`
-    } else if (ui.summonLevelSelect) {
-        $("targeting-info").textContent =
-            `🌟 召喚/配置レベルを選択してください (リザーブからコアを置きます)`
     } else if (ui.battleSwapSummon) {
         $("targeting-info").textContent =
             `🔄 入れ替え召喚: 手札に戻す自分のスピリットを選んでください`

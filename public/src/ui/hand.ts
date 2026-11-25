@@ -130,13 +130,12 @@ export function renderHand(view: GameView, ui: UiState): void {
 
         // 召喚・配置・マジック使用のために選択されたカードをハイライト
         // 手元から出しているときは、手札の同じ添字のカードを光らせない
-        const selectingTegamoto = (ui.paying ?? ui.soulCoreOnlySelect ?? ui.exReductionSelect ?? ui.summonLevelSelect)?.fromTegamoto === true
+        const selectingTegamoto = (ui.paying ?? ui.soulCoreOnlySelect ?? ui.exReductionSelect)?.fromTegamoto === true
         const selectedHandIndex = selectingTegamoto ? null :
             ui.paying?.handIndex ??
             ui.soulCoreOnlySelect?.handIndex ??
             ui.magicTimingSelect?.handIndex ??
             ui.exReductionSelect?.handIndex ??
-            ui.summonLevelSelect?.handIndex ??
             ui.targeting?.handIndex ?? null
         if (selectedHandIndex !== null && g.indices.includes(selectedHandIndex)) {
             el.classList.add("selected")
