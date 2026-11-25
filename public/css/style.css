@@ -516,6 +516,10 @@ button:active {
 .spirit-zone {
     flex: 1;
 }
+/* PC は場のカードを欄の真ん中に寄せる（左に詰めると右に大きく空きが残った。2026-11-25 ユーザー指示）。スマホは ui/spiritLayout.ts が段に分けて並べるので変えない */
+@media (min-width: 769px) {
+    .spirit-zone, .nexus-zone { justify-content: center; }
+}
 
 /* バーストエリア（docs/design/BURST.md）。ネクサスゾーンと同じ行に横並びさせるための
    ラッパー（field-row がスマホでcolumnになっても、この中だけは常にrow） */
