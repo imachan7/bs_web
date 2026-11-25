@@ -1906,6 +1906,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/ui/tooltip.ts
 
 - `currentHoverCard`（let）
+- `showCardLarge`（fn）
 - `suppressEffectTooltip`（fn）
 - `hideEffectTooltip`（fn）
 - `setupEffectTooltip`（fn）
