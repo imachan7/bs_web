@@ -457,9 +457,11 @@
     #card-dock-buttons button:disabled { opacity: 0.4; }
 
     /* カードの効果の吹き出しは、押したカードの近くで、下の欄（最大約140px）と操作ボタンより上に出す（位置は ui/tooltip.ts の DOCK_RESERVE）。入らなければ中を縦にスクロール */
-    /* 拡大の絵は出さない（手札は下の欄に大きな絵が出る。場のカードは絵の分だけ吹き出しが高くなり、カードの近くに置けなかった） */
-    #effect-tooltip .hover-art { display: none; }
-    #effect-tooltip.with-art { display: block; width: auto; }
+    /* 長押ししたときだけカードの絵を一番上に大きく出し、画面の真ん中に置く（ui/tooltip.ts の touch-art。2026-11-25 ユーザー要望）。
+       タップでは絵を出さない（絵の分だけ高くなり、押したカードの近くに置けない）。絵は効果文が少し見える高さまでに抑え、残りは中をスクロールする */
+    #effect-tooltip.with-art { display: block; width: min(360px, calc(100vw - 24px)); max-width: none; }
+    #effect-tooltip.touch-art { pointer-events: auto; overscroll-behavior: contain; }
+    #effect-tooltip .hover-art { width: min(260px, 70vw, calc((100dvh - 220px) * 675 / 983)); margin: 0 auto 10px; }
     #effect-tooltip { max-height: calc(100dvh - 160px - env(safe-area-inset-bottom)); }
 }
 

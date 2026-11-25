@@ -31,13 +31,14 @@ export function setupEffectTooltip(): void {
     tip.classList.add("hidden")
     document.body.appendChild(tip)
 
-    const showFor = (card: HTMLElement): void => {
+    // longPress：スマホの長押し。カードの絵を大きく出し、吹き出しを画面の真ん中に置く（2026-11-25 ユーザー要望）
+    const showFor = (card: HTMLElement, longPress = false): void => {
         const cardId = card.dataset.cardId
         if (!cardId) return
         const m = master(cardId)
         
         tip.innerHTML = ""
-        const art = hoverArt(cardId)
+        const art = hoverArt(cardId, longPress)
         tip.classList.toggle("with-art", art !== null)
         if (art) tip.appendChild(art)
         const titleArea = document.createElement("div")
@@ -173,7 +174,14 @@ export function setupEffectTooltip(): void {
         if (top < 4) top = rect.bottom + 8
         // スマホは画面の下端に押したカードの欄（#card-dock。高さ最大約140px）と操作ボタンが出る。タップでも mouseover が来て欄と同時に開くので、
         // 欄が開く前のこの時点で、欄の上端より上（下から DOCK_RESERVE px）に収まるようずらす。視線の移動が少ないようカードの近くに置く（2026-11-24 ユーザー）
-        if (window.matchMedia("(max-width: 768px)").matches) {
+        const mobile = window.matchMedia("(max-width: 768px)").matches
+        tip.classList.toggle("touch-art", mobile && art !== null)
+        if (mobile && art !== null) {
+            // 絵を出すと高くなりカードの近くに置けないので、画面の真ん中に置く。入らなければ中を指でスクロールする
+            const h = Math.min(tipRect.height, window.innerHeight - 16)
+            tip.style.maxHeight = `${h}px`
+            top = Math.max(8, (window.innerHeight - h) / 2)
+        } else if (mobile) {
             // カードを隠さないよう、上と下の空いている広い側に置き、入りきらなければその側の高さに縮めて中をスクロールさせる
             const limit = window.innerHeight - DOCK_RESERVE
             const roomAbove = Math.min(rect.top, limit) - 8 - 4
@@ -183,7 +191,7 @@ export function setupEffectTooltip(): void {
             top = roomAbove >= tipRect.height || roomAbove >= roomBelow ? Math.min(rect.top, limit) - 8 - h : rect.bottom + 8
             top = Math.max(4, top)
         }
-        let left = rect.left + rect.width / 2 - tipRect.width / 2
+        let left = tip.classList.contains("touch-art") ? (window.innerWidth - tipRect.width) / 2 : rect.left + rect.width / 2 - tipRect.width / 2
         left = Math.max(4, Math.min(left, window.innerWidth - tipRect.width - 4))
         tip.style.top = `${top}px`
         tip.style.left = `${left}px`
@@ -212,6 +220,8 @@ export function setupEffectTooltip(): void {
     let longPressed = false
     document.addEventListener("pointerdown", (e) => {
         if (e.pointerType !== "touch") return
+        // 絵を出した吹き出しは中をスクロールできるので、触れただけでは閉じない（押すと閉じる）
+        if (tip.contains(e.target as Node)) return
         const card = (e.target as HTMLElement).closest<HTMLElement>(TIP_SELECTOR)
         window.clearTimeout(pressTimer)
         if (!card) {
@@ -220,7 +230,7 @@ export function setupEffectTooltip(): void {
         }
         pressTimer = window.setTimeout(() => {
             longPressed = true
-            showFor(card)
+            showFor(card, true)
         }, 500)
     })
     const cancelPress = (): void => window.clearTimeout(pressTimer)
@@ -237,6 +247,7 @@ export function setupEffectTooltip(): void {
         },
         true,
     )
+    tip.addEventListener("click", () => hideEffectTooltip())
     // 長押しでOSのコンテキストメニュー（テキスト選択等）が出るのを抑止
     document.addEventListener("contextmenu", (e) => {
         if (longPressed) e.preventDefault()
