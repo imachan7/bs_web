@@ -357,9 +357,26 @@ function timingIcon(kind: "main" | "flash" | "burst"): HTMLImageElement {
 }
 
 // 誰が何をしたかと中身を読める大きめの通知。相手の行動は長めに出し、押せば閉じる（2026-11-12 ユーザー要望：使ったマジック・オープンしたカードが分かりづらい）
+// 通知を出したときの場面（ターン・ステップ・アタック中のスピリット）。場面が先へ進んだら、出してから DETAIL_MIN_MS たった時点で閉じる。
+// 時間だけで消すと、操作の速い AI が次へ進んでも相手のマジックの通知が8秒残り、アタックしているのにマジックの通知が出ていた（2026-11-25 ユーザー指摘）
+let detailScene = ""
+const DETAIL_MIN_MS = 1500
+function sceneOf(view: GameView): string {
+    return `${view.turn}:${view.phase}:${view.battle?.attackerInstanceId ?? ""}`
+}
+function closeStaleDetails(): void {
+    for (const el of document.querySelectorAll<HTMLElement>(".event-detail")) {
+        if (el.dataset.scene === detailScene || el.dataset.closing !== undefined) continue
+        el.dataset.closing = ""
+        setTimeout(() => el.remove(), Math.max(0, DETAIL_MIN_MS - (Date.now() - Number(el.dataset.at))))
+    }
+}
+
 function showDetailBanner(layer: HTMLElement, kind: string, title: string, body: string, mine: boolean, icon?: "main" | "flash" | "burst"): void {
     const banner = document.createElement("div")
     banner.className = `event-detail event-${kind}`
+    banner.dataset.scene = detailScene
+    banner.dataset.at = String(Date.now())
     const t = document.createElement("div")
     t.className = "event-detail-title"
     t.textContent = title
@@ -547,6 +564,7 @@ function processNewEvents(view: GameView): Set<PlayerId> {
     const layer = document.getElementById("event-layer")
     const lifeDamagedPids = new Set<PlayerId>()
     const newEvents = view.events.filter((ev) => ev.seq > lastEventSeq)
+    detailScene = sceneOf(view)
     for (const ev of newEvents) {
         if (ev.type === "lifeDamage") {
             lifeDamagedPids.add(ev.pid)
@@ -586,6 +604,7 @@ function processNewEvents(view: GameView): Set<PlayerId> {
         lastEventSeq = newEvents.reduce((max, ev) => Math.max(max, ev.seq), lastEventSeq)
     }
     flushPendingLeaves(view)
+    closeStaleDetails()
     effectNoticeEvents = newEvents
     return lifeDamagedPids
 }
