@@ -13,6 +13,10 @@ let showLarge: (card: HTMLElement) => void = () => {}
 export function showCardLarge(card: HTMLElement): void {
     showLarge(card)
 }
+export function cardLargeShown(): boolean {
+    const tip = document.getElementById("effect-tooltip")
+    return tip !== null && !tip.classList.contains("hidden") && tip.classList.contains("with-art")
+}
 
 // 効果を出す対象。.tip-card は選択待ちのカードの選択肢・発生源の表示（2026-11-12 ユーザー要望）
 const TIP_SELECTOR = ".card, .brave-combined, .log-card-name, .tip-card"

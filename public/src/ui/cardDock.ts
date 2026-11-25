@@ -3,7 +3,7 @@ import { $, master } from "../renderer"
 import { cardImageUrl } from "../cardArt"
 import type { GameView } from "../../../server/src/type"
 import type { UiState } from "../renderer"
-import { showCardLarge } from "./tooltip"
+import { cardLargeShown, hideEffectTooltip, showCardLarge } from "./tooltip"
 import { dockActionsOf } from "./fieldCard"
 
 // 場のカードの下に出すと、押しにくい（32×24px）うえ、場の行の高さが変わって画面が上下にずれる。
@@ -159,9 +159,14 @@ export function installCardDock(fieldAction: (btn: HTMLElement) => void): void {
         renderCardDock()
     }
     $("card-dock-close").addEventListener("click", close)
+    // もう一度押すと閉じる（2026-11-25 ユーザー案）。指で触れた時点で吹き出しは閉じる（ui/tooltip.ts）ので、開いていたかは触れたときに見ておく
+    let wasLarge = false
+    $("card-dock-zoom").addEventListener("pointerdown", () => { wasLarge = cardLargeShown() })
     $("card-dock-zoom").addEventListener("click", () => {
         const card = selected ? findCard(selected) : null
-        if (card) showCardLarge(card)
+        if (wasLarge || cardLargeShown()) hideEffectTooltip()
+        else if (card) showCardLarge(card)
+        wasLarge = false
     })
     // 欄の外を押したら閉じる（効果の吹き出しと同じ。2026-11-25 ユーザー案）。カードを押したときは上の取り込みで止めて選び直すので、ここへは来ない
     // 押した時点の経路で見る。欄のボタンは押すと欄ごと描き直され、ここに届くときには外れているので closest では欄の外に見えた
