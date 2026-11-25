@@ -2897,9 +2897,10 @@ body:has(#notice-banner:not(.hidden)) {
         color: var(--accent-hover);
     }
     [id^="mat-trash"]:hover { border-color: var(--accent); background: rgba(59, 130, 246, 0.08); }
-    .burst-zone,
     /* トラッシュはマットの枠から開けるので、上のボタンは狭い画面だけに出す */
     #btn-toggle-trash { display: none; }
+    /* 「.burst-zone,」と「.mat-box」の間に上の指定が挟まり、バーストの欄ごと消えていた（#694 から。2026-11-25 ユーザー指摘） */
+    .burst-zone,
     .mat-box {
         position: relative;
         border: 1px solid rgba(255, 255, 255, 0.18);
