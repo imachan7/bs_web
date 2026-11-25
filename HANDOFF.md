@@ -21,6 +21,12 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：合体条件を満たさなくなったブレイヴの分離（#707。2026-11-25 設計確定）
+
+- **ユーザー決定（2026-11-25）**：盤面の判定は Lv などが変わるたびに行う。合体条件を満たさなくなったブレイヴの分離と、Lv コストで維持コアを割った消滅は、効果の途中でも**手を解決するたびに**処理する（11-06 の「効果の解決を終えてから」を改める。QUESTIONS.md 2026-11-24 の答え）
+- 部品：`braveConditionGate.ts` の `separateBravesBelowMinCost` を一般化した `separateBravesLostCondition`。ホストの合体ブレイヴごとに `matchesBraveCondition` を「**そのブレイヴだけ**のコストを除いた」ホストで判定し直し、外れたら `detachBraveByOwnerChoice`。待機状態のホスト・合体条件を無視して合体しているホスト・X06 に耐性のあるホストは分離しない（既存の形）
+- 呼ぶ所：`EffectModules.ts` の手ごとの出口（`trashSpiritStateBravesWhenForbidden` の隣）と `GameEngine` の事後フック。`sweepLevelCostDepletion` も手ごとの出口へ。分離の選択待ちが立ったら、残りの手はその答えの後に解決する
+
 ### 次にやること（2026-11-22 時点。上から順に）
 
 1. **一度も実行されていない効果24件に場面テストを足し、`data/coverage-baseline.json` から消す**
