@@ -127,6 +127,11 @@ export function coreButtonsEl(
     return btns
 }
 
+// 数値の前の見出し（BP・コア）。スマホでは幅が足りないので CSS で隠す（シンボルのアイコンと重ならない並びにするため。battle-mobile.css）
+function labelEl(text: string): HTMLElement {
+    return Object.assign(document.createElement("span"), { className: "stat-label", textContent: text })
+}
+
 export function fieldCardEl(
     view: GameView,
     ui: UiState,
@@ -310,7 +315,7 @@ export function fieldCardEl(
     if (!isNexus) {
         const bpEl = document.createElement("span")
         bpEl.className = "stat-bp"
-        bpEl.textContent = `BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        bpEl.append(labelEl("BP"), `${bp}${inst.tempBpBuff ? "↑" : ""}`)
         stats.append(" ", bpEl)
     }
     overlay.appendChild(stats)
@@ -332,7 +337,7 @@ export function fieldCardEl(
     const payAssigned = ui.paying?.assigned[inst.instanceId] ?? 0
     const paySoulHere = ui.paying?.soulPayInstanceId === inst.instanceId ? 1 : 0
     const afterPay = inst.cores - payAssigned - paySoulHere
-    cores.append(coreIcon(), `コア ${inst.cores}${afterPay !== inst.cores ? `→${afterPay}` : ""}`)
+    cores.append(coreIcon(), labelEl("コア "), `${inst.cores}${afterPay !== inst.cores ? `→${afterPay}` : ""}`)
     overlay.appendChild(cores)
     el.appendChild(overlay)
     // [ソウルコア]が載っている個体には画像バッジを重ねる（公開情報。docs/design/SOULCORE.md）

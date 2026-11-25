@@ -3,6 +3,9 @@ import { effectLineSegments } from "../effectText"
 import { master, COLOR_SYMBOLS, escapeHtml } from "../renderer"
 import { hoverArt } from "../cardArt"
 
+// battle-mobile.css の #effect-tooltip の max-height で引いている値と同じ
+const DOCK_RESERVE = 160
+
 export let currentHoverCard: HTMLElement | null = null
 
 // 効果を出す対象。.tip-card は選択待ちのカードの選択肢・発生源の表示（2026-11-12 ユーザー要望）
@@ -161,12 +164,25 @@ export function setupEffectTooltip(): void {
             tip.appendChild(vanilla)
         }
         
+        tip.style.maxHeight = ""
         tip.classList.remove("hidden")
         // 位置決め: カードの上に出し、画面上端にかかるならカードの下へ。左右は画面内へクランプ
         const rect = card.getBoundingClientRect()
         const tipRect = tip.getBoundingClientRect()
         let top = rect.top - tipRect.height - 8
         if (top < 4) top = rect.bottom + 8
+        // スマホは画面の下端に押したカードの欄（#card-dock。高さ最大約140px）と操作ボタンが出る。タップでも mouseover が来て欄と同時に開くので、
+        // 欄が開く前のこの時点で、欄の上端より上（下から DOCK_RESERVE px）に収まるようずらす。視線の移動が少ないようカードの近くに置く（2026-11-24 ユーザー）
+        if (window.matchMedia("(max-width: 768px)").matches) {
+            // カードを隠さないよう、上と下の空いている広い側に置き、入りきらなければその側の高さに縮めて中をスクロールさせる
+            const limit = window.innerHeight - DOCK_RESERVE
+            const roomAbove = Math.min(rect.top, limit) - 8 - 4
+            const roomBelow = limit - rect.bottom - 8
+            const h = Math.min(tipRect.height, Math.max(roomAbove, roomBelow))
+            tip.style.maxHeight = `${Math.max(80, h)}px`
+            top = roomAbove >= tipRect.height || roomAbove >= roomBelow ? Math.min(rect.top, limit) - 8 - h : rect.bottom + 8
+            top = Math.max(4, top)
+        }
         let left = rect.left + rect.width / 2 - tipRect.width / 2
         left = Math.max(4, Math.min(left, window.innerWidth - tipRect.width - 4))
         tip.style.top = `${top}px`

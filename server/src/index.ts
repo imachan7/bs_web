@@ -61,6 +61,8 @@ app.use(
     express.static(PUBLIC_DIR, {
         setHeaders: (res) => {
             if (hasCurrentVersion(res.req as express.Request)) res.setHeader("Cache-Control", IMMUTABLE_CACHE)
+            // 開発中は版が付かないので、毎回確かめさせる（付けないとスマホのブラウザが推測で古い JS・CSS を使い続ける）
+            else if (ASSET_VERSIONS.size === 0) res.setHeader("Cache-Control", "no-cache")
         },
     }),
 )

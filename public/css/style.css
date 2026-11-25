@@ -268,9 +268,15 @@ button:active {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 50px;
-    padding: 8px 20px;
-    gap: 8px;
+    /* 高さは固定。効果の通知・案内で伸びると、下の自分の場と手札が上下にずれて画面が揺れた（2026-11-24 ユーザー指摘。PC で約190px動いた）。
+       入りきらない分は帯の上下へはみ出して場の上に重ねる（中央寄せなので上下に均等に出る）。重ねても読めるよう中身に背景を付ける */
+    height: 50px;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 110;
+    overflow: visible;
+    padding: 0 20px;
+    gap: 4px;
     border-top: 1px solid rgba(239, 68, 68, 0.3);
     border-bottom: 1px solid rgba(59, 130, 246, 0.3);
     background: linear-gradient(
@@ -279,6 +285,15 @@ button:active {
         transparent 50%,
         rgba(59, 130, 246, 0.05) 100%
     );
+}
+
+#center-info-area > :not(.hidden) {
+    max-width: 100%;
+    box-sizing: border-box;
+    background: rgba(20, 23, 30, 0.96);
+    border-radius: 8px;
+    padding: 4px 12px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
 }
 
 #action-buttons-container {
@@ -337,7 +352,8 @@ button:active {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* 中央の帯からはみ出した通知を、盤面の下（自分の場）の上にも重ねて出すため切らない */
+    overflow: visible;
     transition: box-shadow 0.3s;
 }
 
@@ -458,11 +474,6 @@ button:active {
     5% { opacity: 1; transform: translateY(0); }
     90% { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-6px); }
-}
-
-.player-info .turn-mark {
-    color: var(--warning);
-    font-weight: 600;
 }
 
 /* 覚醒モード中にリザーブからコアを移せるときのハイライト */
@@ -609,6 +620,8 @@ button:active {
     top: -6px;
     right: -6px;
     font-size: 10px;
+    /* カードの絵（attachCardArt が最後に足す）より上に出す */
+    z-index: 1;
 }
 
 /* 手札のバーストセットボタン */
@@ -1070,13 +1083,20 @@ button:active {
 .card.unusable:has(> .burst-set-badge) { filter: none; opacity: 1; }
 .card.unusable:has(> .burst-set-badge) > *:not(.burst-set-badge) { filter: brightness(0.5) grayscale(30%); opacity: 0.6; }
 
-.card.targetable {
-    box-shadow: 0 0 0 2px var(--danger), 0 0 12px rgba(239, 68, 68, 0.4);
+/* 選べるカードは、カードの外側に少し離した水色の輪を明滅させる。選んだものは白い輪で止める。
+   赤・緑の枠だと同じ色のカードの枠と見分けにくかった（2026-11-25 ユーザー指摘）。色だけでなく、離れた輪と明滅で区別する */
+.card.targetable, .spirit-zone .card.targetable {
+    outline: 3px solid var(--target, #22d3ee);
+    outline-offset: 2px;
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.55);
 }
-
-/* トグル選択（予算内で好きなだけ破壊する）で選択済みのもの。候補の赤枠と区別する */
-.card.targetable.choice-selected {
-    box-shadow: 0 0 0 3px var(--success), 0 0 16px rgba(16, 185, 129, 0.6);
+@media (prefers-reduced-motion: no-preference) {
+    .card.targetable:not(.choice-selected) { animation: target-pulse 1.2s ease-in-out infinite; }
+}
+@keyframes target-pulse { 50% { outline-color: rgba(34, 211, 238, 0.35); } }
+.card.targetable.choice-selected, .spirit-zone .card.targetable.choice-selected {
+    outline-color: #fff;
+    box-shadow: 0 0 14px rgba(255, 255, 255, 0.6);
 }
 
 .card.awaken-target {
@@ -1256,6 +1276,24 @@ button:active {
                 var(--frame, linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333))) border-box;
 }
 :root[data-brave="art"] .brave-combined-box:has(> .has-brave-art) { top: -30px; }
+/* ブレイヴが2枚のとき：2枚目は1枚目のさらに右上へずらして重ねる（実物は左右に付けるが、左はコストの丸を隠し、スマホでは幅が増えるため。2026-11-25 ユーザーと決定）。
+   PC はカーソルを0.5秒合わせると前に出る（z-index を遅らせて切り替える。すぐ切り替えると、通り過ぎただけで入れ替わってちらつく） */
+:root:is([data-brave="art"], [data-brave="full"]) .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) {
+    position: absolute;
+    left: 38%;
+    top: -26px;
+    width: 100%;
+    /* z-index: -1 で後ろに回すと、.spirit-zone の背景の下まで沈む（上の .brave-combined-box の注意を参照）。2枚目は DOM の順で前に描かれる */
+}
+:root:is([data-brave="art"], [data-brave="full"]) .brave-combined-box:has(> .has-brave-art) > .brave-combined {
+    transition: z-index 0s;
+}
+@media (hover: hover) {
+    :root:is([data-brave="art"], [data-brave="full"]) .brave-combined-box:has(> .has-brave-art) > .brave-combined:hover {
+        z-index: 6;
+        transition: z-index 0s 0.5s;
+    }
+}
 /* イラストの枠だけを切り出す。カード画像（360×525）でイラストは横 22〜345px・縦 38〜300px（上はコストと名前、左は飾りの縁）。
    縁の写り込みを避けるため、少し内側（横 30〜325px・縦 56〜286px）を取る。
    枠の縦横比を箱に持たせ、画像をその枠の外まで広げてはみ出しを隠す */
@@ -1555,11 +1593,9 @@ button:active {
 
 /* 状態バッジの上書き（トークン用） */
 .spirit-zone .card.usable { box-shadow: inset 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6); }
-.spirit-zone .card.targetable { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
-.spirit-zone .card.targetable.choice-selected { border-color: var(--success); box-shadow: 0 0 14px var(--success); }
 .spirit-zone .card.attacker-mark { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
 .nexus-zone .card.usable::after { background: linear-gradient(145deg, var(--warning), #20232c); }
-.nexus-zone .card.targetable::after { background: linear-gradient(145deg, var(--danger), #20232c); }
+.nexus-zone .card.targetable::after { background: linear-gradient(145deg, #22d3ee, #20232c); }
 .nexus-zone .card.attacker-mark::after { background: linear-gradient(145deg, var(--danger), #20232c); }
 
 /* ---- シンボルアイコン（盤面トークン用） ---- */
@@ -1664,14 +1700,6 @@ button:active {
     }
 }
 
-/* スマホではカードが64pxに縮み、縦1列のボタン（最大4個で約140px）が下へはみ出して
-   ライフ・リザーブ表示や次の段のスピリットを覆う。はみ出す分だけ下に余白を取る */
-@media (hover: none) and (max-width: 768px) {
-    .spirit-zone .card:has(.core-buttons) {
-        margin-bottom: 80px;
-    }
-}
-
 /* ---- レスポンシブ: タブレット ---- */
 @media (max-width: 768px) {
     :root {
@@ -1691,52 +1719,6 @@ button:active {
         padding: 3px 6px;
         font-size: 10px;
     }
-    .field-row {
-        flex-direction: column;
-        gap: 8px;
-        min-height: auto;
-    }
-    .nexus-zone {
-        min-width: auto;
-        min-height: auto;
-        flex-direction: row;
-    }
-    .spirit-zone {
-        min-height: auto;
-    }
-    .spirit-zone .card {
-        width: 64px;
-        height: 64px;
-    }
-    .spirit-zone .card .name {
-        font-size: 8px;
-        max-width: 54px;
-    }
-    .nexus-zone .card {
-        width: 55px;
-        height: 64px;
-    }
-    .burst-slot {
-        width: 38px;
-        height: 48px;
-        font-size: 8px;
-    }
-    /* スマホは、上の行にバーストとスピリット、下の行にネクサス。バーストはスピリットのカードと同じ大きさ（カードの縦横比）で左端（2026-11-17 ユーザー指示）。
-       HTML ではバーストがネクサスの行の中にあるので、ネクサスの行を display: contents でほどいて格子に並べ直す */
-    .field-row {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        grid-template-areas: "burst spirits" "nexus nexus";
-        align-items: center;
-    }
-    .field-row > .nexus-row { display: contents; }
-    .field-row .burst-zone { grid-area: burst; }
-    .field-row .nexus-zone { grid-area: nexus; }
-    .field-row > .spirit-zone { grid-area: spirits; }
-    /* 相手側は鏡写し：上からネクサス、その下にバースト＋スピリット（スピリットが中央寄り） */
-    #opponent-area .field-row { grid-template-areas: "nexus nexus" "burst spirits"; }
-    .burst-zone .burst-slot,
-    #opp-burst .burst-slot.burst-revealed { width: 64px; height: auto; aspect-ratio: 675 / 985; }
     .player-area {
         padding: 8px 12px;
         gap: 8px;
@@ -1758,27 +1740,6 @@ button:active {
         font-size: 10px;
     }
 
-    /* 縦画面ではボタンを手札の右に縦1列で置き、手札側はその幅だけ空ける（手札と重ならない） */
-    #action-buttons-container {
-        position: fixed;
-        bottom: 8px;
-        right: 8px;
-        top: auto;
-        transform: none;
-        width: var(--action-col-width);
-        max-height: 45vh;
-        overflow-y: auto;
-    }
-    #action-buttons {
-        flex-direction: column;
-        gap: 6px;
-    }
-    #action-buttons button {
-        padding: 8px 6px;
-        font-size: 13px;
-        width: 100%;
-        white-space: normal;
-    }
     .my-hand-area {
         padding-right: calc(var(--action-col-width) + 8px);
     }
@@ -1806,38 +1767,6 @@ button:active {
     .phase-step:not(.active)::before {
         content: attr(data-short);
         font-size: 10px;
-    }
-    .spirit-zone .card {
-        width: 64px;
-        height: 64px;
-    }
-    .spirit-zone .card .name {
-        font-size: 8px;
-        max-width: 56px;
-    }
-    .spirit-zone .card .stats,
-    .spirit-zone .card .cores,
-    .nexus-zone .card .stats,
-    .nexus-zone .card .cores {
-        font-size: 10px;
-    }
-    .nexus-zone .card {
-        width: 60px;
-        height: 60px;
-    }
-    .nexus-zone .card .name {
-        font-size: 8px;
-    }
-    .burst-slot {
-        width: 32px;
-        height: 42px;
-        font-size: 7px;
-    }
-    .burst-zone .burst-slot,
-    #opp-burst .burst-slot.burst-revealed { width: 64px; height: auto; aspect-ratio: 675 / 985; }
-    .burst-mine .name {
-        max-width: 26px;
-        font-size: 7px;
     }
     #hand .card {
         width: 68px;
@@ -1911,9 +1840,11 @@ button:active {
     min-width: 0;
     padding: 6px 0;
 }
+/* 数の欄は文字の幅だけにして、−／＋ をそのすぐ両側に寄せる。flex: 1 で伸ばすと、列の幅（長い「Lv2 (…フィールドから取得)」のボタンに合わせた幅）いっぱいに
+   −／＋ が離れて、どれが増減のボタンか分かりにくかった（2026-11-24 ユーザー指摘） */
 #choice-options .stepper-row > .stepper-value {
-    min-width: 0;
-    flex: 1;
+    min-width: 3.5em;
+    flex: none;
     white-space: nowrap;
 }
 #choice-options .stepper-value {
@@ -1923,6 +1854,43 @@ button:active {
     font-variant-numeric: tabular-nums;
     font-weight: 600;
 }
+
+/* ---- 召喚・配置の支払い（①コスト → ②置くコア。ui/payStages.ts）：PC は右の列に縦に積む ---- */
+#choice-options .pay-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    /* 場の上に重なるので、背景と幅を持たせる（背景が無いと場のカードが透けて読めなかった） */
+    box-sizing: border-box;
+    width: 300px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(20, 23, 30, 0.97);
+    border: 1px solid #3a3f4e;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+/* 召喚・使用の途中（「対象選択をやめる」が出ている間）は、アタックステップへ・ターン終了を出さない（押す場面がない。スマホと同じ） */
+#game:has(#btn-cancel-target:not(.hidden)) :is(#btn-attack-phase, #btn-end-turn) { display: none; }
+/* 支払いの画面は背が高いので、右の列を上下中央でなく盤面の上端から並べ、入りきらなければ列の中でスクロールする（中央寄せだと「対象選択をやめる」が画面の上へはみ出した） */
+@media (min-width: 769px) {
+    #action-buttons-container:has(#choice-options .pay-sheet) { top: 8px; transform: none; max-height: calc(100vh - 24px); overflow-y: auto; }
+}
+/* 支払いの画面（右の列）を出している間は、オープン中・破棄したカードの欄を左へ寄せる（右だと支払いの画面と重なった） */
+@media (min-width: 769px) {
+    body:has(#choice-options .pay-sheet) :is(#reveal-panel, #mill-panel) { right: auto; left: 12px; }
+}
+#choice-options .pay-stage-title { font-weight: 700; }
+#choice-options .pay-meter { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+#choice-options .pay-boxes { letter-spacing: 2px; color: #7fd1ff; }
+#choice-options .pay-hint { color: #b8b8b8; font-size: 12px; }
+#choice-options .pay-field-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+#choice-options .pay-field-row > button { flex: none; width: 32px; min-width: 0; padding: 4px 0; }
+#choice-options .pay-warn { color: #ffb347; font-size: 12px; }
+#choice-options .pay-levels,
+#choice-options .pay-tools,
+#choice-options .pay-nav { display: flex; flex-direction: column; gap: 6px; }
+#choice-options .pay-sheet button.selected { border-color: #7fd1ff; box-shadow: 0 0 0 1px #7fd1ff inset; }
 
 /* ---- ネクサスのコア移動ボタン ----
    ネクサスは clip-path で六角形に切り抜くため、カード要素の子に置いたボタンは
@@ -2514,6 +2482,8 @@ body:has(#notice-banner:not(.hidden)) {
     .effect-notice-title { font-size: 13px; }
     .effect-notice-body { -webkit-line-clamp: 2; font-size: 11px; }
 }
+/* 発揮した内容（ログの行）を出しているときは、効果文より目立たせる */
+#effect-notice.effect-result .effect-notice-body { color: var(--text-main); }
 .card.effect-source { outline: 3px solid #f5c542; outline-offset: 2px; box-shadow: 0 0 16px 4px rgba(245, 197, 66, 0.7); }
 
 /* 場を離れたカードの写し（消滅・破壊・手札/デッキへ戻る） */
@@ -2837,6 +2807,52 @@ body:has(#notice-banner:not(.hidden)) {
     .mode-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* プレイマットの枠の部品（ui/mat.ts）。PC の配置（下の 1100px 以上）と、スマホ（battle-mobile.css が小さくして置く）で同じものを使う */
+@media (min-width: 1100px), (max-width: 768px) {
+    [id^="mat-"] { display: block; }
+    .mat-box {
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        padding: 14px 8px 8px;
+        min-height: 64px;
+    }
+    /* ラベルは枠の上辺にかぶせる。枠の線がラベルの背後で切れる */
+    .burst-zone::before,
+    .mat-head {
+        position: absolute;
+        top: -0.65em;
+        left: 8px;
+        right: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        line-height: 1.3;
+        color: var(--text-muted);
+    }
+    .mat-head { pointer-events: none; }
+    .mat-head > span:first-child { background: var(--bg-main); padding: 0 4px; }
+    .mat-n { color: var(--text-main); font-size: 13px; font-weight: 700; background: var(--bg-main); padding: 0 4px; }
+    .mat-life .mat-n { color: var(--danger); font-size: 26px; line-height: 1; }
+    .mat-cores { display: flex; flex-wrap: wrap; gap: 2px; font-size: 22px; min-height: 22px; }
+    .mat-cores .core-icon { margin: 0; vertical-align: top; }
+    .mat-cores .mat-core-count { align-self: center; font-size: 15px; font-weight: 700; line-height: 1; }
+    .mat-half { font-size: 13px; color: var(--text-muted); padding: 4px 0; }
+    .mat-half + .mat-half { border-top: 1px solid rgba(255, 255, 255, 0.18); }
+    .mat-box.targetable, .mat-half.targetable { outline: 2px solid var(--accent); cursor: pointer; }
+    /* デッキ破棄の枚数を数えている間（ui/millCount.ts）。デッキとトラッシュの枠を光らせて、どこからどこへ動いたかを見せる */
+    .mat-box.milling { border-color: var(--warning, #f5b041); box-shadow: 0 0 10px rgba(245, 176, 65, 0.55); }
+    /* 同じ数を情報の行と二重に出さない */
+    .player-info .life,
+    .player-info .reserve,
+    .player-info .trash-cores,
+    .player-info .deck-n,
+    .player-info .trash-n {
+        display: none;
+    }
+}
+
 /* 広い画面（PC）では場のカードを大きくする。場の行に対してカードが小さく、余白ばかりが目立ったため（2026-11-24 ユーザー指摘）。
    中の文字・コア・合体したブレイヴの箱・ボタンの位置を一緒に拡大できるよう、個々の寸法ではなく zoom で倍率を掛ける */
 @media (min-width: 1100px) {
@@ -2883,7 +2899,6 @@ body:has(#notice-banner:not(.hidden)) {
     .field-row > .spirit-zone { grid-area: spirits; align-self: stretch; }
     .field-row .burst-zone { grid-area: burst; }
     #opponent-area .field-row .burst-zone { align-self: stretch; }
-    [id^="mat-"] { display: block; }
     [id$="-life-self"], [id$="-life-opp"] { grid-area: life; }
     [id^="mat-reserve"] { grid-area: reserve; }
     [id^="mat-deck"] { grid-area: deck; }
@@ -2901,50 +2916,9 @@ body:has(#notice-banner:not(.hidden)) {
     [id^="mat-trash"]:hover { border-color: var(--accent); background: rgba(59, 130, 246, 0.08); }
     /* トラッシュはマットの枠から開けるので、上のボタンは狭い画面だけに出す */
     #btn-toggle-trash { display: none; }
-    /* 「.burst-zone,」と「.mat-box」の間に上の指定が挟まり、バーストの欄ごと消えていた（#694 から。2026-11-25 ユーザー指摘） */
-    .burst-zone,
-    .mat-box {
-        position: relative;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        border-radius: 6px;
-        padding: 14px 8px 8px;
-        min-height: 64px;
-    }
-    /* ラベルは枠の上辺にかぶせる。枠の線がラベルの背後で切れる */
-    .burst-zone::before,
-    .mat-head {
-        position: absolute;
-        top: -0.65em;
-        left: 8px;
-        right: 8px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 11px;
-        line-height: 1.3;
-        color: var(--text-muted);
-    }
-    .burst-zone::before { content: "バースト"; right: auto; width: max-content; padding: 0 4px; background: var(--bg-main); }
-    .mat-head { pointer-events: none; }
-    .mat-head > span:first-child { background: var(--bg-main); padding: 0 4px; }
-    .mat-n { color: var(--text-main); font-size: 13px; font-weight: 700; background: var(--bg-main); padding: 0 4px; }
-    .mat-life .mat-n { color: var(--danger); font-size: 26px; line-height: 1; }
-    .mat-cores { display: flex; flex-wrap: wrap; gap: 2px; font-size: 22px; min-height: 22px; }
-    .mat-cores .core-icon { margin: 0; vertical-align: top; }
-    .mat-cores .mat-core-count { align-self: center; font-size: 15px; font-weight: 700; line-height: 1; }
-    .mat-half { font-size: 13px; color: var(--text-muted); padding: 4px 0; }
-    .mat-half + .mat-half { border-top: 1px solid rgba(255, 255, 255, 0.18); }
-    .mat-box.targetable, .mat-half.targetable { outline: 2px solid var(--accent); cursor: pointer; }
-    /* デッキ破棄の枚数を数えている間（ui/millCount.ts）。デッキとトラッシュの枠を光らせて、どこからどこへ動いたかを見せる */
-    .mat-box.milling { border-color: var(--warning, #f5b041); box-shadow: 0 0 10px rgba(245, 176, 65, 0.55); }
+    /* バーストの欄もマットの枠と同じ見た目にする。以前はここで「.burst-zone,」の後ろに上のトラッシュの指定が挟まり、バーストの欄ごと消えていた（#694 から。2026-11-25 ユーザー指摘） */
+    .burst-zone { position: relative; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 6px; padding: 14px 8px 8px; min-height: 64px; }
     /* 操作ボタンは中央の高さで右端に浮くので、右の列（デッキ・トラッシュ）の左へずらして重ねない */
     #action-buttons-container { right: 196px; }
-    /* 同じ数を情報の行と二重に出さない */
-    .player-info .life,
-    .player-info .reserve,
-    .player-info .trash-cores,
-    .player-info .deck-n,
-    .player-info .trash-n {
-        display: none;
-    }
+    .burst-zone::before { content: "バースト"; right: auto; width: max-content; padding: 0 4px; background: var(--bg-main); }
 }
