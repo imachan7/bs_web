@@ -15,6 +15,7 @@ import { installCardDock } from "./ui/cardDock"
 import { installStatusMenu } from "./ui/statusMenu"
 import { installSpiritLayout } from "./ui/spiritLayout"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
+import { randomId } from "../../shared/randomId"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -25,12 +26,6 @@ interface SocketLike {
     connect: () => void
 }
 
-// crypto.randomUUID は https か localhost でしか使えない。LAN の IP（http://192.168.…）でスマホから開いて試すと
-// ページを開いた直後に例外で止まり、全部のボタンが効かなくなる。getRandomValues はどこでも使える
-function randomId(): string {
-    if (typeof crypto.randomUUID === "function") return crypto.randomUUID()
-    return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("")
-}
 
 // 端末ごとの合言葉。接続が切れても、これが同じなら対戦中の席に戻れる（server/src/roomManager.ts の resume）
 function loadPlayerRef(): string {

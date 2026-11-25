@@ -67,7 +67,7 @@ function resolveMagicInner(
     const declinedFree = state.magicFreeDeclined === true
     delete state.magicFreeDeclined
     if (!declinedFree) consumeOncePerBattleMagicFree(state, owner, card)
-    emitEvent(state, { type: "magic", pid: owner, cardName: card.name, cardId, timing })
+    emitEvent(state, { type: "magic", pid: owner, cardName: card.name, cardId, timing, logAt: state.log.length })
     // 「マジックを使用したとき」に反応するものは、コストを払い終えた今ここで決める（効果の解決中に出たものは入らない）
     const triggers = decideMagicUsedTriggers(state, owner, card, timing, paidCost)
 

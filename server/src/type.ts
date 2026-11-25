@@ -170,11 +170,12 @@ export type GameEvent =
     | { seq: number; type: "draw"; pid: PlayerId; count: number } // ドロー
     | { seq: number; type: "mill"; pid: PlayerId; cardIds: string[] } // デッキを上から破棄した（コストの破棄も含む）。破棄したカードはトラッシュに表向きで置かれる公開情報。画面が枚数を1枚ずつ減らし、カードを並べて見せる
     | { seq: number; type: "lifeDamage"; pid: PlayerId; amount: number } // ライフのコアが減った（このpidが被弾した側）
-    | { seq: number; type: "magic"; pid: PlayerId; cardName: string; cardId?: string; timing?: "main" | "flash" } // マジック使用。画面が使った効果の文面を出す
+    // logAt（magic・burst）＝出した時点の state.log の行数。画面の効果の通知が、前の効果の中身をここで切る（2026-11-25）
+    | { seq: number; type: "magic"; pid: PlayerId; cardName: string; cardId?: string; timing?: "main" | "flash"; logAt: number } // マジック使用。画面が使った効果の文面を出す
     // スピリット・ネクサス・ブレイヴの効果が解決を始めた（マジック・バーストは上の出来事）。heading は効果文の見出し行（Lv1･Lv2『このスピリットのアタック時』）
     | { seq: number; type: "effect"; pid: PlayerId; cardId: string; cardName: string; instanceId?: string; heading?: string; trigger?: string; logAt: number } // logAt＝出した時点の state.log の行数。画面がこの効果で増えたログの行（発揮した内容）を切り出すのに使う
     | { seq: number; type: "reveal"; pid: PlayerId; cardIds: string[] } // デッキ・バーストのカードをオープンした（pid＝オープンしたカードの持ち主）
-    | { seq: number; type: "burst"; pid: PlayerId; cardName: string; cardId?: string }
+    | { seq: number; type: "burst"; pid: PlayerId; cardName: string; cardId?: string; logAt: number }
     // バウンス／デッキ戻し。
     // pid は**カードの持ち主**（＝戻された側）。sourceName は戻した効果の発生源カード名（分かる場合のみ）
     | { seq: number; type: "returnToHand"; pid: PlayerId; cardName: string; sourceName?: string; instanceId?: string } // フィールドから手札へ戻った（スピリット／ネクサス）
