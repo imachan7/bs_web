@@ -225,14 +225,15 @@
     .spirit-zone[data-rows="vscroll"] { overflow-x: hidden; overflow-y: auto; row-gap: 2px; overscroll-behavior: contain; scrollbar-width: none; }
     /* 相手側は中央の帯に近い下の段から見せる（spiritLayout が下までスクロールする）。wrap-reverse だと上へあふれた段にスクロールで届かない */
     #opponent-area .spirit-zone[data-rows="vscroll"] { flex-wrap: wrap; }
-    /* 隠れているカードの数。自分は下端、相手は上端に貼りつける */
-    .spirit-zone[data-more]::after,
-    #opponent-area .spirit-zone[data-more]::before {
-        content: "▼ あと" attr(data-more) "体"; position: sticky; bottom: 0; flex: 0 0 100%; z-index: 6;
+    /* 隠れているカードの数。上に隠れている数は上端、下に隠れている数は下端に貼りつける（ui/spiritLayout.ts の markHidden）。
+       札は場所を取らない（負の余白）。取ると、スクロールで札が出入りするたびにカードの位置がずれる */
+    .spirit-zone[data-above]::before,
+    .spirit-zone[data-below]::after {
+        position: sticky; flex: 0 0 100%; z-index: 6; height: 18px;
         text-align: center; font-size: 11px; line-height: 18px; color: #fff; background: rgba(15, 17, 22, 0.85); pointer-events: none;
     }
-    #opponent-area .spirit-zone[data-more]::after { content: none; }
-    #opponent-area .spirit-zone[data-more]::before { content: "▲ あと" attr(data-more) "体"; top: 0; bottom: auto; order: -1; }
+    .spirit-zone[data-above]::before { content: "▲ あと" attr(data-above) "体"; top: 0; order: -1; margin-bottom: -18px; }
+    .spirit-zone[data-below]::after { content: "▼ あと" attr(data-below) "体"; bottom: 0; order: 9999; margin-top: -18px; }
     .spirit-zone > .sp-break { flex: 0 0 100%; height: 2px; }
     .spirit-zone .card {
         width: var(--sp-w);
