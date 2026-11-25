@@ -1,7 +1,8 @@
 // GameState / PlayerState の状態生成・更新の土台
 import { takeFromTrash } from "./zones/trash"
 import { validateEndTurn } from "./RuleValidator"
-import { noteCoverage, noteInstance } from "../../../shared/coverage"
+import { noteInstance } from "../../../shared/coverage"
+import { deckCopyLimit, MAX_COPIES } from "../../../shared/deckLimit"
 import type {
     CardData,
     CardInstance,
@@ -107,9 +108,6 @@ export function shuffle<T>(array: T[]): T[] {
 
 // ---- デッキ検証・構築 ----
 
-// 同名カードの上限枚数（デッキビルダーと共通の制約）
-const MAX_COPIES = 3
-
 // カスタムデッキの内容を検証する。問題があれば日本語のエラーメッセージ、なければ null を返す
 // 検証項目: cardId の実在 / 枚数が正の整数 / 合計40枚ちょうど /
 // 同名（カード名で合算）min(3, limitCount)枚まで（制限カードはlimitCountで3枚未満に絞る） / 禁止カード不可
@@ -128,14 +126,7 @@ export function validateDeckCards(cards: Record<string, number>): string | null 
         }
         total += count
         byName.set(card.name, (byName.get(card.name) ?? 0) + count)
-        const anyCopies = card.effects.some((e) => {
-            if (e.kind !== "deckRule" || e.rule !== "anyCopies") return false
-            noteCoverage(e, "deckRule")
-            return true
-        })
-        const limit = anyCopies
-            ? Infinity
-            : card.limitCount !== undefined ? Math.min(MAX_COPIES, card.limitCount) : MAX_COPIES
+        const limit = deckCopyLimit(card)
         nameLimit.set(card.name, Math.min(nameLimit.get(card.name) ?? Infinity, limit))
     }
     for (const [name, count] of byName) {

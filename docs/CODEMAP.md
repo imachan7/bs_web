@@ -61,6 +61,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `noteGrantSource`（fn）：付与先に付与元の __eid を載せ、読む側の計測点で引けるようにする（alsoCostGrant のように付与元を残さない状態用）
 - `noteGrantedFrom`（fn）：kind は付与元の kind（coverage:effects が計測点のある kind として数える）
 
+## shared/deckLimit.ts
+
+- `MAX_COPIES`（const）
+- `deckCopyLimit`（fn）
+
 ## shared/handBurstEffect.ts
 
 - `handBurstEffectDenial`（fn）：使えない理由（使えるなら null）。コストを払えるかは含まない。
