@@ -30,6 +30,7 @@ import {
     payCost,
     refreshLevelAsOverrides,
 } from "./EffectModules"
+import { randomId } from "../../../shared/randomId"
 
 // **合体処理の唯一の入口。** ブレイヴの実体を field.combinedBraves へ入れ、
 // ホストが braveRefs で参照する（参照方式。§2.3）。かつては GameEngine.ts の
@@ -159,7 +160,7 @@ export function destroyCombinedBraves(state: GameState, ownerPid: PlayerId, targ
     recordDestroyedCount(state, passed.length)
     const first = passed[0]
     if (!first) return
-    const event = passed.length === 1 ? first.brave.instanceId : crypto.randomUUID()
+    const event = passed.length === 1 ? first.brave.instanceId : randomId()
     for (const { host, brave } of passed) {
         host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
         if (host.braveRefs.length === 0) delete host.braveRefs
