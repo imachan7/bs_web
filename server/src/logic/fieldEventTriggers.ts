@@ -131,6 +131,8 @@ export function fireFieldEventTriggers(
         paidCost?: boolean
         // 同上：使用したマジックの cardId（magicPick の判定に使う）
         magicCardId?: string
+        // 集める時点（collect）ではなく、frame を処理する時点で「ターンに1回」を消費する（マジック使用時の誘発。決めたあとに不発になった分の枠を使わないため）
+        claimOnceAtResolve?: true
         // event: "ownBurstActivated" 限定：発動したバーストのカードのコスト（docs/design/BURST.md）
         burstCost?: number
         // event: "anySpiritRefreshed" 限定：回復させた効果の発生源種別（refreshSpiritのsourceType引数をそのまま渡す。
@@ -525,7 +527,7 @@ export function fireFieldEventTriggers(
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
             // 同時破壊の列の項目（groupOnce）は、発揮する時点で「ターンに1回」を記録する（下の claimsAtResolve）。集める時点で記録すると、
             // 先頭の破壊誘発元が「残る」で待機でなくなったとき、ほかのスピリットが破壊されても発揮できない（2026-11-15 ユーザー確認）
-            if (effect.oncePerTurn && effect.onceScope !== "name" && groupOnce === undefined) markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
+            if (effect.oncePerTurn && effect.onceScope !== "name" && groupOnce === undefined && eventInfo?.claimOnceAtResolve !== true) markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
             if (effect.maxPerTurn !== undefined) markUsedOnceThisTurn(state, inst, effect.id)
             noteCoverage(effect, "fieldEvent")
             const lowerPick = effect.action.type === "moveCards" ? effect.action.pick?.lowerCostThanEventTarget : undefined
@@ -632,7 +634,7 @@ export function fireFieldEventTriggers(
               ? findInstanceAnywhere(state, destroyGuard) ?? undefined
               : selfOverride?.inst
     // 「ターンに1回」を、集める時点ではなく発揮する時点で記録するか（同名で1回の効果と、同時破壊の列の項目）
-    const claimsAtResolve = (e: Extract<PoolItem, { extra?: undefined }>): boolean => e.effect.onceScope === "name" || (e.effect.oncePerTurn === true && e.groupOnce !== undefined)
+    const claimsAtResolve = (e: Extract<PoolItem, { extra?: undefined }>): boolean => e.effect.onceScope === "name" || (e.effect.oncePerTurn === true && (e.groupOnce !== undefined || eventInfo?.claimOnceAtResolve === true))
     const handlers: Parameters<typeof resolveInOrder<PoolItem>>[2] = {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない

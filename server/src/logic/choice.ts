@@ -12,6 +12,7 @@ import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeF
 import { claimGroupOnce, groupOnceUsed, notifyHandGained, restStateHolds } from "./fieldEventTriggers"
 import { instColors } from "../../../shared/rules"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
+import { emitEffectNoticeFor } from "./effectNotice"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit, applyCoreDestination, flushCoreDestinations } from "./removal"
 import { resolveRevivePickMany } from "./revivePickMany"
@@ -814,6 +815,10 @@ export function runActionFrame(state: GameState, pid: PlayerId, frame: Extract<R
     // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
     if (frame.logText !== undefined) log(state, frame.logText)
     claimGroupOnce(state, frame.groupOnce)
+    if (frame.notice && frame.levelRecheck) {
+        const noticeSrc = findInstanceAnywhere(state, frame.levelRecheck.instanceId)
+        if (noticeSrc) emitEffectNoticeFor(state, frame.actorPid ?? pid, noticeSrc, getCard(noticeSrc.cardId).effects.find((x) => x.id === frame.levelRecheck!.effectId))
+    }
     const frameSelf = frame.selfInstanceId
         ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
         : null

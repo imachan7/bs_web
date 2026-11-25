@@ -1129,7 +1129,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/magic/usedTriggers.ts
 
-- `decideMagicUsedTriggers`（fn）：集めるだけで解決しない。「ターンに1回」はここで消費される
+- `decideMagicUsedTriggers`（fn）：集めるだけで解決しない。「ターンに1回」は処理する時点で消費する（相手側 opponentMagicUsed に oncePerTurn つきの効果はデータに無い）
 - `runMagicUsedTriggers`（fn）：効果が無効にされたマジックも通す（使用宣言とコストの支払いは済んでいるため）
 
 ## server/src/logic/oncePerTurn.ts

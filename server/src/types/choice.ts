@@ -412,6 +412,7 @@ export type ResumeFrame =
           onceClaim?: { instanceId: string; effectId: string }
           // 同時発揮の列で後回しにした誘発：消化時の Lv でも levels を満たすか見直す（logic/levelRecheck.ts。Q2717）
           levelRecheck?: { instanceId: string; effectId: string }
+          notice?: true // 解決の直前に、levelRecheck の発生源・効果の通知（effect イベント）を出す。決めた時点で集めた誘発が、通知なしになるのを防ぐ
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
           sourceInstanceId?: string // 発生源の個体。再開時はこの個体の今の色で判定する（集めた時点の色を焼き付けない。#579）。見つからないときだけ sourceColors を使う

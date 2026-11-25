@@ -20,6 +20,7 @@ const WEAKNESS = "BS03-125" // ウィークネス（スピリット1体のコア
 const SWIFT = "BS14-099" // 武迅衝（スピリット1体にボイドからコア1個）
 const GATHER = "BS01-136" // ギャザーフォース（ジェミナイズが無償使用する手札のマジック）
 const MIND = "BS02-093" // マインドコントロール（コスト4）
+const FOREST = "BS17-070" // 密林の秘境都市（Lv2・アタックステップ・自分のターン・ターンに1回：ownMagicUsed でドロー）
 const VANILLA = "BS01-002"
 
 console.log("=== 前提: カードの機械確認 ===")
@@ -84,6 +85,7 @@ console.log("=== 2. 最初から場にいる Lv2 のジェミナイズは発動�
     put(s, "p1", GEMINI, 2)
     cast(s, ZODIAC)
     assert(geminiFired(s), "使用時に場にいた Lv2 のジェミナイズは発動する")
+    assert(s.events.some((e) => e.type === "effect" && e.cardName === "魔導双神ジェミナイズ"), "効果の通知（effect イベント）が出る")
 }
 
 console.log("=== 3. 使用時に場にいたジェミナイズが、解決中に場を離れたら発動しない ===")
@@ -138,6 +140,32 @@ console.log("=== 6. 相手側（opponentMagicUsed）：解決中に出たフリ�
     assert(run((s) => put(s, "p2", FRIGG, 3), () => {}, GATHER) === 3, "対照：Lv2 のフリッグはコスト3で反応する")
     assert(run((s) => put(s, "p2", FRIGG, 1), lvUp, GATHER) === 0, "決めた時点で Lv1 だったフリッグは Lv2 になっても反応しない")
     assert(run((s) => put(s, "p2", FRIGG, 3), (s) => { s.players.p2.field.spirits.length = 0 }) === 0, "場を離れたフリッグは反応しない")
+}
+
+console.log("=== 7. 決めたあとに場を離れて発揮しなかった誘発は、「ターンに1回」の枠を使わない ===")
+{
+    assert(getCard(FOREST).name === "密林の秘境都市", "FORESTは密林の秘境都市")
+    const s = game("c7")
+    s.phase = "attack"
+    const forest = createInstance(FOREST, s.turn, 2)
+    s.players.p1.field.nexuses.push(forest)
+    refreshLevelAsOverrides(s)
+    const hand0 = s.players.p1.hand.length
+    const once = (): void => {
+        const d = decideMagicUsedTriggers(s, "p1", getCard(GATHER), "main", true)
+        if (!s.players.p1.field.nexuses.includes(forest)) s.players.p1.field.nexuses.push(forest)
+        runMagicUsedTriggers(s, "p1", getCard(GATHER), d)
+    }
+    const d1 = decideMagicUsedTriggers(s, "p1", getCard(GATHER), "main", true)
+    s.players.p1.field.nexuses.length = 0
+    runMagicUsedTriggers(s, "p1", getCard(GATHER), d1)
+    assert(s.players.p1.hand.length === hand0, "決めたあと場を離れたネクサスは発揮しない")
+    s.players.p1.field.nexuses.push(forest)
+    refreshLevelAsOverrides(s)
+    once()
+    assert(s.players.p1.hand.length === hand0 + 1, "次のマジックでは、枠が残っているのでまた反応できる")
+    once()
+    assert(s.players.p1.hand.length === hand0 + 1, "同じターンの3回目は、ターンに1回なので反応しない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part1062）")

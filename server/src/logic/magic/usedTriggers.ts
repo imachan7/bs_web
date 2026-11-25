@@ -6,18 +6,19 @@ import type { CollectedTrigger } from "../blockDeclared"
 import { findInstanceAnywhere, opponentOf, resolveInOrder, setWaitingEvent } from "../GameState"
 import { runActionFrame } from "../choice"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
+import { revertOncePerTurn } from "../triggers"
 
 type Held = MagicUsedDecision["own"][number]
 
-// 集めるだけで解決しない。「ターンに1回」はここで消費される
+// 集めるだけで解決しない。「ターンに1回」は処理する時点で消費する（相手側 opponentMagicUsed に oncePerTurn つきの効果はデータに無い）
 export function decideMagicUsedTriggers(state: GameState, owner: PlayerId, card: CardData, timing: "main" | "flash", paidCost: boolean): MagicUsedDecision {
-    const collect = (pid: PlayerId, event: "ownMagicUsed" | "opponentMagicUsed", info: { paidCost?: boolean; magicCardId?: string; magicCost?: number; magicTiming?: "main" | "flash" }): Held[] => {
+    const collect = (pid: PlayerId, event: "ownMagicUsed" | "opponentMagicUsed", info: { paidCost?: boolean; claimOnceAtResolve?: true; magicCardId?: string; magicCost?: number; magicTiming?: "main" | "flash" }): Held[] => {
         const sink: CollectedTrigger[] = []
         fireFieldEventTriggers(state, pid, event, undefined, undefined, undefined, undefined, info, undefined, undefined, undefined, undefined, sink)
-        return sink.flatMap((i) => (i.frame.kind === "action" ? [{ key: i.key, label: i.label, frame: i.frame }] : []))
+        return sink.flatMap((i) => (i.frame.kind === "action" ? [{ key: i.key, label: i.label, frame: { ...i.frame, notice: true as const } }] : []))
     }
     return {
-        own: collect(owner, "ownMagicUsed", { paidCost, magicCardId: card.cardId }),
+        own: collect(owner, "ownMagicUsed", { paidCost, claimOnceAtResolve: true, magicCardId: card.cardId }),
         // コストは軽減前の素のコスト
         opponent: collect(opponentOf(owner), "opponentMagicUsed", { magicCost: card.cost, magicTiming: timing }),
     }
@@ -36,7 +37,14 @@ export function runMagicUsedTriggers(state: GameState, owner: PlayerId, card: Ca
                 return ref !== undefined && findInstanceAnywhere(state, ref.instanceId) === undefined
             },
             resolve: (i) => {
+                delete state.effectFizzled
                 runActionFrame(state, i.frame.actorPid ?? owner, i.frame)
+                // 非対話で何も起きなかったら、処理時に取った「ターンに1回」を戻す（fieldEvent の通常経路と同じ）
+                if (state.effectFizzled && i.frame.onceClaim) {
+                    const src = findInstanceAnywhere(state, i.frame.onceClaim.instanceId)
+                    if (src) revertOncePerTurn(state, src, i.frame.onceClaim.effectId)
+                }
+                delete state.effectFizzled
                 setWaitingEvent(state, undefined)
             },
             frame: (i) => i.frame,
