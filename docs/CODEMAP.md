@@ -1901,7 +1901,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## public/src/ui/spiritLayout.ts
 
+- `saveSpiritScroll`（fn）
 - `layoutSpirits`（fn）
+- `revealBattlingSpirits`（fn）
 - `installSpiritLayout`（fn）
 
 ## public/src/ui/statusMenu.ts

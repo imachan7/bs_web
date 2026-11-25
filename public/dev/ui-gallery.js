@@ -155,6 +155,22 @@ const SCENES = [
       await waitSel(c.A, "#opp-spirits .card.targetable")
     },
   },
+  // スピリットがいっぱいで縦スクロールのとき、見えない段のスピリットがアタックしたら、そこまでスクロールして見せる
+  {
+    id: "oppAtkHidden", name: "11b 相手の見えない段のスピリットがアタック", turn: "opp", phase: "attack",
+    board: () => ({ me: base(), opp: base({ field: { spirits: spirits(14), nexuses: [] } }) }),
+    run: async (c) => { // B の手前（DOM の先頭）のスピリットは、A の画面では相手の欄の上の方（見えない段）にいる
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+    },
+  },
+  {
+    id: "myAtkHidden", name: "11c 自分の見えない段のスピリットでアタック", phase: "attack",
+    board: () => ({ me: base({ field: { spirits: spirits(14), nexuses: [] } }), opp: base() }),
+    run: async (c) => { // 自分の欄の一番下（見えない段）のスピリットを押してアタックする
+      const cards = [...c.A.querySelectorAll("#my-spirits .card.clickable")]
+      cards[cards.length - 1]?.click(); await sleep(1500)
+    },
+  },
   { id: "menu", name: "13 メニューを開いた", board: standby, run: async (c) => { if (isMobile(c)) await clickSel(c.A, "#btn-status-menu") } },
   { id: "settings", name: "13b ⚙ 表示を開いた", board: standby, run: async (c) => { if (isMobile(c)) await clickSel(c.A, "#btn-status-menu"); await clickSel(c.A, "#btn-display-settings") } },
   {

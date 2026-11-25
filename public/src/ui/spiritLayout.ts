@@ -99,11 +99,24 @@ const sizeWatch = typeof ResizeObserver === "function"
     })
     : null
 
+// 描き直してもスクロールの位置は保つ（毎回相手側を一番下へ戻すと、手で見ていた位置やアタックしているスピリットの位置から戻された。2026-11-25）。
+// 場を描き直す（中身を空にする）とブラウザが位置を 0 に戻すので、描き直す前に saveSpiritScroll で覚えておく
+const savedScroll = new Map<string, { scroll: boolean; top: number }>()
+export function saveSpiritScroll(): void {
+    for (const id of ZONES) {
+        const zone = document.getElementById(id)
+        if (zone) savedScroll.set(id, { scroll: zone.dataset.rows === "vscroll", top: zone.scrollTop })
+    }
+}
+
 export function layoutSpirits(): void {
     sizeWatch?.disconnect()
     for (const id of ZONES) {
         const zone = document.getElementById(id)
         if (!zone) continue
+        // 描画のあと以外（画面の回転・絵の読み込み後の並べ直し）は、今の位置を使う
+        const kept = savedScroll.get(id) ?? { scroll: zone.dataset.rows === "vscroll", top: zone.scrollTop }
+        savedScroll.delete(id)
         clear(zone)
         const items = [...zone.children] as HTMLElement[]
         if (mobile.matches) items.forEach((el) => sizeWatch?.observe(el))
@@ -161,7 +174,33 @@ export function layoutSpirits(): void {
         // 入る段数で入らなければ、1段 PER_ROW 体までで幅に合わせて段を分け、欄の中を縦にスクロールする。相手側は中央の帯に近い（下の）段から見せる
         apply(pack(PER_ROW))
         zone.dataset.rows = "vscroll"
-        if (id === "opp-spirits") zone.scrollTop = zone.scrollHeight
+        if (kept.scroll) zone.scrollTop = kept.top
+        else if (id === "opp-spirits") zone.scrollTop = zone.scrollHeight
+        markHidden(zone)
+    }
+}
+
+// アタック・ブロックしているスピリットが縦スクロールの欄の見えない位置にいたら、見える位置までスクロールする
+// （スピリットが多いとき、アタックしているのにスクロールしないと見えなかった。2026-11-25 ユーザー指摘）。
+// 動かすのは、アタック・ブロックするスピリットが替わったときの1回だけ。そのあとは手でスクロールして別のカードを見られる
+const shownBattler = new Map<string, string>()
+export function revealBattlingSpirits(ids: (string | null | undefined)[]): void {
+    for (const zoneId of ZONES) {
+        const zone = document.getElementById(zoneId)
+        if (!zone) continue
+        const card = ids.map((id) => (id == null ? null : zone.querySelector<HTMLElement>(`:scope > .card[data-instance-id="${CSS.escape(id)}"]`))).find((c) => c != null)
+        const id = card?.dataset.instanceId
+        if (id === undefined || zone.dataset.rows !== "vscroll") {
+            if (id === undefined) shownBattler.delete(zoneId)
+            continue
+        }
+        if (shownBattler.get(zoneId) === id) continue
+        shownBattler.set(zoneId, id)
+        const z = zone.getBoundingClientRect()
+        const r = card!.getBoundingClientRect()
+        if (r.top >= z.top && r.bottom <= z.bottom) continue
+        // 欄の真ん中に来るようにする
+        zone.scrollTop += r.top + r.height / 2 - (z.top + z.height / 2)
         markHidden(zone)
     }
 }
