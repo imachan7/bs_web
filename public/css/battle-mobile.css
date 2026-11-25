@@ -243,7 +243,6 @@
         padding: 2px;
     }
     /* 合体したブレイヴは、ホストの右へ半分はみ出す。絵は段の中（上へ --br-top まで）に収める。右斜め上の見せ方は PC より浅い */
-    /* 疲労しても同じ余白を残す（疲労は枠の中で回して縮めるので、余白を変えると後ろのカードが動く） */
     .spirit-zone .card.has-brave { margin-right: calc(var(--sp-w) / 2 + 3px); }
     #opponent-area .spirit-zone .card.has-brave { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
     /* ブレイヴ2枚：2枚目は1枚目の右に4割ずらして重ねる（style.css）。そのぶん右を空ける。段の上へは出さない（欄の外は切れる） */
@@ -254,18 +253,17 @@
     :root[data-brave] .spirit-zone .brave-combined.has-brave-art { max-height: calc(var(--sp-h) + var(--br-top)); }
     :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: var(--pf); }
     :root[data-brave] #opponent-area .spirit-zone:has(.has-brave-art) { padding-top: var(--pn); }
-    /* 疲労は90度回るので、見た目の幅（縦長の高さ）と実際の幅の差を左右に空ける */
-    .spirit-zone .card.has-art.rested:not(.has-brave),
-    .spirit-zone .card[data-side="opp"].has-art.rested:not(.has-brave) { margin: 0; }
-    /* 合体中の疲労も、疲労していないときと同じ右の余白（style.css の疲労の余白より強くする） */
-    #player-area .spirit-zone .card.has-art.rested.has-brave { margin-left: 0; margin-right: calc(var(--sp-w) / 2 + 3px); }
-    #player-area .spirit-zone .card.has-art.rested.has-brave:has(.brave-combined:nth-child(2)) { margin-right: calc(var(--sp-w) * 0.9 + 3px); }
-    /* 疲労は同じ枠の中で90度回し、枠の幅に収まるよう縮める（幅を広げると、疲労させるたびに後ろのカードが動き、1段に入る数も減った。2026-11-25 ユーザー指摘）。
-       縮める率はカードの縦横比（675/985） */
+    /* 疲労は元の大きさのまま90度回し、回った幅（縦長の高さ）と実際の幅の差を左右に空ける。縮めると Lv・BP が読みにくかった（2026-11-25 ユーザー判断：縮めず、入りきらない分は縦スクロール）。
+       絵のないカードも回るので同じ余白を取る */
     .spirit-zone .card.rested:not(.heavy-rested),
-    .spirit-zone .card.rested.clickable:not(.heavy-rested):hover { transform: rotate(90deg) scale(0.685); }
-    .spirit-zone .card[data-side="opp"].rested:not(.heavy-rested),
-    .spirit-zone .card[data-side="opp"].rested.clickable:not(.heavy-rested):hover { transform: rotate(-90deg) scale(0.685); }
+    .spirit-zone .card[data-side="opp"].rested:not(.heavy-rested) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2); margin-right: calc((var(--sp-h) - var(--sp-w)) / 2); }
+    /* 合体中の疲労：ブレイヴの絵は立てたまま、横倒しのスピリットの右（相手は左）に半分重ねて並べる。カードと一緒に回すと横倒しで下の段へはみ出した。
+       枠をカードの左上に置いて逆向きに90度回すと、カードの回転と打ち消し合って、見た目ではスピリットの右上（相手は点対称で左下）に立つ。上からの位置＝重ねる幅（--sp-w / 2 - 3px） */
+    :root .spirit-zone .card.rested:not(.heavy-rested) > .brave-combined-box { left: 0; right: auto; top: calc(var(--sp-w) / 2 - 3px); bottom: auto; transform-origin: 0 0; transform: rotate(-90deg); }
+    #player-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) / 2 + 3px); }
+    #player-area .spirit-zone .card.rested.has-brave:not(.heavy-rested):has(.brave-combined:nth-child(2)) { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) * 0.9 + 3px); }
+    #opponent-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) / 2 + 3px); margin-right: calc((var(--sp-h) - var(--sp-w)) / 2); }
+    #opponent-area .spirit-zone .card.rested.has-brave:not(.heavy-rested):has(.brave-combined:nth-child(2)) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) * 0.9 + 3px); }
     .spirit-zone .card .name, .nexus-zone .card .name { margin: 0; font-size: 8px; max-width: none; }
 
     .nexus-zone {

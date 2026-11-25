@@ -4,6 +4,8 @@
 // 読み込み時に window を触ると、ブラウザの無い smoke（renderer を読み込む part）が落ちるので、使う時点で判定する
 const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches } }
 const ZONES = ["my-spirits", "opp-spirits"]
+// 1段に並べる最大の数。詰めて5体並べると隙間がなく見づらかった（2026-11-25 ユーザー判断）
+const PER_ROW = 4
 
 const px = (v: string): number => Number.parseFloat(v) || 0
 // 幅は小数のまま測る（offsetWidth は整数に丸め、66.28px のカードを3枚並べると1px近く足りずに折り返した）。回転（疲労）の影響を受けない CSS の幅を使う
@@ -38,6 +40,11 @@ function clear(zone: HTMLElement): void {
 
 // 縦スクロールのとき、見えていないカードの数を data-more に入れる（CSS が「▼ あとN体」を出す）。相手側は上に隠れる
 function markHidden(zone: HTMLElement): void {
+    // 段に収まったあとに、前の縦スクロールの scroll が遅れて届くことがある
+    if (zone.dataset.rows !== "vscroll") {
+        delete zone.dataset.more
+        return
+    }
     const top = zone.scrollTop
     const bottom = top + zone.clientHeight
     const hidden = [...zone.children].filter((el) => {
@@ -88,9 +95,9 @@ export function layoutSpirits(): void {
         const cardH = Math.max(...items.map((el) => (el.classList.contains("card") ? el.offsetHeight : 0)), 1)
         const maxRows = Math.max(1, Math.floor((zone.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom) + 2) / (cardH + 2)))
 
-        // 入る最小の段数を探す。配分は個数で均等（先頭の段が多い側）
+        // 入る最小の段数を探す。配分は個数で均等（先頭の段が多い側）。1段は PER_ROW 体まで
         const split = (k: number): HTMLElement[][] => {
-            const per = Math.ceil(items.length / k)
+            const per = Math.min(PER_ROW, Math.ceil(items.length / k))
             return Array.from({ length: k }, (_, r) => items.slice(r * per, (r + 1) * per)).filter((r) => r.length > 0)
         }
         const apply = (rows: HTMLElement[][]): void => {
@@ -104,7 +111,7 @@ export function layoutSpirits(): void {
         // 測った幅と実際がずれて段の中で折り返すと、欄に入らない段ができて消える。ずれたらやめる
         const settled = (k: number): boolean => new Set(items.map((el) => el.offsetTop)).size <= k && zone.scrollWidth <= zone.clientWidth + 1
         let done = false
-        for (let k = 1; k <= Math.min(maxRows, items.length) && !done; k++) {
+        for (let k = Math.ceil(items.length / PER_ROW); k <= Math.min(maxRows, items.length) && !done; k++) {
             const rows = split(k)
             apply(rows)
             // 幅は端数で数px ずれることがあるので 2px 余らせる
@@ -112,7 +119,8 @@ export function layoutSpirits(): void {
             else clear(zone)
         }
         if (done) continue
-        // 入る段数で入らなければ、段は自然に折り返させて欄の中を縦にスクロールする。相手側は中央の帯に近い（下の）段から見せる
+        // 入る段数で入らなければ、PER_ROW 体ごとに段を分け（幅が足りなければその中で折り返す）、欄の中を縦にスクロールする。相手側は中央の帯に近い（下の）段から見せる
+        apply(split(Math.ceil(items.length / PER_ROW)))
         zone.dataset.rows = "vscroll"
         if (id === "opp-spirits") zone.scrollTop = zone.scrollHeight
         markHidden(zone)
