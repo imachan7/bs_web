@@ -5,6 +5,13 @@ import type { EffectAction } from "./effectAction"
 import type { FieldEvent } from "./fieldEvent"
 
 // バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
+// マジック使用時の誘発（ownMagicUsed／opponentMagicUsed）で、コストを払った時点に決めた発生源と効果。
+// 効果の解決後に、これだけを処理する（決めた後に場に出たものは入らない）
+export type MagicUsedDecision = {
+    own: { key: string; label: string; frame: Extract<ResumeFrame, { kind: "action" }> }[]
+    opponent: { key: string; label: string; frame: Extract<ResumeFrame, { kind: "action" }> }[]
+}
+
 export type EventBurstCheck = {
     pid: PlayerId
     event: FieldEvent
@@ -85,6 +92,7 @@ export interface PendingChoice {
         targetInstanceId: string | undefined
         sourceInstanceId: string // 無効化する側の発生源（コストの支払い元）
         paidCost: boolean // 使用者が「コストを支払って」使用したか（BS11-X05 魔導双神ジェミナイズ用。中断をまたいで持ち回す）
+        triggers: MagicUsedDecision
     }
     handFreeSummon?: {
         // 手札のカード自身による無償召喚（kind:"freeSummonFromHandOnLifeDamaged"）の確認待ち。
@@ -283,6 +291,7 @@ export interface PendingChoice {
         sourceInstanceId: string // 魔導書＝確認を出す側の発生源
         ownerPid: PlayerId // 魔導書の持ち主（＝選ぶ人）
         paidCost: boolean // magicNegate と同じ（BS11-X05 用）
+        triggers: MagicUsedDecision
     }
     magicRepeat?: {
         // 「マジックの効果発揮後、同じ効果をもう1度だけ発揮できる」（kind:"magicRepeatGrant"）の確認待ち。
@@ -294,6 +303,7 @@ export interface PendingChoice {
         targetInstanceId: string | undefined
         sourceInstanceId: string // 再発揮を与えている発生源
         paidCost: boolean // magicNegate と同じ（BS11-X05 用）
+        triggers: MagicUsedDecision
     }
     magicFreeChoice?: {
         // 「マジックをコストを支払わずに使用できる」（kind:"magicFreeGrant"）の使用時確認。
@@ -402,6 +412,7 @@ export type ResumeFrame =
           onceClaim?: { instanceId: string; effectId: string }
           // 同時発揮の列で後回しにした誘発：消化時の Lv でも levels を満たすか見直す（logic/levelRecheck.ts。Q2717）
           levelRecheck?: { instanceId: string; effectId: string }
+          notice?: true // 解決の直前に、levelRecheck の発生源・効果の通知（effect イベント）を出す。決めた時点で集めた誘発が、通知なしになるのを防ぐ
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
           sourceInstanceId?: string // 発生源の個体。再開時はこの個体の今の色で判定する（集めた時点の色を焼き付けない。#579）。見つからないときだけ sourceColors を使う

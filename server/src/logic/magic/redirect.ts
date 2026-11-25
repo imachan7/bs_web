@@ -4,6 +4,7 @@ import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, CardType, PendingChoice, EffectAction, GameState, PlayerId } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, log, opponentOf, suspend } from "../GameState"
 import { effectSources } from "../../../../shared/rules"
+import type { MagicUsedDecision } from "../../types/choice"
 import { resolveMagicEffects } from "./resolve"
 
 // 封印された魔導書Lv1（kind:"targetRedirect"（includes:"bothSides"））：「お互いを対象とするマジックの効果」の
@@ -105,6 +106,7 @@ export function askBothSidesRedirect(
     timing: "main" | "flash",
     targetInstanceId: string | undefined,
     paidCost: boolean,
+    triggers: MagicUsedDecision,
 ): boolean {
     delete state.magicSideDecision
     if (!state.interactiveTargets) return false
@@ -129,6 +131,7 @@ export function askBothSidesRedirect(
             sourceInstanceId: found.inst.instanceId,
             ownerPid: found.pid,
             paidCost,
+            triggers,
         },
         action: { type: "noop" },
         selfInstanceId: found.inst.instanceId,
@@ -166,5 +169,5 @@ export function applyMagicSideChoice(
         const name = source ? getCard(source.cardId).name : "効果"
         log(state, `${name}：${getCard(info.cardId).name}の効果の対象を変更しなかった。`)
     }
-    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost)
+    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost, info.triggers)
 }

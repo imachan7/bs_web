@@ -1121,12 +1121,16 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyMagicRepeatChoice`（fn）：pendingChoice（再発揮の確認）の後処理。GameEngine.doResolveChoice から呼ぶ
 - `resumeMagicEntryHandler`（const）：選択待ちで止まったマジックの、残りのエントリ1つ（runMagicActions が積む内部専用）
 - `runMagicActions`（fn）：マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
-- `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
 
 ## server/src/logic/magic/targetRequirement.ts
 
 - `magicTargetMissing`（fn）
+
+## server/src/logic/magic/usedTriggers.ts
+
+- `decideMagicUsedTriggers`（fn）：集めるだけで解決しない。「ターンに1回」は処理する時点で消費する（相手側 opponentMagicUsed に oncePerTurn つきの効果はデータに無い）
+- `runMagicUsedTriggers`（fn）：効果が無効にされたマジックも通す（使用宣言とコストの支払いは済んでいるため）
 
 ## server/src/logic/oncePerTurn.ts
 
@@ -1489,7 +1493,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/types/choice.ts
 
-- `EventBurstCheck`（型）：バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
+- `MagicUsedDecision`（型）：バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
+- `EventBurstCheck`（型）
 - `DeclaredBurst`（型）：発動を宣言したバースト（BURST.md §1.4「宣言と適用は別の時点」）。適用は applyDeclaredBursts が、以降に解決する効果が無くなってから行う。
 - `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
 - `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。
