@@ -10,6 +10,7 @@ import type {
  Color,
  EffectCounter,
  EndStepLock,
+ MagicUsedDecision,
  FamilyFilter,
  FieldEvent,
  GameAction,
@@ -169,7 +170,7 @@ export type EffectAction =
  | { type: "summonSequence"; byFushi?: true; byBurst?: true; triggerOnly?: true; tail?: SummonTail } // byFushi＝【不死】による召喚として「自分のスピリットが召喚されたとき」を発火する（fieldEvent.fushiSummonOnlyの判定に使う）。**内部専用**：【転召】の対象選択で中断したとき、GameEngineがpendingChoice.queueへ積んで選択の解決後に合流させる
  | { type: "useMagicCard"; cardId: string; timing: "main" | "flash"; paidCost: boolean; usedVia?: "majutsu"; inUse?: true } // **内部専用**。ゾーンから抜いて支払いを済ませたマジック1枚を「使用」する（支払いの選択の後の続き。magic/effectUse.ts）
  | { type: "finishMagicUse" } // **内部専用**。選択待ちで止まったマジックを、解決し終えた時点でトラッシュ（または変えた行き先）へ置く
- | { type: "resumeMagicAfterEffects"; cardId: string; timing: "main" | "flash"; targetInstanceId?: string; paidCost: boolean; repeatSourceId?: string } // **内部専用**。選択待ちで止まったマジックの、効果を解決し終えたあとの再発揮の確認と「マジックを使用したとき」の誘発
+ | { type: "resumeMagicAfterEffects"; cardId: string; timing: "main" | "flash"; targetInstanceId?: string; paidCost: boolean; repeatSourceId?: string; triggers: MagicUsedDecision } // **内部専用**。選択待ちで止まったマジックの、効果を解決し終えたあとの再発揮の確認と「マジックを使用したとき」の誘発
  | { type: "resumeMagicEntry"; cardId: string; effectId: string } // **内部専用**。選択待ちで止まったマジックの残りのエントリ1つを、条件の判定から解決し直す
  | { type: "magicMirrorRepeat" } // 相手が直前に使用したマジックの効果を自分が使用したものとして解決し直す（対象・コストは無償の再現。GameState.lastMagicCast。相手の使用でなければ不発。[マジックミラー]自身は対象にできない＝連鎖ミラー防止）
  | { type: "magicFreeUseFromHandOrTegamoto"; colorFilter?: Color; familyFilter?: FamilyFilter; anyTegamoto?: true } // 手札/手元(tegamoto。要tegamotoPlayable)のマジック1枚をコストを支払わずに使用（任意。候補0なら不発）。自動選択は手札→手元の順でコスト最大（決定的簡略化）。paidCost=false で解決するので ownMagicUsed の paidCostOnly は連鎖しない。カード側で optional:true と併用する。anyTegamoto＝手元は使用権の無いカードも候補（Q3417）。familyFilter の配列＝OR
