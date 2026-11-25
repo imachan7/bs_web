@@ -1,5 +1,6 @@
-// smoke パート1061（#707 合体条件を満たさなくなったブレイヴは、操作を解決し終えた後に分離する。docs/design/BRAVE.md）
-import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides } from "./helpers"
+// smoke パート1061（#707 合体条件を満たさなくなったブレイヴは、その時点で分離する：効果の途中でも1つのアクションを解決したら次の手の前に。docs/design/BRAVE.md）
+import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
+import type { EffectAction } from "../../server/src/type"
 import type { GameState, PlayerId } from "./helpers"
 
 const OROCHI = "BS19-017" // 大蛇サイドロン（コスト4・Lv2=3コア。【強化】はLv2・3のみ）
@@ -207,6 +208,27 @@ for (const interactive of [false, true]) {
         act(s, "p1", { type: "resolveChoice", option: "残す" })
     }
     assert(s.pendingChoice === null && holds(host) === 0, `${interactive ? "対話" : "非対話"}：2枚とも分離した`)
+}
+
+console.log("=== 11. 効果の途中：「コアを外す → その後 ドロー」なら、外した直後（ドローの前）に分離する ===")
+for (const interactive of [true, false]) {
+    const s = game(`mid-effect-${interactive}`)
+    s.interactiveTargets = interactive
+    const host = put(s, "p1", OROCHI, 3) // Lv2 で【強化】
+    const brave = combine(s, "p1", host, FESKINA)
+    noop(s)
+    const hand0 = s.players.p1.hand.length
+    const seq = { type: "sequence", actions: [{ type: "removeCores", side: "own", target: "self", to: "trash", count: 1 }, { type: "draw", count: 1 }] } as EffectAction
+    resolveAction(s, "p1", host, seq)
+    if (interactive) {
+        assert(s.pendingChoice?.braveKeep?.instanceId === brave.instanceId, "対話：コアを外した直後に、残すかを聞く")
+        assert(s.players.p1.hand.length === hand0, "対話：答える前にはドローしていない（分離が先）")
+        act(s, "p1", { type: "resolveChoice", option: "残す" })
+        assert(s.players.p1.hand.length === hand0 + 1, "対話：答えた後にドローする")
+    } else {
+        assert(holds(host) === 0 && s.players.p1.hand.length === hand0 + 1, "非対話：分離してからドローまで進む")
+    }
+    assert(holds(host) === 0, `${interactive ? "対話" : "非対話"}：分離した`)
 }
 
 console.log("すべてのチェックに合格しました 🎉（part1061）")

@@ -34,7 +34,7 @@ import ACTION_HANDLERS from "./actions"
 import { matchesPick } from "./actions/revealAction"
 import type { ActionCtx } from "./actions/types"
 import { handGainDenial } from "./handGate"
-import { trashSpiritStateBravesWhenForbidden } from "./braveConditionGate"
+import { separateBravesLostCondition, trashSpiritStateBravesWhenForbidden } from "./braveConditionGate"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -1503,6 +1503,8 @@ export function resolveAction(
     // 更新点（合体・召喚・期限つき効果の記録）を通らない変化もあるので、手ごとに組み直す（2026-11-03 ユーザーと決定）
     if (!state.winner) refreshLevelAsOverrides(state)
     if (!state.winner && trashSpiritStateBravesWhenForbidden(state)) refreshLevelAsOverrides(state)
+    // 合体条件を満たさなくなったブレイヴも、手を解決するたびに分離してから次の手へ進む（2026-11-25 ユーザー決定。#707）。選択待ちが立ったら残りの手はその答えの後
+    if (!state.winner) separateBravesLostCondition(state)
     // コアの居場所を突き合わせ、増えた側だけを合計して "opponentCorePlaced" を発火する。
     // **currentEffectSource を戻す前に**呼ぶ（sourceColorFilter がこれを読むため）
     if (coreSnapshot) fireCorePlacedFromDiff(state, coreSnapshot)

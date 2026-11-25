@@ -805,7 +805,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/braveConditionGate.ts
 
-- `separateBravesLostCondition`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ（#707）。
+- `separateBravesLostCondition`（fn）：効果の手ごとの出口（EffectModules）と handleAction の後始末（継続効果を組み直した後）で呼ぶ（#707）。
 - `separateBravesOverLimit`（fn）：合体数の上限を上げていた効果（BS23-X01 など）が消えて、上限を超えたホストの分離（Q4588）。
 - `trashSpiritStateBravesWhenForbidden`（fn）：BS11-X02 Lv3「相手は、ブレイヴをスピリット状態にできない」が効いている間、その側のスピリット状態のブレイヴは
 
