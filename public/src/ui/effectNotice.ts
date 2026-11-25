@@ -9,8 +9,11 @@ const MAX_WAITING = 3 // 溜まりすぎたら古いものから飛ばす（2026
 const MINE_MS = 2500
 const OPP_MS = 4000
 
-let queue: EffectEvent[] = []
-let current: { ev: EffectEvent; choiceSeen: boolean; timer: number | undefined } | null = null
+// endAt：中身に出すログの終わり（state.log の行数）。効果の解決が終わった（選択の待ちが無い）状態が届いた時点の行数で固める。
+// 固めないと、次の効果の通知が来ない限り、出している間に増えたログ（相手の次の行動・ターンの終わりなど）まで中身に積み重なった（2026-11-25 ユーザー指摘）
+interface Item { ev: EffectEvent; endAt?: number }
+let queue: Item[] = []
+let current: (Item & { choiceSeen: boolean; timer: number | undefined }) | null = null
 let lastView: GameView | null = null
 
 // 見出し行から次の見出し行の手前までの本文。見出し行は Lv1･Lv2『…』／【合体時】Lv2『…』のように行頭が見出しの形
@@ -33,7 +36,7 @@ function renderBody(): void {
     const b = box?.querySelector<HTMLElement>(".effect-notice-body")
     if (!box || !b || !current || !lastView) return
     const first = lastView.logTotal - lastView.log.length
-    const end = queue[0]?.logAt ?? lastView.logTotal
+    const end = Math.min(queue[0]?.ev.logAt ?? Infinity, current.endAt ?? lastView.logTotal)
     const lines = lastView.log.slice(Math.max(0, current.ev.logAt - first), Math.max(0, end - first))
     box.classList.toggle("effect-result", lines.length > 0)
     b.textContent = lines.length > 0 ? lines.join("\n") : effectBodyText(current.ev.cardId, current.ev.heading)
@@ -49,9 +52,10 @@ function dismiss(): void {
 }
 
 function showNext(): void {
-    const ev = queue.shift()
+    const item = queue.shift()
     const host = document.getElementById("center-info-area")
-    if (!ev || !host || !lastView) return
+    if (!item || !host || !lastView) return
+    const ev = item.ev
     const mine = ev.pid === lastView.you
     const box = document.createElement("div")
     box.id = "effect-notice"
@@ -85,7 +89,7 @@ function showNext(): void {
         dismiss()
     })
     host.prepend(box)
-    current = { ev, choiceSeen: lastView.pendingChoice != null, timer: undefined }
+    current = { ...item, choiceSeen: lastView.pendingChoice != null, timer: undefined }
     renderBody()
     const me = current
     // 選ぶ場面が続いている間は出したまま。無いままなら一定時間で消す
@@ -97,8 +101,12 @@ function showNext(): void {
 // 描画のたびに呼ぶ。新しい出来事を並べ、選び終わっていれば消し、発生源のカードを光らせ直す（描き直しで class が落ちるため）
 export function syncEffectNotice(view: GameView, newEvents: GameEvent[]): void {
     lastView = view
-    for (const ev of newEvents) if (ev.type === "effect") queue.push(ev)
+    for (const ev of newEvents) if (ev.type === "effect") queue.push({ ev })
     if (queue.length > MAX_WAITING) queue = queue.slice(-MAX_WAITING)
+    if (view.pendingChoice == null) {
+        for (const item of queue) item.endAt ??= view.logTotal
+        if (current) current.endAt ??= view.logTotal
+    }
     if (current) {
         if (view.pendingChoice != null) current.choiceSeen = true
         else if (current.choiceSeen) dismiss()
