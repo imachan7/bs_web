@@ -1893,6 +1893,8 @@ button:active {
 #choice-options .pay-meter { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
 #choice-options .pay-boxes { letter-spacing: 2px; color: #7fd1ff; }
 #choice-options .pay-hint { color: #b8b8b8; font-size: 12px; }
+/* バーストのあとにコストを払って発揮するかの確認で、発揮する効果の中身（renderer.ts） */
+#choice-options .choice-effect-text { grid-column: 1 / -1; flex-basis: 100%; font-size: 12px; line-height: 1.5; color: var(--text-main); white-space: pre-wrap; text-align: left; padding: 4px 2px; }
 #choice-options .pay-field-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #choice-options .pay-field-row > button { flex: none; width: 32px; min-width: 0; padding: 4px 0; }
 #choice-options .pay-warn { color: #ffb347; font-size: 12px; }

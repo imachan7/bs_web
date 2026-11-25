@@ -980,6 +980,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `activateBurstCard`（fn）：オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
 - `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
 
+## server/src/logic/keywords/burstMagicEffect.ts
+
+- `announceBurstMagicEffect`（fn）
+
 ## server/src/logic/keywords/chimei.ts
 
 - `chimeiBase`（fn）：カードに書かれた【地鳴：N】の N（持たなければ 0）

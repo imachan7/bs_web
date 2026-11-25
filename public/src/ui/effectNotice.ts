@@ -107,7 +107,7 @@ export function syncEffectNotice(view: GameView, newEvents: GameEvent[]): void {
     lastView = view
     for (const ev of newEvents) {
         if (ev.type === "effect") queue.push({ ev })
-        if (ev.type === "magic" || ev.type === "burst") cuts.push(ev.logAt)
+        if (ev.type === "magic" || ev.type === "burst" || ev.type === "burstMagicEffect") cuts.push(ev.logAt)
     }
     // 出している通知より前の位置は要らない
     const from = current?.ev.logAt ?? queue[0]?.ev.logAt

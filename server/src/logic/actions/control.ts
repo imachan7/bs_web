@@ -3,6 +3,7 @@
 import { targetableSpirits } from "../targeting"
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { payMagicCostThenResolve } from "../magic/payThenResolve"
+import { announceBurstMagicEffect } from "../keywords/burstMagicEffect"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
@@ -607,6 +608,7 @@ const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> =
         card.effects.find((e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === timing)
     const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
         if (!entry) return
+        announceBurstMagicEffect(state, owner, action.cardId, entry.timing)
         resolveAction(state, owner, null, entry.action, undefined, magicEffectiveColors(state, owner, card), "magic", undefined, undefined, action.cardId)
     }
     if (chosenOption === BURST_MAGIC_FREE_MAIN_LABEL) {
@@ -619,7 +621,10 @@ const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> =
     }
     if (action.payTiming === undefined || action.payCost === undefined) return
     const entry = magicEntry(action.payTiming)
-    if (entry) payMagicCostThenResolve(state, owner, action.cardId, action.payCost, entry.action)
+    if (entry) {
+        announceBurstMagicEffect(state, owner, action.cardId, action.payTiming)
+        payMagicCostThenResolve(state, owner, action.cardId, action.payCost, entry.action)
+    }
 }
 
 const remainOnFieldSelfHandler: ActionHandler<"remainOnFieldSelf"> = (ctx, action) => {

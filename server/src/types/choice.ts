@@ -352,6 +352,7 @@ export interface PendingChoice {
         pid: PlayerId
         cost: number
         cardId: string // 解決時に色と種別（マジック）を渡すため（【装甲】などの効果耐性。BURST.md §7）
+        timing: "main" | "flash" // 払って発揮するのがメイン効果かフラッシュ効果か（画面が確認と一緒にその効果文を出す）
     }
     revertTriggered?: {
         // 「〜できる」の確認を断ったとき、triggered / fieldEvent の「ターンに1回」の消費を巻き戻す対象

@@ -3,6 +3,7 @@ import { blockDestroyTolls } from "../../../shared/block"
 import { isReturnWaiting, isTrashWaiting } from "../../../shared/rules/waiting"
 import { summonPayPlan } from "./summonCores"
 import { payMagicCostThenResolve } from "./magic/payThenResolve"
+import { announceBurstMagicEffect } from "./keywords/burstMagicEffect"
 import { handGainDenial } from "./handGate"
 import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
 import { activateBurstCard, applyDeclaredBursts, declareBurst } from "./keywords/burst"
@@ -703,6 +704,7 @@ function resolveChoiceInner(
                 if (pending.burstThenPay) {
                     // バーストのthenPay：確認どおりコストを支払ってから発揮する（docs/design/BURST.md）
                     const info = pending.burstThenPay
+                    announceBurstMagicEffect(state, info.pid, info.cardId, info.timing)
                     payMagicCostThenResolve(state, info.pid, info.cardId, info.cost, pending.action)
                 } else if (pending.burstActivate && !pending.burstNegateChecked && negateBurstActivation(state, pending.burstActivate.pid, pending.burstActivate.cardId, { kind: "confirm", original: pending, option })) {
                     // 無効にした、または相手の BS21-052 の確認待ち（続きは burstNegate の解決で行う）

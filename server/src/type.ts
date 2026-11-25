@@ -176,6 +176,8 @@ export type GameEvent =
     | { seq: number; type: "effect"; pid: PlayerId; cardId: string; cardName: string; instanceId?: string; heading?: string; trigger?: string; logAt: number } // logAt＝出した時点の state.log の行数。画面がこの効果で増えたログの行（発揮した内容）を切り出すのに使う
     | { seq: number; type: "reveal"; pid: PlayerId; cardIds: string[] } // デッキ・バーストのカードをオープンした（pid＝オープンしたカードの持ち主）
     | { seq: number; type: "burst"; pid: PlayerId; cardName: string; cardId?: string; logAt: number }
+    // バーストで発動したマジックが、その後のメイン効果・フラッシュ効果を発揮すると決まった（keywords/burstMagicEffect.ts）。画面がその効果文を出す
+    | { seq: number; type: "burstMagicEffect"; pid: PlayerId; cardId: string; cardName: string; timing: "main" | "flash"; logAt: number }
     // バウンス／デッキ戻し。
     // pid は**カードの持ち主**（＝戻された側）。sourceName は戻した効果の発生源カード名（分かる場合のみ）
     | { seq: number; type: "returnToHand"; pid: PlayerId; cardName: string; sourceName?: string; instanceId?: string } // フィールドから手札へ戻った（スピリット／ネクサス）
