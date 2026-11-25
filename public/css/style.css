@@ -287,6 +287,11 @@ button:active {
     );
 }
 
+/* 対象を選ぶ間は、はみ出す向きを対象の無い側へ寄せる。均等にはみ出すと、中央の帯のすぐ上の相手のスピリットに効果の通知が重なり、
+   対象を押しにくかった（2026-11-25 プレイヤーの感想）。両方の側に対象があるときは今までどおり均等 */
+#game:has(#opponent-area .targetable):not(:has(#player-area .targetable)) #center-info-area { justify-content: flex-start; }
+#game:has(#player-area .targetable):not(:has(#opponent-area .targetable)) #center-info-area { justify-content: flex-end; }
+
 #center-info-area > :not(.hidden) {
     max-width: 100%;
     box-sizing: border-box;
