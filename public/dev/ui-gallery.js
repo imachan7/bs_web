@@ -106,6 +106,18 @@ const SCENES = [
       await pressOpt(c.B, "決定"); await pressOpt(c.B, "この支払いで確定"); await sleep(800)
     },
   },
+  // 相手がマジックを使ってすぐアタックステップへ進む（AI のように速い）。マジックの通知は、場面が進んだら 1.5 秒で閉じる（8秒残らない）
+  {
+    id: "oppMagicThenAttack", name: "9b 相手のマジックのあとすぐアタックステップへ", turn: "opp",
+    board: () => ({ me: base(), opp: base({ hand: ["BS04-111", GRIP] }) }),
+    run: async (c) => {
+      await clickSel(c.B, '#hand .card[data-card-id="BS04-111"]')
+      await press(c.B, "使用")
+      for (const t of ["メイン", "この支払いで確定"]) await pressOpt(c.B, t)
+      await sleep(300)
+      await press(c.B, "アタックステップへ")
+    },
+  },
   {
     id: "notice", name: "10 効果の通知（召喚直後）",
     board: () => ({ me: base({ reserve: 6, hand: [GRIP] }), opp: base() }),
@@ -149,6 +161,16 @@ const SCENES = [
     id: "trash", name: "14 トラッシュを開いた",
     board: () => ({ me: base({ trashCards: [GRIP, GRIP, "SD06-001", LAMP] }), opp: base({ trashCards: [GRIP] }) }),
     run: async (c) => clickSel(c.A, isMobile(c) ? "#mat-trash-self" : "#btn-toggle-trash"),
+  },
+  // 相手のデッキを破棄する（マジックドリル：相手の手札1枚につき1枚）。破棄したカードの欄は、選ぶ場面の前後で動かず上に出たまま
+  {
+    id: "mill", name: "14b 相手のデッキを破棄した（マジックドリル）",
+    board: () => ({ me: base({ hand: ["BS04-111", GRIP] }), opp: base() }),
+    run: async (c) => {
+      await play(c, "BS04-111", "使用")
+      for (const t of ["メイン", "この支払いで確定"]) await pressOpt(c.A, t)
+      await sleep(1500) // 1枚ずつ並べ終わるのを待つ（欄は position: fixed で vis() に掛からない）
+    },
   },
   // スクショと同じ流れ：相手のアタックでライフが減り、賢者の樹の実（ライフが減ったときコア1個）の効果のあとに絶甲氷盾のバーストが発動する。
   // 賢者の樹の実の効果の通知に、バーストの発動と効果の行が入らないこと

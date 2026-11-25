@@ -143,6 +143,18 @@ function fillReserve(v: GameView, pay: PayingState): void {
     pay.placeReserve = reserveN - r1
 }
 
+// ブレイヴを残す（BRAVE.md §6.3）・分離（§6.4）の置くコアも、召喚と同じ支払いの画面で払う（コストが無いので②だけ）。
+// 以前は場のカードを押して割り当てる古い支払いで、リザーブの数も出なかった（2026-11-25 ユーザー案）。使えるリザーブは先に入れておく
+export function openBravePay(v: GameView, target: Pick<PayingState, "forBraveKeep"> | Pick<PayingState, "forDetachBraveInstanceId">): void {
+    const u = ui()
+    u.targeting = null
+    u.awakenTarget = null
+    u.combineBrave = null
+    const pay: PayingState = { handIndex: -1, ...target, step: "place", assigned: {}, costAssigned: {}, costReserve: 0, placeReserve: 0, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
+    u.paying = pay
+    fillFromReserve(v, pay)
+}
+
 // 自動でリザーブだけで払えるときに、最小の置き方までリザーブで埋めて②から始める（play.tryPlay から）
 export function fillFromReserve(v: GameView, pay: PayingState): void {
     fillReserve(v, pay)
@@ -320,11 +332,18 @@ function vanishingNote(v: GameView, assigned: Record<string, number>): string {
 }
 
 // 見出し（#targeting-info に出す1行）
+// 確定のボタンの文言（見出しにも使う）
+function payVerb(v: GameView, pay: PayingState): string {
+    if (pay.forBraveKeep !== undefined) return "残す"
+    if (pay.forDetachBraveInstanceId !== undefined) return "分離"
+    const id = payingCardId(v, pay)
+    return id !== undefined && master(id).type === "nexus" ? "配置" : "召喚"
+}
+
 export function payStageHeading(v: GameView, pay: PayingState): string {
     const id = payingCardId(v, pay)
     if (id === undefined) return ""
-    const c = master(id)
-    return `${c.type === "nexus" ? "配置" : "召喚"}：${c.name}`
+    return `${pay.forBraveKeep !== undefined ? "ブレイヴを残す" : payVerb(v, pay)}：${master(id).name}`
 }
 
 export function renderPayStageSheet(v: GameView, pay: PayingState, host: HTMLElement): void {
@@ -334,7 +353,7 @@ export function renderPayStageSheet(v: GameView, pay: PayingState, host: HTMLEle
     const need = needs[stage]
     const filled = payingStageFilled(pay, stage)
     const cardId = payingCardId(v, pay)
-    const verb = cardId !== undefined && master(cardId).type === "nexus" ? "配置" : "召喚"
+    const verb = payVerb(v, pay)
     const hasCostStage = needs.cost > 0
     const hasPlaceStage = needs.place > 0
     const sheet = div("pay-sheet")
