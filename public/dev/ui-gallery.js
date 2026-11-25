@@ -138,9 +138,9 @@ const SCENES = [
     board: () => ({ me: base({ burst: "BS14-092" }), opp: base() }),
     run: async (c) => {
       await clickSel(c.B, "#my-spirits .card.clickable", 1500)
-      // 途中で出るボタン（フラッシュのパス・ブロックしない・バーストの発動）を押せるものから押していく
+      // 途中で出るボタン（フラッシュのパス・ライフで受ける・バーストの発動）を押せるものから押していく
       for (let i = 0; i < 12 && ![...c.A.querySelectorAll(".burst-reveal-big, .event-detail.event-burst")].some(vis); i++) {
-        if (!(await pressOpt(c.A, "発動", 400)) && !(await pressOpt(c.A, "ブロックしない", 400)) && !(await pressOpt(c.A, "パス", 400))) await pressOpt(c.B, "パス", 400)
+        if (!(await pressOpt(c.A, "発動", 400)) && !(await pressOpt(c.A, "ライフで受ける", 400)) && !(await pressOpt(c.A, "パス", 400))) await pressOpt(c.B, "パス", 400)
       }
       await waitSel(c.A, ".event-detail.event-burst", 3000)
     },
