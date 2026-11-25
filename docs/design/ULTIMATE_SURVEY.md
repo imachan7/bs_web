@@ -78,4 +78,4 @@
 - 担当の分け方：弾ごとに `colors[0]` で6色に分け、1色＝調査役1体（Sonnet）。同時に2体まで。1体で5時間枠の約4%
   `python3 -c "import json,collections;d=json.load(open('data/staging/BS27.json'));g=collections.defaultdict(list);[g[c['colors'][0]].append(c['cardId']) for c in d];[print(k,len(v),' '.join(v)) for k,v in g.items()]"`
 - 終わった表は `python3 scripts/check_plan_table.py` を通してから1色1コミット。ユーザーは開発サーバーの /dev/plan-review.html で答える（PLAN_REVIEW_DIR をこのワークツリーの docs/design に向けて起動）
-- 済み：BS25・BS26 の6色と BS27 赤。BS27 紫から続ける（git log で確かめる）
+- 済み：BS25〜BS27 の6色。BS28 は git log で確かめて続ける
