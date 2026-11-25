@@ -91,7 +91,8 @@ export function renderCardDock(v?: GameView, u?: UiState): void {
     const dock = $("card-dock")
     const card = selected !== null && mobile.matches ? findCard(selected) : null
     const entries = selected && card ? entriesOf(selected, card) : []
-    if (!selected || !card || (selected.zone === "field" ? entries.length === 0 : !uiIsFree())) {
+    // 場のカードも、支払いなど別の操作に入ったら閉じる（分離の支払いのシートの上に欄が残っていた。2026-11-25）
+    if (!selected || !card || entries.length === 0 && selected.zone === "field" || !uiIsFree()) {
         selected = null
         picking = null
         dock.classList.add("hidden")

@@ -2612,12 +2612,10 @@ body:has(#notice-banner:not(.hidden)) {
 .burst-reveal-big .reveal-name { font-size: 16px; }
 .burst-reveal-big .reveal-type { font-size: 12px; }
 
-/* スマホ幅：マジックの通知（上）とオープン中のカードが重ならないよう、オープン中のカードは下に横長で出す */
+/* スマホ幅：オープン中のカードは横長で出す（上下の位置は battle-mobile.css で、上の行の下に固定） */
 @media (max-width: 700px) {
     #reveal-panel,
     #mill-panel {
-        top: auto;
-        bottom: 48px;
         left: 8px;
         right: 8px;
         transform: none;
