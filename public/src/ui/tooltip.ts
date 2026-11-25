@@ -232,7 +232,7 @@ export function setupEffectTooltip(): void {
     let longPressed = false
     document.addEventListener("pointerdown", (e) => {
         if (e.pointerType !== "touch") return
-        // 絵を出した吹き出しは中をスクロールできるので、触れただけでは閉じない（押すと閉じる）
+        // 吹き出しは中をスクロールできるので、触れただけでは閉じない（押すと閉じる）
         if (tip.contains(e.target as Node)) return
         const card = (e.target as HTMLElement).closest<HTMLElement>(TIP_SELECTOR)
         window.clearTimeout(pressTimer)
