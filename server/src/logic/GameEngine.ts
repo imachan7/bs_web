@@ -124,7 +124,7 @@ import {
 import { doCastMagic } from "./magic/cast"
 import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
-import { separateBravesBelowMinCost, separateBravesOverLimit, trashSpiritStateBravesWhenForbidden } from "./braveConditionGate"
+import { separateBravesLostCondition, separateBravesOverLimit, trashSpiritStateBravesWhenForbidden } from "./braveConditionGate"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 import { resolveForcedBlock } from "./forcedBlock"
 import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed, markUsedOnceThisTurn, markNameUsedOnceThisTurn } from "./oncePerTurn"
@@ -153,7 +153,7 @@ function settleAfterResolution(state: GameState): void {
     if (!state.winner) refreshLevelAsOverrides(state)
     // 維持コアを下回った個体の掃除（refreshLevelAsOverrides の後に置くこと）
     sweepLevelCostDepletion(state)
-    separateBravesBelowMinCost(state)
+    separateBravesLostCondition(state)
     separateBravesOverLimit(state)
     if (trashSpiritStateBravesWhenForbidden(state)) refreshLevelAsOverrides(state)
     // バウンス待機カードは選択待ちが無くなった時点で手札／デッキへ移す。resolveAction を通らない経路（エンドステップのデッキ下戻し・召喚時の入れ替え）の安全網

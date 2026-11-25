@@ -10,6 +10,7 @@ const HILD = "BS04-043" // ワルキューレ・ヒルド（相手の効果を�
 const VIZO = "BS04-034" // ヴィゾフニル（【装甲：紫】）
 const ROKU = "BS01-002" // ロクケラトプス（耐性なし）
 const SHIBA = "BS10-067" // からくり犬シバ（ブレイヴ）
+const PIONEER = "BS21-061" // 衛星機パイオニア・V（白ブレイヴ。合体条件は白シンボル。効果を持つ白ホスト用）
 
 console.log("=== 前提: カードの機械確認 ===")
 {
@@ -22,14 +23,14 @@ console.log("=== 前提: カードの機械確認 ===")
 
 const actionOf = (cardId: string, id: string) => (getCard(cardId).effects.find((e) => e.id === id) as unknown as { action: EffectAction }).action
 
-function scene(seed: string, hostCardId: string) {
+function scene(seed: string, hostCardId: string, braveCardId = SHIBA) {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "white" })
     runTurnStart(s)
     s.interactiveTargets = false
     s.turn = 3
     const host = createInstance(hostCardId, s.turn, 1)
     s.players.p2.field.spirits.push(host)
-    const brave = createInstance(SHIBA, s.turn, 0)
+    const brave = createInstance(braveCardId, s.turn, 0)
     attachBrave(s, "p2", host, brave)
     refreshLevelAsOverrides(s)
     return { s, host, brave }
@@ -38,14 +39,14 @@ const combined = (s: GameState, brave: ReturnType<typeof createInstance>) => s.p
 
 console.log("=== 1. ブレイヴの破壊：ホストが相手の効果を受けないなら、ブレイヴも破壊されない ===")
 {
-    const { s, brave } = scene("hild-break", HILD)
+    const { s, brave } = scene("hild-break", HILD, PIONEER)
     resolveAction(s, "p1", null, actionOf(BREAK, "BS12-076-e1"), undefined, ["purple"], "magic")
-    assert(combined(s, brave) && !s.players.p2.trashCards.includes(SHIBA), "ブレイヴは合体したまま")
+    assert(combined(s, brave) && !s.players.p2.trashCards.includes(PIONEER), "ブレイヴは合体したまま")
 }
 
 console.log("=== 2. ブレイヴの破壊：ホストの【装甲：紫】が紫のマジックから守る ===")
 {
-    const { s, brave } = scene("vizo-break", VIZO)
+    const { s, brave } = scene("vizo-break", VIZO, PIONEER)
     resolveAction(s, "p1", null, actionOf(BREAK, "BS12-076-e1"), undefined, ["purple"], "magic")
     assert(combined(s, brave), "ブレイヴは合体したまま")
 }
@@ -59,7 +60,7 @@ console.log("=== 3. ブレイヴの破壊：耐性の無いホストなら破壊
 
 console.log("=== 4. 分離：ホストが相手の効果を受けないなら分離しない／耐性が無ければ分離する ===")
 {
-    const a = scene("hild-detach", HILD)
+    const a = scene("hild-detach", HILD, PIONEER)
     const hadesA = createInstance(HADES, a.s.turn, 1)
     a.s.players.p1.field.spirits.push(hadesA)
     resolveAction(a.s, "p1", hadesA, actionOf(HADES, "BS11-015-e2"))

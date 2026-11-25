@@ -7,6 +7,7 @@ const GX16 = "GX16" // ブレイヴドミネーション（紫マジック・コ
 const PB13 = "PB13-01" // 魔犬ゼロ（紫・コスト5）
 const VAN = "BS01-002" // ロクケラトプス
 const X015 = "X015" // 放浪者ロロ（このスピリット以外の一切の効果を受けない）
+const HOST = "SD01-007" // スティラホーン（赤・コスト5・効果なし）。ブレイヴの合体条件コスト4以上を満たす
 const PANDA = "BS21-063" // ぐるみパンダ（黄ブレイヴ・コスト4）
 const PTERA = "BS21-056" // プテラノストーン（ブレイヴ・コスト5）
 const EAGLE = "BS21-055" // ゴルニック・イーグル（ブレイヴ・コスト3）
@@ -47,8 +48,8 @@ const gx16 = (): EffectAction => (getCard(GX16).effects!.find((e) => e.id === "G
 console.log("=== 1. GX16：2体の合体スピリットのブレイヴが同時に破壊され、破壊した数だけ相手のライフのコアがボイドへ ===")
 {
     const s = game("gx16-1")
-    const a = hostWith(s, VAN, [PANDA, PTERA])
-    const b = hostWith(s, VAN, [EAGLE])
+    const a = hostWith(s, HOST, [PANDA, PTERA])
+    const b = hostWith(s, HOST, [EAGLE])
     s.players.p2.life = 5
     const lifeBefore = s.players.p2.life
     resolveAction(s, "p1", null, gx16(), undefined, undefined, "magic")
@@ -60,7 +61,7 @@ console.log("=== 1. GX16：2体の合体スピリットのブレイヴが同時�
 console.log("=== 2. GX16：効果を受けないホストのブレイヴは破壊されず、数えない ===")
 {
     const s = game("gx16-2")
-    hostWith(s, VAN, [PANDA])
+    hostWith(s, HOST, [PANDA])
     const x = hostWith(s, X015, [EAGLE])
     s.players.p2.life = 5
     resolveAction(s, "p1", null, gx16(), undefined, undefined, "magic")
@@ -71,7 +72,7 @@ console.log("=== 2. GX16：効果を受けないホストのブレイヴは破�
 console.log("=== 3. GX16：ライフが0になれば勝ち ===")
 {
     const s = game("gx16-3")
-    hostWith(s, VAN, [PANDA, PTERA])
+    hostWith(s, HOST, [PANDA, PTERA])
     s.players.p2.life = 2
     resolveAction(s, "p1", null, gx16(), undefined, undefined, "magic")
     assert(s.players.p2.life === 0 && s.winner === "p1", `ライフ0で p1 の勝ち（life ${s.players.p2.life}・winner ${s.winner}）`)
@@ -92,8 +93,8 @@ console.log("=== 5. PB13-01：Lv2 のアタックでコスト4以下のブレイ
         const s = game(`pb13-${label}`)
         const me = createInstance(PB13, s.turn - 1, cores)
         s.players.p1.field.spirits.push(me)
-        const h = hostWith(s, VAN, [PTERA])
-        const h2 = hostWith(s, VAN, [PANDA])
+        const h = hostWith(s, HOST, [PTERA])
+        const h2 = hostWith(s, HOST, [PANDA])
         refreshLevelAsOverrides(s)
         assert(act(s, "p1", { type: "nextPhase" }) === null, `${label}：アタックステップへ`)
         assert(act(s, "p1", { type: "attack", instanceId: me.instanceId }) === null, `${label}：アタック`)
@@ -111,7 +112,7 @@ console.log("=== 6. 1つのホストに対象のブレイヴが2つなら使用�
     const act6: EffectAction = { type: "destroyBrave", filter: { cost: { max: 4 } } }
     const s = game("pb13-choose")
     s.interactiveTargets = true
-    hostWith(s, VAN, [PANDA, EAGLE])
+    hostWith(s, HOST, [PANDA, EAGLE])
     resolveAction(s, "p1", null, act6, undefined, undefined, "magic")
     const pc = s.pendingChoice
     assert(pc !== null && pc.pid === "p1" && pc.kind === "target" && pc.candidates.length === 2, "使用者 p1 が2つのブレイヴから選ぶ")
@@ -120,7 +121,7 @@ console.log("=== 6. 1つのホストに対象のブレイヴが2つなら使用�
     assert(act(s, "p1", { type: "resolveChoice", instanceId: pick.instanceId }) === null, "選ぶ")
     assert(s.players.p2.field.combinedBraves.map((b) => b.cardId).join() === PANDA, "選んだイーグルだけ破壊された")
     const s2 = game("pb13-auto")
-    hostWith(s2, VAN, [PANDA, EAGLE])
+    hostWith(s2, HOST, [PANDA, EAGLE])
     resolveAction(s2, "p1", null, act6, undefined, undefined, "magic")
     assert(s2.pendingChoice === null && s2.players.p2.field.combinedBraves.length === 1, "非対話は自動で1つ")
 }

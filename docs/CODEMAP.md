@@ -61,6 +61,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `noteGrantSource`（fn）：付与先に付与元の __eid を載せ、読む側の計測点で引けるようにする（alsoCostGrant のように付与元を残さない状態用）
 - `noteGrantedFrom`（fn）：kind は付与元の kind（coverage:effects が計測点のある kind として数える）
 
+## shared/deckLimit.ts
+
+- `MAX_COPIES`（const）
+- `deckCopyLimit`（fn）
+
 ## shared/handBurstEffect.ts
 
 - `handBurstEffectDenial`（fn）：使えない理由（使えるなら null）。コストを払えるかは含まない。
@@ -805,7 +810,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/braveConditionGate.ts
 
-- `separateBravesBelowMinCost`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ。
+- `separateBravesLostCondition`（fn）：効果の手ごとの出口（EffectModules）と handleAction の後始末（継続効果を組み直した後）で呼ぶ（#707）。
 - `separateBravesOverLimit`（fn）：合体数の上限を上げていた効果（BS23-X01 など）が消えて、上限を超えたホストの分離（Q4588）。
 - `trashSpiritStateBravesWhenForbidden`（fn）：BS11-X02 Lv3「相手は、ブレイヴをスピリット状態にできない」が効いている間、その側のスピリット状態のブレイヴは
 
@@ -1271,6 +1276,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `recordTimed`（fn）：期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
 - `recordPlayerRule`（fn）：pid にこのターンの間の制約を掛ける（効果の中の「さらに、このターンの間〜」から書く）
 - `recordBp`（fn）：1体を BP+（このターン／このバトルの間）。ownerPid＝効果を出した側
+- `braveCompositeOf`（fn）：ブレイヴ群がホストへ足すぶん。合体条件の確かめ直しが「そのブレイヴを除いた」ホストを作るときにも使う
 - `refreshLevelAsOverrides`（fn）
 
 ## server/src/logic/state/exhaust.ts
