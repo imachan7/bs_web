@@ -166,9 +166,14 @@
     #opponent-area .field-row > [id^="mat-life"] { margin: 0 0 2px; }
     .field-row > [id^="mat-reserve"] { grid-area: reserve; margin-top: 2px; }
     #opponent-area .field-row > [id^="mat-reserve"] { margin: 0 0 2px; }
-    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-cores { display: none; }
-    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-head { flex-wrap: nowrap; justify-content: space-between; align-items: baseline; }
-    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n { font-size: 15px; line-height: 16px; }
+    /* ライフは見出しとコアの絵（列の上の空きを使う。数字は出さない）、リザーブは見出しなしでコア1個の絵と「×N」（2026-11-25 ユーザー案） */
+    [id^="mat-life"].mat-box .mat-n { display: none; }
+    [id^="mat-life"].mat-box .mat-cores { display: flex; flex-wrap: wrap; gap: 1px; max-width: none; font-size: 11px; min-height: 0; }
+    [id^="mat-reserve"].mat-box .mat-cores { display: none; }
+    [id^="mat-reserve"].mat-box .mat-head { flex-wrap: nowrap; justify-content: center; align-items: center; }
+    [id^="mat-reserve"].mat-box .mat-head > span:first-child { display: none; }
+    [id^="mat-reserve"].mat-box .mat-n { font-size: 14px; line-height: 16px; white-space: nowrap; }
+    [id^="mat-reserve"].mat-box .mat-n::before { content: "×"; padding-left: 12px; font-size: 11px; background: url(/imgs/ui/core.png) left center / 11px no-repeat; }
     /* 手元は、カードがあるときだけ出る小さな欄（ui/mat.ts）。押すと手元の欄（#tegamoto-panel）が開く。
        出ているときは、トラッシュの幅を詰めて場所を作り、情報の行を狭める */
     .field-row > #mat-tegamoto-self.mat-box,
@@ -461,4 +466,16 @@
     .player-area { padding-top: 2px; padding-bottom: 2px; }
     #status-bar { padding: 2px 8px; }
     #center-info-area { height: 18px; }
+}
+/* 背の低い画面では列の上に空きが無いので、ライフもリザーブと同じ「コア1個の絵と ×N」にする（コアの絵を並べると列が伸びて下がはみ出した） */
+@media (max-width: 768px) and (max-height: 700px) {
+    [id^="mat-life"].mat-box .mat-cores { display: none; }
+    [id^="mat-life"].mat-box .mat-n { display: inline; font-size: 14px; line-height: 16px; white-space: nowrap; }
+    [id^="mat-life"].mat-box .mat-n::before { content: "×"; padding-left: 12px; font-size: 11px; background: url(/imgs/ui/core.png) left center / 11px no-repeat; }}
+/* 375×667 前後は列が53px。見出し・コアの絵・×N を1行に詰める（2行に折れると列が欄より高くなった） */
+@media (max-width: 768px) and (min-height: 667px) and (max-height: 700px) {
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box { padding: 2px; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-head { flex-wrap: nowrap; gap: 1px; font-size: 8px; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n { font-size: 12px; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n::before { padding-left: 10px; font-size: 9px; background-size: 9px; }
 }
