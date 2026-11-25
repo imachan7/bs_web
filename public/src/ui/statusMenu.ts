@@ -11,6 +11,9 @@ export function installStatusMenu(): void {
     }
     $("btn-status-menu").addEventListener("click", () => toggle(!bar.classList.contains("menu-open")))
     $("btn-status-menu-close").addEventListener("click", () => toggle(false))
+    // 別の欄や画面を開くボタンは、押したらメニューを閉じる（ログがメニューの後ろに開いて読めなかった。2026-11-25 ユーザー指摘）。
+    // 支払いの自動／手動の切り替えと ⚙ 表示は、メニューの中で続けて操作するので閉じない
+    for (const id of ["btn-toggle-log", "btn-toggle-trash", "btn-bug-report", "btn-surrender"]) $(id).addEventListener("click", () => toggle(false))
     // 外側を押したら閉じる。時間では閉じない。⚙ 表示の中のラジオなど、欄の中の操作では閉じない
     document.addEventListener("click", (e) => {
         if (!(e.target as HTMLElement).closest("#status-menu, #btn-status-menu")) toggle(false)
