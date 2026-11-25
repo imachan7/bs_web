@@ -93,11 +93,10 @@
     #center-info-area > :not(.hidden) { max-width: 100%; box-sizing: border-box; min-width: 0; background: var(--bg-panel); border-radius: 6px; padding: 2px 8px; font-size: 12px; text-align: center; box-shadow: 0 2px 8px #000a; }
     .player-area { padding: 4px 8px; gap: 2px; justify-content: flex-start; }
     .opp-hand-area { display: none !important; }
-    /* 情報の行は、右に PC と同じマットの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で折り返して出す。
-       枠の幅の合計（272px）と合わせて 276px を引く。390px 幅で約 98px。狭い端末では名前の行が詰まって切れる */
+    /* 情報の行は、右にデッキ・トラッシュの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で出す（枠の幅の合計 128px＋4px を引く） */
     .player-info {
         height: var(--info-h);
-        width: calc(100% - 276px);
+        width: calc(100% - 132px);
         flex-wrap: wrap;
         align-content: center;
         gap: 0 6px;
@@ -113,31 +112,34 @@
     #opponent-area .opp-hand-area { order: -1 }
     #opp-info { margin-bottom: calc(var(--info-h) * -1 - 2px); }
 
-    /* 自分は上にスピリット・下にネクサス（左端にバースト）、相手はその点対称。バーストはネクサスの行の中にあるので display: contents でほどく。
-       バーストをスピリットの横の列に置くと、場の高さいっぱいの列になって上下が空いた（2026-11-25 ユーザー指摘）ので、ネクサスの行へ移してスピリットに幅を回す */
+    /* 自分は上にスピリット・下にネクサス、相手はその点対称。スピリットの横の列に、バースト・ライフ・リザーブを下端（相手は上端）に寄せて縦に並べる
+       （バーストだけだと列の上下が空いていた。2026-11-25 ユーザー案）。バーストはネクサスの行の中にあるので display: contents でほどく */
     .field-row {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
-        grid-template-rows: var(--zone-h) var(--nexus-h) var(--info-h);
-        grid-template-areas: "spirits spirits" "burst nexus" ". .";
-        gap: 2px 6px;
+        /* 行の間の隙間は行の高さに含める（隙間を増やすと全体が伸び、375×667 で下がはみ出した） */
+        grid-template-rows: minmax(0, 1fr) auto auto auto calc(var(--nexus-h) + 2px) calc(var(--info-h) + 2px);
+        grid-template-areas: ". spirits" "burst spirits" "life spirits" "reserve spirits" "nexus nexus" ". .";
+        height: calc(var(--zone-h) + var(--nexus-h) + var(--info-h) + 4px);
+        gap: 0 6px;
         position: relative;
         min-height: 0;
         align-items: center;
     }
     #opponent-area .field-row {
         grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-rows: var(--info-h) var(--nexus-h) var(--zone-h);
-        grid-template-areas: ". ." "nexus burst" "spirits spirits";
+        grid-template-rows: calc(var(--info-h) + 2px) calc(var(--nexus-h) + 2px) auto auto auto minmax(0, 1fr);
+        grid-template-areas: ". ." "nexus nexus" "spirits reserve" "spirits life" "spirits burst" "spirits .";
     }
     .field-row > .nexus-row { display: contents; }
     .field-row .burst-zone { grid-area: burst; }
-    .field-row .nexus-zone { grid-area: nexus; }
+    .field-row .nexus-zone { grid-area: nexus; align-self: end; }
+    #opponent-area .field-row .nexus-zone { align-self: start; }
     .field-row > .spirit-zone { grid-area: spirits; }
     .burst-zone .burst-slot,
-    #opp-burst .burst-slot.burst-revealed { width: auto; height: calc(var(--nexus-h) - 4px); aspect-ratio: 675 / 985; }
+    #opp-burst .burst-slot.burst-revealed { width: var(--card-w); height: auto; aspect-ratio: 675 / 985; }
     /* 伏せていないときは細くして、スピリットの行に幅を回す */
-    .burst-zone .burst-slot.burst-empty { width: 24px; aspect-ratio: auto; font-size: 0; }
+    .burst-zone .burst-slot.burst-empty { width: var(--card-w); height: 24px; aspect-ratio: auto; font-size: 0; }
     .burst-empty::before { content: "B"; font-size: 11px; }
 
     /* ライフ・リザーブ・デッキ・トラッシュは PC と同じ枠（ui/mat.ts）を小さくして、情報の行の右に並べる。
@@ -158,17 +160,22 @@
     #opponent-area .field-row > .mat-box { top: 0; }
     .field-row > [id^="mat-trash"] { right: 0; width: 64px; cursor: pointer; opacity: 0.8; border-color: rgba(255, 255, 255, 0.1); }
     .field-row > [id^="mat-deck"] { right: 68px; width: 60px; }
-    .field-row > [id^="mat-reserve"] { right: 132px; width: 68px; }
-    .field-row > [id^="mat-life"] { right: 204px; width: 68px; }
+    /* ライフ・リザーブはスピリットの横の列（バーストの下）に置く。幅がカード1枚ぶんなので、コアの丸印は出さず「ライフ 5」の1行 */
+    .field-row > [id^="mat-life"].mat-box, .field-row > [id^="mat-reserve"].mat-box { position: static; width: var(--card-w); height: auto; padding: 3px; }
+    .field-row > [id^="mat-life"] { grid-area: life; margin-top: 2px; }
+    #opponent-area .field-row > [id^="mat-life"] { margin: 0 0 2px; }
+    .field-row > [id^="mat-reserve"] { grid-area: reserve; margin-top: 2px; }
+    #opponent-area .field-row > [id^="mat-reserve"] { margin: 0 0 2px; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-cores { display: none; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-head { flex-wrap: nowrap; justify-content: space-between; align-items: baseline; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n { font-size: 15px; line-height: 16px; }
     /* 手元は、カードがあるときだけ出る小さな欄（ui/mat.ts）。押すと手元の欄（#tegamoto-panel）が開く。
        出ているときは、トラッシュの幅を詰めて場所を作り、情報の行を狭める */
     .field-row > #mat-tegamoto-self.mat-box,
     .field-row > #mat-tegamoto-opp.mat-box { display: flex; right: 0; width: 36px; cursor: pointer; }
     .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-trash"] { right: 40px; width: 52px; padding: 2px 3px; }
     .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-deck"] { right: 96px; }
-    .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-reserve"] { right: 160px; }
-    .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-life"] { right: 232px; }
-    .player-area:has(.field-row > [id^="mat-tegamoto"].mat-box) .player-info { width: calc(100% - 304px); }
+    .player-area:has(.field-row > [id^="mat-tegamoto"].mat-box) .player-info { width: calc(100% - 160px); }
     #btn-my-tegamoto, #btn-opp-tegamoto { display: none !important; }
     .mat-box .mat-head { position: static; gap: 4px; justify-content: flex-start; font-size: 9px; line-height: 11px; }
     .mat-box .mat-head > span:first-child { background: none; padding: 0; }
@@ -447,6 +454,10 @@
    カードの幅は .spirit-zone の --sp-w が欄の高さ（--zone-h）から逆算するので、ここでは欄の高さだけ変える */
 @media (max-width: 768px) and (max-height: 666px) {
     :root { --zone-h: 122px; --nexus-h: 54px; --info-h: 36px; --hand-w: 42px; --nexus-w: 40px; --card-w: 38px; }
+    /* 列がカード1枚（38px）ぶんしかないので、ライフ・リザーブは見出しと数を2行に分ける（1行だと数が欄の端で切れた） */
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box { padding: 2px 1px; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-head { flex-direction: column; align-items: center; font-size: 8px; line-height: 9px; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n { font-size: 13px; line-height: 13px; }
     .player-area { padding-top: 2px; padding-bottom: 2px; }
     #status-bar { padding: 2px 8px; }
     #center-info-area { height: 18px; }
