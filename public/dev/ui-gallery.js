@@ -31,6 +31,10 @@ const lvResBoard = () => ({ me: base({ reserve: 6, hand: [GRIP], field: { spirit
 const lampBoard = () => ({
   me: base({ reserve: 3, hand: [LAMP], deck: [NEXUS, GRIP, GRIP, GRIP], field: { spirits: spirits(2, 0, 3), nexuses: [] } }), opp: base(),
 })
+// 効果で配置するとき、リザーブが残っている（②がリザーブで埋まって始まる）
+const lampResBoard = () => ({
+  me: base({ reserve: 6, hand: [LAMP], deck: [NEXUS, GRIP, GRIP, GRIP], field: { spirits: spirits(2, 0, 3), nexuses: [] } }), opp: base(),
+})
 
 // ---- 操作の部品 ----
 const isMobile = (c) => c.w <= 768
@@ -65,10 +69,11 @@ async function lampToOpen(c) {
   await pressOpt(c.A, "この支払いで確定")
   await press(c.A, "メイン効果を使う")
 }
-async function lampToStepper(c) {
+// 効果による配置も、手札からと同じ支払いの画面（②置くコア）で開く
+async function lampToPay(c) {
   await lampToOpen(c)
   await press(c.A, "燃えさかる戦場（ネクサス）")
-  await press(c.A, "＋", 500); await press(c.A, "＋", 500)
+  await waitSel(c.A, "#choice-options .pay-sheet")
 }
 
 // ---- 場面（turn: 誰の番か／phase／ me・opp の盤面／ run: 操作。A=見る側、B=相手役） ----
@@ -87,8 +92,9 @@ const SCENES = [
   { id: "lv", name: "4 召喚の支払い①（コスト）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await waitSel(c.A, "#choice-options .pay-sheet") } },
   { id: "lvres", name: "4b リザーブで足りる召喚（②から・置く数は取った数）", board: lvResBoard, run: async (c) => { await play(c, GRIP, "召喚"); await waitSel(c.A, "#choice-options .pay-sheet"); await press(c.A, "＋") } },
   { id: "pay", name: "5 召喚の支払い②（リザーブ＋場から→次へ）", board: lvBoard, run: async (c) => { await play(c, GRIP, "召喚"); await press(c.A, "＋"); c.A.querySelector("#my-spirits .card").click(); await sleep(300); await press(c.A, "次へ") } },
-  { id: "lampStep", name: "6 効果配置の置くコア数", board: lampBoard, run: lampToStepper },
-  { id: "lampPay", name: "7 6 の「決定」後の支払い", board: lampBoard, run: async (c) => { await lampToStepper(c); await press(c.A, "決定") } },
+  { id: "lampStep", name: "6 効果配置の支払い（②置くコア）", board: lampBoard, run: lampToPay },
+  { id: "lampPay", name: "7 6 で場から2個取った（置く数が増える）", board: lampBoard, run: async (c) => { await lampToPay(c); for (let i = 0; i < 2; i++) { c.A.querySelector("#my-spirits .card").click(); await sleep(300) } } },
+  { id: "lampRes", name: "7b 効果配置でリザーブが残っている（＋で置く数が増える）", board: lampResBoard, run: async (c) => { await lampToPay(c); await press(c.A, "＋", 500) } },
   { id: "lampOpen", name: "8 自分のカードをオープン中", board: lampBoard, run: lampToOpen },
   {
     id: "oppOpen", name: "9 相手のカードをオープン中", turn: "opp",

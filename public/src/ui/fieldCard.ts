@@ -390,9 +390,10 @@ export function fieldCardEl(
     }
 
     // 効果解決中の選択待ち（自分宛）：候補なら最優先でハイライトし、他の操作モードは無視する。
-    // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う）のときは、
-    // コアの割り当てを続けられるよう下の支払いモードへ通す（2026-08-23）
-    if (view.pendingChoice && view.pendingChoice.pid === view.you && ui.paying?.forChoiceCardIndex === undefined) {
+    // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う（2026-08-23）・効果のコストや効果による召喚・配置を払う）のときは、
+    // コアの割り当てを続けられるよう下の支払いモードへ通す（効果による召喚・配置で、取れるスピリットが光っていなかった。2026-11-25）
+    const payingForChoice = ui.paying?.forChoiceCardIndex !== undefined || ui.paying?.forMeisai !== undefined
+    if (view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice) {
         if (view.pendingChoice.candidates.includes(inst.instanceId)) {
             el.classList.add("targetable", "clickable")
             // トグル選択（予算内で好きなだけ破壊する）で、いま選ばれているもの。
@@ -502,7 +503,7 @@ export function fieldCardEl(
         // （自分宛のときはこの関数はここに到達する前に既にreturn済み。ここに来るのは
         // 「相手宛のpendingChoice」または「pendingChoiceなし」のケースのみ）。
         // 選択の解決として支払い中のときだけは、下の支払いモードへ通す（2026-08-23）
-        if (view.pendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
+        if (view.pendingChoice && !payingForChoice) {
             return el
         }
         // 支払いモード中：割り当て済みコア数をバッジ表示し、割り当て可能なら強調表示のみ行う

@@ -2,7 +2,7 @@
 import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
 import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
-import { onPayStageClick, openEffectSummonPay, effectSummonNeedsScreen, installPayStages } from "./ui/payStages"
+import { onPayStageClick, openEffectSummonPay, openEffectSummonScreen, installPayStages } from "./ui/payStages"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -497,8 +497,8 @@ onGame("state", (v: GameView) => {
     ui.braveSummonSelect = null // ブレイヴの召喚方法選択もリセット
     ui.altSummonSelect = null // 代替召喚の方法選択もリセット
     ui.battleSwapSummon = null // 入れ替え召喚の対象選択もリセット
-    // 効果による召喚・配置で、リザーブだけでは払えない（または手動）なら、置く数の選択も含めて2段の支払い画面で開く
-    if (effectSummonNeedsScreen(v)) openEffectSummonPay(v)
+    // 効果による召喚・配置は、置く数の選択も含めて手札からの召喚と同じ2段の支払い画面で開く
+    openEffectSummonScreen(v)
     rerender()
     // 支払い「自動」なら、効果のコストを[ソウルコア]以外のリザーブだけで払えるときは聞かずに払う（「手動」なら毎回支払い元を選ぶ）
     const costPay = v.pendingChoice?.pid === v.you ? v.pendingChoice.effectCostPay : undefined
