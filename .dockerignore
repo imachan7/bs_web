@@ -5,6 +5,8 @@ node_modules
 docs
 scripts
 !scripts/build-ai-worker.mjs
+# クライアントのバンドル（package.json の build:client が呼ぶ）。除外すると Cloud Run のビルドが止まる（#704 で足されたときに漏れ、11-24 から失敗していた）
+!scripts/build-client.mjs
 tools
 public/dist
 *.md
