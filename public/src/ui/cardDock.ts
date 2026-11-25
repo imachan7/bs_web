@@ -3,16 +3,15 @@ import { $, master } from "../renderer"
 import { cardImageUrl } from "../cardArt"
 import type { GameView } from "../../../server/src/type"
 import type { UiState } from "../renderer"
+import { dockActionsOf } from "./fieldCard"
 
 // 場のカードの下に出すと、押しにくい（32×24px）うえ、場の行の高さが変わって画面が上下にずれる。
-// 欄に出すのは、カードに付いているボタンの複製。押したら元のボタンを押し直すので、押したときの動きは main.ts の既存の処理のまま増えない。
-// 手札も同じで、カード本体を押し直す（召喚・配置・使用）ボタンと、カードに付いたバッジのボタンを並べる
+// 場のカードの操作は、スマホではカードに付けず fieldCard が渡す（dockActionsOf）。押したら main.ts の cardButtonAction に渡すので、押したときの動きは PC と同じ。
+// 手札は、カード本体を押し直す（召喚・配置・使用）ボタンと、カードに付いたバッジのボタンを並べる
 // 読み込み時に window を触ると、ブラウザの無い smoke（renderer を読み込む part）が落ちるので、使う時点で判定する
 const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches } }
-const SOURCES = ":scope > .core-buttons > button, :scope > .soul-swap-badge, :scope > .card-actions > button"
-// 分離・交換は合体中のブレイヴごとに付いている。欄では「分離」「交換」を1つずつにまとめ、ブレイヴが2つ以上のときだけ押したあとにどれかを選ばせる
+// 分離・交換は合体中のブレイヴごとにある。欄では「分離」「交換」を1つずつにまとめ、ブレイヴが2つ以上のときだけ押したあとにどれかを選ばせる
 // （1行ずつ「分離：カード名」と並べると長い名前で欄が横にはみ出した。2026-11-24 ユーザー指摘）
-const BRAVE_SOURCES = ":scope .brave-combined > .detach-badge"
 const HAND_SOURCES = ":scope > .burst-set-badge, :scope > .hand-ability-badge"
 const PLAY_LABEL = { spirit: "召喚", brave: "召喚", nexus: "配置", magic: "使用" } as const
 
@@ -24,16 +23,12 @@ let selected: Selection | null = null
 // 最後に描いた盤面と操作の状態。main.ts を読み込むと renderer 経由で smoke（ブラウザ無し）に通信の初期化まで入るので、描画のたびに受け取って持つ
 let view: GameView | null = null
 let ui: UiState | null = null
-// 欄のボタンが元の要素を押し直すとき、手札の押下を拾う下の処理に二重に拾われないための印
+// 欄のボタンが手札のカードを押し直すとき、手札の押下を拾う下の処理に二重に拾われないための印
 let passing = false
+// 場のカードの操作を押したときの処理（main.ts の cardButtonAction）
+let onFieldAction: (btn: HTMLElement) => void = () => {}
 // 分離・交換でどのブレイヴかを選んでいる途中なら、その項目の番号
 let picking: number | null = null
-
-// ネクサスのボタンは六角形の切り抜きを避けるため、カードの兄弟（.nexus-slot の中）にある
-function sourcesOf(card: HTMLElement): HTMLButtonElement[] {
-    const root = card.closest<HTMLElement>(".nexus-slot") ?? card
-    return [...root.querySelectorAll<HTMLButtonElement>(SOURCES), ...root.querySelectorAll<HTMLButtonElement>(BRAVE_SOURCES)]
-}
 
 function findCard(sel: Selection): HTMLElement | null {
     return sel.zone === "hand"
@@ -43,19 +38,20 @@ function findCard(sel: Selection): HTMLElement | null {
 
 function entriesOf(sel: Selection, card: HTMLElement): Entry[] {
     if (sel.zone === "field") {
-        const root = card.closest<HTMLElement>(".nexus-slot") ?? card
-        const plain: Entry[] = [...root.querySelectorAll<HTMLButtonElement>(SOURCES)].map((src) => ({ els: [src], title: src.title, disabled: src.disabled, label: src.textContent ?? "" }))
-        const groups = new Map<string, HTMLButtonElement[]>()
-        for (const src of root.querySelectorAll<HTMLButtonElement>(BRAVE_SOURCES)) {
-            const label = src.textContent ?? ""
-            groups.set(label, [...(groups.get(label) ?? []), src])
+        const actions = dockActionsOf(card)
+        const plain: Entry[] = actions.filter((a) => a.brave === undefined).map(({ btn }) => ({ els: [btn], title: btn.title, disabled: btn.disabled, label: btn.textContent ?? "" }))
+        const groups = new Map<string, { btn: HTMLButtonElement; brave: string }[]>()
+        for (const a of actions) {
+            if (a.brave === undefined) continue
+            const label = a.btn.textContent ?? ""
+            groups.set(label, [...(groups.get(label) ?? []), { btn: a.btn, brave: a.brave }])
         }
-        const brave: Entry[] = [...groups].map(([label, srcs]) => ({
+        const brave: Entry[] = [...groups].map(([label, list]) => ({
             label,
-            els: srcs,
-            title: srcs.length === 1 ? (srcs[0]?.title ?? "") : "",
+            els: list.map((a) => a.btn),
+            title: list.length === 1 ? (list[0]?.btn.title ?? "") : "",
             disabled: false,
-            names: srcs.map((src) => src.closest<HTMLElement>(".brave-combined")?.title.replace("合体中: ", "") ?? ""),
+            names: list.map((a) => a.brave),
         }))
         return [...plain, ...brave]
     }
@@ -133,15 +129,15 @@ export function renderCardDock(v?: GameView, u?: UiState): void {
     dock.classList.remove("hidden")
 }
 
-export function installCardDock(): void {
+export function installCardDock(fieldAction: (btn: HTMLElement) => void): void {
+    onFieldAction = fieldAction
     // 押せる状態のカード（アタック・ブロック・対象選択など。.clickable）は今までの動きを優先する。
     // その状態では欄は開かない（ボタンが要る起動・覚醒はアタックと同時に出ない）
     for (const id of ["my-spirits", "my-nexuses"]) {
         $(id).addEventListener("click", (e) => {
-            // 欄から元のボタンを押し直したときは、カードを選び直さずに main.ts の処理へ通す（手札と同じ印）
-            if (!mobile.matches || passing || !uiIsFree()) return
+            if (!mobile.matches || !uiIsFree()) return
             const card = (e.target as HTMLElement).closest<HTMLElement>(".card[data-instance-id]")
-            if (!card || card.classList.contains("clickable") || sourcesOf(card).length === 0) return
+            if (!card || card.classList.contains("clickable") || dockActionsOf(card).length === 0) return
             e.stopPropagation()
             select({ zone: "field", id: card.dataset.instanceId ?? "" })
         }, true)
@@ -161,8 +157,10 @@ export function installCardDock(): void {
     }
     $("card-dock-close").addEventListener("click", close)
     // 欄の外を押したら閉じる（効果の吹き出しと同じ。2026-11-25 ユーザー案）。カードを押したときは上の取り込みで止めて選び直すので、ここへは来ない
+    // 押した時点の経路で見る。欄のボタンは押すと欄ごと描き直され、ここに届くときには外れているので closest では欄の外に見えた
+    const dock = $("card-dock")
     document.addEventListener("click", (e) => {
-        if (selected !== null && !(e.target as HTMLElement).closest("#card-dock")) close()
+        if (selected !== null && !e.composedPath().includes(dock)) close()
     })
     $("card-dock-buttons").addEventListener("click", (e) => {
         if ((e.target as HTMLElement).closest("[data-dock-back]")) {
@@ -187,9 +185,13 @@ export function installCardDock(): void {
         picking = null
         // 手札は押した時点で召喚・使用の流れに入る（途中の画面は元の画面に出る）ので欄を閉じる
         if (sel.zone === "hand") selected = null
-        passing = true
-        el?.click()
-        passing = false
+        if (!el) return
+        if (sel.zone === "field") onFieldAction(el)
+        else {
+            passing = true
+            el.click()
+            passing = false
+        }
         renderCardDock()
     })
 }
