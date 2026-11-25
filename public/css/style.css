@@ -611,8 +611,10 @@ button:active {
 .burst-slot.has-art > .name { display: none; }
 /* バーストには場のカードの色の帯（.card::before）を出さない（2026-11-17 ユーザー指摘：伏せた自分のバーストの上に赤い線が出ていた） */
 .burst-slot.card::before { display: none; }
-/* 相手の表向きのバーストは、伏せていたときの裏面と同じ大きさ（.card の 100×140 にしない）。画面幅ごとの大きさは下の @media でも揃える */
-#opp-burst .burst-slot.burst-revealed { width: 46px; height: 56px; padding: 0; }
+/* 絵を出すバースト（自分が伏せたもの・表向き）は .card が付くので、空の枠・相手の裏面と同じ大きさにする（.card の 100×140 にしない。
+   自分が伏せたものが抜けていて、PC でセットすると欄が急に大きくなった。2026-11-25 ユーザー指摘）。画面幅ごとの大きさは下の @media でも揃える */
+.burst-slot.card { width: 46px; height: 56px; }
+#opp-burst .burst-slot.burst-revealed { padding: 0; }
 .burst-hidden-icon {
     position: absolute;
     top: -6px;
