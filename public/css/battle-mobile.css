@@ -243,20 +243,29 @@
         padding: 2px;
     }
     /* 合体したブレイヴは、ホストの右へ半分はみ出す。絵は段の中（上へ --br-top まで）に収める。右斜め上の見せ方は PC より浅い */
-    /* 疲労（横向き）のときは疲労の余白に任せる。こちらが勝つと相手側で幅の計算が合わず、2段に入るのに横スクロールへ落ちていた */
-    .spirit-zone .card.has-brave:not(.rested) { margin-right: calc(var(--sp-w) / 2 + 3px); }
-    #opponent-area .spirit-zone .card.has-brave:not(.rested) { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
+    /* 疲労しても同じ余白を残す（疲労は枠の中で回して縮めるので、余白を変えると後ろのカードが動く） */
+    .spirit-zone .card.has-brave { margin-right: calc(var(--sp-w) / 2 + 3px); }
+    #opponent-area .spirit-zone .card.has-brave { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
     /* ブレイヴ2枚：2枚目は1枚目の右に4割ずらして重ねる（style.css）。そのぶん右を空ける。段の上へは出さない（欄の外は切れる） */
-    .spirit-zone .card.has-brave:has(.brave-combined:nth-child(2)):not(.rested) { margin-right: calc(var(--sp-w) * 0.9 + 3px); }
-    #opponent-area .spirit-zone .card.has-brave:has(.brave-combined:nth-child(2)):not(.rested) { margin-right: 0; margin-left: calc(var(--sp-w) * 0.9 + 3px); }
+    .spirit-zone .card.has-brave:has(.brave-combined:nth-child(2)) { margin-right: calc(var(--sp-w) * 0.9 + 3px); }
+    #opponent-area .spirit-zone .card.has-brave:has(.brave-combined:nth-child(2)) { margin-right: 0; margin-left: calc(var(--sp-w) * 0.9 + 3px); }
     :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) { top: 0; }
     :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: calc(var(--br-top) * -1); }
     :root[data-brave] .spirit-zone .brave-combined.has-brave-art { max-height: calc(var(--sp-h) + var(--br-top)); }
     :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: var(--pf); }
     :root[data-brave] #opponent-area .spirit-zone:has(.has-brave-art) { padding-top: var(--pn); }
     /* 疲労は90度回るので、見た目の幅（縦長の高さ）と実際の幅の差を左右に空ける */
-    .spirit-zone .card.has-art.rested,
-    .spirit-zone .card[data-side="opp"].has-art.rested { margin: 0 calc((var(--sp-h) - var(--sp-w)) / 2); }
+    .spirit-zone .card.has-art.rested:not(.has-brave),
+    .spirit-zone .card[data-side="opp"].has-art.rested:not(.has-brave) { margin: 0; }
+    /* 合体中の疲労も、疲労していないときと同じ右の余白（style.css の疲労の余白より強くする） */
+    #player-area .spirit-zone .card.has-art.rested.has-brave { margin-left: 0; margin-right: calc(var(--sp-w) / 2 + 3px); }
+    #player-area .spirit-zone .card.has-art.rested.has-brave:has(.brave-combined:nth-child(2)) { margin-right: calc(var(--sp-w) * 0.9 + 3px); }
+    /* 疲労は同じ枠の中で90度回し、枠の幅に収まるよう縮める（幅を広げると、疲労させるたびに後ろのカードが動き、1段に入る数も減った。2026-11-25 ユーザー指摘）。
+       縮める率はカードの縦横比（675/985） */
+    .spirit-zone .card.rested:not(.heavy-rested),
+    .spirit-zone .card.rested.clickable:not(.heavy-rested):hover { transform: rotate(90deg) scale(0.685); }
+    .spirit-zone .card[data-side="opp"].rested:not(.heavy-rested),
+    .spirit-zone .card[data-side="opp"].rested.clickable:not(.heavy-rested):hover { transform: rotate(-90deg) scale(0.685); }
     .spirit-zone .card .name, .nexus-zone .card .name { margin: 0; font-size: 8px; max-width: none; }
 
     .nexus-zone {
