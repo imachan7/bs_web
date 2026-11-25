@@ -109,13 +109,17 @@ export function openEffectSummonPay(v: GameView, index = 0): void {
     }
 }
 
-// 画面を出さずに済む判定（自動で、リザーブだけで最小の置くコアまで払える）。通常の召喚と同じ
-export function effectSummonNeedsScreen(v: GameView): boolean {
+// 効果による召喚・配置で置く数を聞かれたら、−／＋ だけの画面でなく、手札からの召喚と同じ支払いの画面で開く
+// （−／＋ の画面にはリザーブの数が出ず、手札から出すときと見比べられなかった。2026-11-25 ユーザー指摘）。
+// リザーブだけで最小の置き方まで払えるなら、手札からの召喚と同じくリザーブで埋めて②から始める
+export function openEffectSummonScreen(v: GameView): void {
     const pc = v.pendingChoice
     const cp = pc?.effectCostPay
-    if (pc?.pid !== v.you || !cp || cp.keepByOption === undefined || cp.reserveOnly) return false
-    const min = Math.min(...cp.keepByOption)
-    return ui().payMode === "manual" || reservePool(v) < cp.need + (Number.isFinite(min) ? min : 0)
+    if (pc?.pid !== v.you || !cp || cp.keepByOption === undefined || cp.reserveOnly) return
+    openEffectSummonPay(v)
+    const pay = ui().paying
+    const min = cp.keepByOption[0] ?? 0
+    if (pay && ui().payMode === "auto" && reservePool(v) >= cp.need + min) fillFromReserve(v, pay)
 }
 
 // 通常の召喚・配置：②で Lv／置く数を選べるか
@@ -145,15 +149,34 @@ export function fillFromReserve(v: GameView, pay: PayingState): void {
     pay.step = "place"
 }
 
-// 通常の召喚・配置の②は置く数を先に決めない。取ったコアの数がそのまま置く数になる（最小は Lv1 の維持コア。2026-11-25 ユーザー案）
+// 召喚・配置の②は置く数を先に決めない。取ったコアの数がそのまま置く数になる（最小は Lv1 の維持コア。2026-11-25 ユーザー案）。効果による召喚・配置も同じ
 // [ソウルコア]を維持コアに置く選び方のときは置く数が決まっているので、従来どおり数を満たすまで取る
+// 効果による召喚・配置は、サーバーが出した置く数の候補（小さい順に1つずつ）の中で決まる
+function effectKeeps(v: GameView, pay: PayingState): number[] | undefined {
+    return pay.forMeisai?.placing === true ? v.pendingChoice?.effectCostPay?.keepByOption : undefined
+}
 function placeFollowsSources(v: GameView, pay: PayingState): boolean {
-    return pay.step === "place" && summonLevelChoosable(v, pay) && pay.placeSoulCore !== true
+    return pay.step === "place" && pay.placeSoulCore !== true && (summonLevelChoosable(v, pay) || (effectKeeps(v, pay)?.length ?? 0) >= 2)
+}
+// この段でまだコアを取れるか。置く数が取った数で決まるときは、効果による召喚・配置だけ候補の最大で止める
+function canTakeMore(v: GameView, pay: PayingState, stage: "cost" | "place"): boolean {
+    const filled = payingStageFilled(pay, stage)
+    if (filled < payingStageNeeds(v, pay)[stage]) return true
+    if (!placeFollowsSources(v, pay)) return false
+    const keeps = effectKeeps(v, pay)
+    return keeps === undefined || filled < (keeps.at(-1) ?? 0)
 }
 function syncPlaceToSources(v: GameView, pay: PayingState): void {
     const id = payingCardId(v, pay)
     if (id === undefined || !placeFollowsSources(v, pay)) return
-    pay.cores = Math.max(summonMinCores(v, v.you, master(id)), payingStageFilled(pay, "place"))
+    const filled = payingStageFilled(pay, "place")
+    const keeps = effectKeeps(v, pay)
+    if (keeps !== undefined) {
+        const want = Math.min(Math.max(filled, keeps[0] ?? 0), keeps.at(-1) ?? 0)
+        setMeisaiOption(v, pay, Math.max(0, keeps.indexOf(want)))
+        return
+    }
+    pay.cores = Math.max(summonMinCores(v, v.you, master(id)), filled)
     delete pay.level
 }
 
@@ -165,7 +188,7 @@ function assignStagedCore(v: GameView, pay: PayingState, instanceId: string): vo
     const inst = fieldInsts(v).find((i) => i.instanceId === instanceId)
     if (!inst) return
     const needs = payingStageNeeds(v, pay)
-    if (payingStageFilled(pay, stage) >= needs[stage] && !placeFollowsSources(v, pay)) return
+    if (!canTakeMore(v, pay, stage)) return
     const already = pay.assigned[instanceId] ?? 0
     if (already >= usableOn(v, pay, inst)) return
     pay.assigned[instanceId] = already + 1
@@ -191,7 +214,7 @@ export function onPayStageClick(e: Event): void {
     const key = stage === "cost" ? "costReserve" : "placeReserve"
     switch (t.dataset.ps) {
         case "res+":
-            if ((payingStageFilled(pay, stage) < needs[stage] || placeFollowsSources(v, pay)) && (pay.costReserve ?? 0) + (pay.placeReserve ?? 0) < reservePool(v)) pay[key] = (pay[key] ?? 0) + 1
+            if (canTakeMore(v, pay, stage) && (pay.costReserve ?? 0) + (pay.placeReserve ?? 0) < reservePool(v)) pay[key] = (pay[key] ?? 0) + 1
             break
         case "res-":
             pay[key] = Math.max(0, (pay[key] ?? 0) - 1)
@@ -229,13 +252,6 @@ export function onPayStageClick(e: Event): void {
                 pay.useSoulCore = false
             })
             break
-        case "opt-":
-        case "opt+": {
-            const len = v.pendingChoice?.options?.length ?? 0
-            const next = Math.max(0, Math.min(len - 1, (pay.forMeisai?.optionIndex ?? 0) + (t.dataset.ps === "opt+" ? 1 : -1)))
-            changePlace(pay, () => setMeisaiOption(v, pay, next))
-            break
-        }
     }
     syncPlaceToSources(v, pay)
     deps?.rerender()
@@ -270,18 +286,11 @@ function div(cls: string, text?: string): HTMLDivElement {
     return d
 }
 
-// ②の置き方の選択。効果による召喚は置く数の −／＋、通常の召喚・配置は《真界放》の置き方だけ（数は取ったコアで決まる）
+// ②の置き方の選択。《真界放》の置き方だけ（数は取ったコアで決まる。効果による召喚・配置も同じ）
 function levelControls(v: GameView, pay: PayingState, needs: { cost: number; place: number }): HTMLElement[] {
     const out: HTMLElement[] = []
     const m = pay.forMeisai
-    if (m?.placing === true) {
-        const options = v.pendingChoice?.options ?? []
-        if (options.length >= 2) {
-            const i = m.optionIndex ?? 0
-            out.push(stepRow(btn("−", "opt-", { disabled: i <= 0 }), options[i] ?? "", btn("＋", "opt+", { disabled: i >= options.length - 1 })))
-        }
-        return out
-    }
+    if (m?.placing === true) return out
     const cardId = payingCardId(v, pay)
     if (!summonLevelChoosable(v, pay) || cardId === undefined) return out
     const card = master(cardId)
@@ -347,7 +356,7 @@ export function renderPayStageSheet(v: GameView, pay: PayingState, host: HTMLEle
     const fields = stageField(pay, stage)
     const reserveTaken = (stage === "cost" ? pay.costReserve : pay.placeReserve) ?? 0
     const fieldTaken = sum(fields)
-    const canTakeReserve = (filled < need || follows) && (pay.costReserve ?? 0) + (pay.placeReserve ?? 0) < reservePool(v)
+    const canTakeReserve = canTakeMore(v, pay, stage) && (pay.costReserve ?? 0) + (pay.placeReserve ?? 0) < reservePool(v)
     // 「リザーブ 使う数 / 使える数」。使える数はもう一方の段で使った分を除く（いくつあるか分からないまま −／＋ を押すことになっていた。2026-11-25 ユーザー指摘）
     const reserveUsable = reservePool(v) - ((stage === "cost" ? pay.placeReserve : pay.costReserve) ?? 0)
     // 使えるリザーブが無いときは −／＋ を出さない（押せそうに見えるのに押しても何も起きなかった）
@@ -364,7 +373,7 @@ export function renderPayStageSheet(v: GameView, pay: PayingState, host: HTMLEle
         row.append(label, btn("−", "fld-", { id }))
         list.append(row)
     }
-    if (fieldTaken === 0 && (filled < need || follows)) list.append(div("pay-hint", "場のスピリット／ネクサスを押すと、そこから取れます"))
+    if (fieldTaken === 0 && canTakeMore(v, pay, stage)) list.append(div("pay-hint", "場のスピリット／ネクサスを押すと、そこから取れます"))
     sheet.append(list)
     const note = vanishingNote(v, pay.assigned)
     if (note) sheet.append(div("pay-warn", note))

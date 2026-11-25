@@ -8,6 +8,29 @@ import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlo
 import { payingCardId } from "./paying"
 import { master, COLOR_SYMBOLS, levelOf, canBlockAttacker, canAwaken, activatableAbility, UiState, matchesDirectedAttackFilter, $ } from "../renderer"
 
+// スマホはカードの操作ボタンをカードに付けず、下の欄（ui/cardDock.ts）がここから読んで出す。カードに付けて CSS で隠すと、
+// 隠しが #game の中でしか効かず、消滅・破壊の演出でカードを写したときにボタンまで写っていた（2026-11-25 ユーザー指摘）。
+// カードの要素ごとに持つので、描き直すと古い操作は要素と一緒に消える。brave は分離・交換のときの、どのブレイヴか
+// 読み込み時に window を触ると、ブラウザの無い smoke（renderer を読み込む part）が落ちるので、使う時点で判定する
+const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches } }
+export interface DockAction { btn: HTMLButtonElement; brave?: string }
+const dockActions = new WeakMap<HTMLElement, DockAction[]>()
+export function dockActionsOf(card: HTMLElement): DockAction[] {
+    return dockActions.get(card) ?? []
+}
+// PC はカードの上（attach の場所）に付け、スマホは下の欄へ渡す
+function offer(card: HTMLElement, btn: HTMLButtonElement, attach: (b: HTMLButtonElement) => void, brave?: string): void {
+    if (!mobile.matches) {
+        attach(btn)
+        return
+    }
+    dockActions.set(card, [...dockActionsOf(card), brave === undefined ? { btn } : { btn, brave }])
+}
+function offerCoreButtons(card: HTMLElement, btns: HTMLElement, attach: (b: HTMLElement) => void): void {
+    if (mobile.matches) for (const b of btns.querySelectorAll("button")) offer(card, b, () => {})
+    else attach(btns)
+}
+
 export function renderField(
     spiritZoneId: string,
     nexusZoneId: string,
@@ -238,14 +261,14 @@ export function fieldCardEl(
                     btn.dataset.detach = brave.instanceId
                     btn.textContent = "分離"
                     btn.title = `分離してスピリット状態にする（コア${need}個が必要）`
-                    row.appendChild(btn)
+                    offer(el, btn, (b) => row.appendChild(b), braveName)
                     if (braveExchangeTargets(view, view.you, brave.instanceId).length > 0) {
                         const ex = document.createElement("button")
                         ex.className = "detach-badge exchange-badge"
                         ex.dataset.exchange = brave.instanceId
                         ex.textContent = "交換"
                         ex.title = "別のスピリットに合体させ直す（コアは動かない）"
-                        row.appendChild(ex)
+                        offer(el, ex, (b) => row.appendChild(b), braveName)
                     }
                 }
                 box.appendChild(row)
@@ -367,9 +390,10 @@ export function fieldCardEl(
     }
 
     // 効果解決中の選択待ち（自分宛）：候補なら最優先でハイライトし、他の操作モードは無視する。
-    // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う）のときは、
-    // コアの割り当てを続けられるよう下の支払いモードへ通す（2026-08-23）
-    if (view.pendingChoice && view.pendingChoice.pid === view.you && ui.paying?.forChoiceCardIndex === undefined) {
+    // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う（2026-08-23）・効果のコストや効果による召喚・配置を払う）のときは、
+    // コアの割り当てを続けられるよう下の支払いモードへ通す（効果による召喚・配置で、取れるスピリットが光っていなかった。2026-11-25）
+    const payingForChoice = ui.paying?.forChoiceCardIndex !== undefined || ui.paying?.forMeisai !== undefined
+    if (view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice) {
         if (view.pendingChoice.candidates.includes(inst.instanceId)) {
             el.classList.add("targetable", "clickable")
             // トグル選択（予算内で好きなだけ破壊する）で、いま選ばれているもの。
@@ -393,7 +417,7 @@ export function fieldCardEl(
                 badge.dataset.effect = nexusActivatable.effectId
                 badge.textContent = "起動"
                 badge.title = nexusActivatable.costLabel
-                cardActions(el).appendChild(badge)
+                offer(el, badge, (b) => cardActions(el).appendChild(b))
             }
         }
         // 支払いモード中：自分のネクサス上のコアも支払いに割り当てられる
@@ -448,11 +472,15 @@ export function fieldCardEl(
         // ボタンごとクリップされて消える（「−」が見えない・「+」が押しにくい原因）。
         // クリップされないラッパーの直下へ、カードと**兄弟**として置く
         if (isMine && myMainFree && !view.pendingChoice) {
+            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
+            const btns = coreButtonsEl(inst.instanceId, inst.cores, levelsToUse)
+            if (mobile.matches) {
+                offerCoreButtons(el, btns, () => {})
+                return el
+            }
             const slot = document.createElement("div")
             slot.className = "nexus-slot"
-            slot.appendChild(el)
-            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
-            slot.appendChild(coreButtonsEl(inst.instanceId, inst.cores, levelsToUse))
+            slot.append(el, btns)
             return slot
         }
         return el
@@ -475,7 +503,7 @@ export function fieldCardEl(
         // （自分宛のときはこの関数はここに到達する前に既にreturn済み。ここに来るのは
         // 「相手宛のpendingChoice」または「pendingChoiceなし」のケースのみ）。
         // 選択の解決として支払い中のときだけは、下の支払いモードへ通す（2026-08-23）
-        if (view.pendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
+        if (view.pendingChoice && !payingForChoice) {
             return el
         }
         // 支払いモード中：割り当て済みコア数をバッジ表示し、割り当て可能なら強調表示のみ行う
@@ -558,7 +586,7 @@ export function fieldCardEl(
             badge.dataset.awaken = inst.instanceId
             badge.textContent = "覚醒可能"
             badge.title = "クリックしてコアの移動元を選ぶ"
-            cardActions(el).appendChild(badge)
+            offer(el, badge, (b) => cardActions(el).appendChild(b))
         }
         // メインステップの任意合体（BRAVE.md §6.4）：スピリット状態のブレイヴにだけ「合体」を出す。
         // 候補の列挙は braveCombineCandidates に一本化する（サーバーの受理条件と同じ実装）
@@ -570,7 +598,7 @@ export function fieldCardEl(
                 badge.dataset.combine = inst.instanceId
                 badge.textContent = "合体"
                 badge.title = "クリックして合体先のスピリットを選ぶ（このブレイヴのコアはリザーブへ戻る）"
-                cardActions(el).appendChild(badge)
+                offer(el, badge, (b) => cardActions(el).appendChild(b))
             }
         }
         // 任意合体モード中：合体先に選べるスピリットを強調する
@@ -588,7 +616,7 @@ export function fieldCardEl(
             badge.dataset.effect = activatable.effectId
             badge.textContent = "起動"
             badge.title = activatable.costLabel
-            cardActions(el).appendChild(badge)
+            offer(el, badge, (b) => cardActions(el).appendChild(b))
         }
         // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタック/ブロック不可
         const singleCoreLocked =
@@ -633,12 +661,10 @@ export function fieldCardEl(
         // コア移動ボタン（メインステップのみ）＋[ソウルコア]の置き/戻し
         if (myMainFree) {
             const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
-            el.appendChild(
-                coreButtonsEl(inst.instanceId, inst.cores, levelsToUse, {
-                    soulHere: soulOnThis,
-                    soulInReserve: view.players[view.you].soulCore?.zone === "reserve",
-                }),
-            )
+            offerCoreButtons(el, coreButtonsEl(inst.instanceId, inst.cores, levelsToUse, {
+                soulHere: soulOnThis,
+                soulInReserve: view.players[view.you].soulCore?.zone === "reserve",
+            }), (b) => el.appendChild(b))
         }
         // [ソウルコア]の1:1交換（§1.4・メインステップのみ）: [ソウルコア]が載った個体に出す
         if (myMainFree && view.pendingChoice === null && soulOnThis && ui.paying === null) { // 支払いモード中は[ソウルコア]支払いボタンと被るため出さない
@@ -647,7 +673,7 @@ export function fieldCardEl(
             btn.dataset.soulswap = inst.instanceId
             btn.textContent = "魂交換"
             btn.title = "この個体の[ソウルコア]と、他の個体の通常コア1個を同時に交換する"
-            el.appendChild(btn)
+            offer(el, btn, (b) => el.appendChild(b))
         }
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能

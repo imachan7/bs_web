@@ -284,7 +284,6 @@
     #opponent-area .nexus-zone { padding: 0 6px 8px; }
     /* 高さは PC のネクサス（68×78）と同じ縦横比。行の高さ（63px）は、この高さ55pxと上のコストバッジのはみ出し8pxの合計 */
     .nexus-zone .card { width: var(--nexus-w); height: auto; aspect-ratio: 68 / 78; flex: 0 0 auto; margin: 0; padding: 1px; }
-    .nexus-slot { margin-right: 0; }
 
     /* Lv・BP・コアは1行ずつ・見出しなしで下の帯に載せ、シンボルは右上の小さな印にする（右下だとコアの文字に重なった） */
     .stat-label { display: none; }
@@ -301,12 +300,8 @@
     .nexus-zone .symbols { bottom: 1px; right: 1px; }
     .spirit-zone .sym-icon, .nexus-zone .sym-icon { width: 11px; height: 11px; }
 
-    /* カードの操作ボタンは画面下の欄（#card-dock。ui/cardDock.ts）に出すので、カードの上では隠す（自分の場は #board の外の #player-area にあるので #game で指す）。
-       支払い中の個数の表示（.pay-badge）だけはカードの下端に残す */
-    #game .core-buttons,
-    #game .soul-swap-badge,
-    #game .card-actions > button,
-    #game .detach-badge { display: none; }
+    /* カードの操作ボタンはカードに付けず、画面下の欄（#card-dock。ui/cardDock.ts）に出す（ui/fieldCard.ts の offer）。
+       カードの下端に残るのは支払い中の個数の表示（.pay-badge）だけ */
     #game .card-actions { top: auto; bottom: 2px; margin: 0; }
     #game .pay-badge { position: static; min-width: 0; padding: 1px 4px; font-size: 9px; }
     .spirit-zone .card:has(> .card-actions),
