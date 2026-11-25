@@ -435,8 +435,11 @@
     }
     /* 右の操作ボタンが1つも出ていないときは、欄を画面の右端まで広げる */
     #game:not(:has(#action-buttons > :not(.hidden, #btn-attack-phase, #btn-end-turn))) #card-dock:not(.hidden) { right: 0; }
-    #card-dock-art { grid-area: art; height: 82px; aspect-ratio: 675 / 985; border-radius: 6px; }
-    #card-dock-art:not([hidden]) { display: block; }
+    #card-dock-zoom { grid-area: art; position: relative; padding: 0; border: 0; background: none; min-height: 0; }
+    #card-dock-zoom:not([hidden]) { display: block; }
+    #card-dock-art { display: block; height: 82px; aspect-ratio: 675 / 985; border-radius: 6px; }
+    /* 絵を押すと大きく出せることを示す札 */
+    #card-dock-zoom .dock-zoom-label { position: absolute; right: 2px; bottom: 2px; padding: 0 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.5); color: #fff; font-size: 10px; line-height: 15px; }
     #card-dock-name { grid-area: name; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #card-dock-name .dock-pay-info { display: block; font-weight: 400; font-size: 11px; color: var(--text-muted, #9aa3b2); white-space: normal; }
     #card-dock-close { grid-area: close; align-self: end; min-width: 44px; min-height: 44px; margin-top: 6px; font-size: 18px; line-height: 1; }
@@ -460,9 +463,12 @@
     #card-dock-buttons button:disabled { opacity: 0.4; }
 
     /* カードの効果の吹き出しは、押したカードの近くで、下の欄（最大約140px）と操作ボタンより上に出す（位置は ui/tooltip.ts の DOCK_RESERVE）。入らなければ中を縦にスクロール */
-    /* 拡大の絵は出さない（手札は下の欄に大きな絵が出る。場のカードは絵の分だけ吹き出しが高くなり、カードの近くに置けなかった） */
-    #effect-tooltip .hover-art { display: none; }
-    #effect-tooltip.with-art { display: block; width: auto; }
+    /* 長押ししたときだけカードの絵を一番上に大きく出し、画面の真ん中に置く（ui/tooltip.ts の touch-art。2026-11-25 ユーザー要望）。
+       タップでは絵を出さない（絵の分だけ高くなり、押したカードの近くに置けない）。絵は効果文が少し見える高さまでに抑え、残りは中をスクロールする */
+    #effect-tooltip.with-art { display: block; width: min(360px, calc(100vw - 24px)); max-width: none; }
+    /* 吹き出しの中は指でスクロールでき、押すと閉じる（ui/tooltip.ts）。以前は指の操作を受けず、長い効果文の下の方が読めなかった（2026-11-25 プレイヤーの感想） */
+    #effect-tooltip { pointer-events: auto; overscroll-behavior: contain; }
+    #effect-tooltip .hover-art { width: min(260px, 70vw, calc((100dvh - 220px) * 675 / 983)); margin: 0 auto 10px; }
     #effect-tooltip { max-height: calc(100dvh - 160px - env(safe-area-inset-bottom)); }
 }
 
