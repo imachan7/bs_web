@@ -99,8 +99,9 @@ export function attachCardArt(el: HTMLElement, cardId: string, name: string, siz
 
 // マウスのある端末で、カードに載せたときの拡大表示（lg）を出す。絵が無いカード・読めないときは何も出さない。
 // lg は載せたときにだけ読む（ふだんの画面では読まない。スマホでは出さない）
-export function hoverArt(cardId: string): HTMLImageElement | null {
-    if (typeof matchMedia === "function" && !matchMedia("(hover: hover) and (pointer: fine)").matches) return null
+// touch：スマホの長押し。マウスの無い端末では、長押ししたときだけ読む（タップのたびに大きな絵を読まない）
+export function hoverArt(cardId: string, touch = false): HTMLImageElement | null {
+    if (!touch && typeof matchMedia === "function" && !matchMedia("(hover: hover) and (pointer: fine)").matches) return null
     const url = cardImageUrl(cardId, "lg")
     if (url === null || artMissing.has(cardId)) return null
     const img = document.createElement("img")

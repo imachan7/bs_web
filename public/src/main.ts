@@ -2,7 +2,7 @@
 import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
 import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
-import { onPayStageClick, openEffectSummonPay, openEffectSummonScreen, installPayStages } from "./ui/payStages"
+import { onPayStageClick, openBravePay, openEffectSummonPay, openEffectSummonScreen, installPayStages } from "./ui/payStages"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -15,6 +15,7 @@ import { installCardDock } from "./ui/cardDock"
 import { installStatusMenu } from "./ui/statusMenu"
 import { installSpiritLayout } from "./ui/spiritLayout"
 import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
+import { randomId } from "../../shared/randomId"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -25,12 +26,6 @@ interface SocketLike {
     connect: () => void
 }
 
-// crypto.randomUUID は https か localhost でしか使えない。LAN の IP（http://192.168.…）でスマホから開いて試すと
-// ページを開いた直後に例外で止まり、全部のボタンが効かなくなる。getRandomValues はどこでも使える
-function randomId(): string {
-    if (typeof crypto.randomUUID === "function") return crypto.randomUUID()
-    return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("")
-}
 
 // 端末ごとの合言葉。接続が切れても、これが同じなら対戦中の席に戻れる（server/src/roomManager.ts の resume）
 function loadPlayerRef(): string {
@@ -637,10 +632,7 @@ function cardButtonAction(t: HTMLElement): boolean {
         if (ui.payMode === "auto" && view.players[view.you].reserve - (view.players[view.you].soulCore?.zone === "reserve" ? 1 : 0) >= need) {
             send({ type: "detachBrave", braveInstanceId })
         } else {
-            ui.targeting = null
-            ui.awakenTarget = null
-            ui.combineBrave = null
-            ui.paying = { handIndex: -1, forDetachBraveInstanceId: braveInstanceId, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
+            openBravePay(view, { forDetachBraveInstanceId: braveInstanceId })
             rerender()
         }
         return true
@@ -1095,18 +1087,8 @@ async function init(): Promise<void> {
                 return
             }
             const keep = view?.pendingChoice?.braveKeep
-            if (keep) {
-                ui.targeting = null
-                ui.awakenTarget = null
-                ui.combineBrave = null
-                ui.paying = {
-                    handIndex: -1,
-                    forBraveKeep: { option, cardId: keep.cardId, need: keep.need },
-                    assigned: {},
-                    discardHandIndices: [],
-                    millPay: 0,
-                    shinsokuAssistInstanceIds: [],
-                }
+            if (keep && view) {
+                openBravePay(view, { forBraveKeep: { option, cardId: keep.cardId, need: keep.need } })
                 rerender()
                 return
             }

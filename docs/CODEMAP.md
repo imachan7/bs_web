@@ -80,6 +80,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `magicUseTiming`（fn）：使えないタイミングを求められたら null
 - `magicTimingChoosable`（fn）：メインステップで「メイン効果／フラッシュ効果」を選ばせるか。フラッシュ側がすべて「メインステップでは使えない」なら選ばせない
 
+## shared/randomId.ts
+
+- `randomId`（fn）：使い捨ての ID。crypto.randomUUID は https か localhost で開いたページでしか使えない。エンジンは AI 戦でブラウザ（aiWorker）でも動…
+
 ## shared/rules/activation.ts
 
 - `sokuPayableInstanceIds`（fn）：【覚醒】を現在レベルで持っているか。
@@ -1851,10 +1855,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `openEffectSummonPay`（fn）：効果による召喚・配置の支払いを2段の画面で開く。②の置く数は index 番目から始める
 - `openEffectSummonScreen`（fn）：効果による召喚・配置で置く数を聞かれたら、−／＋ だけの画面でなく、手札からの召喚と同じ支払いの画面で開く
 - `summonLevelChoosable`（fn）：通常の召喚・配置：②で Lv／置く数を選べるか
+- `openBravePay`（fn）：ブレイヴを残す（BRAVE.md §6.3）・分離（§6.4）の置くコアも、召喚と同じ支払いの画面で払う（コストが無いので②だけ）。
 - `fillFromReserve`（fn）：自動でリザーブだけで払えるときに、最小の置き方までリザーブで埋めて②から始める（play.tryPlay から）
 - `assignPayStageCore`（fn）：フィールドの個体を押したときの入口（payInput.assignPayCore から呼ぶ）
 - `onPayStageClick`（fn）
-- `payStageHeading`（fn）：見出し（#targeting-info に出す1行）
+- `payStageHeading`（fn）
 - `renderPayStageSheet`（fn）
 
 ## public/src/ui/paying.ts
@@ -1906,6 +1911,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/ui/tooltip.ts
 
 - `currentHoverCard`（let）
+- `showCardLarge`（fn）
+- `cardLargeShown`（fn）
 - `suppressEffectTooltip`（fn）
 - `hideEffectTooltip`（fn）
 - `setupEffectTooltip`（fn）

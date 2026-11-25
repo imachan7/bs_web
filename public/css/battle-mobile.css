@@ -326,6 +326,9 @@
        押すと下の欄が開くので、帯自体は押せないようにする（欄の「バーストをセット」で選ぶ） */
     #hand .burst-set-badge { min-height: 0; height: 14px; padding: 0; font-size: 0; pointer-events: none; border-radius: 0 0 4px 4px; }
     #hand .burst-set-badge::before { content: "バースト"; font-size: 9px; line-height: 14px; }
+    /* 同じカードの枚数（x2）はカードの内側の右上に置く。PC と同じく下端の外へ 6px はみ出すと、横スクロールの手札が縦にも動いた（2026-11-25 ユーザー指摘）。
+       下端はバースト・盤面コアの帯、左上はコストの丸が使っている */
+    #hand .count-badge { top: 1px; right: 1px; bottom: auto; padding: 0 4px; font-size: 9px; line-height: 14px; }
     /* 画面の右下に固定し、手札の右に縦1列で出す（#board 基準だと場の下端＝相手の場の上に来て重なった） */
     #action-buttons-container {
         position: fixed;
@@ -356,11 +359,11 @@
     /* 2列の最後に1つだけ余ったボタン（決定・召喚など）と、選択肢の外のボタン（対象選択をやめる・選ばない）は横幅いっぱいにする（右に空きを残さない） */
     #choice-options > button:last-child:is(:nth-child(odd), .stepper-row + button),
     #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > button { grid-column: 1 / -1; }
-    /* 選択肢を下に出している間は、オープン中・破棄したカードの欄を上（上の行の下）へ移す。下のままだと選択肢に隠れて、選ぶ元のカードが見えなかった */
-    body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #reveal-panel,
-    body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #mill-panel { top: 44px; bottom: auto; }
-    /* そのとき、マジックの効果などの通知（#event-layer。盤面の上から60px）はオープン中の欄（上の行の下から約140px）と重なるので、欄の下へずらす（2026-11-25 ユーザー指摘） */
-    body:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)):has(#reveal-panel, #mill-panel) #event-layer { top: 154px; }
+    /* オープン中・破棄したカードの欄は、いつも上（上の行の下）に出す。下だと選択肢に隠れて選ぶ元のカードが見えず、選ぶ間だけ上へ移していたが、
+       選び終えると欄が下へ飛び、相手のデッキの破棄が自分の側にもう一度出たように見えた（2026-11-25 ユーザー指摘） */
+    #reveal-panel, #mill-panel { top: 44px; bottom: auto; transform: none; }
+    /* マジックの効果などの通知（#event-layer。盤面の上から60px）は欄（上の行の下から約140px）と重なるので、欄の下へずらす */
+    body:has(#reveal-panel, #mill-panel) #event-layer { top: 154px; }
     #choice-options > button { min-height: 44px; }
     /* 召喚・配置の支払い（①コスト／②置くコア）。シート全体を1つの項目として横幅いっぱいに置き、中は自前で並べる。ボタンは44px以上、はみ出すときはシートの中でスクロール */
     /* 支払いのシートは中で別にスクロールさせない（外の欄と二重にスクロールし、下端に固定した 召喚／配置 のボタンが外の欄の外に隠れた）。
@@ -433,8 +436,11 @@
     }
     /* 右の操作ボタンが1つも出ていないときは、欄を画面の右端まで広げる */
     #game:not(:has(#action-buttons > :not(.hidden, #btn-attack-phase, #btn-end-turn))) #card-dock:not(.hidden) { right: 0; }
-    #card-dock-art { grid-area: art; height: 82px; aspect-ratio: 675 / 985; border-radius: 6px; }
-    #card-dock-art:not([hidden]) { display: block; }
+    #card-dock-zoom { grid-area: art; position: relative; padding: 0; border: 0; background: none; min-height: 0; }
+    #card-dock-zoom:not([hidden]) { display: block; }
+    #card-dock-art { display: block; height: 82px; aspect-ratio: 675 / 985; border-radius: 6px; }
+    /* 絵を押すと大きく出せることを示す札 */
+    #card-dock-zoom .dock-zoom-label { position: absolute; right: 2px; bottom: 2px; padding: 0 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.5); color: #fff; font-size: 10px; line-height: 15px; }
     #card-dock-name { grid-area: name; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #card-dock-name .dock-pay-info { display: block; font-weight: 400; font-size: 11px; color: var(--text-muted, #9aa3b2); white-space: normal; }
     #card-dock-close { grid-area: close; align-self: end; min-width: 44px; min-height: 44px; margin-top: 6px; font-size: 18px; line-height: 1; }
@@ -458,9 +464,12 @@
     #card-dock-buttons button:disabled { opacity: 0.4; }
 
     /* カードの効果の吹き出しは、押したカードの近くで、下の欄（最大約140px）と操作ボタンより上に出す（位置は ui/tooltip.ts の DOCK_RESERVE）。入らなければ中を縦にスクロール */
-    /* 拡大の絵は出さない（手札は下の欄に大きな絵が出る。場のカードは絵の分だけ吹き出しが高くなり、カードの近くに置けなかった） */
-    #effect-tooltip .hover-art { display: none; }
-    #effect-tooltip.with-art { display: block; width: auto; }
+    /* 長押ししたときだけカードの絵を一番上に大きく出し、画面の真ん中に置く（ui/tooltip.ts の touch-art。2026-11-25 ユーザー要望）。
+       タップでは絵を出さない（絵の分だけ高くなり、押したカードの近くに置けない）。絵は効果文が少し見える高さまでに抑え、残りは中をスクロールする */
+    #effect-tooltip.with-art { display: block; width: min(360px, calc(100vw - 24px)); max-width: none; }
+    /* 吹き出しの中は指でスクロールでき、押すと閉じる（ui/tooltip.ts）。以前は指の操作を受けず、長い効果文の下の方が読めなかった（2026-11-25 プレイヤーの感想） */
+    #effect-tooltip { pointer-events: auto; overscroll-behavior: contain; }
+    #effect-tooltip .hover-art { width: min(260px, 70vw, calc((100dvh - 220px) * 675 / 983)); margin: 0 auto 10px; }
     #effect-tooltip { max-height: calc(100dvh - 160px - env(safe-area-inset-bottom)); }
 }
 
