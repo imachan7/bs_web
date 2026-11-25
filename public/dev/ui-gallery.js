@@ -131,6 +131,16 @@ const SCENES = [
     board: () => ({ me: base({ trashCards: [GRIP, GRIP, "SD06-001", LAMP] }), opp: base({ trashCards: [GRIP] }) }),
     run: async (c) => clickSel(c.A, isMobile(c) ? "#mat-trash-self" : "#btn-toggle-trash"),
   },
+  // 相手のデッキを破棄する（マジックドリル：相手の手札1枚につき1枚）。破棄したカードの欄は、選ぶ場面の前後で動かず上に出たまま
+  {
+    id: "mill", name: "14b 相手のデッキを破棄した（マジックドリル）",
+    board: () => ({ me: base({ hand: ["BS04-111", GRIP] }), opp: base() }),
+    run: async (c) => {
+      await play(c, "BS04-111", "使用")
+      for (const t of ["メイン", "この支払いで確定"]) await pressOpt(c.A, t)
+      await sleep(1500) // 1枚ずつ並べ終わるのを待つ（欄は position: fixed で vis() に掛からない）
+    },
+  },
   { id: "burst", name: "15 バーストをセット", board: () => ({ me: base({ burst: BURST }), opp: base({ burst: BURST }) }), run: async () => {} },
   {
     id: "brave", name: "16 ブレイヴ合体（1体／2体）",
