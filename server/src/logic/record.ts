@@ -1,9 +1,10 @@
 // 「直前のアクションで動いたカード」の記録（if の cond.last・カウンタ lastMoved/lastCost・sameCostAsLast が読む）。
 // 効果ごとの枠（recordScope）に分けて持つ。中断しても、ステップの間に別の効果が挟まっても混ざらないため（IF_UNIFY.md §6）
 import type { CardData, GameState, PlayerId } from "../type"
+import { randomId } from "../../../shared/randomId"
 
 export function newRecordScope(): string {
-    return crypto.randomUUID()
+    return randomId()
 }
 
 export function currentRecordScope(state: GameState): string {

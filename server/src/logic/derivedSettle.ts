@@ -11,6 +11,7 @@ import { collectNexusDestructionItems, commitOrDefer, commitPendingDestruction, 
 import { collectBraveDestroyItems, resumeBraveDestroy } from "./brave"
 import { currentRecordScope, newRecordScope, recordDestroyedCount } from "./record"
 import { isTrashWaiting } from "../../../shared/rules/waiting"
+import { randomId } from "../../../shared/randomId"
 
 type DestroyBatchFrame = Extract<ResumeFrame, { kind: "destroyBatch" }>
 const PIDS: PlayerId[] = ["p1", "p2"]
@@ -228,7 +229,7 @@ function settleQueue(state: GameState, collected: { list: DestroyEntry[]; pickMa
         const familiesByPid: Partial<Record<PlayerId, string[]>> = {}
         for (const e of entries) familiesByPid[e.pid] = [...new Set([...(familiesByPid[e.pid] ?? []), ...grantedFamilies(state, e.pid, e.inst)])]
         // 全員ぶんを1つの同時破壊として1本の列に並べる。「1回」は待機の出来事ごと（groupOnce の鍵に出来事が入っている）
-        state.destroyGroup = { id: crypto.randomUUID(), memberIds: entries.map((e) => e.inst.instanceId), used: [], familiesByPid, ...(Object.keys(collected.pickMany).length > 0 ? { pickMany: collected.pickMany } : {}) }
+        state.destroyGroup = { id: randomId(), memberIds: entries.map((e) => e.inst.instanceId), used: [], familiesByPid, ...(Object.keys(collected.pickMany).length > 0 ? { pickMany: collected.pickMany } : {}) }
         for (const e of entries) commitOrDefer(state, e.pid, e.inst)
     }
     const frame: DestroyBatchFrame = { kind: "destroyBatch", ownerPid: state.turnPlayer, targets: [], phase: "start", settle: true, ...(recordTo !== undefined ? { recordTo } : {}), ...(prevGroup ? { prevGroup } : {}) }
