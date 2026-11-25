@@ -347,6 +347,18 @@ function burstEffectText(cardId: string): string {
     return lines.slice(start, end).join("\n")
 }
 
+// バーストの通知の本文。バーストの効果が「このカードのフラッシュ効果／メイン効果を発揮する」を含むときは、その効果文も続けて出す
+// （絶甲氷盾などで、コストを払って発揮するフラッシュ効果の中身がどこにも出ず分からなかった。2026-11-25 ユーザー指摘）
+function burstBannerText(cardId: string): string {
+    const burst = burstEffectText(cardId)
+    const effect = master(cardId).effect
+    const parts = [burst]
+    for (const [word, timing, label] of [["このカードのフラッシュ効果", "flash", "フラッシュ"], ["このカードのメイン効果", "main", "メイン"]] as const) {
+        if (burst.includes(word) && effect.includes(`${label}：`)) parts.push(`${label}：${magicEffectText(cardId, timing)}`)
+    }
+    return parts.join("\n\n")
+}
+
 // カードに印刷されているタイミングのアイコン（素材は本人提供。2026-11-17）
 function timingIcon(kind: "main" | "flash" | "burst"): HTMLImageElement {
     const img = document.createElement("img")
@@ -567,7 +579,7 @@ function processNewEvents(view: GameView): Set<PlayerId> {
                 flashBurstReveal(ev.pid, ev.cardId)
                 showBurstCard(ev.cardId, mine)
             }
-            showDetailBanner(layer, "burst", `${mine ? "あなた" : "相手"}の ${ev.cardName} バースト発動`, ev.cardId !== undefined ? burstEffectText(ev.cardId) : "", mine, "burst")
+            showDetailBanner(layer, "burst", `${mine ? "あなた" : "相手"}の ${ev.cardName} バースト発動`, ev.cardId !== undefined ? burstBannerText(ev.cardId) : "", mine, "burst")
             continue
         }
         if (ev.type === "reveal") {
