@@ -4,17 +4,17 @@ import { SvelteMap } from "svelte/reactivity"
 import { DECK_MIN_SIZE } from "../../../../data/constants"
 import { cardStore } from "./cards.svelte"
 import { showToast } from "./toast.svelte"
+import { deckCopyLimit, MAX_COPIES } from "../../../../shared/deckLimit"
 
-const MAX_COPIES = 3 // 同名カードの上限枚数
 
 export const deck = $state({ name: "" })
 export const deckCards = new SvelteMap<string, number>()
 
 const byId = $derived(new Map(cardStore.cards.map((c) => [c.cardId, c])))
-// 同名の別 cardId は limitCount も同じ前提で、最初に見つかったものを採る
+// 同名の別 cardId は、サーバーと同じく一番厳しい上限を採る
 const limitByName = $derived.by(() => {
     const m = new Map<string, number>()
-    for (const c of cardStore.cards) if (!m.has(c.name)) m.set(c.name, c.limitCount ?? MAX_COPIES)
+    for (const c of cardStore.cards) m.set(c.name, Math.min(m.get(c.name) ?? Infinity, deckCopyLimit(c)))
     return m
 })
 
