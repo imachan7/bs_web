@@ -35,7 +35,7 @@ function game(seed: string): GameState {
 console.log("=== イリテバン：スピリット状態のカーミュラ1の結果連動型を借りると、ライフを減らしたときに発揮する ===")
 {
     const s = game("t940-borrow")
-    const host = createInstance(VANILLA, s.turn, 1)
+    const host = createInstance("SD01-007", s.turn, 1) // スティラホーン（コスト5・効果なし）。イリテバンの合体条件コスト4以上を満たす
     s.players.p1.field.spirits.push(host)
     attachBrave(s, "p1", host, createInstance(IRITEBAN, s.turn, 0))
     const karmula = createInstance(KARMULA, s.turn, 1)

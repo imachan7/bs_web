@@ -205,7 +205,7 @@ console.log("=== 器BR：BS13-084アルゴアタック（トラッシュの「�
 console.log("=== BS13-060トレス・ベルーガ【合体時】：デッキ上6枚破棄でBP+6000、光導が混ざれば回復 ===")
 {
     const s = game("060-bpbuff")
-    const host = createInstance("BS13-034", s.turn, 1)
+    const host = createInstance("BS10-X06", s.turn, 1) // スコル・スピア（光導）。トレス・ベルーガの合体条件（系統 光導）を満たす
     host.isRested = true
     const brave = createInstance("BS13-060", s.turn, 0)
     brave.braveCombined = true
@@ -234,7 +234,7 @@ console.log("=== BS13-060トレス・ベルーガ【合体時】：デッキ上6
 }
 {
     const s = game("060-norefresh")
-    const host = createInstance("BS13-034", s.turn, 1)
+    const host = createInstance("BS10-X06", s.turn, 1) // スコル・スピア（光導）
     host.isRested = true
     const brave = createInstance("BS13-060", s.turn, 0)
     brave.braveCombined = true

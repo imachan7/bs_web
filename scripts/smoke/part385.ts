@@ -68,8 +68,8 @@ console.log("=== 2. エンジェドール：自分のスピリットすべて（
 console.log("=== 3. ゲッコ・グライダー：分離したら元のホストには効かず、合体し直した先に効く ===")
 {
     const s = game("p385-gecko")
-    const host = put(s, "p1", "BS01-001", 1)
-    const other = put(s, "p1", "BS01-025", 1)
+    const host = put(s, "p1", "BS12-033", 1) // コグマル（星魂）。ゲッコ・グライダーの合体条件を満たす
+    const other = put(s, "p1", "BS10-036", 1) // クリスティール（星魂）
     const glider = createInstance("BS12-055", s.turn, 0)
     attachBrave(s, "p1", host, glider)
     resolveAction(s, "p1", glider, firstAction("BS12-055", "triggered"))

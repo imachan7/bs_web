@@ -132,7 +132,7 @@ console.log("=== 5. BS16-018太骨望：破壊後、紫が破壊されていれ�
 console.log("=== 6. P070カオティック・リクゴー：バトル解決の勝敗を反転する（BPの高い方が破壊される） ===")
 {
     const s = game("p070-invert")
-    const host = put(s, "p1", "BS01-001", 1) // Lv1 BP1000
+    const host = put(s, "p1", "BS01-008", 1) // Lv1 BP3000（コスト3で合体条件を満たす）
     const brave = createInstance("P070", s.turn, 0)
     attachBrave(s, "p1", host, brave)
     const enemy = put(s, "p2", "BS16-003", 5) // Lv3 BP6000（防御側）

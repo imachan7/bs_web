@@ -64,7 +64,7 @@ console.log("=== 3. 自分のブレイヴは残る ===")
 console.log("=== 4. 合体中のブレイヴは残る ===")
 {
     const { s } = game("c4", 5)
-    const host = createInstance(VANILLA, s.turn, 1)
+    const host = createInstance("SD01-007", s.turn, 1) // スティラホーン（コスト5・効果なし）。シトリーの合体条件コスト3以上を満たす
     const brave = createInstance(BRAVE, s.turn, 0)
     host.braveRefs = [{ instanceId: brave.instanceId, cardId: BRAVE } as never]
     s.players.p2.field.spirits.push(host)

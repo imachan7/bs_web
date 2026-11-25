@@ -674,12 +674,13 @@ export function matchesBraveCondition(
     host: CardInstance,
     braveCardId: string,
     excludeBraveCost = false,
+    ignoreExtraMinCost = false,
 ): boolean {
     if (host.bunshinOf !== undefined) return false // 分身スピリットは合体できない（Q785）
     // 器BI：「合体条件を無視して合体できる」（BS13-X05麒麟星獣リーン）
     if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition" && (c.braveColor === undefined || cardHasColor(card(braveCardId), c.braveColor)))) return true
     if (extraCombineAllowed(board, hostOwnerPid, host, braveCardId)) return true
-    const extra = braveExtraMinCostFor(board, hostOwnerPid, host)
+    const extra = ignoreExtraMinCost ? null : braveExtraMinCostFor(board, hostOwnerPid, host)
     if (extra !== null && instCostWithoutBraves(host) < extra.minCost) return false
     const cond = card(braveCardId).braveCondition
     if (cond === undefined) return false
