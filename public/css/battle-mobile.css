@@ -262,6 +262,8 @@
        枠をカードの左上に置いて逆向きに90度回すと、カードの回転と打ち消し合って、見た目ではスピリットの右上（相手は点対称で左下）に立つ。上からの位置＝重ねる幅（カードの幅の1割。375×667 では2割でも能力値の文字にかかった。横倒しでは重なる所に BP の数字が来るので、立っているとき（約30px）より浅くする）。
        回すと重なり順が DOM の順になり、後ろにあるスピリットの絵・能力値（z-index 1）がブレイヴの上に来たので、その上（コスト・コアの印 10 より下）に置く */
     :root .spirit-zone .card.rested:not(.heavy-rested) > .brave-combined-box { left: 0; right: auto; top: calc(var(--sp-w) * 0.1); bottom: auto; transform-origin: 0 0; transform: rotate(-90deg); z-index: 2; }
+    /* 能力値（Lv・BP・コア）はブレイヴの絵より上に描く（重なり方によってはブレイヴが Lv を隠した。2026-11-25 ユーザー指摘）。コスト・コアの印（10）より下 */
+    .spirit-zone .card.has-brave > .card-overlay { z-index: 3; }
     #player-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) * 0.9 + 3px); }
     #opponent-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) * 0.9 + 3px); margin-right: calc((var(--sp-h) - var(--sp-w)) / 2); }
 
