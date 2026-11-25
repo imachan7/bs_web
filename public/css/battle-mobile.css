@@ -245,11 +245,11 @@
     /* 合体したブレイヴは、ホストの右へ半分はみ出す。絵は段の中（上へ --br-top まで）に収める。右斜め上の見せ方は PC より浅い */
     .spirit-zone .card.has-brave { margin-right: calc(var(--sp-w) / 2 + 3px); }
     #opponent-area .spirit-zone .card.has-brave { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
-    /* ブレイヴ2枚：2枚目は1枚目の下へ縦にずらして重ねる（右へずらすと1枚目がほとんど隠れた。公式の合体の絵のように縦にずらす。2026-11-25 ユーザー案）。
-       幅は1枚のときと同じなので、右の余白も同じ */
-    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) { left: 0; top: 55%; }
-    /* 疲労して横倒しのときは高さがカードの幅しかないので、ずらす量を減らす */
-    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .card.rested .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) { top: 42%; }
+    /* ブレイヴ2枚：重ねずに上下に同じ高さで並べる（どちらかを上にすると下の1枚がほとんど隠れた。2026-11-25 ユーザー案）。
+       境界はそれぞれの色の縁で分かる。1枚の高さを低くするので、絵はイラストの真ん中を切り取る（-71% はイラストの中心を枠の中心に合わせる値）。
+       幅は1枚のときと同じなので、右の余白も同じ。疲労して横倒しでも高さ（約62px）がカードの幅に収まる */
+    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .brave-combined-box:has(> .brave-combined:nth-child(2)) > .brave-combined.has-brave-art { position: relative; left: 0; top: 0; aspect-ratio: 295 / 140; }
+    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .brave-combined-box:has(> .brave-combined:nth-child(2)) > .brave-combined.has-brave-art > .brave-art { top: -71%; }
     :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: calc(var(--br-top) * -1); }
     :root[data-brave] .spirit-zone .brave-combined.has-brave-art { max-height: calc(var(--sp-h) + var(--br-top)); }
     :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: var(--pf); }
