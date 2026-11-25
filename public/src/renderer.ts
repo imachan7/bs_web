@@ -514,7 +514,8 @@ function renderRevealPanel(view: GameView): void {
 // 押すか、文字の通知と同じ時間で消える。スマホは画面が狭く、盤面のバーストの欄と文字の通知で足りるので作らない
 function showBurstCard(cardId: string, mine: boolean): void {
     if (window.matchMedia("(max-width: 768px)").matches) return
-    const c = revealCardEl(cardId)
+    // 幅 220px で出すので、絵は大きい方（lg）を読む
+    const c = revealCardEl(cardId, "lg")
     c.classList.add("burst-reveal-big")
     c.addEventListener("click", () => c.remove())
     document.body.appendChild(c)
@@ -522,7 +523,7 @@ function showBurstCard(cardId: string, mine: boolean): void {
 }
 
 // オープン・破棄で見せるカード1枚（名前・種別・コスト。絵があれば重ねる。カーソルで効果文）
-export function revealCardEl(id: string): HTMLDivElement {
+export function revealCardEl(id: string, artSize: "lg" | "md" = "md"): HTMLDivElement {
     const m = master(id)
     const c = document.createElement("div")
     c.className = "reveal-card tip-card"
@@ -534,7 +535,7 @@ export function revealCardEl(id: string): HTMLDivElement {
     type.className = "reveal-type"
     type.textContent = `${CARD_TYPE_LABELS[m.type]}・コスト${m.cost}`
     c.append(name, type)
-    attachCardArt(c, id, m.name)
+    attachCardArt(c, id, m.name, artSize)
     return c
 }
 
