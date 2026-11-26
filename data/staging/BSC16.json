@@ -1,0 +1,1636 @@
+[
+ {
+  "cardId": "BSC16-001",
+  "name": "ラン・ブレイセア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「ラン・ブレイセア」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。\nLv2『お互いのアタックステップ』\n自分の「セイナ・リューミン」/「ノア・フルール」すべてをBP+2000する。"
+ },
+ {
+  "cardId": "BSC16-002",
+  "name": "［スマイルガール］ラン・ブレイセア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n【オンステージ】で召喚されたとき、自分はデッキから1枚ドローし、相手のスピリット1体を疲労させる。\nLv2･Lv3『相手によるこのスピリットの破壊時』\n【シャイニーハーツ】を持つ自分のスピリットが3体以上いるとき、BP5000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BSC16-003",
+  "name": "ラビィ・ダーリン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「ラビィ・ダーリン」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。\nLv2『お互いのアタックステップ』\n系統：「私服」を持つ自分のスピリットすべてをBP+1000する。"
+ },
+ {
+  "cardId": "BSC16-004",
+  "name": "［プリティーガール］ラビィ・ダーリン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2『自分のアタックステップ』\n【シャイニーハーツ】を持つ自分のスピリットが【オンステージ】で召喚されたとき、ボイドからコア1個をそのスピリットに置く。"
+ },
+ {
+  "cardId": "BSC16-005",
+  "name": "サヤ・シャイン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2･Lv3【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「サヤ・シャイン」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。\nLv2･Lv3『相手のアタックステップ』\n自分のフィールドに系統：「私服」を持つスピリットしかいない間、このスピリットは疲労状態でブロックできる。"
+ },
+ {
+  "cardId": "BSC16-006",
+  "name": "［純白の乙女］サヤ・シャイン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分のデッキを上から4枚オープンする。\nその中の「セイナ・リューミン」/「ノア・フルール」1枚を自分の手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2･Lv3『相手のアタックステップ』\n【シャイニーハーツ】を持つ自分のスピリットが3体以上いる間、このスピリットは疲労状態でブロックできる。"
+ },
+ {
+  "cardId": "BSC16-007",
+  "name": "セイナ・リューミン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「セイナ・リューミン」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。\nLv2『自分のアタックステップ』\n【シャイニーハーツ】を持つコスト7以上の自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。"
+ },
+ {
+  "cardId": "BSC16-008",
+  "name": "［烈の女王］セイナ・リューミン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2『このスピリットの召喚時』\n【シャイニーハーツ】を持つ自分のスピリットが3体以上いるとき、ボイドからコア2個をこのスピリットに置く。\nLv2『自分のアタックステップ』\n【シャイニーハーツ】を持つコスト7以上の自分のスピリットすべては、Lv1/Lv2の相手のスピリットからブロックされない。"
+ },
+ {
+  "cardId": "BSC16-009",
+  "name": "ノア・フルール",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2･Lv3【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「ノア・フルール」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。\nLv2･Lv3『自分のアタックステップ』\nこのスピリット以外の系統：「衣装」を持つ自分の「ノア・フルール」すべてに黄シンボル1つを追加する。"
+ },
+ {
+  "cardId": "BSC16-010",
+  "name": "ヒルダ・マーガレット",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv3【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「ヒルダ・マーガレット」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BSC16-011",
+  "name": "［パペットアイドル］ヒルダ・マーガレット",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2『このスピリットの召喚時』\n【オンステージ】で召喚されたとき、【アブソリューツ】を持つ自分のスピリット2体を回復させる。\nLv2『このスピリットのアタック時』\n自分のデッキを上から1枚オープンする。\nそのカードが【アブソリューツ】を持つコスト5以下のスピリットカードのとき、コストを支払わずに召喚できる。\n召喚しない、または、他のカードのときはデッキの下に戻す。"
+ },
+ {
+  "cardId": "BSC16-012",
+  "name": "デリス・ペルティオ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「デリス・ペルティオ」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BSC16-013",
+  "name": "［アイドル七将］デリス・ペルティオ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3『このスピリットのアタック時』\n【アブソリューツ】を持つ自分のスピリットが3体以上いるとき、相手のスピリットのコア1個を相手のリザーブに置く。\nLv2･Lv3『相手のアタックステップ』\n【アブソリューツ】を持つ自分のスピリットが相手によって破壊されたとき、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BSC16-014",
+  "name": "ミリア・サンデー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札1枚を破棄することで、自分はデッキから1枚ドローする。\nLv1･Lv2･Lv3【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「ミリア・サンデー」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BSC16-015",
+  "name": "［アイドル三巨頭］ミリア・サンデー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分のデッキを上から3枚オープンする。\nその中の系統：「私服」を持つスピリットカード1枚をコストを支払わずに召喚できる。\n残ったカードはデッキの下に好きな順番で戻す。\nLv3『自分のアタックステップ』\n【アブソリューツ】を持つ自分のスピリットがアタックしたとき、相手は、相手のフィールドのコア1個を相手のトラッシュに置かなければブロックできない。"
+ },
+ {
+  "cardId": "BSC16-016",
+  "name": "フォンニーナ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元にある系統：「衣装」を持つ「フォンニーナ」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。\nLv2『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個をこのスピリットに置く。"
+ },
+ {
+  "cardId": "BSC16-017",
+  "name": "［情熱ダンサー］フォンニーナ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2『このスピリットの召喚時』\n【アブソリューツ】を持つ自分のスピリット1体につき、ボイドからコア1個をこのスピリットに置く(最大3個)。\nLv2『このスピリットのアタック/ブロック時』\nバトル終了時、このスピリットのコア1個を自分のトラッシュに置くことで、このスピリットは回復する。\nこの効果はターンに1回しか使えない。"
+ },
+ {
+  "cardId": "BSC16-018",
+  "name": "リーファ・シアーズ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「リーファ・シアーズ」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。\nLv2･Lv3『相手のアタックステップ』\n相手によって自分のライフが減ったとき、自分の手札にある系統：「私服」を持つスピリットカード1枚をコストを支払わずに召喚できる。"
+ },
+ {
+  "cardId": "BSC16-019",
+  "name": "［森羅の歌い手］リーファ・シアーズ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 9,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "yellow",
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3『このスピリットのアタック時』\n自分のデッキを上から1枚オープンする。\nそのカードが【アブソリューツ】を持つコスト6以下のスピリットカードのとき、コストを支払わずに召喚できる。\n召喚しない、または、他のカードのときはデッキの下に戻す。\nLv3『自分のアタックステップ』\n【アブソリューツ】を持つ自分のスピリットが3体以上いる間、自分のスピリットすべてをBP+5000する。"
+ },
+ {
+  "cardId": "BSC16-020",
+  "name": "オルティーナ・クラン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「私服」を持つ自分のスピリットが3体以上いるとき、自分はデッキから1枚ドローする。\nLv1･Lv2･Lv3【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「オルティーナ・クラン」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BSC16-021",
+  "name": "［白き翼］オルティーナ・クラン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n【アブソリューツ】を持つ自分のスピリット1体につき、相手のスピリット1体を手札に戻す。\nLv3\n[［白き翼］オルティーナ・クラン]以外の、【アブソリューツ】を持つ自分のスピリットが疲労したとき、このスピリットは回復する。"
+ },
+ {
+  "cardId": "BSC16-022",
+  "name": "リューネ・マト",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 4,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3･Lv4【オンステージ】『自分のアタックステップ』\nこのスピリットを、アタックするかわりにデッキの下に戻すことで、自分の手札/手元の系統：「衣装」を持つ「リューネ・マト」1枚を、コストを支払わずに召喚し、自分はデッキから1枚ドローする。\nLv2･Lv3･Lv4『自分のアタックステップ』\n【アブソリューツ】を持つ自分のスピリットすべてをBP+2000する。"
+ },
+ {
+  "cardId": "BSC16-023",
+  "name": "ペンタン大好きラクェル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある、カード名に「ペンタン」を含むコスト4以下のスピリットカード/ブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv2『お互いのアタックステップ』\nカード名：「きぐるみペンタン」と合体している自分のスピリットすべてをBP+3000する。"
+ },
+ {
+  "cardId": "BSC16-024",
+  "name": "プリム・アンジュ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n自分のスピリットが【オンステージ】で召喚されたとき、自分はデッキから1枚ドローする。\nこの効果は重複しない。"
+ },
+ {
+  "cardId": "BSC16-025",
+  "name": "休日のアーシア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "私服"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのターンの間、相手のスピリット1体をBP-5000する。\nLv2･Lv3『このスピリットのアタック時』\n自分のデッキを上から1枚オープンできる。\nそのカードがコスト5以上のとき、ターンに1回、このスピリットは回復する。\nオープンしたカードは手札に加える。"
+ },
+ {
+  "cardId": "BSC16-026",
+  "name": "歌姫エンジュ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【チーム：レジェンドール】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分のデッキを上から1枚オープンし、系統：「詩姫」を持つスピリットカードなら手元に置く。他のカードのときは、デッキの下に戻す。\nオープンしたスピリットカードは、ゲーム終了時まで、手札にあるときと同様に使用できる。"
+ },
+ {
+  "cardId": "BSC16-027",
+  "name": "歌姫アヴリエル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【チーム：レジェンドール】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「詩姫」を持つ自分のスピリットが3体以上いるとき、自分のトラッシュにある黄のマジックカード1枚を手札に戻す。\nLv2･Lv3『このスピリットのアタック時』\nBP3000以下の相手のスピリット1体をデッキの下に戻す。"
+ },
+ {
+  "cardId": "BSC16-028",
+  "name": "歌姫カトレア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【チーム：レジェンドール】\nLv2･Lv3『自分のアタックステップ』\nステップ開始時、相手のスピリット1体を指定する。\nこのターンの間、そのスピリットの『相手のアタックステップ』/『このスピリットのブロック時』効果は発揮しない。"
+ },
+ {
+  "cardId": "BSC16-029",
+  "name": "歌姫ヴィエルジェ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【チーム：レジェンドール】\nLv1･Lv2･Lv3『このスピリットのアタック時』\nこのバトルの間、相手のスピリット1体をBP-5000する。\nこの効果で相手のスピリットがターンで初めてBP0になったとき、自分はデッキから1枚ドローする。\nLv2･Lv3\n系統：「詩姫」を持つ自分のスピリットすべては、相手によって破壊されたとき手札に戻すことができる。"
+ },
+ {
+  "cardId": "BSC16-030",
+  "name": "ゴールデンウィングマイク",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "合体条件：詩姫\n【合体時】『このスピリットの合体アタック時』\n自分はデッキから1枚ドローする。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "詩姫"
+ },
+ {
+  "cardId": "BSC16-031",
+  "name": "きぐるみペンタン",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "歌鳥",
+   "動玩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】\nこのスピリットに【シャイニーハーツ】【アブソリューツ】を与える。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 5000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "BSC16-032",
+  "name": "ソロウィング",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "翼船"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "合体条件：コスト5以上\n【合体時】『このスピリットの合体アタック時』\nターンに1回、このスピリットのコア1個を自分のリザーブに置くことで、このスピリットを回復し、このスピリットは、Lv2の相手のスピリットからブロックされない。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 2000
+   }
+  ],
+  "braveConditionText": "コスト5以上"
+ },
+ {
+  "cardId": "BSC16-033",
+  "name": "ディーバの休日",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\nカード名の異なる系統：「私服」を持つ自分のスピリットが6体以上いるとき、系統：「私服」を持つ自分のスピリットすべては、相手のスピリットからブロックされない。\nLv2\n系統：「私服」を持つ自分のスピリットが相手によって破壊されたとき、ボイドからコア1個を自分のリザーブに置く。"
+ },
+ {
+  "cardId": "BSC16-034",
+  "name": "ディーバステージ",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のスピリットが【オンステージ】で召喚されたとき、このターンの間、そのスピリットが持つ最高Lvとして扱う。\nLv2『自分のスタートステップ』\nカード名の異なる系統：「衣装」を持つ自分のスピリットが10体以上いるとき、自分はゲームに勝利する。"
+ },
+ {
+  "cardId": "BSC16-035",
+  "name": "ファン感謝祭",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2：フラッシュ『お互いのアタックステップ』\n系統：「私服」/「衣装」を持つ自分のスピリット1体を疲労させることで、このバトルの間、自分のスピリット1体をBP+(疲労させたスピリットのBP)する。\nLv2『自分のアタックステップ』\n自分のスピリットのアタックによって相手のライフを減らしたとき、自分の手札/手元のコスト3以下のスピリットカード1枚をコストを支払わずに召喚できる。\nこの効果はターンに1回しか使えない。"
+ },
+ {
+  "cardId": "BSC16-036",
+  "name": "ツインパフォーマンス",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、自分のスピリット1体をBP+3000する。\nまたは、系統：「私服」を持つ自分のスピリット1体を手札に戻すことで、相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "BSC16-037",
+  "name": "スイートハート",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのバトルが終了したとき、系統：「詩姫」を持つ自分のスピリットがいれば、アタックステップを終了する。"
+ },
+ {
+  "cardId": "BSC16-038",
+  "name": "ディーバメドレー",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\n相手のスピリット1体をデッキの下に戻す。\n自分のトラッシュのコア1個をボイドに置くことで、かわりに、Lv3の相手のアルティメット1体をデッキの下に戻す。"
+ },
+ {
+  "cardId": "BSC16-039",
+  "name": "ハードビート",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n系統：「詩姫」を持つ自分のスピリットを好きなだけデッキの下に戻すことで、戻したスピリット1体につき、自分のデッキを上から1枚オープンする。\nその中の系統：「詩姫」を持つスピリットカードを、コストを支払わずに好きなだけ召喚する。\nただし、『このスピリットの召喚時』効果は発揮しない。残ったカードは破棄する。"
+ },
+ {
+  "cardId": "BSC16-X01",
+  "name": "［超神星アイドル］ノア・フルール",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分のライフが5以下のとき、ボイドからコア1個を自分のライフに置き、相手のスピリット1体を手札に戻す。\nLv3『このスピリットのアタック時』\nカード名の異なる系統：「衣装」を持つ自分のスピリットが3体以上いるとき、このスピリットに黄のシンボル1つを追加する。"
+ },
+ {
+  "cardId": "BSC16-X02",
+  "name": "［歌の姫巫女］リューネ・マト",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 5,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【チーム：アブソリューツ】\nLv1･Lv2･Lv3･Lv4『このスピリットの召喚時』\nBP15000以下の相手のスピリット1体を破壊する。\nLv3･Lv4『自分のアタックステップ』\n【アブソリューツ】を持つ自分のスピリットすべては、相手のスピリット1体を指定してアタックできる。"
+ },
+ {
+  "cardId": "BSC16-X03",
+  "name": "歌姫トリックスター",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【チーム：レジェンドール】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある系統：「詩姫」を持つスピリットカードを好きなだけオープンして手元に置くことで、オープンしたカード1枚につき、自分はデッキから1枚ドローする。\nLv2･Lv3『このスピリットのアタック時』\n自分の手元にある系統：「詩姫」を持つスピリットカード1枚を、コストを支払わずに召喚できる。"
+ },
+ {
+  "cardId": "CP14-X09",
+  "name": "世界を救う詩姫 ほちゃー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 17,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分の黄のスピリットすべてを回復させる。その後、このスピリットカードを召喚する。\nLv2･Lv3『このスピリットのバトル時』\nこのターンの間、相手のスピリット1体をBP-3000する。\nLv2･Lv3\nこのスピリットが相手によって破壊されたとき、系統：「詩姫」を持つ自分のスピリット1体を疲労させることで、このスピリットは回復状態でフィールドに残る。"
+ }
+]
