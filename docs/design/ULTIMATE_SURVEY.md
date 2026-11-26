@@ -78,5 +78,6 @@
 - 担当の分け方：弾ごとに `colors[0]` で6色に分け、1色＝調査役1体（Sonnet）。同時に2体まで。1体で5時間枠の約4%
   `python3 -c "import json,collections;d=json.load(open('data/staging/BS27.json'));g=collections.defaultdict(list);[g[c['colors'][0]].append(c['cardId']) for c in d];[print(k,len(v),' '.join(v)) for k,v in g.items()]"`
 - 終わった表は `python3 scripts/check_plan_table.py` を通してから1色1コミット。ユーザーは開発サーバーの /dev/plan-review.html で答える（PLAN_REVIEW_DIR をこのワークツリーの docs/design に向けて起動）
+- 主弾以外（2026-11-26）：済み SD19・SD20・SD22・SD23・SD24・SD26。残り SD25・SD27・BSC15・BSC16（43枚なので2回に分ける）・P14-01〜08 と CP14-01（data/staging/631.json）・SD28。対象の cardId は data/staging/reprints-ultimate-era.json の new（再録は表を作らない）。batspi の Q&A は同名の別の版が混ざるので、効果文に無い部分を前提にした Q&A は根拠にしない
 - 済み：BS24〜BS30 の全色。2026-11-26 に CONFIRMED_RULES で全弾を読み直した（よくある誤りの型は読み直し役の委譲プロンプトに列挙した9つ：相手による破壊・同時破壊の誘発・コア配分・いる間・合体中のブレイヴ・対象のいないマジック・メインのフラッシュ効果・好きな順番・デッキ0枚）
 - BS24〜BS30 はブロックアイコン《1》の区分（batspi「カードリスト/ブロックアイコン」2026-11-26 確認）。バースト効果に「召喚する」とだけ書かれていても**コストを支払わない**（BURST.md「《1》までは無償」2026-09-28 ユーザー確認）。確かめたいことに入れない
