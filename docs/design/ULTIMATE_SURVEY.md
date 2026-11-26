@@ -11,8 +11,7 @@
 
 ## 読むもの（この順。丸読み禁止のものに注意）
 1. `docs/design/ULTIMATE_PLAN.md`（72行。全部読む）：アルティメットのルールは 2026-11-23 に全行確定。ここに書いてあることは根拠として「ULTIMATE_PLAN C4」のように引く。聞き直さない
-2. `docs/design/CONJUNCTION.md` の早見表（「その後」「さらに」「そうしたとき」「ことで」「この効果発揮後」「このとき」）
-3. `docs/design/SEMANTICS_AUDIT.md` の §3 だけ、`docs/design/CHOOSER_RULES.md`（誰が選ぶか）、`docs/design/TEST_STRATEGY.md` の §6 だけ
+2. **`docs/design/CONFIRMED_RULES.md`（全部読む）**：ユーザー確認・公式Q&A で確定したルールの解釈の一覧。各行の節を書くたびに、ここに当たる規則が無いかを照らす。根拠には「CONFIRMED_RULES §1」のように章を書く。個別の手順書（CONJUNCTION・CHOOSER_RULES・SEMANTICS_AUDIT・TEST_STRATEGY など）は、一覧に無い細部が要るときだけ grep して読む
 4. カードの効果文：`python3 -c "import json;[print(c['cardId'],c['name'],c['type'],c['colors'],c['cost'],c['family'],c['levels'],c['symbol'],c.get('summonConditionText'),'\n',c['effect'],'\n') for c in json.load(open('data/staging/<弾>.json')) if c['cardId'] in {...}]"` で担当分だけ出す
 5. **公式Q&A**：各カードの batspi Wiki のページ（`https://batspi.com/index.php?<カード名をURLエンコード>`）を WebFetch で読み、そのカードの Q&A があれば Q番号つきで根拠に使う。1カード1回まで。ページが無い・Q&A が無いならそう書いて先へ
 6. 既存の器の索引（型ファイルは**丸読み禁止**）：
@@ -67,13 +66,13 @@
 - ツール呼び出しは150回まで（超えると止められる）。Q&A の取得で回数が足りなくなりそうなら、残りのカードは「Q&A 未確認」と書いて表を先に仕上げる
 
 ## 前の弾の表を手本にする
-- 先に出た弾の表（`docs/design/BS24_PLAN_<色>.md` など）は手本として読んでよい（同じ色の1ファイルだけ、見出しと数枚分）。同じ文面の節は同じ読みにそろえ、根拠に「BS24-002-1 と同文」のように書く
+- 先に出た弾の表（`docs/design/BS24_PLAN_<色>.md` など）は手本として読んでよい（同じ色の1ファイルだけ、見出しと数枚分）。**ただし前の表はユーザー確認前の読みで、誤りを含む**（2026-11-26 に「相手による破壊」でバトル破壊を外した誤りが、手本として約30行に広がった）。そろえるのは CONFIRMED_RULES とユーザーの答えに反しないときだけ。反していたら一覧に従い、報告に「BS25-036-2 は CONFIRMED_RULES §1 に反する」のように書く。同じ文面の節は根拠に「BS24-002-1 と同文」のように書く
 - ユーザーの確定した読み：`docs/design/answers/<弾>.json`（確認ページの答え。verdict が ng の行は note が正しい読み）と、`/Users/imachan/develop/bs_web/docs/QUESTIONS.md`（このブランチには無いので、この絶対パスを Read するだけ。cd はしない）の「答え」が付いた行。同じ文面ならそれに従い、根拠にその行 id を書く
 - 再録（data/cards か先の弾の staging に同名・同文がある）は表の冒頭にそう書き、表は全節書く
 
 ## ユーザー確認済みの一般則（調査中に出たもの）
 - BP が0になってもスピリットは破壊されない（0 のまま場に残る。破壊は「BP0になったとき破壊する」と書いた効果があるときだけ）。2026-11-26
-- 「相手による〜の破壊時」「相手によって破壊されたとき」は、相手の効果による破壊と**バトルの BP 比較による破壊の両方**を含む。効果だけのときは「相手の効果で」と書かれている（2026-09-07 ユーザー確認。TEST_STRATEGY §6）。BS24〜BS30 の表に、バトル破壊を外した行が残っている（2026-11-26 時点で約30行。直す予定）
+- ここに足した規則は CONFIRMED_RULES.md にも1行で書く（調査役はそちらを読む）
 
 ## 進め方（メインループ向け）
 - 担当の分け方：弾ごとに `colors[0]` で6色に分け、1色＝調査役1体（Sonnet）。同時に2体まで。1体で5時間枠の約4%
