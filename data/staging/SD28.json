@@ -1,0 +1,583 @@
+[
+ {
+  "cardId": "SD28-001",
+  "name": "ギガンティア・カミキリー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。"
+ },
+ {
+  "cardId": "SD28-002",
+  "name": "コクワン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "刃虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【スピリットソウル：緑】\n自分がアルティメットカードを召喚するとき、このスピリットに[緑](緑のシンボル1つ)を追加する。\nLv1･Lv2『このスピリットの破壊時』\n相手の合体していないアルティメット1体を疲労させる。"
+ },
+ {
+  "cardId": "SD28-003",
+  "name": "ウスバアゲハ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "刃虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個を自分のリザーブに置く。\nLv2\n系統：「殻人」を持つ自分のアルティメットがバトルしている間、相手はバーストを発動できない。"
+ },
+ {
+  "cardId": "SD28-004",
+  "name": "アカガネ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "護将",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットは、相手の効果で破壊されない。\nLv2『お互いのアタックステップ』\n自分の緑のカードが相手のUトリガーでトラッシュに置かれたとき、Uトリガー後、それらのカードすべてを手札に加えることができる。"
+ },
+ {
+  "cardId": "SD28-005",
+  "name": "ゴロンゴロー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n系統：「殻人」/「刃虫」を持つ自分のスピリット/アルティメットすべてをBP+3000する。"
+ },
+ {
+  "cardId": "SD28-006",
+  "name": "閃の剣聖ドルサリス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "ultimate"
+  ],
+  "family": [
+   "剣使",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある系統：「剣刃」を持つ緑のブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv2･Lv3『このスピリットのアタック時』\n相手のスピリット1体を疲労させる。\n【合体時】Lv3『自分のアタックステップ』\nこのスピリットの「相手への疲労効果」の対象をスピリットからアルティメットに変更できる。"
+ },
+ {
+  "cardId": "SD28-007",
+  "name": "コガネヒメ",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "ultimate"
+  ],
+  "family": [
+   "次代",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：コスト1以上の自分のスピリット1体以上】\nLv3･Lv4\n自分の緑のアルティメットカードの召喚条件を無視する。\n系統：「殻人」を持つ自分のアルティメットの究極シンボルすべてを緑のシンボルとしても扱う。\n【Uトリガー】Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手のスピリット2体を疲労させる。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "コスト1以上の自分のスピリット1体以上"
+ },
+ {
+  "cardId": "SD28-008",
+  "name": "剛の剣聖ルビート",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "ultimate"
+  ],
+  "family": [
+   "次代",
+   "剣使",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 11000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 18000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：コスト1以上の自分のスピリット1体以上】\nLv3･Lv4『このアルティメットのバトル時』\nコスト5以下の相手のスピリット1体を疲労させる。\n【合体時】【Uトリガー】Lv4『このアルティメットの合体アタック時』\nUトリガーがヒットしたとき、疲労状態の相手のスピリット1体をデッキの上に戻す。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "コスト1以上の自分のスピリット1体以上"
+ },
+ {
+  "cardId": "SD28-009",
+  "name": "終焉甲帝",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "次代",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 12000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 18000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 24000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【召喚条件：コスト3以上の自分のスピリット1体以上】\nLv3･Lv4･Lv5『このアルティメットの召喚時』\nボイドからコア2個をこのアルティメットに置く。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手のスピリット2体を疲労させる。\nUトリガー後、自分のライフが3以下なら、さらに、XUトリガーを行う。\n【XUトリガー】XUトリガーがヒットしたとき、相手のライフのコア1個を相手のトラッシュに置く。\n(Uトリガー/XUトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "コスト3以上の自分のスピリット1体以上"
+ },
+ {
+  "cardId": "SD28-010",
+  "name": "翼刃グライド",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "ultimate"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのブレイヴカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\n合体条件：コスト3以上のアルティメット\n【合体時】『このアルティメットのバトル時』\nこのアルティメットをBP+5000する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 2000
+   }
+  ],
+  "braveConditionText": "コスト3以上のアルティメット"
+ },
+ {
+  "cardId": "SD28-011",
+  "name": "星獣刃プロキオン",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "ultimate"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\nボイドからコア1個を自分のアルティメットに置く。\n合体条件：コスト3以上のスピリット/アルティメット\n【合体時】『このスピリットの合体アタック時』\nこのスピリットをBP+5000する。\n【合体時】『このアルティメットの合体アタック時』\n相手のスピリット1体を疲労させる。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 2000
+   }
+  ],
+  "braveConditionText": "コスト3以上のスピリット/アルティメット"
+ },
+ {
+  "cardId": "SD28-012",
+  "name": "翡翠の剣刃探知機",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のライフが減ったとき、自分はデッキから1枚ドローする。\nLv2：フラッシュ『お互いのアタックステップ』\nこのネクサスを疲労させることで、自分のデッキを上から2枚オープンする。\nその中の系統：「剣刃」を持つ緑のブレイヴカード1枚を手札に加える。\n残ったカードはデッキの下に戻す。"
+ },
+ {
+  "cardId": "SD28-013",
+  "name": "カウンターバインド",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【トリガーカウンター】\n手札にあるこのマジックカードは、相手のUトリガーがヒットしたとき、ヒット効果発揮前に次の効果を使用できる。\n■ヒットしたカードが緑のカードならガードとする。\nフラッシュ：\n相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "SD28-014",
+  "name": "エグゾーストエンド",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手の効果によって相手の手札が増えた後】\nこのバースト発動時に増えた相手のカード1枚につき、ボイドからコア1個を自分のリザーブに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手の手札2枚につき、相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "SD28-015",
+  "name": "アルティメットゲイン",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "ultimate"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\n自分の合体アルティメットすべてを回復させる。\nこのターンの間、この効果で回復したアルティメットすべてのUトリガーは発揮しない。"
+ },
+ {
+  "cardId": "SD28-X01",
+  "name": "アルティメット・ウシワカ",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "新生",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 9000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 13000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 18000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の緑スピリット/アルティメット1体以上】\n【バースト：相手による自分のスピリット/アルティメット破壊後】\n相手のスピリット2体か、相手のアルティメット1体を疲労させる。\nこの効果発揮後、このアルティメットカードを召喚する。\n【Uトリガー】Lv4･Lv5『このアルティメットのバトル時』\nUトリガーがヒットしたとき、バトル終了時、このアルティメットを手札に戻すことで、自分のアルティメット1体を回復させる。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の緑スピリット/アルティメット1体以上"
+ },
+ {
+  "cardId": "SD28-X02",
+  "name": "地球神剣ガイアノホコ",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "ultimate"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "手札にあるこのカードは、自分のアルティメットが召喚されたとき、コストを支払わずに召喚できる。\n合体条件：コスト5以上のアルティメット\n【合体中】\nXUトリガーを持たないアルティメットとの合体中、このブレイヴをコスト0にする。\n【合体中】『このアルティメットのアタック/ブロック時』\n相手のバーストは発動できない。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 5000
+   }
+  ],
+  "braveConditionText": "コスト5以上のアルティメット"
+ }
+]
