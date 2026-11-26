@@ -21,15 +21,15 @@ import {
     findSpirit,
     getCard,
     instMinLevelCores,
-    minLevelCores,
+    minLevelCores, summonMinCores,
     opponentOf,
     placedCoresForSummon,
 } from "./GameState"
-import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, timedCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
+import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, timedCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, summonLevelCostBonus, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { onlyUsableDenial, canDiscardHand, costExhaustLocked, coreIntakeRefused, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
-import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
-import { blockDestroyCandidates, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter, mandatoryDirectAttackTargetIds } from "../../../shared/block"
+import { battleSwapSummonCheck, braveCombineCandidates, braveExchangeTargets, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
+import { blockDestroyCandidates, blockDestroyTolls, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter, mandatoryDirectAttackTargetIds } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
@@ -163,6 +163,7 @@ export function validateSummon(
     payOffInstanceId?: string, // kind:"summonPayOff"：破壊することで召喚コストを払ったものとして扱う個体
     // 手元から「手札にあるときと同様に」召喚する（手札へ一時的に移して検証する）。手札に限った使用禁止は掛からない（Q2592 と同じ考え方。#528）
     fromTegamoto?: boolean,
+    cores?: number,
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -329,7 +330,7 @@ export function validateSummon(
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
     if (braveTargetInstanceId === undefined) {
-        const placeError = validateSummonLevel(card, level)
+        const placeError = validateSummonLevel(card, level) ?? validateSummonCores(state, pid, card, cores)
         if (placeError) return placeError
     }
     // 【転召】：コアを置く対象の自分のスピリットがいなければ召喚できない（2026-08-13 修正。
@@ -366,6 +367,8 @@ export function validateSummon(
     const maintain = placedCoresForSummon(card, level, {
         braveTarget: braveTargetInstanceId !== undefined,
         placeSoulCoreFromReserve,
+        cores,
+        levelCostBonus: summonLevelCostBonus(state, pid, card),
     })
     // [ソウルコア]の使い方の排他と維持コアとして置けるか（2026-10-06 ユーザー確定）
     if (paySoulCoreFromReserve === true && placeSoulCoreFromReserve === true) {
@@ -443,6 +446,13 @@ export function validateSwapSoulCore(state: GameState, pid: PlayerId, fromInstan
 }
 
 // 召喚／配置のレベル指定を検証する（未指定＝Lv1は常に有効）。
+function validateSummonCores(state: GameState, pid: PlayerId, card: CardData, cores?: number): string | null {
+    if (cores === undefined) return null
+    const min = summonMinCores(state, pid, card)
+    if (!Number.isInteger(cores) || cores < min) return `置くコアは${min}個以上の整数で指定してください`
+    return null
+}
+
 function validateSummonLevel(card: CardData, level?: number): string | null {
     if (level === undefined) return null
     if (!Number.isInteger(level) || level < 1) return "レベルの指定が不正です"
@@ -460,6 +470,7 @@ export function validateSetNexus(
     millPay?: number,
     paySoulCoreFromReserve?: boolean,
     placeSoulCoreFromReserve?: boolean,
+    cores?: number,
 ): string | null {
     const timing = checkMainTiming(state, pid)
     if (timing) return timing
@@ -474,9 +485,9 @@ export function validateSetNexus(
     if (card.type !== "nexus") return "ネクサスカードではありません"
 
     const cost = effectiveCost(state, pid, card)
-    const placeError = validateSummonLevel(card, level)
+    const placeError = validateSummonLevel(card, level) ?? validateSummonCores(state, pid, card, cores)
     if (placeError) return placeError
-    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve })
+    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve, cores, levelCostBonus: summonLevelCostBonus(state, pid, card) })
     // 配置コストを「コスト1につきデッキ1枚破棄」で払える（置くコアは不可）。
     // **コア払いとの併用はできない**ので、配置の時点でどちらか一方に決める（millPay は 0 か実効コスト）
     if (millPay !== undefined && millPay > 0 && !canPayNexusCostByMill(state, pid)) {
@@ -885,6 +896,14 @@ export function validateCombineBrave(
     return null
 }
 
+// メインステップの交換（§6.4.1）
+export function validateExchangeBrave(state: GameState, pid: PlayerId, braveInstanceId: string, toInstanceId: string): string | null {
+    const timing = checkMainTiming(state, pid)
+    if (timing) return timing
+    if (!braveExchangeTargets(state, pid, braveInstanceId).includes(toInstanceId)) return "そのスピリットとは交換できません"
+    return null
+}
+
 // メインステップの任意分離（§6.4）。**効果による分離（コア不要）とは別の手順**で、
 // スピリット状態のLv1維持コスト以上のコアを置く必要がある
 export function validateDetachBrave(
@@ -1261,7 +1280,7 @@ export function validateAttack(
             const payError = validatePaySources(state, pid, payToll, paySources, paySoulCoreFromReserve)
             if (payError) return `アタックするには${String(payToll)}コスト必要です（${payError}）`
             const fromSelf = paySources.find((s) => s.instanceId === instanceId)
-            if (fromSelf && inst.cores - fromSelf.count < minLevelCores(getCard(inst.cardId))) {
+            if (fromSelf && inst.cores - fromSelf.count < instMinLevelCores(inst)) {
                 return "アタックするスピリットの維持コアを支払いに使うことはできません"
             }
         }
@@ -1352,15 +1371,22 @@ export function validateBlock(
     const costAttacker = state.battle ? findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId) : undefined
     for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
-        if (c.cost === "destroyOwnSpirit") {
-            if (blockDestroyCandidates(state, pid, instanceId, costAttacker).length === 0) return "破壊できるスピリットがいないためブロックできません"
-            continue
-        }
+        if (c.cost === "destroyOwnSpirit") continue
         if (c.cost === "reserveCoreToTrash" && normalReserveOf(state.players[pid]) < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
         if (c.cost === "discardHand" && (state.players[pid].hand.length < c.count || !canDiscardHand(state, pid))) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && !canDiscardHand(state, pid)) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && state.players[pid].hand.filter((id) => getCard(id).type === "magic").length < c.count) {
             return "手札にマジックカードがないためブロックできません"
+        }
+    }
+    // 発生源ごとに1体ずつ別のスピリットを破壊するので、候補の合計が破壊の数に足りなければブロックできない（#700）。
+    // ponytail: 発生源ごとに耐性が違う場合の割り当て（二部マッチング）はせず、どの破壊にも候補がいて、候補の和集合が数に足りるかだけ見る
+    const destroyTolls = blockDestroyTolls(state, costAttacker)
+    if (destroyTolls.length > 0) {
+        const pools = destroyTolls.map((rec) => blockDestroyCandidates(state, pid, instanceId, rec))
+        const union = new Set(pools.flatMap((pool) => pool.map((sp) => sp.instanceId)))
+        if (pools.some((pool) => pool.length === 0) || union.size < destroyTolls.length) {
+            return destroyTolls.length === 1 ? "破壊できるスピリットがいないためブロックできません" : `破壊できるスピリットが${String(destroyTolls.length)}体いないためブロックできません`
         }
     }
     const reserveToll = blockReserveToTrashCount(state, opponentOf(pid), costAttacker)
@@ -1376,7 +1402,7 @@ export function validateBlock(
         if (payError) return `ブロックするには${String(payNeed)}コスト必要です（${payError}）`
         // ブロックするスピリット自身から払って維持コアを割ると、宣言と同時に消滅してしまう
         const fromSelf = paySources?.find((s) => s.instanceId === instanceId)
-        if (fromSelf && inst.cores - fromSelf.count < minLevelCores(getCard(inst.cardId))) {
+        if (fromSelf && inst.cores - fromSelf.count < instMinLevelCores(inst)) {
             return "ブロックするスピリットの維持コアを支払いに使うことはできません"
         }
     } else if (paySources && paySources.length > 0) {

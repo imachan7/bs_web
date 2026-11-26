@@ -1,0 +1,512 @@
+/* スマホ（幅768px以下）の対戦画面の配置。相手の場・自分の場・手札を、上下にスクロールせず1画面に収める（2026-11-24 ユーザー要望）。
+   PC（769px以上）には効かない。場の行の高さは固定（スピリットの欄は150px）で、スピリットの数・合体の有無で変わらない（召喚・破壊で画面が上下にずれない） */
+#card-dock { display: none; }
+/* PC では上のボタン類をそのまま並べ、スマホ専用の部品（メニューの開閉・手元の欄）は出さない */
+#status-menu { display: contents; }
+#btn-status-menu, #btn-status-menu-close, #mat-tegamoto-self, #mat-tegamoto-opp { display: none; }
+.display-settings .mobile-only { display: none; }
+
+@media (max-width: 768px) {
+    /* 行の高さ。背の低い画面（下の max-height: 700px）だけ値を詰める（2026-11-24 iPhone SE の Safari で見える高さ約553px に収めるため）。
+       --zone-h はスピリットの欄の高さで、2段のときのカード幅もここから決まる（欄に収まる幅。ui/spiritLayout.ts は測った幅で判定するので値を直接は読まない） */
+    /* 長押しで説明を出すので、ボタンやカードの文字が選択状態にならないようにする（2026-11-25 ユーザー指摘）。ログは写せるよう残す */
+    /* 効果の吹き出しは #game の外（body の直下）にあるので、対戦中は body ごと止める。絵も長押しで選択・保存の欄が出ないようにする */
+    body:has(#game:not(.hidden)) :not(#log, #log *) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    body:has(#game:not(.hidden)) img { -webkit-user-drag: none; }
+    #log, #log * { -webkit-user-select: text; user-select: text; }
+
+    :root {
+        --sp-h-ratio: calc(985 / 675); --nexus-h: 63px; --info-h: 40px; --nexus-w: 48px;
+        /* カード（場・手札共通）は画面の幅と高さの小さい側に合わせる。375×667 で47px、412×830 で66px、430×932（Pro Max）で70px。
+           体数では変えない。145pxまで大きくしたときは大きすぎて手札と釣り合わず（2026-11-24）、412px幅で54pxは小さかった（2026-11-25 ユーザー）。
+           高さは svh（アドレスバーが出ているときの高さ）で測る。dvh だとアドレスバーが隠れる・出るたびに場が伸び縮みする */
+        /* (100svh - 322px) / 7.3 は、下の --zone-h の式でスピリットが2段入る上限（375×667 で47px）。これを超えると2段が入らず1段の横スクロールになった */
+        --card-w: clamp(44px, min(19vw - 12px, 8svh, (100svh - 322px) / 7.3), 72px); --hand-w: var(--card-w);
+        /* 背の高いスマホで下に余白が残らないよう、スピリットの欄は画面の高さ（svh）に合わせて伸ばす（2026-11-24 ユーザー指摘：430×932 で下に約270px空いていた）。
+           カードは大きくせず、段を増やせる広さにする。高さ667px までは150px（48pxのカードで2段）。306px は欄2つ・手札以外の行（上の行・情報・ネクサス・中央の帯・余白）の合計の実測 */
+        --zone-h: max(150px, calc((100svh - 306px - var(--hand-w) * 985 / 675) / 2));
+    }
+
+    /* 1行：左にターン、中にフェイズ、右に「≡ メニュー」。ログ・表示・バグ報告・支払い・降参は、メニューの欄に縦に並べる。
+       トラッシュのボタンはここでは出さない（右下の並びのトラッシュの欄を押すと同じ画面が開く）。
+       「手札破棄で防ぐ」の選択と封印の表示は状況があるときだけ出る印なので、隠さず、出たときは次の行に折り返す */
+    #status-bar { position: relative; padding: 4px 8px; gap: 4px; }
+    #status-bar .log-toggle-btn { padding: 4px 8px; font-size: 11px; }
+    #status-bar #turn-info { margin-left: 0 !important; white-space: nowrap; }
+    #phase-bar { margin: 0 auto; }
+    #btn-toggle-trash { display: none; }
+    #btn-status-menu { display: inline-block; flex: none; }
+    #status-menu { display: none; }
+    /* ≡ は中央の帯の右端（ui/statusMenu.ts が移す）。欄は画面の下から横幅いっぱい・2列で出す（片手で届く。2026-11-25 試作） */
+    #center-info-area > #btn-status-menu {
+        position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+        width: 44px; height: 32px; padding: 0; font-size: 0; z-index: 2;
+        background: var(--bg-panel); border: 1px solid #555; border-radius: 8px; box-shadow: none;
+    }
+    #center-info-area > #btn-status-menu::before { content: "≡"; font-size: 20px; line-height: 1; }
+    #center-info-area { padding-right: 52px; }
+    #status-bar.menu-open #status-menu {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        top: auto;
+        bottom: calc(8px + env(safe-area-inset-bottom));
+        z-index: 300;
+        padding: 8px;
+        background: var(--bg-panel);
+        border: 1px solid #444;
+        border-radius: 10px;
+        box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.6);
+    }
+    #status-bar.menu-open #status-menu > * { min-height: 44px; }
+    #status-bar.menu-open #status-menu #btn-status-menu-close { order: 99; grid-column: 1 / -1; align-self: stretch; font-size: 0; }
+    #status-bar.menu-open #status-menu #btn-status-menu-close::before { content: "閉じる"; font-size: 15px; }
+    #status-menu .log-toggle-btn { min-height: 40px; font-size: 13px; text-align: left; white-space: nowrap; }
+    #status-menu #btn-status-menu-close { display: block; align-self: flex-end; min-height: 28px; font-size: 18px; line-height: 1; text-align: center; }
+    #status-menu .display-settings-wrap { display: block; }
+    #status-menu .display-settings-wrap > button { width: 100%; }
+    /* ⚙ 表示の中身は、下の欄（メニュー）の中に流し込む。ボタンの下へ浮かせると画面の下端から見切れた（2026-11-25 ユーザー指摘） */
+    #status-menu .display-settings-wrap:has(> .display-settings:not(.hidden)) { grid-column: 1 / -1; }
+    #status-menu .display-settings { position: static; margin-top: 6px; box-shadow: none; }
+    #status-menu .display-settings label { min-height: 40px; margin-right: 16px; }
+    #status-bar.menu-open #status-menu { max-height: calc(100dvh - 16px - env(safe-area-inset-bottom)); overflow-y: auto; }
+    /* 中央の帯は高さを固定する。文字（対象選択の案内・選択肢のボタン）で伸びると上下の場がずれて画面が揺れた（2026-11-24 ユーザー指摘）。
+       入りきらない分は帯の上下へはみ出して場の上に重ねる（flex の中央寄せなので上下に均等に出る）。重ねたとき場が透けないよう中身に背景を付ける */
+    #center-info-area { height: 28px; min-height: 0; padding: 0 8px; gap: 2px; box-sizing: border-box; position: relative; z-index: 110; overflow: visible; }
+    /* 盤面は overflow: hidden なので、中央の帯からはみ出した案内が場の端で切れていた */
+    #board { overflow: visible; }
+    /* 案内は「何が起きたか」を太字、「何をすればよいか」を小さく1行にする（ui/infoPanels.ts）。効果の発動は絵を出さず、効果文は2行まで（光っている場のカードで分かる） */
+    #battle-info .battle-hint { display: block; font-size: 10px; font-weight: normal; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #effect-notice { padding: 3px 8px; }
+    #effect-notice .effect-notice-art { display: none; }
+    #effect-notice .effect-notice-title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #effect-notice .effect-notice-body { -webkit-line-clamp: 2; font-size: 11px; text-align: left; }
+    /* 切れた効果文は帯を押すと全文を開く（ui/effectNotice.ts）。長ければ中をスクロール */
+    #effect-notice.expanded .effect-notice-body { -webkit-line-clamp: unset; display: block; max-height: 40dvh; overflow-y: auto; }
+    #effect-notice.truncated:not(.expanded) .effect-notice-text::after { content: "▼ 押すと全部"; display: block; font-size: 9px; color: var(--accent-hover); text-align: right; }
+    /* 召喚・破壊などの通知は小さくし、新しい2件だけ出す（大きいまま積み重なって相手の場が埋まっていた） */
+    .event-banner { padding: 3px 10px; font-size: 12px; border-radius: 6px; }
+    #event-layer { gap: 3px; }
+    #event-layer > .event-banner:nth-last-child(n+3) { display: none; }
+    #center-info-area > :not(.hidden) { max-width: 100%; box-sizing: border-box; min-width: 0; background: var(--bg-panel); border-radius: 6px; padding: 2px 8px; font-size: 12px; text-align: center; box-shadow: 0 2px 8px #000a; }
+    .player-area { padding: 4px 8px; gap: 2px; justify-content: flex-start; }
+    .opp-hand-area { display: none !important; }
+    /* 情報の行は、右にデッキ・トラッシュの枠（下の .mat-box）が並ぶので、残りの左側に小さい字で出す（枠の幅の合計 140px＋4px を引く） */
+    .player-info {
+        height: var(--info-h);
+        width: calc(100% - 144px);
+        flex-wrap: wrap;
+        align-content: center;
+        gap: 0 6px;
+        overflow: hidden;
+        font-size: 10px;
+        line-height: 12px;
+        position: relative;
+        z-index: 1;
+    }
+    /* 項目は1行ずつ、入らない分は「…」で切る（名前の長さやターンで折り返しが変わると文字が上下に揺れた） */
+    .player-info > span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #my-info { margin-top: calc(var(--info-h) * -1 - 2px); }
+    #opponent-area .opp-hand-area { order: -1 }
+    #opp-info { margin-bottom: calc(var(--info-h) * -1 - 2px); }
+
+    /* 自分は上にスピリット・下にネクサス、相手はその点対称。スピリットの横の列に、バースト・ライフ・リザーブを下端（相手は上端）に寄せて縦に並べる
+       （バーストだけだと列の上下が空いていた。2026-11-25 ユーザー案）。バーストはネクサスの行の中にあるので display: contents でほどく */
+    .field-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        /* 行の間の隙間は行の高さに含める（隙間を増やすと全体が伸び、375×667 で下がはみ出した） */
+        grid-template-rows: minmax(0, 1fr) auto auto auto calc(var(--nexus-h) + 2px) calc(var(--info-h) + 2px);
+        grid-template-areas: ". spirits" "burst spirits" "life spirits" "reserve spirits" "nexus nexus" ". .";
+        height: calc(var(--zone-h) + var(--nexus-h) + var(--info-h) + 4px);
+        gap: 0 6px;
+        position: relative;
+        min-height: 0;
+        align-items: center;
+    }
+    #opponent-area .field-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: calc(var(--info-h) + 2px) calc(var(--nexus-h) + 2px) auto auto auto minmax(0, 1fr);
+        grid-template-areas: ". ." "nexus nexus" "spirits reserve" "spirits life" "spirits burst" "spirits .";
+    }
+    .field-row > .nexus-row { display: contents; }
+    .field-row .burst-zone { grid-area: burst; }
+    .field-row .nexus-zone { grid-area: nexus; align-self: end; }
+    #opponent-area .field-row .nexus-zone { align-self: start; }
+    .field-row > .spirit-zone { grid-area: spirits; }
+    .burst-zone .burst-slot,
+    #opp-burst .burst-slot.burst-revealed { width: var(--card-w); height: auto; aspect-ratio: 675 / 985; }
+    /* 伏せていないときは細くして、スピリットの行に幅を回す */
+    .burst-zone .burst-slot.burst-empty { width: var(--card-w); height: 24px; aspect-ratio: auto; font-size: 0; }
+    .burst-empty::before { content: "B"; font-size: 11px; }
+
+    /* ライフ・リザーブ・デッキ・トラッシュは PC と同じ枠（ui/mat.ts）を小さくして、情報の行の右に並べる。
+       幅は固定（右端から トラッシュ64・デッキ60・リザーブ68・ライフ68）。コアは1行5個で折り返すので、10個で2行に収まる */
+    .field-row > .mat-box {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-sizing: border-box;
+        height: var(--info-h);
+        min-height: 0;
+        padding: 2px 4px;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    #player-area .field-row > .mat-box { bottom: 0; }
+    #opponent-area .field-row > .mat-box { top: 0; }
+    /* トラッシュは押すと中身が開く。押せると分かるよう、枠を青くして右端に「›」を出す（2026-11-25 ユーザー指摘） */
+    .field-row > [id^="mat-trash"] { right: 0; width: 76px; padding-right: 14px; cursor: pointer; border-color: var(--accent); background: rgba(59, 130, 246, 0.08); }
+    .field-row > [id^="mat-trash"]::after { content: "›"; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 18px; line-height: 1; color: var(--accent-hover, #60a5fa); }
+    .field-row > [id^="mat-deck"] { right: 80px; width: 60px; }
+    /* ライフ・リザーブはスピリットの横の列（バーストの下）に置く。幅がカード1枚ぶんなので、コアの丸印は出さず「ライフ 5」の1行 */
+    .field-row > [id^="mat-life"].mat-box, .field-row > [id^="mat-reserve"].mat-box { position: static; width: var(--card-w); height: auto; padding: 3px; }
+    .field-row > [id^="mat-life"] { grid-area: life; margin-top: 2px; }
+    #opponent-area .field-row > [id^="mat-life"] { margin: 0 0 2px; }
+    .field-row > [id^="mat-reserve"] { grid-area: reserve; margin-top: 2px; }
+    #opponent-area .field-row > [id^="mat-reserve"] { margin: 0 0 2px; }
+    /* ライフは見出しとコアの絵（列の上の空きを使う。数字は出さない）、リザーブは見出しなしでコア1個の絵と「×N」（2026-11-25 ユーザー案） */
+    [id^="mat-life"].mat-box .mat-n { display: none; }
+    /* 実際のゲームのライフと同じく、1段に3個まで（5個なら上3・下2）。2026-11-25 ユーザー指摘 */
+    [id^="mat-life"].mat-box .mat-cores { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; max-width: calc(3em + 2px); margin: 0 auto; font-size: 13px; min-height: 0; }
+    [id^="mat-life"].mat-box .mat-cores .core-icon { width: 1em; margin: 0; }
+    [id^="mat-reserve"].mat-box .mat-cores { display: none; }
+    [id^="mat-reserve"].mat-box .mat-head { flex-wrap: nowrap; justify-content: center; align-items: center; }
+    [id^="mat-reserve"].mat-box .mat-head > span:first-child { display: none; }
+    [id^="mat-reserve"].mat-box .mat-n { font-size: 14px; line-height: 16px; white-space: nowrap; }
+    [id^="mat-reserve"].mat-box .mat-n::before { content: "×"; padding-left: 12px; font-size: 11px; background: url(/imgs/ui/core.png) left center / 11px no-repeat; }
+    /* 手元は、カードがあるときだけ出る小さな欄（ui/mat.ts）。押すと手元の欄（#tegamoto-panel）が開く。
+       出ているときは、トラッシュの幅を詰めて場所を作り、情報の行を狭める */
+    .field-row > #mat-tegamoto-self.mat-box,
+    .field-row > #mat-tegamoto-opp.mat-box { display: flex; right: 0; width: 36px; cursor: pointer; }
+    .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-trash"] { right: 40px; width: 52px; padding: 2px 3px; }
+    .field-row:has(> [id^="mat-tegamoto"].mat-box) > [id^="mat-deck"] { right: 96px; }
+    .player-area:has(.field-row > [id^="mat-tegamoto"].mat-box) .player-info { width: calc(100% - 160px); }
+    #btn-my-tegamoto, #btn-opp-tegamoto { display: none !important; }
+    .mat-box .mat-head { position: static; gap: 4px; justify-content: flex-start; font-size: 9px; line-height: 11px; }
+    .mat-box .mat-head > span:first-child { background: none; padding: 0; }
+    /* 枠が狭いので、見出しと数を1語ずつ折らずに、入らなければ数を次の行へ送る（「デッ／キ」と割れていた） */
+    .mat-box .mat-head { flex-wrap: wrap; row-gap: 0; }
+    .mat-box .mat-head > span { white-space: nowrap; }
+    .mat-box .mat-n { background: none; padding: 0; font-size: 12px; line-height: 11px; }
+    .mat-box.mat-life .mat-n { font-size: 14px; }
+    .mat-box .mat-cores { gap: 1px; font-size: 10px; min-height: 0; max-width: 56px; }
+    .mat-box .mat-cores .mat-core-count { font-size: 10px; }
+    .mat-box .mat-half { font-size: 8px; line-height: 10px; padding: 0; }
+    .mat-box .mat-half + .mat-half { border-top: none; }
+
+    /* 場のカードは体数・画面の大きさで大きさを変えない（--card-w。手札と同じ48px）。召喚のたびに全部のカードが縮むと画面が揺れ、
+       大きい画面で大きくすると手札と釣り合わなかった（2026-11-24 ユーザー決定）。画面が高いぶんは欄（--zone-h）を高くして、段を増やせるようにする。
+       並べ方は ui/spiritLayout.ts が実際の幅を測って data-rows に入れる："1"〜"N"＝その段数（個数で均等。相手側は段の順が逆で、先頭の段が中央寄り）、
+       "vscroll"＝入る段数で入らないとき。段は自然に折り返し、欄の中を縦にスクロールする（2026-11-25 ユーザー決定。以前は重ねて1段の横スクロール）。
+       --pf は絵やコストバッジがはみ出す側の余白、--pn は反対側。--br-top は合体ブレイヴの絵を段の上へ出してよい量。段は中央の帯の側から詰める */
+    .spirit-zone {
+        --sp-w: var(--card-w);
+        --sp-h: calc(var(--sp-w) * var(--sp-h-ratio));
+        --pf: 6px;
+        --pn: 0px;
+        --br-top: 2px;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        align-items: flex-start;
+        gap: 0 6px;
+        height: var(--zone-h);
+        min-height: 0;
+        padding: var(--pf) 6px var(--pn);
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    #opponent-area .spirit-zone { padding: var(--pn) 6px var(--pf); flex-wrap: wrap-reverse; }
+    /* 段の間は .sp-break の高さで取る（改行用の要素も1行として数えられ、row-gap を使うと2回入るため） */
+    .spirit-zone[data-rows="vscroll"] { overflow-x: hidden; overflow-y: auto; row-gap: 2px; overscroll-behavior: contain; scrollbar-width: none; }
+    /* 相手側は中央の帯に近い下の段から見せる（spiritLayout が下までスクロールする）。wrap-reverse だと上へあふれた段にスクロールで届かない */
+    #opponent-area .spirit-zone[data-rows="vscroll"] { flex-wrap: wrap; }
+    /* 隠れているカードの数。上に隠れている数は上端、下に隠れている数は下端に貼りつける（ui/spiritLayout.ts の markHidden）。
+       札は場所を取らない（負の余白）。取ると、スクロールで札が出入りするたびにカードの位置がずれる */
+    .spirit-zone[data-above]::before,
+    .spirit-zone[data-below]::after {
+        position: sticky; flex: 0 0 100%; z-index: 6; height: 18px;
+        text-align: center; font-size: 11px; line-height: 18px; color: #fff; background: rgba(15, 17, 22, 0.85); pointer-events: none;
+    }
+    .spirit-zone[data-above]::before { content: "▲ あと" attr(data-above) "体"; top: 0; order: -1; margin-bottom: -18px; }
+    .spirit-zone[data-below]::after { content: "▼ あと" attr(data-below) "体"; bottom: 0; order: 9999; margin-top: -18px; }
+    .spirit-zone > .sp-break { flex: 0 0 100%; height: 2px; }
+    .spirit-zone .card {
+        width: var(--sp-w);
+        height: auto;
+        aspect-ratio: 675 / 985;
+        flex: 0 0 auto;
+        margin: 0;
+        padding: 2px;
+    }
+    /* 合体したブレイヴは、ホストの右へ半分はみ出す。絵は段の中（上へ --br-top まで）に収める。右斜め上の見せ方は PC より浅い */
+    .spirit-zone .card.has-brave { margin-right: calc(var(--sp-w) / 2 + 3px); }
+    #opponent-area .spirit-zone .card.has-brave { margin-right: 0; margin-left: calc(var(--sp-w) / 2 + 3px); }
+    /* ブレイヴ2枚：重ねずに上下に同じ高さで並べる（どちらかを上にすると下の1枚がほとんど隠れた。2026-11-25 ユーザー案）。
+       境界はそれぞれの色の縁で分かる。2枚の高さの合計を1枚のときと同じにする（高くするとスピリットの Lv・BP にかかった）。
+       絵はイラストの真ん中を切り取る（-95% はイラストの中心を枠の中心に合わせる値）。幅は1枚のときと同じなので、右の余白も同じ */
+    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .brave-combined-box:has(> .brave-combined:nth-child(2)) > .brave-combined.has-brave-art { position: relative; left: 0; top: 0; aspect-ratio: 295 / 115; }
+    :root:is([data-brave="art"], [data-brave="full"]) .spirit-zone .brave-combined-box:has(> .brave-combined:nth-child(2)) > .brave-combined.has-brave-art > .brave-art { top: -95%; }
+    :root[data-brave] .spirit-zone .brave-combined-box:has(> .has-brave-art) { top: calc(var(--br-top) * -1); }
+    :root[data-brave] .spirit-zone .brave-combined.has-brave-art { max-height: calc(var(--sp-h) + var(--br-top)); }
+    :root[data-brave] .spirit-zone:has(.has-brave-art) { padding-top: var(--pf); }
+    :root[data-brave] #opponent-area .spirit-zone:has(.has-brave-art) { padding-top: var(--pn); }
+    /* 疲労は元の大きさのまま90度回し、回った幅（縦長の高さ）と実際の幅の差を左右に空ける。縮めると Lv・BP が読みにくかった（2026-11-25 ユーザー判断：縮めず、入りきらない分は縦スクロール）。
+       絵のないカードも回るので同じ余白を取る */
+    .spirit-zone .card.rested:not(.heavy-rested),
+    .spirit-zone .card[data-side="opp"].rested:not(.heavy-rested) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2); margin-right: calc((var(--sp-h) - var(--sp-w)) / 2); }
+    /* 合体中の疲労：ブレイヴの絵は立てたまま、横倒しのスピリットの右（相手は左）に半分重ねて並べる。カードと一緒に回すと横倒しで下の段へはみ出した。
+       枠をカードの左上に置いて逆向きに90度回すと、カードの回転と打ち消し合って、見た目ではスピリットの右上（相手は点対称で左下）に立つ。上からの位置＝重ねる幅（カードの幅の1割。375×667 では2割でも能力値の文字にかかった。横倒しでは重なる所に BP の数字が来るので、立っているとき（約30px）より浅くする）。
+       回すと重なり順が DOM の順になり、後ろにあるスピリットの絵・能力値（z-index 1）がブレイヴの上に来たので、その上（コスト・コアの印 10 より下）に置く */
+    :root .spirit-zone .card.rested:not(.heavy-rested) > .brave-combined-box { left: 0; right: auto; top: calc(var(--sp-w) * 0.1); bottom: auto; transform-origin: 0 0; transform: rotate(-90deg); z-index: 2; }
+    /* 能力値（Lv・BP・コア）はブレイヴの絵より上に描く（重なり方によってはブレイヴが Lv を隠した。2026-11-25 ユーザー指摘）。コスト・コアの印（10）より下 */
+    .spirit-zone .card.has-brave > .card-overlay { z-index: 3; }
+    #player-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-right: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) * 0.9 + 3px); }
+    #opponent-area .spirit-zone .card.rested.has-brave:not(.heavy-rested) { margin-left: calc((var(--sp-h) - var(--sp-w)) / 2 + var(--sp-w) * 0.9 + 3px); margin-right: calc((var(--sp-h) - var(--sp-w)) / 2); }
+
+    .spirit-zone .card .name, .nexus-zone .card .name { margin: 0; font-size: 8px; max-width: none; }
+
+    .nexus-zone {
+        flex-wrap: nowrap;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 6px;
+        height: var(--nexus-h);
+        min-height: 0;
+        min-width: 0;
+        padding: 8px 6px 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    #opponent-area .nexus-zone { padding: 0 6px 8px; }
+    /* 高さは PC のネクサス（68×78）と同じ縦横比。行の高さ（63px）は、この高さ55pxと上のコストバッジのはみ出し8pxの合計 */
+    .nexus-zone .card { width: var(--nexus-w); height: auto; aspect-ratio: 68 / 78; flex: 0 0 auto; margin: 0; padding: 1px; }
+
+    /* Lv・BP・コアは1行ずつ・見出しなしで下の帯に載せ、シンボルは右上の小さな印にする（右下だとコアの文字に重なった） */
+    .stat-label { display: none; }
+    .spirit-zone .card.has-art > .card-overlay { top: 40%; padding: 1px 2px 2px; }
+    .nexus-zone .card.has-art > .card-overlay { top: 25%; padding: 1px 2px 2px; }
+    .spirit-zone .card.has-art > .card-overlay .stats,
+    .spirit-zone .card.has-art > .card-overlay .cores,
+    .nexus-zone .card.has-art > .card-overlay .stats,
+    .nexus-zone .card.has-art > .card-overlay .cores { font-size: 10px; line-height: 1.15; }
+    .spirit-zone .card.has-art > .card-overlay .stat-bp { font-size: 11px; }
+    /* シンボルの位置は PC と同じ右下のまま（2026-11-24 ユーザー「変えないでほしい」）。スマホは見出し（BP・コア）を出さないので数字と重ならない */
+    .spirit-zone .symbols, .nexus-zone .symbols { gap: 1px; }
+    /* ネクサスのシンボルはカードの内側の右下に置く。外へ 4px はみ出すと、下の名前・ライフの行に重なった（2026-11-25 ユーザー指摘） */
+    .nexus-zone .symbols { bottom: 1px; right: 1px; }
+    .spirit-zone .sym-icon, .nexus-zone .sym-icon { width: 11px; height: 11px; }
+
+    /* カードの操作ボタンはカードに付けず、画面下の欄（#card-dock。ui/cardDock.ts）に出す（ui/fieldCard.ts の offer）。
+       カードの下端に残るのは支払い中の個数の表示（.pay-badge）だけ */
+    #game .card-actions { top: auto; bottom: 2px; margin: 0; }
+    #game .pay-badge { position: static; min-width: 0; padding: 1px 4px; font-size: 9px; }
+    .spirit-zone .card:has(> .card-actions),
+    .nexus-zone .card:has(> .card-actions) { margin-bottom: 0; }
+    .card.dock-selected { outline: 2px solid var(--accent-hover); outline-offset: -3px; }
+
+    /* 手札は場のスピリットと同じ大きさ（48px・カードの縦横比）で1行。押すと下の欄（#card-dock）に大きな絵と操作ボタンが出る。
+       欄は画面の下端に固定で手札の上に重なるので、行の高さは手札1枚分だけ。手札が0枚でも、召喚・破棄で画面が上下にずれないよう高さは残す（2026-11-24 ユーザー指摘で 96px から詰めた） */
+    .my-hand-area { position: relative; min-height: calc(var(--hand-w) * var(--sp-h-ratio)); }
+    #hand { scrollbar-width: none; flex-wrap: nowrap; overflow-x: auto; padding-top: 0; min-width: 0; gap: 4px; align-items: flex-start; }
+    #hand .card { flex: 0 0 auto; width: var(--hand-w); height: auto; aspect-ratio: 675 / 985; padding: 2px; font-size: 8px; }
+    #hand .card .name { margin: 0; font-size: 8px; }
+    #hand .card:not(.has-art) .stats { display: none; }
+    #hand .hand-ability-badge, #hand .burst-set-badge.disabled { display: none; }
+    /* 場のコアも使えば出せるカードは、下端に「盤面コア」の帯を出す。点線の枠だけでは、リザーブで出せるカードと見分けがつかなかった（2026-11-25 ユーザー指摘）。
+       上端はコストの丸と重なる。「必要」まで入れると 42〜47px の手札に収まらないので削った。バーストの帯があるときはその上に積む */
+    #hand .field-req-badge { top: auto; bottom: 0; left: 0; right: 0; transform: none; height: 14px; padding: 0; font-size: 0; line-height: 14px; text-align: center; border-radius: 0 0 4px 4px; box-shadow: none; }
+    #hand .card:has(> .burst-set-badge:not(.disabled)) > .field-req-badge { bottom: 14px; border-radius: 0; }
+    #hand .field-req-badge::before { content: "盤面コア"; font-size: 9px; }
+    /* バーストとしてセットできるカードは、下端に細い「バースト」の帯を明るく出す。コストが足りないマジックはカードが暗くなり、セットできることを見落とした（2026-11-25 ユーザー指摘）。
+       押すと下の欄が開くので、帯自体は押せないようにする（欄の「バーストをセット」で選ぶ） */
+    #hand .burst-set-badge { min-height: 0; height: 14px; padding: 0; font-size: 0; pointer-events: none; border-radius: 0 0 4px 4px; }
+    #hand .burst-set-badge::before { content: "バースト"; font-size: 9px; line-height: 14px; }
+    /* 同じカードの枚数（x2）はカードの内側の右上に置く。PC と同じく下端の外へ 6px はみ出すと、横スクロールの手札が縦にも動いた（2026-11-25 ユーザー指摘）。
+       下端はバースト・盤面コアの帯、左上はコストの丸が使っている */
+    #hand .count-badge { top: 1px; right: 1px; bottom: auto; padding: 0 4px; font-size: 9px; line-height: 14px; }
+    /* 画面の右下に固定し、手札の右に縦1列で出す（#board 基準だと場の下端＝相手の場の上に来て重なった） */
+    #action-buttons-container {
+        position: fixed;
+        bottom: calc(8px + env(safe-area-inset-bottom));
+        right: 8px;
+        top: auto;
+        transform: none;
+        width: var(--action-col-width);
+        max-height: 140px;
+        overflow-y: auto;
+    }
+    /* 選択肢（召喚の Lv・置くコアの数・効果の選択肢など）が出ている間は、右の細い列ではなく画面の下に横幅いっぱいで2列に並べる。
+       細い列では「Lv1 (1コア・フィールドから取得)」が3行に折れて列が伸び、決定のボタンが画面の外に出た（2026-11-24 点検）。下側なので片手で押せる */
+    #action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) {
+        left: 8px;
+        width: auto;
+        max-height: 55dvh;
+        padding: 6px;
+        background: var(--bg-panel);
+        border: 1px solid #444;
+        border-radius: 10px;
+        box-shadow: 0 -4px 14px #000a;
+    }
+    #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > :is(#choice-options, #choice-counter) { grid-column: 1 / -1; }
+    #choice-options:not(.hidden) { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    #choice-options > .stepper-row { grid-column: 1 / -1; }
+    /* 2列の最後に1つだけ余ったボタン（決定・召喚など）と、選択肢の外のボタン（対象選択をやめる・選ばない）は横幅いっぱいにする（右に空きを残さない） */
+    #choice-options > button:last-child:is(:nth-child(odd), .stepper-row + button),
+    #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > button { grid-column: 1 / -1; }
+    /* オープン中・破棄したカードの欄は、いつも上（上の行の下）に出す。下だと選択肢に隠れて選ぶ元のカードが見えず、選ぶ間だけ上へ移していたが、
+       選び終えると欄が下へ飛び、相手のデッキの破棄が自分の側にもう一度出たように見えた（2026-11-25 ユーザー指摘） */
+    #reveal-panel, #mill-panel { top: 44px; bottom: auto; transform: none; }
+    /* マジックの効果などの通知（#event-layer。盤面の上から60px）は欄（上の行の下から約140px）と重なるので、欄の下へずらす */
+    body:has(#reveal-panel, #mill-panel) #event-layer { top: 154px; }
+    #choice-options > button { min-height: 44px; }
+    /* 召喚・配置の支払い（①コスト／②置くコア）。シート全体を1つの項目として横幅いっぱいに置き、中は自前で並べる。ボタンは44px以上、はみ出すときはシートの中でスクロール */
+    /* 支払いのシートは中で別にスクロールさせない（外の欄と二重にスクロールし、下端に固定した 召喚／配置 のボタンが外の欄の外に隠れた）。
+       外の欄（#action-buttons-container）を少し高くして、その中でスクロールさせる。押し方の説明文は画面の文字で分かるので出さない */
+    /* PC 用の枠（style.css の幅300px・背景・枠線）は外の欄と二重になるので外す */
+    #choice-options > .pay-sheet { grid-column: 1 / -1; font-size: 14px; width: auto; padding: 0; background: none; border: none; box-shadow: none; }
+    /* 「リザーブから n 個（残り m）」は長いので、文字は折り返して −／＋ を欄の内側に収める（はみ出していた） */
+    #choice-options .pay-sheet .stepper-row > .stepper-value { flex: 0 1 auto; min-width: 0; white-space: normal; }
+    /* シートを出している間は、帯の ≡ を隠す（シートの下に重なって押せないのに残っていた） */
+    #game:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) #btn-status-menu { visibility: hidden; }
+    #action-buttons-container:has(#choice-options .pay-sheet) { max-height: 75dvh; }
+    /* 「対象選択をやめる」はシートの一番下に置く（上に置くと、背の高いシートで画面の上の方になり片手で届かなかった） */
+    #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > #btn-cancel-target { order: 99; }
+    #choice-options .pay-hint:not(.pay-no-reserve) { display: none; }
+    #choice-options .pay-no-reserve { text-align: center; }
+    .display-settings .mobile-only { display: block; }
+
+    /* 操作の寄せ（⚙ 表示。<html data-hand>）：下に出る選択肢・支払い・メニューのシートを、親指が届く幅で中央・左・右に寄せる（2026-11-25 ユーザー案。既定は中央） */
+    :root { --sheet-w: min(360px, calc(100vw - 16px)); }
+    #action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)),
+    #status-bar.menu-open #status-menu { width: var(--sheet-w); left: 50%; right: auto; transform: translateX(-50%); }
+    :root[data-hand="left"] :is(#action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)), #status-bar.menu-open #status-menu) { left: 8px; transform: none; }
+    :root[data-hand="right"] :is(#action-buttons-container:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)), #status-bar.menu-open #status-menu) { left: auto; right: 8px; transform: none; }
+    /* 手元の欄は画面幅いっぱいなので、左寄せのときは中の並びを左右反転する（× を左手の親指側に置く） */
+    :root[data-hand="left"] #card-dock:not(.hidden) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "name name art" "close buttons art"; }
+    /* ≡ の位置（<html data-menuside>）。左なら中央の帯の左端に置き、案内はその右側に出す */
+    :root[data-menuside="left"] #center-info-area > #btn-status-menu { right: auto; left: 4px; }
+    :root[data-menuside="left"] #center-info-area { padding-right: 8px; padding-left: 52px; }
+    #choice-options .pay-sheet button { min-height: 44px; }
+    /* 中がスクロールしても、次へ・戻る・召喚／配置のボタンはシートの下端に見えたままにする（スクロールの先に隠れていた） */
+    #choice-options .pay-nav { position: sticky; bottom: 0; background: var(--bg-panel); padding-top: 4px; z-index: 1; }
+    #choice-options .pay-levels, #choice-options .pay-tools, #choice-options .pay-nav { flex-direction: row; flex-wrap: wrap; }
+    #choice-options .pay-levels > button, #choice-options .pay-tools > button { flex: 1 1 45%; }
+    #choice-options .pay-nav > button { flex: 1 1 100%; }
+    #choice-options .pay-nav > button:first-child:not(:last-child) { flex: 1 1 30%; }
+    #choice-options .pay-nav > button:last-child:not(:first-child) { flex: 2 1 60%; }
+    #choice-options .pay-field-row > button { width: 64px; min-height: 44px; }
+    #action-buttons { flex-direction: column; gap: 6px; }
+    /* 召喚・使用の途中（支払い・対象選択など「対象選択をやめる」が出ている間）と、下の欄を開いている間は、アタックステップへ・ターン終了を出さない。
+       その場で押す場面がなく、狭い画面で欄や支払いのボタンの場所を取っていた（2026-11-24 ユーザー指摘） */
+    #game:has(#btn-cancel-target:not(.hidden), #card-dock:not(.hidden)) :is(#btn-attack-phase, #btn-end-turn) { display: none; }
+    #action-buttons button { padding: 8px 6px; font-size: 13px; width: 100%; white-space: normal; }
+    /* 増減式の選択（置くコアの数など）。選択肢は画面下の横幅いっぱいに出すので「− 文面 ＋」を1行に並べ、−／＋ は押しやすい大きさにする
+       （右の細い列に並べていたときは文面が −／＋ に重なって読めなかった。2026-11-24 ユーザー指摘） */
+    /* −／＋ は数のすぐ両側にまとめて中央に寄せる。端と端に離すと、片手の親指で左右に大きく動かすことになった（2026-11-25 ユーザー指摘） */
+    #choice-options .stepper-row { gap: 8px; justify-content: center; }
+    #choice-options .stepper-row > .stepper-value { flex: none; min-width: 7.5em; text-align: center; white-space: nowrap; font-size: 14px; }
+    #choice-options .stepper-row > button { flex: none; width: 64px; min-height: 44px; font-size: 20px; }
+
+    /* 画面の下端に固定して、手札の上に重ねる（開いている間は手札が隠れる）。ページが画面より高くても、下が見切れて「召喚」が半分になることがない（2026-11-24 iPhone SE で確認）。
+       大きな絵・カード名・操作ボタン（高さ44px以上）を出す。時間では消えず、欄の外を押すか × で閉じる。
+       × は角ではなくボタンの行の右隣に置く（右上の角は親指が届きにくい。2026-11-25 ユーザー指摘） */
+    #card-dock:not(.hidden) {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-rows: auto auto;
+        grid-template-areas: "art name name" "art buttons close";
+        align-content: center;
+        align-items: center;
+        column-gap: 8px;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: calc(var(--action-col-width) + 8px);
+        padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+        background: var(--bg-panel);
+        border: 1px solid #444;
+        border-radius: 8px;
+        z-index: 130;
+    }
+    /* 右の操作ボタンが1つも出ていないときは、欄を画面の右端まで広げる */
+    #game:not(:has(#action-buttons > :not(.hidden, #btn-attack-phase, #btn-end-turn))) #card-dock:not(.hidden) { right: 0; }
+    #card-dock-zoom { grid-area: art; position: relative; padding: 0; border: 0; background: none; min-height: 0; }
+    #card-dock-zoom:not([hidden]) { display: block; }
+    #card-dock-art { display: block; height: 82px; aspect-ratio: 675 / 985; border-radius: 6px; }
+    /* 絵を押すと大きく出せることを示す札 */
+    #card-dock-zoom .dock-zoom-label { position: absolute; right: 2px; bottom: 2px; padding: 0 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.5); color: #fff; font-size: 10px; line-height: 15px; }
+    #card-dock-name { grid-area: name; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #card-dock-name .dock-pay-info { display: block; font-weight: 400; font-size: 11px; color: var(--text-muted, #9aa3b2); white-space: normal; }
+    #card-dock-close { grid-area: close; align-self: end; min-width: 44px; min-height: 44px; margin-top: 6px; font-size: 18px; line-height: 1; }
+    #card-dock-buttons { grid-area: buttons; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; overflow: hidden auto; max-height: 80px; }
+    /* 折り返した行の右に空きが残らないよう、行ごとにボタンを横へ伸ばして埋める（2026-11-24 ユーザー指摘：「− Lv1 Lv3 ＋」の右が空いていた） */
+    #card-dock-buttons button {
+        flex: 1 0 auto;
+        min-width: 44px;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-height: 44px;
+        padding: 0 12px;
+        font-size: 14px;
+        border-radius: 8px;
+        background: var(--bg-main);
+        border: 1px solid #666;
+        color: var(--text-main);
+    }
+    #card-dock-buttons button:disabled { opacity: 0.4; }
+
+    /* カードの効果の吹き出しは、押したカードの近くで、下の欄（最大約140px）と操作ボタンより上に出す（位置は ui/tooltip.ts の DOCK_RESERVE）。入らなければ中を縦にスクロール */
+    /* 長押ししたときだけカードの絵を一番上に大きく出し、画面の真ん中に置く（ui/tooltip.ts の touch-art。2026-11-25 ユーザー要望）。
+       タップでは絵を出さない（絵の分だけ高くなり、押したカードの近くに置けない）。絵は効果文が少し見える高さまでに抑え、残りは中をスクロールする */
+    #effect-tooltip.with-art { display: block; width: min(360px, calc(100vw - 24px)); max-width: none; }
+    /* 吹き出しの中は指でスクロールでき、押すと閉じる（ui/tooltip.ts）。以前は指の操作を受けず、長い効果文の下の方が読めなかった（2026-11-25 プレイヤーの感想） */
+    #effect-tooltip { pointer-events: auto; overscroll-behavior: contain; }
+    #effect-tooltip .hover-art { width: min(260px, 70vw, calc((100dvh - 220px) * 675 / 983)); margin: 0 auto 10px; }
+    #effect-tooltip { max-height: calc(100dvh - 160px - env(safe-area-inset-bottom)); }
+}
+
+/* 背の低い画面（iPhone SE は CSS 高さ667px、Safari で実際に見える高さは約553px）。スピリットの欄を150→122pxにして、2段のカード幅は欄に収まる幅（約40px。Lv・BP・コアが読める下限の目安）、
+   ネクサス・情報の行・手札も詰め、375×553 で縦スクロールが出ないようにする。幅の判定（ui/spiritLayout.ts）は測った幅を使うので変えていない。
+   標準の値は、375×667 以上（高さ667px以上）でスピリットの絵を大きく保つため、そのまま（667px で境にしたのは、375×667 の見た目を変えないため）。1段と2段で欄の高さは同じ。
+   カードの幅は .spirit-zone の --sp-w が欄の高さ（--zone-h）から逆算するので、ここでは欄の高さだけ変える */
+@media (max-width: 768px) and (max-height: 666px) {
+    :root { --zone-h: 122px; --nexus-h: 54px; --info-h: 36px; --hand-w: 42px; --nexus-w: 40px; --card-w: 38px; }
+    /* 列がカード1枚（38px）ぶんしかないので、ライフ・リザーブは見出しと数を2行に分ける（1行だと数が欄の端で切れた） */
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box { padding: 2px 1px; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-head { flex-direction: column; align-items: center; font-size: 8px; line-height: 9px; }
+    :is([id^="mat-life"], [id^="mat-reserve"]).mat-box .mat-n { font-size: 13px; line-height: 13px; }
+    .player-area { padding-top: 2px; padding-bottom: 2px; }
+    #status-bar { padding: 2px 8px; }
+    #center-info-area { height: 18px; }
+}
+/* SE（高さ666px以下）は列の上に空きが無いので、ライフもリザーブと同じ「コア1個の絵と ×N」にする（コアの絵を並べると列が欄より高くなった）。
+   375×667 はバーストの上の空きにコアの絵が入る（2026-11-25 ユーザー案） */
+@media (max-width: 768px) and (max-height: 666px) {
+    [id^="mat-life"].mat-box .mat-cores { display: none; }
+    [id^="mat-life"].mat-box .mat-n { display: inline; font-size: 13px; line-height: 13px; white-space: nowrap; }
+    [id^="mat-life"].mat-box .mat-n::before { content: "×"; padding-left: 12px; font-size: 11px; background: url(/imgs/ui/core.png) left center / 11px no-repeat; }
+}
+/* 375×667 前後は列の上の空きが小さいので、ライフのコアの絵を少し小さくして2段に収める */
+@media (max-width: 768px) and (min-height: 667px) and (max-height: 760px) {
+    [id^="mat-life"].mat-box .mat-cores { font-size: 11px; }
+}
+/* 背の低い画面はカードが小さく（375×667 で47px）、ブレイヴを右半分に重ねると Lv・BP の文字にかかった。重ねるのは右端の2割にし、そのぶん右を空ける */
+@media (max-width: 768px) and (max-height: 700px) {
+    :root[data-brave] .spirit-zone .card:not(.rested) > .brave-combined-box:has(> .has-brave-art) { left: calc(100% - var(--sp-w) * 0.2); }
+    .spirit-zone .card.has-brave:not(.rested) { margin-right: calc(var(--sp-w) * 0.8 + 3px); }
+    #opponent-area .spirit-zone .card.has-brave:not(.rested) { margin-right: 0; margin-left: calc(var(--sp-w) * 0.8 + 3px); }
+}
+/* SE（カード38px）は BP の数字がカードの幅いっぱいになるので、ブレイヴは重ねずに右へ並べる */
+@media (max-width: 768px) and (max-height: 666px) {
+    :root[data-brave] .spirit-zone .card:not(.rested) > .brave-combined-box:has(> .has-brave-art) { left: calc(100% + 2px); }
+    .spirit-zone .card.has-brave:not(.rested) { margin-right: calc(var(--sp-w) + 5px); }
+    #opponent-area .spirit-zone .card.has-brave:not(.rested) { margin-right: 0; margin-left: calc(var(--sp-w) + 5px); }
+}

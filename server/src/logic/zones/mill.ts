@@ -13,7 +13,7 @@ import { resolveMagicEffects } from "../triggers"
 import { fireFieldEventTriggers, fireNexusDeployed } from "../fieldEventTriggers"
 import { effectSources, deckMillBlockedByRule, isEndStepLocked, timedPlayerRules, trashCardEffectsDisabled, trashFrozen } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
-import { recordPlayerRule, resolveAction } from "../EffectModules"
+import { emitEvent, recordPlayerRule, resolveAction } from "../EffectModules"
 
 // globalConstraint "millCap"（BS05エターナルシールド）：pid自身のeffectSources（フィールド＋
 // このターンの仮想発生源。lendSelfThisTurnで貸与可）を走査し、レベル有効な millCap のうち
@@ -136,8 +136,11 @@ function millBlockReason(state: GameState, pid: PlayerId, byOpponent: boolean): 
 }
 
 // 破棄した枚数をターンの累計に足す。millDeck を通らない破棄（効果のコストなど）もここで数える
-export function noteMilled(state: GameState, pid: PlayerId, n: number, actorPid: PlayerId | undefined, sourceType: CardType | undefined): void {
+export function noteMilled(state: GameState, pid: PlayerId, cardIds: string[], actorPid: PlayerId | undefined, sourceType: CardType | undefined): void {
+    const n = cardIds.length
     if (n <= 0) return
+    // デッキを破棄する経路（効果・コスト・ライフの身代わり）はすべてここを通るので、画面への知らせもここで1回出す
+    emitEvent(state, { type: "mill", pid, cardIds: [...cardIds] })
     state.millCountThisTurnMutual[pid] = (state.millCountThisTurnMutual[pid] ?? 0) + n
     if (actorPid === undefined || actorPid === pid) return
     for (const r of recordedMillCaps(state, pid, sourceType)) r.used = (r.used ?? 0) + n
@@ -228,7 +231,7 @@ export function millDeck(
     const actual = milled.length
     recordMoved(state, milled)
     // mutual版の累計は誰が引き起こしたかを問わず加算する（既存millCountThisTurnはbyOpponent限定のまま別集計）
-    noteMilled(state, pid, actual, actorPid, cause?.sourceType)
+    noteMilled(state, pid, milled, actorPid, cause?.sourceType)
     log(state, `${player.name}のデッキを上から${actual}枚トラッシュへ送った。`)
     // 「相手のデッキを一度に◯枚以上破棄したとき」（アリゲイド）：破棄された側の相手のフィールドから発火する。
     // eventCount には実破棄枚数を渡し、minEventCount で閾値判定する

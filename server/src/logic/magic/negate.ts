@@ -9,7 +9,8 @@ import { magicEffectiveColors } from "../../../../shared/cost"
 import { effectSources, instHasStaticKeyword, isVirtualSource } from "../../../../shared/rules"
 import { canExhaustNexus, exhaustNexus, exhaustSpirit } from "../EffectModules"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
+import { resolveMagicEffects } from "./resolve"
+import { runMagicUsedTriggers } from "./usedTriggers"
 import { isOnceUsed, markOnceUsed } from "../oncePerTurn"
 
 // マジックを無効にできる発生源（kind:"magicNegate"）を、使用者の相手側のフィールドから探す。
@@ -181,11 +182,11 @@ export function applyMagicNegateChoice(
     const found = findMagicNegateSource(state, info.casterPid, card)
     // 確認を出したあとに盤面が変わってコストを払えなくなった場合は、無効化せず通常どおり解決する
     if (!found || found.inst.instanceId !== info.sourceInstanceId) {
-        resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost)
+        resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost, info.triggers)
         return
     }
     payMagicNegate(state, found, card)
-    fireMagicUsedTriggers(state, info.casterPid, card, info.timing, info.paidCost)
+    runMagicUsedTriggers(state, info.casterPid, card, info.triggers)
 }
 
 // pendingChoice（無効化の確認）で「無効にしない」が選ばれたときの後処理。中断していた解決を続ける
@@ -193,5 +194,5 @@ export function declineMagicNegateChoice(
     state: GameState,
     info: NonNullable<PendingChoice["magicNegate"]>,
 ): void {
-    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost)
+    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost, info.triggers)
 }

@@ -2,7 +2,7 @@
 import { summonPayOffOptions, summonCostWithPayOff } from "../../../shared/summonPayOff"
 import type { CardData, Color, GameView } from "../../../server/src/type"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, exSymbolsOfTrashCard } from "../../../shared/cost"
-import { ownHandKeyword, flashSummonFromHandNow, hasKeyword, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds, handSizeOf, payAssistCandidates } from "../../../shared/rules"
+import { ownHandKeyword, flashSummonFromHandNow, hasKeyword, minLevelCores, placedCoresForSummon, summonLevelCostBonus, sokuPayableInstanceIds, handSizeOf, payAssistCandidates } from "../../../shared/rules"
 import { master } from "../renderer"
 
 // 支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
@@ -23,17 +23,21 @@ export function payingIsCostOnly(paying: PayingState): boolean {
     return paying.forBlock !== undefined || paying.forMeisai !== undefined || paying.forAttack !== undefined
 }
 
-// 支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
-export function payingNeed(view: GameView, paying: PayingState): number {
+// 支払いモードで満たすべきコア数を、コスト（①）と置くコア（②）に分けて返す。
+// 2段の画面（payStages.ts）はこの分け方で数える。段の無い支払い（ブロック・迷彩・分離など）は合計を cost 側に置く
+export function payingStageNeeds(view: GameView, paying: PayingState): { cost: number; place: number } {
     const cardId = payingCardId(view, paying)
-    if (cardId === undefined) return 0
-    if (paying.forBlock !== undefined) return paying.forBlock.need
-    if (paying.forAttack !== undefined) return paying.forAttack.need
-    if (paying.forMeisai !== undefined) return paying.forMeisai.need
+    if (cardId === undefined) return { cost: 0, place: 0 }
+    if (paying.forBlock !== undefined) return { cost: paying.forBlock.need, place: 0 }
+    if (paying.forAttack !== undefined) return { cost: paying.forAttack.need, place: 0 }
+    if (paying.forMeisai !== undefined) {
+        const cost = paying.forMeisai.placing === true ? Math.min(paying.forMeisai.costNeed ?? 0, paying.forMeisai.need) : paying.forMeisai.need
+        return { cost, place: paying.forMeisai.need - cost }
+    }
     const card = master(cardId)
     // ブレイヴの分離（§6.3・§6.4）はコストが無く、必要なのは置くコア（スピリット状態のLv1維持コスト）だけ
     if (paying.forDetachBraveInstanceId !== undefined || paying.forBraveKeep !== undefined) {
-        return minLevelCores(card)
+        return { cost: 0, place: minLevelCores(card) }
     }
     // 代替召喚（ネクサスをデッキの下に戻して払う）は召喚コストが0になる
     const exSymbols = exReductionSymbolsFor(view, paying.exReductionTrashIndices)
@@ -44,19 +48,40 @@ export function payingNeed(view: GameView, paying: PayingState): number {
     const maintain =
         card.type === "magic" || paying.braveTargetInstanceId !== undefined
             ? 0
-            : placedCoresForSummon(card, paying.level, { placeSoulCoreFromReserve: paying.placeSoulCore === true })
+            : placedCoresForSummon(card, paying.level, { placeSoulCoreFromReserve: paying.placeSoulCore === true, cores: paying.cores, levelCostBonus: summonLevelCostBonus(view, view.you, card) })
     // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
     const alt = payingAltPay(view, paying)
     // kind:"payAssistByExhaust"（BS16-021）：疲労させたスピリット1体につきeffect.cost分、
     // 召喚コストを肩代わりする（置くコアには使えない）
     const shinsokuDiscount = payingShinsokuAssistDiscount(view, paying)
-    const costAfterDiscounts = Math.max(0, cost - Math.min(alt.used, cost) - shinsokuDiscount)
-    return costAfterDiscounts + maintain
+    return { cost: Math.max(0, cost - Math.min(alt.used, cost) - shinsokuDiscount), place: maintain }
+}
+
+// 支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
+export function payingNeed(view: GameView, paying: PayingState): number {
+    const n = payingStageNeeds(view, paying)
+    return n.cost + n.place
+}
+
+// 2段の画面で、その段にいま積んである数（リザーブ・フィールド・[ソウルコア]）。
+// [ソウルコア]は、コスト支払いに使う／フィールドの個体の上からコストとして使うのは①、維持コアとして置くのは②に数える
+export function payingStageFilled(paying: PayingState, stage: "cost" | "place"): number {
+    const sumOf = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + b, 0)
+    const costField = sumOf(paying.costAssigned ?? {})
+    if (stage === "cost") {
+        return (paying.costReserve ?? 0) + costField + (paying.useSoulCore === true ? 1 : 0) + (paying.soulPayInstanceId !== undefined && paying.soulPayMode !== "maintain" ? 1 : 0)
+    }
+    return (paying.placeReserve ?? 0) + (sumOf(paying.assigned) - costField) + (paying.placeSoulCore === true ? 1 : 0) + (paying.soulPayInstanceId !== undefined && paying.soulPayMode === "maintain" ? 1 : 0)
 }
 
 // 支払いモードでの残り不足コア数（0なら送信可能）
 export function payingRemaining(view: GameView, paying: PayingState): number {
     if (payingCardId(view, paying) === undefined) return 0
+    // 2段の画面は、リザーブの取り分も画面の上で数えているので、段ごとの不足の合計で見る
+    if (paying.step !== undefined) {
+        const n = payingStageNeeds(view, paying)
+        return Math.max(n.cost - payingStageFilled(paying, "cost"), 0) + Math.max(n.place - payingStageFilled(paying, "place"), 0)
+    }
     const need = payingNeed(view, paying)
     const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
     // 案B-inside: reserve の数値には[ソウルコア]が含まれる。使う選択ならそのまま、使わないなら通常コアぶんを差し引く
@@ -86,6 +111,7 @@ export interface PayingState {
     choiceZone?: "hand" | "trash"
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
     level?: number // 召喚レベル指定用
+    cores?: number // 置くコアの数（level より優先）
     substituteInstanceId?: string // 入れ替え召喚の入れ替え元
     braveTargetInstanceId?: string // ダイレクトブレイヴの合体先スピリット（維持コアは置かない）
     altSummonNexusInstanceIds?: string[] // 代替召喚でデッキの下に戻すネクサス（召喚コストは0になる）
@@ -105,10 +131,17 @@ export interface PayingState {
     forAttack?: { instanceId: string; need: number; targetSpiritInstanceId?: string }
     // 支払いの6つ目の起点：**【迷彩：N】のコスト**（PendingChoice.meisaiPay）。起点は指定しようとしている相手のスピリット。
     // resolveChoice（option＋paySources＋paySoulCoreFromReserve）を送る
-    forMeisai?: { option: string; cardId: string; need: number; effectCost?: true; placing?: true } // effectCost：効果の「Nコスト支払う」（PendingChoice.effectCostPay）。表示文言だけ違う。placing：効果による召喚の置くコア（自動でも確定ボタンまで送らない）
+    forMeisai?: { option: string; cardId: string; need: number; effectCost?: true; placing?: true; costNeed?: number; optionIndex?: number } // effectCost：効果の「Nコスト支払う」（PendingChoice.effectCostPay）。表示文言だけ違う。placing：効果による召喚の置くコア（自動でも確定ボタンまで送らない）
     // 手札のマジックのバースト効果を発揮する支払い（handBurstEffectGrant）。マジックの使用ではないので castMagic ではなく useHandBurstEffect を送る
     forHandBurst?: true
-    assigned: Record<string, number> // instanceId -> 割り当てたコア数
+    assigned: Record<string, number> // instanceId -> 割り当てたコア数（2段の画面では①と②の合計。サーバーへはこれを送る）
+    // 召喚・配置の2段の画面（payStages.ts）。step が立っているときだけ2段として扱い、自動送信しない。
+    // ①②は画面の上で分けて数えるだけで、送る形は変えない（②のフィールド取り分 = assigned − costAssigned）
+    step?: "cost" | "place"
+    costAssigned?: Record<string, number>
+    costReserve?: number // ①でリザーブから取った数（[ソウルコア]を除く）
+    placeReserve?: number
+    levelChoosable?: true // ②で Lv／置く数を選べる（通常の召喚・配置。入れ替え・ダイレクトブレイヴ・waiver 配置は固定）
     // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
     discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
     millPay: number // デッキ破棄で払う枚数（BS04栄光の表彰台。ネクサス配置のみ）

@@ -1,11 +1,35 @@
 // フィールドのスピリット・ネクサス1枚の表示（コア・レベル・ボタン）
+import { coreIcon } from "./coreIcon"
 import type { CardInstance, Color, GameView, PlayerId } from "../../../server/src/type"
 import { COLOR_LABELS } from "../../../data/constants"
-import { braveCombineCandidates } from "../../../shared/summon"
-import { attachCardArt } from "../cardArt"
-import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors } from "../../../shared/rules"
+import { braveCombineCandidates, braveExchangeTargets } from "../../../shared/summon"
+import { attachCardArt, cardImageUrl } from "../cardArt"
+import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors, instBaseCost } from "../../../shared/rules"
 import { payingCardId } from "./paying"
 import { master, COLOR_SYMBOLS, levelOf, canBlockAttacker, canAwaken, activatableAbility, UiState, matchesDirectedAttackFilter, $ } from "../renderer"
+
+// スマホはカードの操作ボタンをカードに付けず、下の欄（ui/cardDock.ts）がここから読んで出す。カードに付けて CSS で隠すと、
+// 隠しが #game の中でしか効かず、消滅・破壊の演出でカードを写したときにボタンまで写っていた（2026-11-25 ユーザー指摘）。
+// カードの要素ごとに持つので、描き直すと古い操作は要素と一緒に消える。brave は分離・交換のときの、どのブレイヴか
+// 読み込み時に window を触ると、ブラウザの無い smoke（renderer を読み込む part）が落ちるので、使う時点で判定する
+const mobile = { get matches(): boolean { return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches } }
+export interface DockAction { btn: HTMLButtonElement; brave?: string }
+const dockActions = new WeakMap<HTMLElement, DockAction[]>()
+export function dockActionsOf(card: HTMLElement): DockAction[] {
+    return dockActions.get(card) ?? []
+}
+// PC はカードの上（attach の場所）に付け、スマホは下の欄へ渡す
+function offer(card: HTMLElement, btn: HTMLButtonElement, attach: (b: HTMLButtonElement) => void, brave?: string): void {
+    if (!mobile.matches) {
+        attach(btn)
+        return
+    }
+    dockActions.set(card, [...dockActionsOf(card), brave === undefined ? { btn } : { btn, brave }])
+}
+function offerCoreButtons(card: HTMLElement, btns: HTMLElement, attach: (b: HTMLElement) => void): void {
+    if (mobile.matches) for (const b of btns.querySelectorAll("button")) offer(card, b, () => {})
+    else attach(btns)
+}
 
 export function renderField(
     spiritZoneId: string,
@@ -126,6 +150,11 @@ export function coreButtonsEl(
     return btns
 }
 
+// 数値の前の見出し（BP・コア）。スマホでは幅が足りないので CSS で隠す（シンボルのアイコンと重ならない並びにするため。battle-mobile.css）
+function labelEl(text: string): HTMLElement {
+    return Object.assign(document.createElement("span"), { className: "stat-label", textContent: text })
+}
+
 export function fieldCardEl(
     view: GameView,
     ui: UiState,
@@ -211,6 +240,18 @@ export function fieldCardEl(
                 nameEl.className = "brave-name"
                 nameEl.textContent = braveName
                 row.appendChild(nameEl)
+                // 絵があれば重ねる（見せ方は <html data-brave> で切り替える。読めなければ名前の帯のまま）
+                const artUrl = cardImageUrl(brave.cardId)
+                if (artUrl !== null) {
+                    const art = document.createElement("img")
+                    art.className = "brave-art"
+                    art.alt = ""
+                    art.src = artUrl
+                    art.onload = () => row.classList.add("has-brave-art")
+                    art.onerror = () => art.remove()
+                    if (art.complete && art.naturalWidth > 0) row.classList.add("has-brave-art")
+                    row.appendChild(art)
+                }
                 row.title = `合体中: ${braveName}`
                 // メインステップの任意分離（§6.4）。自分のブレイヴだけ、自分のメインステップに出す
                 if (isMine && myTurn && view.phase === "main" && !view.battle && view.pendingChoice === null) {
@@ -220,7 +261,15 @@ export function fieldCardEl(
                     btn.dataset.detach = brave.instanceId
                     btn.textContent = "分離"
                     btn.title = `分離してスピリット状態にする（コア${need}個が必要）`
-                    row.appendChild(btn)
+                    offer(el, btn, (b) => row.appendChild(b), braveName)
+                    if (braveExchangeTargets(view, view.you, brave.instanceId).length > 0) {
+                        const ex = document.createElement("button")
+                        ex.className = "detach-badge exchange-badge"
+                        ex.dataset.exchange = brave.instanceId
+                        ex.textContent = "交換"
+                        ex.title = "別のスピリットに合体させ直す（コアは動かない）"
+                        offer(el, ex, (b) => row.appendChild(b), braveName)
+                    }
                 }
                 box.appendChild(row)
             }
@@ -289,7 +338,7 @@ export function fieldCardEl(
     if (!isNexus) {
         const bpEl = document.createElement("span")
         bpEl.className = "stat-bp"
-        bpEl.textContent = `BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        bpEl.append(labelEl("BP"), `${bp}${inst.tempBpBuff ? "↑" : ""}`)
         stats.append(" ", bpEl)
     }
     overlay.appendChild(stats)
@@ -297,7 +346,8 @@ export function fieldCardEl(
     // コストバッジを左上に表示
     const costBadge = document.createElement("div")
     costBadge.className = `cost-badge cost-${m.type}`
-    costBadge.textContent = String(m.cost)
+    // 合体中はブレイヴのコストを足した値（instBaseCost。効果の「コスト◯以下」と同じ値）
+    costBadge.textContent = String(instBaseCost(inst))
     el.appendChild(costBadge)
 
     const cores = document.createElement("div")
@@ -306,11 +356,11 @@ export function fieldCardEl(
     const soulOnThis =
         view.players[ownerPid].soulCore?.zone === "instance" &&
         view.players[ownerPid].soulCore.instanceId === inst.instanceId
-    // 支払いモード中は支払い後のコア数を並記する（例: ◉ コア 4→2。2026-10-06 ユーザー要望）
+    // 支払いモード中は支払い後のコア数を並記する（例: コア 4→2。2026-10-06 ユーザー要望）
     const payAssigned = ui.paying?.assigned[inst.instanceId] ?? 0
     const paySoulHere = ui.paying?.soulPayInstanceId === inst.instanceId ? 1 : 0
     const afterPay = inst.cores - payAssigned - paySoulHere
-    cores.textContent = `◉ コア ${inst.cores}${afterPay !== inst.cores ? `→${afterPay}` : ""}`
+    cores.append(coreIcon(), labelEl("コア "), `${inst.cores}${afterPay !== inst.cores ? `→${afterPay}` : ""}`)
     overlay.appendChild(cores)
     el.appendChild(overlay)
     // [ソウルコア]が載っている個体には画像バッジを重ねる（公開情報。docs/design/SOULCORE.md）
@@ -340,9 +390,11 @@ export function fieldCardEl(
     }
 
     // 効果解決中の選択待ち（自分宛）：候補なら最優先でハイライトし、他の操作モードは無視する。
-    // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う）のときは、
-    // コアの割り当てを続けられるよう下の支払いモードへ通す（2026-08-23）
-    if (view.pendingChoice && view.pendingChoice.pid === view.you && ui.paying?.forChoiceCardIndex === undefined) {
+    // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う（2026-08-23）・効果のコストや効果による召喚・配置を払う）のときは、
+    // コアの割り当てを続けられるよう下の支払いモードへ通す（効果による召喚・配置で、取れるスピリットが光っていなかった。2026-11-25）
+    // 選択の待ちの間に支払っているのは、どれも選択の解決のための支払い（起動効果の召喚・効果のコスト・効果による召喚・ブレイヴを残す）。ブレイヴを残すが抜けていて光っていなかった（2026-11-25）
+    const payingForChoice = ui.paying !== null
+    if (view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice) {
         if (view.pendingChoice.candidates.includes(inst.instanceId)) {
             el.classList.add("targetable", "clickable")
             // トグル選択（予算内で好きなだけ破壊する）で、いま選ばれているもの。
@@ -366,7 +418,7 @@ export function fieldCardEl(
                 badge.dataset.effect = nexusActivatable.effectId
                 badge.textContent = "起動"
                 badge.title = nexusActivatable.costLabel
-                el.appendChild(badge)
+                offer(el, badge, (b) => cardActions(el).appendChild(b))
             }
         }
         // 支払いモード中：自分のネクサス上のコアも支払いに割り当てられる
@@ -380,7 +432,7 @@ export function fieldCardEl(
                 const badge = document.createElement("div")
                 badge.className = "pay-badge"
                 badge.textContent = soulPayHere ? `支払${assigned}＋魂` : `支払${assigned}`
-                el.appendChild(badge)
+                cardActions(el).appendChild(badge)
             }
             if (assigned < normals) {
                 el.classList.add("targetable", "clickable")
@@ -421,11 +473,15 @@ export function fieldCardEl(
         // ボタンごとクリップされて消える（「−」が見えない・「+」が押しにくい原因）。
         // クリップされないラッパーの直下へ、カードと**兄弟**として置く
         if (isMine && myMainFree && !view.pendingChoice) {
+            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
+            const btns = coreButtonsEl(inst.instanceId, inst.cores, levelsToUse)
+            if (mobile.matches) {
+                offerCoreButtons(el, btns, () => {})
+                return el
+            }
             const slot = document.createElement("div")
             slot.className = "nexus-slot"
-            slot.appendChild(el)
-            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
-            slot.appendChild(coreButtonsEl(inst.instanceId, inst.cores, levelsToUse))
+            slot.append(el, btns)
             return slot
         }
         return el
@@ -448,7 +504,7 @@ export function fieldCardEl(
         // （自分宛のときはこの関数はここに到達する前に既にreturn済み。ここに来るのは
         // 「相手宛のpendingChoice」または「pendingChoiceなし」のケースのみ）。
         // 選択の解決として支払い中のときだけは、下の支払いモードへ通す（2026-08-23）
-        if (view.pendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
+        if (view.pendingChoice && !payingForChoice) {
             return el
         }
         // 支払いモード中：割り当て済みコア数をバッジ表示し、割り当て可能なら強調表示のみ行う
@@ -463,7 +519,7 @@ export function fieldCardEl(
                 const badge = document.createElement("div")
                 badge.className = "pay-badge"
                 badge.textContent = soulPayHere ? `支払${assigned}＋魂` : `支払${assigned}`
-                el.appendChild(badge)
+                cardActions(el).appendChild(badge)
             }
             if (assigned < normals) {
                 el.classList.add("targetable", "clickable")
@@ -531,7 +587,7 @@ export function fieldCardEl(
             badge.dataset.awaken = inst.instanceId
             badge.textContent = "覚醒可能"
             badge.title = "クリックしてコアの移動元を選ぶ"
-            el.appendChild(badge)
+            offer(el, badge, (b) => cardActions(el).appendChild(b))
         }
         // メインステップの任意合体（BRAVE.md §6.4）：スピリット状態のブレイヴにだけ「合体」を出す。
         // 候補の列挙は braveCombineCandidates に一本化する（サーバーの受理条件と同じ実装）
@@ -543,12 +599,12 @@ export function fieldCardEl(
                 badge.dataset.combine = inst.instanceId
                 badge.textContent = "合体"
                 badge.title = "クリックして合体先のスピリットを選ぶ（このブレイヴのコアはリザーブへ戻る）"
-                el.appendChild(badge)
+                offer(el, badge, (b) => cardActions(el).appendChild(b))
             }
         }
         // 任意合体モード中：合体先に選べるスピリットを強調する
         if (ui.combineBrave !== null && ui.combineBrave.candidateIds.includes(inst.instanceId)) {
-            el.classList.add("targetable", "clickable")
+            el.classList.add("brave-dest", "clickable")
         }
         // 起動能力（フラッシュ中のバトル／自分のメインステップで任意発動）：バッジのクリックで発動。
         // 出す条件は共有層の activatableAbility が一手に判定する（サーバーの受理条件と同じ実装）
@@ -561,7 +617,7 @@ export function fieldCardEl(
             badge.dataset.effect = activatable.effectId
             badge.textContent = "起動"
             badge.title = activatable.costLabel
-            el.appendChild(badge)
+            offer(el, badge, (b) => cardActions(el).appendChild(b))
         }
         // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタック/ブロック不可
         const singleCoreLocked =
@@ -606,12 +662,10 @@ export function fieldCardEl(
         // コア移動ボタン（メインステップのみ）＋[ソウルコア]の置き/戻し
         if (myMainFree) {
             const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
-            el.appendChild(
-                coreButtonsEl(inst.instanceId, inst.cores, levelsToUse, {
-                    soulHere: soulOnThis,
-                    soulInReserve: view.players[view.you].soulCore?.zone === "reserve",
-                }),
-            )
+            offerCoreButtons(el, coreButtonsEl(inst.instanceId, inst.cores, levelsToUse, {
+                soulHere: soulOnThis,
+                soulInReserve: view.players[view.you].soulCore?.zone === "reserve",
+            }), (b) => el.appendChild(b))
         }
         // [ソウルコア]の1:1交換（§1.4・メインステップのみ）: [ソウルコア]が載った個体に出す
         if (myMainFree && view.pendingChoice === null && soulOnThis && ui.paying === null) { // 支払いモード中は[ソウルコア]支払いボタンと被るため出さない
@@ -620,7 +674,7 @@ export function fieldCardEl(
             btn.dataset.soulswap = inst.instanceId
             btn.textContent = "魂交換"
             btn.title = "この個体の[ソウルコア]と、他の個体の通常コア1個を同時に交換する"
-            el.appendChild(btn)
+            offer(el, btn, (b) => el.appendChild(b))
         }
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能
@@ -710,4 +764,16 @@ function wedge(from: number, to: number): string {
     for (let d = from; d < to; d += 15) pts.push(point(d))
     pts.push(point(to))
     return `polygon(${pts.join(", ")})`
+}
+
+// カードの操作ボタン（起動・支払い・覚醒・合体）を並べる行。カードの下に置き、BP やコアの表示に重ねない
+// （角に重ねる作りだとスマホで「コア」の表示を隠し、合体したブレイヴの箱にも隠れた。2026-11-24 ユーザー指摘）
+function cardActions(el: HTMLElement): HTMLElement {
+    let row = el.querySelector<HTMLElement>(":scope > .card-actions")
+    if (!row) {
+        row = document.createElement("div")
+        row.className = "card-actions"
+        el.appendChild(row)
+    }
+    return row
 }

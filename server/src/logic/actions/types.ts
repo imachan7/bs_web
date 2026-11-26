@@ -25,6 +25,8 @@ export interface ActionCtx {
     srcType: CardType | undefined
     sourceCardId: string | undefined // 発生源のカードID。マジックはselfがnullのため、resolveMagicが使用中のカードのcardIdをここに入れる
     // （スピリット/ネクサス発生源はself.cardIdからのフォールバックで自動的に入る）。lendSelfThisTurn専用（TURN_EFFECT_SOURCES.md §3.3）
+    // 発生源の個体。fieldEvent では self がイベントの主語（アタックしたスピリット等）で発生源と別になるので、self から導かない（#682）
+    srcInstanceId: string | undefined
     destroyContext: DestroyContext
     targetInstanceId: string | undefined
     chosenOption: string | undefined

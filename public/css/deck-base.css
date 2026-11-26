@@ -1,0 +1,100 @@
+/* デッキ構築画面の色の変数とページの土台。部品の見た目は各 .svelte に書く */
+
+:root {
+    --c-red: #ef4444;
+    --c-purple: #a855f7;
+    --c-green: #22c55e;
+    --c-white: #e5e7eb;
+    --c-yellow: #eab308;
+    --c-blue: #3b82f6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: #1a1d2b;
+    color: #e8e8f0;
+}
+
+button, input, select {
+    padding: 6px 10px;
+    border: 1px solid #444;
+    border-radius: 6px;
+    background: #2a2f45;
+    color: inherit;
+    font-size: 13px;
+}
+
+button { cursor: pointer; background: #4a6cd4; border: none; }
+button:hover { background: #5d7de0; }
+
+/* 本文（#deck-app）はヘッダーの残りの高さを取る */
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+}
+
+#deck-app { flex: 1; min-height: 0; }
+
+/* ---- ヘッダー ---- */
+
+#topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 24px;
+    padding: 10px 16px;
+    background: #242838;
+}
+
+#topbar-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+#topbar h1 {
+    margin: 0;
+    font-size: 18px;
+    white-space: nowrap;
+}
+
+#topbar-note {
+    font-size: 12px;
+    color: #b8bdd4;
+    white-space: nowrap;
+}
+
+/* 3つとも同じ大きさ・色。ロビーへ戻る道だけ accent にして目的地を示す */
+#topbar-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 18px;
+    font-size: 13px;
+}
+
+#topbar-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #b8bdd4;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+#topbar-links a:hover {
+    color: #e8e8f0;
+}
+
+#topbar-links #lobby-link {
+    color: #7fd4ff;
+}
+
+#topbar-links #lobby-link:hover {
+    text-decoration: underline;
+}

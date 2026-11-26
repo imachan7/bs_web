@@ -52,8 +52,8 @@ function has(state: GameState, inst: CardInstance, action: TimedEffect): boolean
     })
 }
 
-// src：blockCost の破壊は記録した側の効果として耐性を判定するので、発生源を記録に残す
-function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: TimedEffect, src?: { sourceType?: CardType; sourceColors?: Color[] }): string {
+// src：blockCost の破壊は記録した側の効果として耐性を判定し、「その効果を発揮したスピリット」も誘発へ渡すので（ボーン・キャット。#682）、発生源を記録に残す
+function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: TimedEffect, src?: { sourceType?: CardType; sourceColors?: Color[]; sourceInstanceId?: string }): string {
     const recorded = action.content.filter(isRecorded)
     if (src && recorded.some((c) => c.type === "blockCost")) {
         recordTimed(state, { content: recorded, target: { kind: "instance", instanceId: inst.instanceId }, until: action.duration, ownerPid: owner, ...src })
@@ -1209,7 +1209,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     }
     if (action.target === "self" && !action.content.some((c) => c.type === "bp")) {
         if (!self) return
-        log(state, apply(state, owner, self, action, { ...(srcType ? { sourceType: srcType } : {}), ...(srcColors ? { sourceColors: srcColors } : {}) }))
+        log(state, apply(state, owner, self, action, { ...(ctx.srcInstanceId !== undefined ? { sourceInstanceId: ctx.srcInstanceId } : {}), ...(srcType ? { sourceType: srcType } : {}), ...(srcColors ? { sourceColors: srcColors } : {}) }))
         return
     }
     if (action.target === "self") {

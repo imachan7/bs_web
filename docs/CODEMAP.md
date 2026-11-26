@@ -7,7 +7,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `blockRequiredCount`（fn）：このアタッカーをブロックするのに必要なブロッカーの体数（blockRequiresCount）。
 - `blockPayCost`（fn）：このアタッカーをブロックするのに払うコスト（制約 blockPayCost の合計）。
 - `blockReserveToTrashCount`（fn）：このアタッカーをブロックするのにトラッシュへ置くリザーブのコアの数（制約 blockReserveToTrash の合計）
-- `blockDestroyOwnSpiritRecord`（fn）：blockCost destroyOwnSpirit を掛けた記録（無ければ undefined）
+- `blockDestroyTolls`（fn）：blockCost destroyOwnSpirit の「破壊1体ぶん」を、記録の count だけ並べたもの。発生源ごとに別の破壊として1体ずつ払う
 - `blockDestroyCandidates`（fn）：blockCost destroyOwnSpirit で破壊できるスピリット。破壊はアタッカー側の効果なので、【装甲】などで効果を受けない個体は選べず、
 - `blockExhaustSpiritRequired`（fn）：このアタッカーをブロックするのに、ブロックするスピリット以外の回復状態のスピリット1体を疲労させる必要があるか（制約 blockExhaustSpirit）
 - `canBlock`（fn）
@@ -61,6 +61,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `noteGrantSource`（fn）：付与先に付与元の __eid を載せ、読む側の計測点で引けるようにする（alsoCostGrant のように付与元を残さない状態用）
 - `noteGrantedFrom`（fn）：kind は付与元の kind（coverage:effects が計測点のある kind として数える）
 
+## shared/deckLimit.ts
+
+- `MAX_COPIES`（const）
+- `deckCopyLimit`（fn）
+
 ## shared/handBurstEffect.ts
 
 - `handBurstEffectDenial`（fn）：使えない理由（使えるなら null）。コストを払えるかは含まない。
@@ -74,6 +79,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `magicUseTiming`（fn）：使えないタイミングを求められたら null
 - `magicTimingChoosable`（fn）：メインステップで「メイン効果／フラッシュ効果」を選ばせるか。フラッシュ側がすべて「メインステップでは使えない」なら選ばせない
+
+## shared/randomId.ts
+
+- `randomId`（fn）：使い捨ての ID。crypto.randomUUID は https か localhost で開いたページでしか使えない。エンジンは AI 戦でブラウザ（aiWorker）でも動…
 
 ## shared/rules/activation.ts
 
@@ -170,7 +179,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lifeDamageLimit`（fn）：このアタックで、防御側のライフが1回に減る**上限**を返す唯一の入口。
 - `LifeLossQuery`（型）
 - `lifeLossAllowed`（fn）：ライフを減らす処理の制限を1か所に集めた問い合わせ。0〜amount の「減らせる量」を返す。
-- `cantReduceOpponentLife`（fn）：attackerPid は「ライフを減らそうとしている側」。その持ち主のフィールドに
+- `cantReduceOpponentLife`（fn）：BS11-X06 Lv3「このスピリットが回復状態の間、相手のライフを減らせない」は『このスピリットのアタック時』の効果なので、
 - `mustAttackThisTurn`（fn）：このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか
 - `mustAttackFirst`（fn）：「このステップの最初に必ずアタックする」（until:"firstAttack"）を受けているか。受けている間は他のスピリットでアタックできない
 - `canBlockWhileRestedThisTurn`（fn）：このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のタ…
@@ -321,6 +330,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isExhaustImmuneOnBoard`（fn）：【疲労しない】（kind:"exhaustImmunityGrant"。トランプの王国）。
 - `continuousEffectReaches`（fn）：相手の継続効果（相手に与える制約・常時のBP増減・期間つきの範囲効果・指定アタック）が、この個体に届くか。
 
+## shared/rules/summonLevelCost.ts
+
+- `summonLevelCostBonus`（fn）
+- `summonMinCores`（fn）：これから場に出すカード（召喚・配置・入れ替え・【不死】・トークンなど）の置くコアの最小。
+
 ## shared/rules/summonToll.ts
 
 - `summonVoidToll`（fn）：Q4338：コストは印刷のコストで見る。発生源の陣営は問わず、召喚する側のリザーブから払う
@@ -366,6 +380,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `isSummonableCardType`（fn）：召喚（type:"summon"）で場に出せるカードか。
 - `braveCombineCandidates`（fn）：合体先（ダイレクトブレイヴ）に選べる自分のスピリットの instanceId 一覧。
+- `braveExchangeMode`（fn）：メインステップの交換（BRAVE.md §6.4.1）で、合体中のブレイヴを to へ移せるか。
+- `braveExchangeTargets`（fn）
 - `braveCombinableWithHost`（fn）：【抜刀】の「このスピリットと合体可能な」（公式 Q800・Q802）：合体条件だけを見る（合体禁止中でも true＝Q798）。
 - `canCombineBraveCount`（fn）：このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
 - `combineLimitFor`（fn）
@@ -539,7 +555,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `finishResshinsokuSummon`（fn）：コアの配置がすべて終わったところで実際にスピリットを場に出す。コストも維持コアの支払いも無い（維持コアぶんは「このスピリット」に置かれたコアが兼ねる）。
 - `MAGIC_FREE_OPTIONS`（const）：無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
 - `COUNT_IS_BODIES`（const）：count が「対象の体数」を表すアクション。ここに挙げたものだけを「複数体が対象なのに1体しか渡されていない」の判定にかける。
-- `destroyBlockToll`（fn）：破壊はアタッカー側の効果（相手によって破壊された扱い。Q4429 で破壊時効果も発揮する）
+- `payBlockDestroyTolls`（fn）：blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリットを、発生源ごとに1体ずつ選んで破壊する（from 番目から）。
+- `destroyBlockToll`（fn）：破壊はアタッカー側の効果（相手によって破壊された扱い。Q4429 で破壊時効果も発揮する）。帰属は rec（その破壊を求めた記録）の発生源
 - `exhaustBlockToll`（fn）
 - `continueBlockDeclaration`（fn）：ブロックのコストを払ったあとの宣言処理（blockExhaustSpirit の選択待ちからも再開する）
 - `finishBlockDeclaration`（fn）
@@ -607,6 +624,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `magicUseRestriction`（fn）：マジックの「使用」の制限（タイミング以外）。手札・手元からの使用と、効果による使用（magic/effectUse.ts）が共有する。
 - `validateCastMagic`（fn）
 - `validateCombineBrave`（fn）：メインステップの任意合体（docs/design/BRAVE.md §6.4）。
+- `validateExchangeBrave`（fn）：メインステップの交換（§6.4.1）
 - `validateDetachBrave`（fn）：メインステップの任意分離（§6.4）。**効果による分離（コア不要）とは別の手順**で、
 - `validateMoveCore`（fn）
 - `validateAwaken`（fn）
@@ -796,8 +814,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/braveConditionGate.ts
 
-- `separateBravesBelowMinCost`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ。
+- `separateBravesLostCondition`（fn）：効果の手ごとの出口（EffectModules）と handleAction の後始末（継続効果を組み直した後）で呼ぶ（#707）。
 - `separateBravesOverLimit`（fn）：合体数の上限を上げていた効果（BS23-X01 など）が消えて、上限を超えたホストの分離（Q4588）。
+- `trashSpiritStateBravesWhenForbidden`（fn）：BS11-X02 Lv3「相手は、ブレイヴをスピリット状態にできない」が効いている間、その側のスピリット状態のブレイヴは
 
 ## server/src/logic/braveFreeSummon.ts
 
@@ -882,6 +901,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `DestroyDenialQuery`（型）
 - `destroyDenial`（fn）：破壊を止める理由（ログ用）。止められないなら null。スピリットに効く禁止は bpCompare だけ
 
+## server/src/logic/effectNotice.ts
+
+- `noticeOf`（fn）：決められないときは何も返さない（違う段落を出すより出さないほうがよい）
+- `emitEffectNotice`（fn）
+- `emitEffectNoticeFor`（fn）：効果の定義が手元にある入口（fieldEvent の解決）から直接出す。fieldEvent は self がイベントの主語になることがあり、
+
 ## server/src/logic/effectTax.ts
 
 - `hasEffectTax`（const）
@@ -954,6 +979,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyDeclaredBursts`（fn）：宣言したバーストの効果を適用する。条件を満たした効果とそれに伴う解決を最後まで処理し、以降に解決する効果が無くなってから
 - `activateBurstCard`（fn）：オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
 - `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
+
+## server/src/logic/keywords/burstMagicEffect.ts
+
+- `announceBurstMagicEffect`（fn）
 
 ## server/src/logic/keywords/chimei.ts
 
@@ -1100,12 +1129,16 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyMagicRepeatChoice`（fn）：pendingChoice（再発揮の確認）の後処理。GameEngine.doResolveChoice から呼ぶ
 - `resumeMagicEntryHandler`（const）：選択待ちで止まったマジックの、残りのエントリ1つ（runMagicActions が積む内部専用）
 - `runMagicActions`（fn）：マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
-- `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
 
 ## server/src/logic/magic/targetRequirement.ts
 
 - `magicTargetMissing`（fn）
+
+## server/src/logic/magic/usedTriggers.ts
+
+- `decideMagicUsedTriggers`（fn）：集めるだけで解決しない。「ターンに1回」は処理する時点で消費する（相手側 opponentMagicUsed に oncePerTurn つきの効果はデータに無い）
+- `runMagicUsedTriggers`（fn）：効果が無効にされたマジックも通す（使用宣言とコストの支払いは済んでいるため）
 
 ## server/src/logic/oncePerTurn.ts
 
@@ -1255,6 +1288,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `recordTimed`（fn）：期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
 - `recordPlayerRule`（fn）：pid にこのターンの間の制約を掛ける（効果の中の「さらに、このターンの間〜」から書く）
 - `recordBp`（fn）：1体を BP+（このターン／このバトルの間）。ownerPid＝効果を出した側
+- `braveCompositeOf`（fn）：ブレイヴ群がホストへ足すぶん。合体条件の確かめ直しが「そのブレイヴを除いた」ホストを作るときにも使う
 - `refreshLevelAsOverrides`（fn）
 
 ## server/src/logic/state/exhaust.ts
@@ -1404,6 +1438,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `TICKET_ALIVE_MS`（const）：この時間問い合わせが無い待ちは、閉じられたものとして捨てる（クライアントの間隔は3秒）
 - `PollResult`（型）
+- `PollOpts`（型）
 - `MatchTickets`（class）
 
 ## server/src/roomManager.ts
@@ -1466,7 +1501,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/types/choice.ts
 
-- `EventBurstCheck`（型）：バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
+- `MagicUsedDecision`（型）：バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
+- `EventBurstCheck`（型）
 - `DeclaredBurst`（型）：発動を宣言したバースト（BURST.md §1.4「宣言と適用は別の時点」）。適用は applyDeclaredBursts が、以降に解決する効果が無くなってから行う。
 - `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
 - `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。
@@ -1566,10 +1602,126 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `installSecretCardArt`（fn）
 - `preloadCardArt`（fn）：対戦で使うデッキの画像を先に読んでおく（画面に出た時点で初めて読むと、出た瞬間に絵が無い・遅れて出る）。
 - `attachCardArt`（fn）
+- `hoverArt`（fn）：マウスのある端末で、カードに載せたときの拡大表示（lg）を出す。絵が無いカード・読めないときは何も出さない。
 
 ## public/src/choiceCounter.ts
 
 - `choiceCounterView`（fn）：トグル選択の「選んだ量／上限」表示。上限ちょうどで見た目を変えるのは、これ以上選べないと一目で分かるようにするため
+
+## public/src/deck/actions/cardArt.ts
+
+- `cardArt`（fn）
+
+## public/src/deck/logic/cardInfo.ts
+
+- `maxBp`（fn）：スピリット状態の最高レベルBP（ネクサス・マジックは null）。ブレイヴもスピリット状態のBPを表示する
+- `braveConditionText`（fn）：合体条件の表示文言（例: "系統：「神星」" "コスト3以上" "「○○」" "効果の記述を持たないスピリット"）
+- `braveBpGain`（fn）：合体時に加算されるBP（braveLevels の最高値。cores は常に0なので levels は1件想定）
+
+## public/src/deck/logic/deckImport.ts
+
+- `ImportResult`（型）
+- `validateImport`（fn）
+
+## public/src/deck/logic/deckStats.ts
+
+- `DeckEntry`（型）
+- `DeckStats`（型）
+- `computeDeckStats`（fn）
+
+## public/src/deck/logic/families.ts
+
+- `FAMILY_GROUPS`（const）
+- `familyColors`（fn）：系統を持つカードの色のうち最多の色が7割以上ならその色、そうでなければ多色。持つカードが無い系統も多色
+- `buildMentionedFamilies`（fn）：効果文の「系統：「X」「X・Y」」から拾った系統（cardId -> 系統の集合）
+
+## public/src/deck/logic/series.ts
+
+- `seriesOf`（fn）：プロモ（P001・PX01・X003A 等）は「-」が無く番号まで cardId なので、数字より前を弾とする
+- `seriesGroupOf`（fn）：弾の絞り込み用の枠。P13・SJ12・X003A のように年代や末尾の英字で割れるものを頭の英字にまとめる（seriesOf と画像の置き場は変えない）
+- `MERGED_SERIES_LABELS`（const）
+- `seriesLabel`（fn）
+
+## public/src/deck/state/artEpoch.svelte.ts
+
+- `artEpoch`（const）：合言葉でカード絵の表示が切り替わったら増やす。一覧は {#key} で張り直し、use:cardArt をやり直す
+
+## public/src/deck/state/cards.svelte.ts
+
+- `NoteStatus`（型）
+- `CardNote`（型）
+- `cardStore`（const）
+- `loadCards`（fn）
+
+## public/src/deck/state/deck.svelte.ts
+
+- `deck`（const）
+- `deckCards`（const）
+- `cardOf`（fn）
+- `deckTotal`（fn）
+- `nameCount`（fn）：同名カードのデッキ内合計枚数（cardId が違っても同名なら合算する）
+- `nameLimit`（fn）
+- `addBlockReason`（fn）：追加できない理由（できるなら null）。トーストと＋ボタンの無効化で共有する
+- `addCard`（fn）
+- `removeCard`（fn）
+- `validateDeck`（fn）：デッキ全体の制約検証。問題がなければ空配列
+- `replaceDeck`（fn）：デッキ内容を丸ごと差し替える（読込・インポート・構築済みの共通の出口）
+
+## public/src/deck/state/detail.svelte.ts
+
+- `detail`（const）：詳細に出しているカード。mobile は画面いっぱいの欄を開いているか（スマホ用）。pinned はクリック・タップで固定しているか
+- `hoverCard`（fn）：タッチのタップでも pointerenter は飛ぶので、マウスのときだけ拾う。固定中は切り替えない
+- `leaveCard`（fn）
+- `selectDetail`（fn）：クリック・タップしたカードを固定する（幅900以上のタッチ端末はマウスが無いので、これで詳細を出す）。同じカードをもう一度押すと固定を外す
+- `unpinDetail`（fn）
+- `pressPoolCard`（fn）：プールのカードを押したとき。− ＋ はカードに常に出ているので押しても出さない。スマホ（幅900未満）は詳細カラムが無いので画面いっぱいの欄で開く
+
+## public/src/deck/state/filters.svelte.ts
+
+- `COST_CHIP_MAX`（const）
+- `SortOrder`（型）
+- `filters`（const）
+- `filterColors`（const）
+- `filterTypes`（const）
+- `filterCosts`（const）
+- `filterFlags`（const）
+- `filterSeries`（const）
+- `filterKeywords`（const）
+- `filterFamilies`（const）
+- `filterNotes`（const）
+- `passesFilter`（fn）
+- `visibleCards`（fn）：絞り込んで並べたカード。cardStore.cards は cardId 順なので、ID順はそのまま
+
+## public/src/deck/state/hoverTip.svelte.ts
+
+- `tip`（const）：マウスを載せたカードの横に浮かべる文字だけの欄。詳細カラムの hoverCard（遅れて切り替える）とは独立
+- `showTip`（fn）
+- `hideTip`（fn）
+
+## public/src/deck/state/recipes.svelte.ts
+
+- `recipes`（const）：構築済みデッキ（/api/deck-recipes）。選択欄に並べるだけなので、読み込み完了まで空
+- `loadRecipes`（fn）
+
+## public/src/deck/state/savedDecks.svelte.ts
+
+- `SavedDeck`（型）
+- `saved`（const）
+- `saveCurrentDeck`（fn）
+- `loadSaved`（fn）
+- `deleteSaved`（fn）
+- `duplicateSaved`（fn）
+- `renameSaved`（fn）
+
+## public/src/deck/state/selection.svelte.ts
+
+- `selection`（const）：− ＋ を出しているタイル。プールとデッキ欄に同じカードが並ぶので、cardId だけでなく置き場も含めて持つ
+- `toggleSelection`（fn）
+
+## public/src/deck/state/toast.svelte.ts
+
+- `toast`（const）：画面下の通知。同時に1件だけ出し、次が来たら置き換える
+- `showToast`（fn）
 
 ## public/src/effectText.ts
 
@@ -1594,6 +1746,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `DeckChoice`（型）
 - `WaitHandlers`（型）
+- `WaitExtra`（型）
 - `waitForOpponent`（fn）：待ちを始める。返り値を呼ぶと待ちをやめる（サーバーの列からも外す）
 
 ## public/src/renderer.ts
@@ -1615,13 +1768,30 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `canDirectAttack`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
 - `matchesDirectedAttackFilter`（fn）：指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）。
 - `escapeHtml`（fn）：innerHTML に差し込む文字列のエスケープ（ツールチップの効果テキスト強調表示で使用）
+- `revealCardEl`（fn）：オープン・破棄で見せるカード1枚（名前・種別・コスト。絵があれば重ねる。カーソルで効果文）
 - `render`（fn）
 - `showWaiting`（fn）：ロビー側の表示制御
 - `hideWaiting`（fn）
 - `showToast`（fn）
 
+## public/src/ui/cardDock.ts
+
+- `renderCardDock`（fn）：盤面を描き直すたびに呼ぶ。描き直しでカードもボタンも作り直されるので、欄の中身も作り直す。
+- `installCardDock`（fn）
+
+## public/src/ui/coreIcon.ts
+
+- `coreIcon`（fn）：コアの画像。文字の高さに合わせるため大きさは CSS（.core-icon）で em 指定
+
+## public/src/ui/effectNotice.ts
+
+- `effectBodyText`（fn）：見出し行から次の見出し行の手前までの本文。見出し行は Lv1･Lv2『…』／【合体時】Lv2『…』のように行頭が見出しの形
+- `syncEffectNotice`（fn）：描画のたびに呼ぶ。新しい出来事を並べ、選び終わっていれば消し、発生源のカードを光らせ直す（描き直しで class が落ちるため）
+
 ## public/src/ui/fieldCard.ts
 
+- `DockAction`（型）
+- `dockActionsOf`（fn）
 - `renderField`（fn）
 - `coreButtonsEl`（fn）：コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
 - `fieldCardEl`（fn）
@@ -1642,7 +1812,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `DECK_STORAGE_KEY`（const）
 - `CUSTOM_DECK_PREFIX`（const）
-- `SavedDeck`（型）：デッキビルダー（deck.ts）と同じ保存フォーマット
+- `SavedDeck`（型）：デッキビルダー（デッキ構築画面）と同じ保存フォーマット
 - `customDecks`（const）：デッキ名 → カードリスト（cardId -> 枚数）。ページ表示時に読み込む
 - `loadSavedDecks`（fn）
 - `deckRecipes`（let）：おまかせデッキ。カードプールに合わせてサーバーが決めるので起動時に取得する
@@ -1656,6 +1826,17 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `CATEGORY_MAP`（const）：コミットメッセージからカテゴリと表示テキストを抽出する
 - `parseReleaseMessage`（fn）
 - `loadChangelog`（fn）
+
+## public/src/ui/mat.ts
+
+- `renderMat`（fn）
+
+## public/src/ui/millCount.ts
+
+- `millPending`（fn）：まだ数えていない枚数（描画はデッキに足し、トラッシュから引く）
+- `startMillCount`（fn）：何枚でも合わせて1秒ほどで数え終わるようにする（1枚ずつの間は 60〜150ms）
+- `refreshMillTexts`（fn）：描画した直後にも呼ぶ（数えている途中で描き直されたとき、光らせるクラスを付け直すため）
+- `markMillCount`（fn）：数える対象の文字の要素に印を付ける。base は破棄の後の（本当の）枚数
 
 ## public/src/ui/payInput.ts
 
@@ -1672,11 +1853,26 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `assignPayCore`（fn）：支払いモード中、指定スピリットにコアを1個割り当てる。合計が必要数に達したら自動送信する。
 - `assignOneCore`（fn）：支払い元1つにコアを1個割り当て、必要数に達したら送信する。
 
+## public/src/ui/payStages.ts
+
+- `installPayStages`（fn）
+- `openEffectSummonPay`（fn）：効果による召喚・配置の支払いを2段の画面で開く。②の置く数は index 番目から始める
+- `openEffectSummonScreen`（fn）：効果による召喚・配置で置く数を聞かれたら、−／＋ だけの画面でなく、手札からの召喚と同じ支払いの画面で開く
+- `summonLevelChoosable`（fn）：通常の召喚・配置：②で Lv／置く数を選べるか
+- `openBravePay`（fn）：ブレイヴを残す（BRAVE.md §6.3）・分離（§6.4）の置くコアも、召喚と同じ支払いの画面で払う（コストが無いので②だけ）。
+- `fillFromReserve`（fn）：自動でリザーブだけで払えるときに、最小の置き方までリザーブで埋めて②から始める（play.tryPlay から）
+- `assignPayStageCore`（fn）：フィールドの個体を押したときの入口（payInput.assignPayCore から呼ぶ）
+- `onPayStageClick`（fn）
+- `payStageHeading`（fn）
+- `renderPayStageSheet`（fn）
+
 ## public/src/ui/paying.ts
 
 - `payableFieldCores`（fn）：支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
 - `payingIsCostOnly`（fn）：コストだけの支払い（ブロックの追加コスト・【迷彩】）。置くコアが無いので[ソウルコア]は「コストに使う」だけ選べる
+- `payingStageNeeds`（fn）：支払いモードで満たすべきコア数を、コスト（①）と置くコア（②）に分けて返す。
 - `payingNeed`（fn）：支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
+- `payingStageFilled`（fn）：2段の画面で、その段にいま積んである数（リザーブ・フィールド・[ソウルコア]）。
 - `payingRemaining`（fn）：支払いモードでの残り不足コア数（0なら送信可能）
 - `PayingState`（型）：支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
 - `AltPayInfo`（型）：この支払いで使える代替コストの種類と上限。
@@ -1707,9 +1903,22 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `sendAttack`（fn）：アタックの追加コスト（attackPayToll）：リザーブで払えるならそのまま送り、足りなければ支払いモードへ入る（ブロックと同じ。2026-10-11 ユーザー確認）
 - `onOppSpiritClick`（fn）
 
+## public/src/ui/spiritLayout.ts
+
+- `saveSpiritScroll`（fn）
+- `layoutSpirits`（fn）
+- `revealBattlingSpirits`（fn）
+- `installSpiritLayout`（fn）
+
+## public/src/ui/statusMenu.ts
+
+- `installStatusMenu`（fn）
+
 ## public/src/ui/tooltip.ts
 
 - `currentHoverCard`（let）
+- `showCardLarge`（fn）
+- `cardLargeShown`（fn）
 - `suppressEffectTooltip`（fn）
 - `hideEffectTooltip`（fn）
 - `setupEffectTooltip`（fn）

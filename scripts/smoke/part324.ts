@@ -155,7 +155,7 @@ console.log("=== X006-e2 太陽極龍セブンス・アポロドラゴンLv3【�
     s.players.p2.field.spirits.push(targetA, targetB)
     // attachBraveが実戦の合体経路。act()経由のnextPhaseがrefreshLevelAsOverridesを呼び直すため、
     // 手書きのbraveCombinedフラグ（part252のショートカット）ではなくbraveRefsを使う
-    const brave = createInstance("BS10-061", s.turn, 1)
+    const brave = createInstance("SJ13-01", s.turn, 1)
     attachBrave(s, "p1", apollo, brave)
     s.turnPlayer = "p1"
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
@@ -164,7 +164,7 @@ console.log("=== X006-e2 太陽極龍セブンス・アポロドラゴンLv3【�
             null,
         "targetFilter:anyなので、BPに関わらずどちらでも指定アタックできる",
     )
-    // 指定先は合体したブレイヴ（BS10-061）のアタック時効果で破壊されるので、指定アタックは無効になり
+    // 指定先は合体したブレイヴ（SJ13-01）のアタック時効果で破壊されるので、指定アタックは無効になり
     // ブロックは確定せず、フラッシュ①を行ってから防御側が選ぶ（TIMING_CHART §1.10。2026-11-10）
     assert(!s.players.p2.field.spirits.includes(targetB), "指定先はアタック時効果で破壊されている")
     assert(s.battle?.blockerInstanceId === null && s.isFlashTiming === true, "指定先が無効なのでブロックは確定せず、フラッシュ①が開く")

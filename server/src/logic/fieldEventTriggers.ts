@@ -1,4 +1,5 @@
 // 盤面の出来事（fieldEvent）で起きる誘発の収集と解決。手札を得た・ネクサスを配置したときの通知もここ
+import { emitEffectNoticeFor } from "./effectNotice"
 import { canFireWhileWaiting, isLeaveRelatedTrigger, isReturnWaiting, isTrashWaiting, waitingEventFor, frameWaitingEvent } from "../../../shared/rules/waiting"
 import { levelStillMet } from "./levelRecheck"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
@@ -7,7 +8,7 @@ import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
 import type { CardInstance, CardType, Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, Keyword, PlayerId, ResolvedTargetFilter } from "../type"
-import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, pushResumeFrames, suspend, resolveInOrder, withWaitingEvent } from "./GameState"
+import { currentLevel, findInstanceAnywhere, getCard, summonMinCores, opponentOf, pushResumeFrames, suspend, resolveInOrder, withWaitingEvent } from "./GameState"
 import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, bravesOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
@@ -130,6 +131,8 @@ export function fireFieldEventTriggers(
         paidCost?: boolean
         // 同上：使用したマジックの cardId（magicPick の判定に使う）
         magicCardId?: string
+        // 集める時点（collect）ではなく、frame を処理する時点で「ターンに1回」を消費する（マジック使用時の誘発。決めたあとに不発になった分の枠を使わないため）
+        claimOnceAtResolve?: true
         // event: "ownBurstActivated" 限定：発動したバーストのカードのコスト（docs/design/BURST.md）
         burstCost?: number
         // event: "anySpiritRefreshed" 限定：回復させた効果の発生源種別（refreshSpiritのsourceType引数をそのまま渡す。
@@ -524,7 +527,7 @@ export function fireFieldEventTriggers(
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
             // 同時破壊の列の項目（groupOnce）は、発揮する時点で「ターンに1回」を記録する（下の claimsAtResolve）。集める時点で記録すると、
             // 先頭の破壊誘発元が「残る」で待機でなくなったとき、ほかのスピリットが破壊されても発揮できない（2026-11-15 ユーザー確認）
-            if (effect.oncePerTurn && effect.onceScope !== "name" && groupOnce === undefined) markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
+            if (effect.oncePerTurn && effect.onceScope !== "name" && groupOnce === undefined && eventInfo?.claimOnceAtResolve !== true) markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
             if (effect.maxPerTurn !== undefined) markUsedOnceThisTurn(state, inst, effect.id)
             noteCoverage(effect, "fieldEvent")
             const lowerPick = effect.action.type === "moveCards" ? effect.action.pick?.lowerCostThanEventTarget : undefined
@@ -631,7 +634,7 @@ export function fireFieldEventTriggers(
               ? findInstanceAnywhere(state, destroyGuard) ?? undefined
               : selfOverride?.inst
     // 「ターンに1回」を、集める時点ではなく発揮する時点で記録するか（同名で1回の効果と、同時破壊の列の項目）
-    const claimsAtResolve = (e: Extract<PoolItem, { extra?: undefined }>): boolean => e.effect.onceScope === "name" || (e.effect.oncePerTurn === true && e.groupOnce !== undefined)
+    const claimsAtResolve = (e: Extract<PoolItem, { extra?: undefined }>): boolean => e.effect.onceScope === "name" || (e.effect.oncePerTurn === true && (e.groupOnce !== undefined || eventInfo?.claimOnceAtResolve === true))
     const handlers: Parameters<typeof resolveInOrder<PoolItem>>[2] = {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
@@ -653,6 +656,7 @@ export function fireFieldEventTriggers(
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
             if (e.effect.optional && state.interactiveTargets) {
+                emitEffectNoticeFor(state, c.actionPid, e.inst, e.effect)
                 requestActivationConfirm(
                     state,
                     c.actionPid,
@@ -662,13 +666,14 @@ export function fireFieldEventTriggers(
                     // oncePerTurn／同時破壊グループの仮消費どちらも、断ったときにここで戻す
                     // （revertDestroyGroupUsageは対象キーが無ければ何もしないので常に渡してよい）
                     { instanceId: e.inst.instanceId, effectId: e.effect.id },
-                    { targetInstanceId: c.actionTargetId, sourceColors: c.srcColors, sourceType: c.srcType, sourceCardId: c.srcCardId },
+                    { targetInstanceId: c.actionTargetId, sourceColors: c.srcColors, sourceType: c.srcType, sourceCardId: c.srcCardId, sourceInstanceId: c.srcInstanceId },
                 )
             } else {
                 delete state.effectFizzled
                 // 中の pay が確認で止まったとき、断った／不発で消費を戻せるよう渡す（triggered と同じ）
                 const action = markPays(bindEventTargets(e.effect.action, eventInfo?.eventTargetIds), { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } })
-                resolveAction(state, c.actionPid, c.actionSelf, action, c.actionTargetId, c.srcColors, c.srcType, undefined, undefined, c.srcCardId)
+                emitEffectNoticeFor(state, c.actionPid, e.inst, e.effect)
+                resolveAction(state, c.actionPid, c.actionSelf, action, c.actionTargetId, c.srcColors, c.srcType, undefined, undefined, c.srcCardId, undefined, undefined, c.srcInstanceId)
                 // コストを払えないなどで何も起きなかったら、「ターンに1回」／同時破壊グループの消費を戻す（2026-09-16／fix/destroyed-trigger-once）
                 if (state.effectFizzled) {
                     if (e.effect.oncePerTurn) revertOncePerTurn(state, e.inst, e.effect.id)
@@ -803,7 +808,7 @@ export function tryHandFreeSummonOnOwnNexusDeployed(state: GameState, pid: Playe
         if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnOwnNexusDeployed")
         if (!effect) continue
-        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
+        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), summonMinCores(state, pid, getCard(cardId)))) continue
         noteCoverage(effect, "freeSummonFromHandOnOwnNexusDeployed")
         if (state.interactiveTargets) {
             suspend(state, {

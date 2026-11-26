@@ -3,13 +3,14 @@
 import { targetableSpirits } from "../targeting"
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { payMagicCostThenResolve } from "../magic/payThenResolve"
+import { announceBurstMagicEffect } from "../keywords/burstMagicEffect"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { burstTenshoTargets, hasBurstTensho } from "../keywords/tensho"
 import { rensaIgnoresCondition } from "../../../../shared/rules/rensa"
 import { fireRensaActivated, markRensa } from "../keywords/rensa"
-import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
+import { createInstance, getCard, log, summonMinCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice, requestCardChoice } from "../EffectModules"
 import { matchesPick } from "./revealAction"
 import { destroyAllTargetList, destroyTargetList, ownSideDestroyCandidates } from "./destroy"
@@ -404,7 +405,7 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action0: Extract<Effe
             return
         }
         // 転召の解決だけに使う仮の個体（Lv1）。場には出さず、実体は維持コアを払った後に作り直す
-        const provisional = createInstance(cardId, state.turn, minLevelCores(card))
+        const provisional = createInstance(cardId, state.turn, summonMinCores(state, owner, card))
         resolveTensho(state, owner, provisional, true, false, new Set(targets.map((t) => t.instanceId)))
         if (state.pendingChoice) {
             pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, actorPid: owner, action: { ...action, tenshoDone: true } }])
@@ -419,7 +420,7 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action0: Extract<Effe
     const combineHostId =
         card.type === "brave" ? braveCombineCandidates(state, owner, cardId)[0] : undefined
     // placeCores が付いていれば、置くコアの選択待ちで payCost のコストと余分は払い済み（summonCores.ts）
-    const maintain = combineHostId !== undefined ? 0 : action.placeCores ?? minLevelCores(card)
+    const maintain = combineHostId !== undefined ? 0 : action.placeCores ?? summonMinCores(state, owner, card)
     // payCost（BS15-004ハンゾウ・シノビ・ドラゴン）：通常の召喚コストも支払う（効果文に「コストを支払わずに」が
     // 無いカード）。バースト確認では paySources を渡せないため、支払い元はリザーブのみ（決定的簡略化）
     // payCost でなくても、相手の転召の祭壇などの余分は払う（2026-10-15）
@@ -607,6 +608,7 @@ const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> =
         card.effects.find((e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === timing)
     const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
         if (!entry) return
+        announceBurstMagicEffect(state, owner, action.cardId, entry.timing)
         resolveAction(state, owner, null, entry.action, undefined, magicEffectiveColors(state, owner, card), "magic", undefined, undefined, action.cardId)
     }
     if (chosenOption === BURST_MAGIC_FREE_MAIN_LABEL) {
@@ -619,7 +621,10 @@ const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> =
     }
     if (action.payTiming === undefined || action.payCost === undefined) return
     const entry = magicEntry(action.payTiming)
-    if (entry) payMagicCostThenResolve(state, owner, action.cardId, action.payCost, entry.action)
+    if (entry) {
+        announceBurstMagicEffect(state, owner, action.cardId, action.payTiming)
+        payMagicCostThenResolve(state, owner, action.cardId, action.payCost, entry.action)
+    }
 }
 
 const remainOnFieldSelfHandler: ActionHandler<"remainOnFieldSelf"> = (ctx, action) => {

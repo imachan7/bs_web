@@ -1,7 +1,9 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
+import { blockDestroyTolls } from "../../../shared/block"
 import { isReturnWaiting, isTrashWaiting } from "../../../shared/rules/waiting"
 import { summonPayPlan } from "./summonCores"
 import { payMagicCostThenResolve } from "./magic/payThenResolve"
+import { announceBurstMagicEffect } from "./keywords/burstMagicEffect"
 import { handGainDenial } from "./handGate"
 import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
 import { activateBurstCard, applyDeclaredBursts, declareBurst } from "./keywords/burst"
@@ -11,6 +13,7 @@ import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeF
 import { claimGroupOnce, groupOnceUsed, notifyHandGained, restStateHolds } from "./fieldEventTriggers"
 import { instColors } from "../../../shared/rules"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
+import { emitEffectNoticeFor } from "./effectNotice"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit, applyCoreDestination, flushCoreDestinations } from "./removal"
 import { resolveRevivePickMany } from "./revivePickMany"
@@ -48,7 +51,7 @@ import { doCastMagic } from "./magic/cast"
 import { resumeBraveDestroy } from "./brave"
 import { tryBraveFreeSummon } from "./braveFreeSummon"
 import { doSummonFromTegamoto } from "./tegamotoSummon"
-import { applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
+import { applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, payBlockDestroyTolls, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
 import { newRecordScope } from "./record"
 import { levelStillMet } from "./levelRecheck"
@@ -168,13 +171,18 @@ function resolveChoiceInner(
     // ブロックのコスト（blockExhaustSpirit）で疲労させるスピリットの選択待ち。action は解決しない
     if (pending.blockExhaustPick) {
         if (instanceId === undefined || !pending.candidates.includes(instanceId)) return "選択できない対象です"
-        const { blockerPid, blockerInstanceId, destroy } = pending.blockExhaustPick
+        const { blockerPid, blockerInstanceId, destroyTollIndex } = pending.blockExhaustPick
         const chosen = findSpirit(state.players[blockerPid], instanceId)
         state.pendingChoice = null
         if (!state.battle || !chosen) return null
-        if (destroy) destroyBlockToll(state, blockerPid, chosen)
-        else exhaustBlockToll(state, blockerPid, chosen)
-        continueBlockDeclaration(state, blockerPid, blockerInstanceId)
+        if (destroyTollIndex === undefined) {
+            exhaustBlockToll(state, blockerPid, chosen)
+            payBlockDestroyTolls(state, blockerPid, blockerInstanceId, 0)
+        } else {
+            const rec = blockDestroyTolls(state, findSpirit(state.players[opponentOf(blockerPid)], state.battle.attackerInstanceId))[destroyTollIndex]
+            if (rec) destroyBlockToll(state, blockerPid, chosen, rec)
+            payBlockDestroyTolls(state, blockerPid, blockerInstanceId, destroyTollIndex + 1)
+        }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -351,7 +359,7 @@ function resolveChoiceInner(
         log(state, `${getCard(info.targetCardId).name}の【迷彩】：${state.players[info.pid].name}は${info.need}コストを支払った。`)
         state.meisaiPaidFor = info.targetInstanceId
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -378,7 +386,7 @@ function resolveChoiceInner(
         if (info.need > 0) log(state, info.surcharge ? `${state.players[info.pid].name}：${getCard(info.sourceCardId).name}のために${info.need}コスト余分に支払った。` : `${getCard(info.sourceCardId).name}：${info.need}コストを支払った。`)
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         const resume = placeCores === undefined ? pending.action : ({ ...pending.action, placeCores } as typeof pending.action)
-        resolveAction(state, pending.actorPid ?? pending.pid, self, resume, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, resume, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId, undefined, undefined, pending.effectSource?.instanceId)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -625,6 +633,7 @@ function resolveChoiceInner(
                   handIndex: info.handIndex,
                   fromTegamoto: true,
                   ...(info.level !== undefined ? { level: info.level } : {}),
+                  ...(info.cores !== undefined ? { cores: info.cores } : {}),
                   ...(info.paySources !== undefined ? { paySources: info.paySources } : {}),
                   ...(info.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: info.braveTargetInstanceId } : {}),
                   ...(info.exReductionTrashIndices !== undefined ? { exReductionTrashIndices: info.exReductionTrashIndices } : {}),
@@ -647,6 +656,10 @@ function resolveChoiceInner(
             info.paySoulCoreFromReserve,
             info.placeSoulCoreFromReserve,
             index === 0, // 0=コストを支払わずに召喚する
+            undefined,
+            undefined,
+            undefined,
+            info.cores,
         )
         if (error) return error
         if (state.winner) return null
@@ -691,6 +704,7 @@ function resolveChoiceInner(
                 if (pending.burstThenPay) {
                     // バーストのthenPay：確認どおりコストを支払ってから発揮する（docs/design/BURST.md）
                     const info = pending.burstThenPay
+                    announceBurstMagicEffect(state, info.pid, info.cardId, info.timing)
                     payMagicCostThenResolve(state, info.pid, info.cardId, info.cost, pending.action)
                 } else if (pending.burstActivate && !pending.burstNegateChecked && negateBurstActivation(state, pending.burstActivate.pid, pending.burstActivate.cardId, { kind: "confirm", original: pending, option })) {
                     // 無効にした、または相手の BS21-052 の確認待ち（続きは burstNegate の解決で行う）
@@ -701,13 +715,13 @@ function resolveChoiceInner(
                     declareBurst(state, chosen !== undefined ? { ...record, eventCost: chosen } : record)
                 } else {
                     delete state.effectFizzled
-                    resolveAction(state, actor, self, pending.action, pending.confirmTargetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId)
+                    resolveAction(state, actor, self, pending.action, pending.confirmTargetInstanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, pending.sourceCardId, undefined, undefined, pending.effectSource?.instanceId)
                     // 発動を選んだがコストを払えず不発だった＝発揮していないので「ターンに1回」を戻す（2026-09-16）
                     if (state.effectFizzled) revertActivatedIfSkipped(state, pending)
                     delete state.effectFizzled
                 }
             } else {
-                resolveAction(state, actor, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, option)
+                resolveAction(state, actor, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, option, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
             }
         } else {
             const name = self ? getCard(self.cardId).name : "効果"
@@ -730,11 +744,11 @@ function resolveChoiceInner(
         state.pendingChoice = null
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         if (cardIndex !== undefined) {
-            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, cardIndex, undefined, paySources)
+            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, cardIndex, undefined, paySources, undefined, pending.effectSource?.instanceId)
         } else if (pending.resolveOnSkip) {
             // 「選び終わったら後処理がある」効果（BS08堕天使ミカファール：破棄した枚数ぶんドローする）。
             // スキップ＝「もう選ばない」の合図なので、cardIndex なしで action をもう一度解決させる
-            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type)
+            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
         } else {
             // 起動能力から出た選択をやめた＝発揮しなかった扱いにして、同じターンにもう一度起動できるようにする
             revertActivatedIfSkipped(state, pending)
@@ -755,11 +769,11 @@ function resolveChoiceInner(
     const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
 
     if (instanceId !== undefined) {
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, instanceId, pending.effectSource?.colors, pending.effectSource?.type)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, instanceId, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
     } else if (pending.resolveOnSkip) {
         // 「選び終わったら後処理がある」効果（予算内で好きなだけ破壊するトグル選択）。
         // スキップ＝「これで確定」の合図なので、対象なしで action をもう一度解決させる
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, undefined, undefined, undefined, undefined, pending.effectSource?.instanceId)
     } else {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }
@@ -803,6 +817,10 @@ export function runActionFrame(state: GameState, pid: PlayerId, frame: Extract<R
     // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
     if (frame.logText !== undefined) log(state, frame.logText)
     claimGroupOnce(state, frame.groupOnce)
+    if (frame.notice && frame.levelRecheck) {
+        const noticeSrc = findInstanceAnywhere(state, frame.levelRecheck.instanceId)
+        if (noticeSrc) emitEffectNoticeFor(state, frame.actorPid ?? pid, noticeSrc, getCard(noticeSrc.cardId).effects.find((x) => x.id === frame.levelRecheck!.effectId))
+    }
     const frameSelf = frame.selfInstanceId
         ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
         : null
@@ -832,6 +850,9 @@ export function runActionFrame(state: GameState, pid: PlayerId, frame: Extract<R
         undefined,
         undefined,
         frame.sourceCardId,
+        undefined,
+        undefined,
+        frame.sourceInstanceId,
     )
     delete state.resumeEffectId
     if (prevBurst) state.resumeBurst = prevBurst

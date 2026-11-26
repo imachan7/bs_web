@@ -10,7 +10,7 @@ import type { Board } from "./board"
 import { card } from "./cardDb"
 import { effectiveCost } from "./cost"
 import { braveSlotsUsed, extraCombineAllowed } from "./rules/braveExtraCombine"
-import { activeConstraints, timedContentsOn, zoneSpiritEffectsDisabled, isFlashLockedFor, matchesBraveCondition, minLevelCores } from "./rules"
+import { activeConstraints, timedContentsOn, zoneSpiritEffectsDisabled, isFlashLockedFor, matchesBraveCondition, summonMinCores } from "./rules"
 
 // 召喚（type:"summon"）で場に出せるカードか。
 // **ブレイヴは単体で場に出すとスピリットとして扱われる**ので、こちらも true になる（BRAVE.md §1.1）。
@@ -38,6 +38,33 @@ export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId:
         .filter((host) => !activeConstraints(board, pid, host).some((c) => c.type === "cantCombine"))
         .filter((host) => matchesBraveCondition(board, pid, host, braveCardId))
         .map((host) => host.instanceId)
+}
+
+// メインステップの交換（BRAVE.md §6.4.1）で、合体中のブレイヴを to へ移せるか。
+// move＝to の空いている枠へ移す（2体と合体できるスピリットの2枠目も含む。条件は普通の合体と同じ見方）。
+// swap＝to の枠が1つで埋まっているので、そのブレイヴと入れ替える。条件は合体先のスピリットだけで見る（今ついているブレイヴのコストを含めない。Q71）。両側とも満たすときだけ（Q66）。
+// 枠が2つとも埋まっているスピリットは、どちらと入れ替えるかが決まらないので null
+// ponytail: 異魔神（左右の枠）は扱わない。プールに入ったら足す
+export function braveExchangeMode(board: Board, pid: PlayerId, braveInstanceId: string, toInstanceId: string): "move" | "swap" | null {
+    const field = board.players[pid].field
+    const refsOf = (sp: CardInstance) => sp.braveRefs ?? []
+    const from = field.spirits.find((sp) => refsOf(sp).some((r) => r.instanceId === braveInstanceId))
+    const to = field.spirits.find((sp) => sp.instanceId === toInstanceId)
+    const brave = field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
+    if (!from || !to || !brave || from.instanceId === to.instanceId) return null
+    if (refsOf(from).some((r) => r.slot !== "single") || refsOf(to).some((r) => r.slot !== "single")) return null
+    const has = (sp: CardInstance, type: string) => activeConstraints(board, pid, sp).some((c) => c.type === type)
+    if (has(from, "cantSeparate") || has(to, "cantCombine") || card(to.cardId).type === "brave") return null
+    if (canCombineBraveCount(board, pid, to, brave.cardId)) return matchesBraveCondition(board, pid, to, brave.cardId) ? "move" : null
+    const refs = refsOf(to)
+    if (refs.length !== 1 || has(to, "cantSeparate")) return null
+    const other = field.combinedBraves.find((b) => b.instanceId === refs[0]!.instanceId)
+    if (!other || !matchesBraveCondition(board, pid, to, brave.cardId, true)) return null
+    return matchesBraveCondition(board, pid, from, other.cardId, true) ? "swap" : null
+}
+
+export function braveExchangeTargets(board: Board, pid: PlayerId, braveInstanceId: string): string[] {
+    return board.players[pid].field.spirits.filter((to) => braveExchangeMode(board, pid, braveInstanceId, to.instanceId) !== null).map((to) => to.instanceId)
 }
 
 // 【抜刀】の「このスピリットと合体可能な」（公式 Q800・Q802）：合体条件だけを見る（合体禁止中でも true＝Q798）。
@@ -123,7 +150,7 @@ export function battleSwapSummonCheck(
     // コストは**入れ替え元がまだ場にいる時点**で数える（軽減シンボルは召喚宣言時の盤面で決まる）。
     // GameEngine.doBattleSwapSummon も手札に戻す前に effectiveCost を呼んでおり、順序が一致している
     const cost = effectiveCost(board, pid, cardData)
-    const placeCores = minLevelCores(cardData)
+    const placeCores = summonMinCores(board, pid, cardData)
     return {
         effectId: swap.id,
         substituteName: swap.substituteName,

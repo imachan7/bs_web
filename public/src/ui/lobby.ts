@@ -6,7 +6,7 @@ export const DECK_STORAGE_KEY = "bsweb:decks"
 
 export const CUSTOM_DECK_PREFIX = "custom:"
 
-// デッキビルダー（deck.ts）と同じ保存フォーマット
+// デッキビルダー（デッキ構築画面）と同じ保存フォーマット
 export interface SavedDeck {
     name: string
     cards: Record<string, number>
@@ -41,9 +41,9 @@ export function setDeckRecipes(r: typeof deckRecipes): void {
     deckRecipes = r
 }
 
-export const ALL_DECK_SELECT_IDS = ["deck-select", "ai-my-deck-select", "ai-opp-deck-select"]
+export const ALL_DECK_SELECT_IDS = ["deck-select", "ai-opp-deck-select"]
 // 「スタートデッキを表示」の切り替えを置くデッキ欄。AI のデッキはスタートデッキを選ぶことが多いので常に出す（2026-11-12 ユーザー決定）
-const STARTER_TOGGLE_SELECT_IDS = ["deck-select", "ai-my-deck-select"]
+const STARTER_TOGGLE_SELECT_IDS = ["deck-select"]
 const SHOW_STARTERS_KEY = "bsweb:showStarterDecks"
 const lastDeckKey = (selectId: string) => `bsweb:lastDeck:${selectId}`
 

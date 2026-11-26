@@ -1,4 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
+import { braveExchangeMode } from "../../../shared/summon"
 import { isTrashWaiting } from "../../../shared/rules/waiting"
 import { takeFromTrash } from "./zones/trash"
 import { settleAllLifeZero } from "./lifeGate"
@@ -20,7 +21,8 @@ import {
     getCard,
     log,
     instMinLevelCores,
-    minLevelCores,
+    summonMinCores,
+    summonLevelCostBonus,
     opponentOf,
     placedCoresForSummon,
     checkNoMutationAfterSuspend,
@@ -39,7 +41,7 @@ import { resolveBlockDeclared } from "./blockDeclared"
 import { applyDeclaredBursts, finishSummonEffect } from "./keywords/burst"
 import { markPayConfirmed } from "./actions/pay"
 import { doUseHandBurstEffect } from "./handBurstEffect"
-import { blockDestroyCandidates, blockDestroyOwnSpiritRecord, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
+import { blockDestroyCandidates, blockDestroyTolls, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
 import {
     AWAKEN_FROM_RESERVE,
     timedContentsOn,
@@ -105,6 +107,7 @@ import {
     validateBlock,
     validateEndTurn,
     validateCombineBrave,
+    validateExchangeBrave,
     validateDetachBrave,
     validateMoveCore,
     validateSwapSoulCore,
@@ -121,7 +124,7 @@ import {
 import { doCastMagic } from "./magic/cast"
 import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
-import { separateBravesBelowMinCost, separateBravesOverLimit } from "./braveConditionGate"
+import { separateBravesLostCondition, separateBravesOverLimit, trashSpiritStateBravesWhenForbidden } from "./braveConditionGate"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 import { resolveForcedBlock } from "./forcedBlock"
 import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed, markUsedOnceThisTurn, markNameUsedOnceThisTurn } from "./oncePerTurn"
@@ -150,8 +153,9 @@ function settleAfterResolution(state: GameState): void {
     if (!state.winner) refreshLevelAsOverrides(state)
     // 維持コアを下回った個体の掃除（refreshLevelAsOverrides の後に置くこと）
     sweepLevelCostDepletion(state)
-    separateBravesBelowMinCost(state)
+    separateBravesLostCondition(state)
     separateBravesOverLimit(state)
+    if (trashSpiritStateBravesWhenForbidden(state)) refreshLevelAsOverrides(state)
     // バウンス待機カードは選択待ちが無くなった時点で手札／デッキへ移す。resolveAction を通らない経路（エンドステップのデッキ下戻し・召喚時の入れ替え）の安全網
     if (!state.pendingChoice) settleAllDerived(state)
     // 【迷彩】の支払い済み目印は、払った効果の解決（中断含む）が終わるまで持ち、次の効果へ持ち越さない
@@ -325,14 +329,14 @@ function dispatchAction(
             const braveFree = tryBraveFreeSummon(state, pid, action)
             if (braveFree !== undefined) return braveFree
             if (action.fromTegamoto) return doSummonFromTegamoto(state, pid, action)
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices, action.payOffInstanceId)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices, action.payOffInstanceId, undefined, action.cores)
         }
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":
             return doSetBurst(state, pid, action.handIndex)
         case "setNexus":
-            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve)
+            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.cores)
         case "castMagic":
             return doCastMagic(
                 state,
@@ -362,6 +366,8 @@ function dispatchAction(
             return doCombineBrave(state, pid, action.braveInstanceId, action.hostInstanceId)
         case "detachBrave":
             return doDetachBrave(state, pid, action.braveInstanceId, action.paySources)
+        case "exchangeBrave":
+            return doExchangeBrave(state, pid, action.braveInstanceId, action.toInstanceId)
         case "awaken":
             return doAwaken(state, pid, action.instanceId, action.fromInstanceId, action.count)
         case "attack":
@@ -463,7 +469,7 @@ function doBattleSwapSummon(
     noteCoverage(card.effects.find((e) => e.kind === "battleSwapSummon"), "battleSwapSummon")
     const cost = effectiveCost(state, pid, card)
     returnSpiritToHand(state, pid, substitute)
-    const maintain = minLevelCores(card)
+    const maintain = summonMinCores(state, pid, card)
     payVoidToll(state, pid, card)
     const placedFromField = payCost(state, pid, cost, paySources, maintain)
     player.reserve -= maintain - placedFromField
@@ -556,8 +562,9 @@ export function doSummon(
     extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（省略時は自動で選ぶ）
     payOffInstanceId?: string, // kind:"summonPayOff"：破壊することで召喚コストを払ったものとして扱う個体
     fromTegamoto?: boolean, // 手元から召喚する（validateSummon と同じ意味）
+    cores?: number, // 置くコアの数（level より優先）
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices, payOffInstanceId, fromTegamoto)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices, payOffInstanceId, fromTegamoto, cores)
     if (error) return error
 
     const player = state.players[pid]
@@ -634,6 +641,7 @@ export function doSummon(
             sokuFreeChoice: {
                 handIndex,
                 ...(level !== undefined ? { level } : {}),
+                ...(cores !== undefined ? { cores } : {}),
                 ...(paySources !== undefined ? { paySources } : {}),
                 ...(braveTargetInstanceId !== undefined ? { braveTargetInstanceId } : {}),
                 ...(exReductionTrashIndices !== undefined && exReductionTrashIndices.length > 0 ? { exReductionTrashIndices } : {}),
@@ -660,6 +668,8 @@ export function doSummon(
     const maintain = placedCoresForSummon(card, level, {
         braveTarget: braveTargetInstanceId !== undefined,
         placeSoulCoreFromReserve,
+        cores,
+        levelCostBonus: summonLevelCostBonus(state, pid, card),
     })
 
     // コアで足りない分の召喚コストを手札破棄で支払う（枚数は validateSummon と同じ関数で出す）
@@ -809,7 +819,7 @@ function requestResshinsokuDestination(state: GameState, pid: PlayerId, info: Re
     }
     const player = state.players[pid]
     const card = getCard(info.cardId)
-    const need = minLevelCores(card) - info.selfCores
+    const need = summonMinCores(state, pid, card) - info.selfCores
     const forceSelf = need >= info.remaining
     const targets = [...player.field.spirits, ...player.field.nexuses]
     const destinations: string[] = forceSelf ? ["self"] : ["reserve", ...targets.map((t) => t.instanceId), "self"]
@@ -942,8 +952,9 @@ function doSetNexus(
     millPay?: number,
     paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を配置コスト支払い1個ぶんとして使う
     placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして配置したネクサスに置く
+    cores?: number,
 ): string | null {
-    const error = validateSetNexus(state, pid, handIndex, paySources, level, millPay, paySoulCoreFromReserve, placeSoulCoreFromReserve)
+    const error = validateSetNexus(state, pid, handIndex, paySources, level, millPay, paySoulCoreFromReserve, placeSoulCoreFromReserve, cores)
     if (error) return error
 
     const player = state.players[pid]
@@ -952,7 +963,7 @@ function doSetNexus(
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）。《真界放》の waiver 配置は doSummon と同じ
-    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve })
+    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve, cores, levelCostBonus: summonLevelCostBonus(state, pid, card) })
 
     // 配置コストをデッキ破棄で支払う場合（コア払いとの併用はできないので全額かゼロ。枚数は validateSetNexus と同じ関数で出す）
     const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources, millPay)
@@ -1044,6 +1055,35 @@ function doDetachBrave(state: GameState, pid: PlayerId, braveInstanceId: string,
     const host = player.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     if (!brave || !host) return "対象のカードが見つかりません"
     detachBraveVoluntary(state, pid, host, brave, paySources)
+    return null
+}
+
+// メインステップのブレイヴの交換（BRAVE.md §6.4.1）。スピリット状態を経ずに付け直すので、コアは動かさない。
+// 疲労は移動元を引き継ぐ（外すときに写し、attachBrave の疲労合成で移動先へ伝わる。§12.5）
+function doExchangeBrave(state: GameState, pid: PlayerId, braveInstanceId: string, toInstanceId: string): string | null {
+    const error = validateExchangeBrave(state, pid, braveInstanceId, toInstanceId)
+    if (error) return error
+    const swap = braveExchangeMode(state, pid, braveInstanceId, toInstanceId) === "swap"
+    const player = state.players[pid]
+    const from = player.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
+    const to = findSpirit(player, toInstanceId)
+    if (!from || !to) return "対象のカードが見つかりません"
+    const take = (host: CardInstance, id: string): CardInstance | undefined => {
+        host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== id)
+        if (host.braveRefs.length === 0) delete host.braveRefs
+        const at = player.field.combinedBraves.findIndex((b) => b.instanceId === id)
+        const [brave] = at === -1 ? [] : player.field.combinedBraves.splice(at, 1)
+        if (brave) brave.isRested = host.isRested
+        return brave
+    }
+    const moving = take(from, braveInstanceId)
+    const back = swap ? take(to, to.braveRefs![0]!.instanceId) : undefined
+    if (!moving) return "対象のブレイヴが見つかりません"
+    attachBrave(state, pid, to, moving)
+    if (back) attachBrave(state, pid, from, back)
+    log(state, back
+        ? `${player.name}は${getCard(from.cardId).name}と${getCard(to.cardId).name}のブレイヴを入れ替えた。`
+        : `${player.name}は${getCard(moving.cardId).name}を${getCard(to.cardId).name}に合体させ直した。`)
     return null
 }
 
@@ -1313,38 +1353,44 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string, paySources
         }
         exhaustBlockToll(state, pid, candidates[0]!)
     }
-    // blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリット1体を破壊する。
-    // ponytail: blockExhaustSpirit の選択待ちと両方が掛かると、破壊の選択は出さずに先頭を破壊する
-    const destroyAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
-    if (blockDestroyOwnSpiritRecord(state, destroyAttacker)) {
-        const candidates = blockDestroyCandidates(state, pid, instanceId, destroyAttacker)
+    return payBlockDestroyTolls(state, pid, instanceId, 0)
+}
+
+// blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリットを、発生源ごとに1体ずつ選んで破壊する（from 番目から）。
+// 払い終えたらブロック宣言の続きへ。対話時は候補が2体以上ならブロックする側が選び、選択からは次の番号で戻ってくる（#700）
+export function payBlockDestroyTolls(state: GameState, pid: PlayerId, blockerInstanceId: string, from: number): string | null {
+    if (!state.battle) return "バトルが発生していません"
+    const tolls = blockDestroyTolls(state, findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId))
+    for (let i = from; i < tolls.length; i++) {
+        const rec = tolls[i]!
+        const candidates = blockDestroyCandidates(state, pid, blockerInstanceId, rec)
+        if (candidates.length === 0) break
         if (state.interactiveTargets && candidates.length > 1) {
-            state.pendingChoice = {
+            suspend(state, {
                 pid,
                 kind: "target",
-                prompt: "ブロックのコストとして破壊するスピリットを選んでください",
+                prompt: tolls.length > 1 ? `ブロックのコストとして破壊するスピリットを選んでください（${String(i + 1)}/${String(tolls.length)}体目）` : "ブロックのコストとして破壊するスピリットを選んでください",
                 candidates: candidates.map((sp) => sp.instanceId),
                 optional: false,
                 action: { type: "noop" },
-                selfInstanceId: instanceId,
-                blockExhaustPick: { blockerPid: pid, blockerInstanceId: instanceId, destroy: true },
-            }
+                selfInstanceId: blockerInstanceId,
+                blockExhaustPick: { blockerPid: pid, blockerInstanceId, destroyTollIndex: i },
+            })
             return null
         }
-        destroyBlockToll(state, pid, candidates[0]!)
+        destroyBlockToll(state, pid, candidates[0]!, rec)
     }
-    return continueBlockDeclaration(state, pid, instanceId)
+    return continueBlockDeclaration(state, pid, blockerInstanceId)
 }
 
-// 破壊はアタッカー側の効果（相手によって破壊された扱い。Q4429 で破壊時効果も発揮する）
-export function destroyBlockToll(state: GameState, pid: PlayerId, sp: CardInstance): void {
+// 破壊はアタッカー側の効果（相手によって破壊された扱い。Q4429 で破壊時効果も発揮する）。帰属は rec（その破壊を求めた記録）の発生源
+export function destroyBlockToll(state: GameState, pid: PlayerId, sp: CardInstance, rec: GameState["timedEffects"][number]): void {
     log(state, `${state.players[pid].name}はブロックのため${getCard(sp.cardId).name}を破壊した。`)
-    const rec = state.battle ? blockDestroyOwnSpiritRecord(state, findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)) : undefined
     destroySpirit(state, pid, sp.instanceId, "destroy", {
         sourcePid: opponentOf(pid),
-        ...(rec?.sourceType !== undefined ? { sourceType: rec.sourceType } : {}),
-        ...(rec?.sourceColors !== undefined ? { sourceColors: rec.sourceColors } : {}),
-        ...(rec?.sourceInstanceId !== undefined ? { sourceInstanceId: rec.sourceInstanceId } : {}),
+        ...(rec.sourceType !== undefined ? { sourceType: rec.sourceType } : {}),
+        ...(rec.sourceColors !== undefined ? { sourceColors: rec.sourceColors } : {}),
+        ...(rec.sourceInstanceId !== undefined ? { sourceInstanceId: rec.sourceInstanceId } : {}),
     })
 }
 

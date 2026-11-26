@@ -78,7 +78,7 @@ console.log("=== §C BS11-X03：自分のライフが3以下の間、手札の�
     assert(effectiveCost(s, "p1", card) === 4, "ライフ3以下ではコスト4")
 }
 
-console.log("=== §D BS11-X06 Lv3：回復状態の間、その持ち主は相手のライフを減らせない ===")
+console.log("=== §D BS11-X06 Lv3：自分のアタック中に回復状態なら、そのアタックでは相手のライフを減らせない（2026-11-24 #705） ===")
 {
     const s = game("libra")
     const libra = createInstance(LIBRA, s.turn, 6) // Lv3
@@ -86,9 +86,13 @@ console.log("=== §D BS11-X06 Lv3：回復状態の間、その持ち主は相�
     refreshLevelAsOverrides(s)
     const attacker = createInstance(vanilla[0]!.cardId, s.turn, 2)
     s.players.p1.field.spirits.push(attacker)
-    assert(lifeDamageLimit(s, "p2", attacker).max === 0, "回復状態の間は相手のライフを減らせない")
+    assert(lifeDamageLimit(s, "p2", libra).max > 0, "アタック中でなければ回復状態でも止めない")
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null } as typeof s.battle
+    assert(lifeDamageLimit(s, "p2", attacker).max > 0, "同じ持ち主の別スピリットのアタックは止めない")
+    s.battle = { attackerInstanceId: libra.instanceId, blockerInstanceId: null } as typeof s.battle
+    assert(lifeDamageLimit(s, "p2", libra).max === 0, "リブラ自身のアタック中、回復状態なら相手のライフを減らせない")
     libra.isRested = true
-    assert(lifeDamageLimit(s, "p2", attacker).max > 0, "疲労状態なら制約は外れる")
+    assert(lifeDamageLimit(s, "p2", libra).max > 0, "疲労状態なら制約は外れる")
     // 自分のライフは守られない（片側だけの制約）
     const oppAttacker = createInstance(vanilla[0]!.cardId, s.turn, 2)
     s.players.p2.field.spirits.push(oppAttacker)

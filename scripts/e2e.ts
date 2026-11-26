@@ -439,7 +439,9 @@ async function main(): Promise<void> {
         let guard = 0
         let lastSignature = ""
         let attackedByAi = false
-        while (!(view.turnPlayer === "p1" && view.turn >= 3 && !view.battle) && guard < 400) {
+        // AI が先攻だと AI のアタックの機会が1回多く、こちらはライフで受けるだけなので、AI が勝って終わることがある。
+        // 終わった対戦では AI はもう指さないので、待たずに抜ける（以前はここで8秒待って落ちていた。2026-11-24）
+        while (!(view.turnPlayer === "p1" && view.turn >= 3 && !view.battle) && view.winner === null && guard < 400) {
             guard++
             const signature = [
                 view.turn,
@@ -469,7 +471,10 @@ async function main(): Promise<void> {
             }
             view = await c.nextState()
         }
-        assert(view.turnPlayer === "p1" && view.turn >= 3, `AIが指し終えて自分の手番に戻る（ターン${view.turn}）`)
+        assert(
+            view.winner === "p2" || (view.turnPlayer === "p1" && view.turn >= 3),
+            `AIが指し終えて自分の手番に戻る（AIが勝って終わってもよい。ターン${view.turn}・勝者${view.winner ?? "なし"}）`,
+        )
         assert(
             view.players.p2.field.spirits.length > 0,
             `AIが実際に盤面を作っている（AIのスピリット${view.players.p2.field.spirits.length}体）`,

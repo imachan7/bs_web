@@ -64,7 +64,7 @@ function pick(s: GameState, pred: (id: string) => boolean): boolean {
 }
 
 function attackWithDark(seed: string, opp: { card: string; cores: number }[], combined = true) {
-    const s = build(seed, [{ card: BIG, cores: 3 }], opp)
+    const s = build(seed, [{ card: "SD03-005", cores: 2 }], opp) // ビッグ・ホーン（赤・コスト5・Lv2 BP6000・効果なし）。LM13-01 の合体条件コスト5以上を満たす
     const host = s.players.p1.field.spirits[0]!
     if (combined) combine(s, host, DARK)
     else s.players.p1.field.spirits.push(createInstance(DARK, s.turn - 1, 1)) // スピリット状態のブレイヴ

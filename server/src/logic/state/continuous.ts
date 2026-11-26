@@ -180,6 +180,21 @@ export function recordBp(state: GameState, ownerPid: PlayerId, inst: CardInstanc
     }
 }
 
+// ブレイヴ群がホストへ足すぶん。合体条件の確かめ直しが「そのブレイヴを除いた」ホストを作るときにも使う
+export function braveCompositeOf(state: GameState, pid: PlayerId, braves: CardInstance[]): NonNullable<CardInstance["braveComposite"]> {
+    const composite = { cost: 0, colors: [] as Color[], symbols: [] as Color[], grantedColors: [] as Color[] }
+    const costZero = braveCostZeroFor(state, pid)
+    for (const brave of braves) {
+        const master = getCard(brave.cardId)
+        if (!costZero) composite.cost += master.cost
+        for (const c of master.colors) if (!composite.colors.includes(c)) composite.colors.push(c)
+        composite.symbols.push(...master.symbol)
+        // ブレイヴに与えられた色（「本来の色とは別に与える」）は、合体スピリットに与えられた色になる（#507）
+        for (const c of [...brave.timedColors, ...(brave.colorsAsContinuous ?? [])]) if (!composite.grantedColors.includes(c)) composite.grantedColors.push(c)
+    }
+    return composite
+}
+
 export function refreshLevelAsOverrides(state: GameState): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of [
@@ -226,16 +241,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
         for (const host of player.field.spirits) {
             const braves = bravesOf(player, host)
             if (braves.length === 0) continue
-            const composite = { cost: 0, colors: [] as Color[], symbols: [] as Color[], grantedColors: [] as Color[] }
-            const costZero = braveCostZeroFor(state, pid)
-            for (const brave of braves) {
-                const master = getCard(brave.cardId)
-                if (!costZero) composite.cost += master.cost
-                for (const c of master.colors) if (!composite.colors.includes(c)) composite.colors.push(c)
-                composite.symbols.push(...master.symbol)
-                // ブレイヴに与えられた色（「本来の色とは別に与える」）は、合体スピリットに与えられた色になる（#507）
-                for (const c of [...brave.timedColors, ...(brave.colorsAsContinuous ?? [])]) if (!composite.grantedColors.includes(c)) composite.grantedColors.push(c)
-            }
+            const composite = braveCompositeOf(state, pid, braves)
             host.braveComposite = composite
             for (const brave of braves) {
                 // 合体状態のレベル表を引かせる目印と、判定に使うコア数（＝ホストのコア数）。
