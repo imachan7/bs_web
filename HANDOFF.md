@@ -21,10 +21,6 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：アルティメットの土台 段1（ブランチ `refactor/ultimate-stage1-symbol-mark`。2026-11-27 ユーザーと合意：段0〜6 はカード無しで段ごとに PR、カードは表のレビューが済んだ商品から1つずつ）
-- `type SymbolMark = Color | "ultimate"`。`CardData.symbol`・`reduction` を `SymbolMark[]` にする（データは "ultimate" をまだ持たないので挙動不変）
-- 極は：軽減では色として数えず、軽減に極を持つカードの極の枠だけを埋める／「◯のシンボルがある」・`ownFieldSymbolColors` では数えない（B11）／ライフを減らす数・`instanceSymbolCount` では1つ（B12）。段0（`minLevelCores`）は 2026-07-26 に済んでいる
-
 ### 進行中：スマホの対戦画面（ブランチ `feat/mobile-battle-layout`。ユーザーに見せてから PR）
 
 - 状態（11-25 夜）：ユーザーが実機（Android 412×830 相当）で触りながら直している。点検ページ `/dev/ui-gallery.html`（場面×大きさ5、崩れを自動点検）で各回確かめている

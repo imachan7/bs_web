@@ -3,12 +3,12 @@ import { noteCoverage } from "./coverage"
 // 軽減シンボル・コスト修正・マジック使用制約・無償化の判定を一本化する。
 // クライアントは「軽減後のコスト表示」と「使用可能ハイライト」にこれを使うため、
 // サーバーと実装がズレると『使えるのに使えないように見える』表示バグになる（旧 renderer のミラーで実在した）。
-import type { CardData, Color, Keyword, PlayerId } from "../server/src/type"
+import type { CardData, Color, Keyword, PlayerId, SymbolMark } from "../server/src/type"
 import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { entryActive } from "./rules/effectStop"
-import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, grantedColorsOf, instanceSymbolColors, flexibleSymbolUnits, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
+import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, onlyColors, countSymbols, grantedColorsOf, instanceSymbolColors, flexibleSymbolUnits, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -92,7 +92,7 @@ function costModSum(board: Board, usingPid: PlayerId, cardData: CardData, before
 // （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
 // 軽減シンボル1つは、その色か also の色の場のシンボル1つで1回だけ満たされ、場のシンボルも1回しか使えない（Q22532・Q22533）。
 // 軽減が最大になる割り当てを増加路で求める。供給は「そのシンボルが満たせる色の集合」の列（「◯色としても扱う」を持つ個体のシンボルは複数色の集合で、軽減シンボル1つにしか使えない）
-function maxReductionMatch(demands: Color[], also: Color[], units: Color[][]): number {
+function maxReductionMatch(demands: SymbolMark[], also: SymbolMark[], units: SymbolMark[][]): number {
     const owner: number[] = new Array(units.length).fill(-1) // 供給 → それを使っている要求の添字
     const place = (d: number, seen: Set<number>): boolean => {
         for (let u = 0; u < units.length; u++) {
@@ -631,7 +631,7 @@ function trashCardAsEx(board: Board, pid: PlayerId, index: number): Color | unde
 // 除外するトラッシュのカードのEXシンボルの色。もともとEXなら全シンボル、指定で扱うだけなら指定した1つ
 export function exSymbolsOfTrashCard(board: Board, pid: PlayerId, index: number): Color[] {
     const data = card(board.players[pid].trashCards[index]!)
-    if (data.symbolEx === true) return data.symbol
+    if (data.symbolEx === true) return onlyColors(data.symbol)
     const as = trashCardAsEx(board, pid, index)
     return as === undefined ? [] : [as]
 }
@@ -807,7 +807,9 @@ export function effectiveCost(
             const withTrash = hasTrashSymbolReduction(board, pid, cardData, viaSoryo)
             const fullReduction = forceFullReduction || selfSummonCostNotes(board, pid, cardData, "fullReduction", viaSoryo).length > 0
             const alsoColors = fromHand ? reductionAlsoColors(board, pid, cardData) : []
-            const haveOf = (color: Color): number =>
+            // 極の枠は極シンボルだけで埋まる（トラッシュ・《継召》・シンボルを足す効果は色のシンボルだけ）
+            const haveOf = (color: SymbolMark): number =>
+                color === "ultimate" ? countSymbols(board.players[pid], [color], cardData.type === "spirit", true) :
                 countSymbols(board.players[pid], [color], cardData.type === "spirit", true) +
                 (withTrash ? countTrashSymbols(board.players[pid], [color]) : 0) +
                 // 《継召》：除外したカードのシンボルのうち、この色に一致するものだけ軽減に加算する
@@ -816,7 +818,7 @@ export function effectiveCost(
             if (fullReduction) {
                 reduction += reductionColors.length
             } else {
-                const units: Color[][] = flexibleSymbolUnits(board.players[pid], cardData.type === "spirit")
+                const units: SymbolMark[][] = flexibleSymbolUnits(board.players[pid], cardData.type === "spirit")
                 for (const color of new Set([...reductionColors, ...alsoColors])) {
                     for (let i = haveOf(color); i > 0; i--) units.push([color])
                 }

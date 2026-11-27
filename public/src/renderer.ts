@@ -1,5 +1,6 @@
 // 受け取った状態をDOMへ反映する描画処理
 import { isWaiting } from "../../shared/rules/waiting"
+import { onlyColors } from "../../shared/rules/symbols"
 import { summonPayOffOptions } from "../../shared/summonPayOff"
 import type {
     CardData,
@@ -1134,7 +1135,7 @@ export function render(view: GameView, ui: UiState): void {
         for (const id of view.players[you].trashCards) {
             const m = master(id)
             if (m.symbolEx !== true) continue
-            for (const c of new Set(m.symbol)) exByColor.set(c, (exByColor.get(c) ?? 0) + 1)
+            for (const c of new Set(onlyColors(m.symbol))) exByColor.set(c, (exByColor.get(c) ?? 0) + 1)
         }
         for (const color of ["red", "purple", "green", "white", "yellow", "blue"]) {
             const count = exByColor.get(color)

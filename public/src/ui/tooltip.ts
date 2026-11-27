@@ -100,7 +100,7 @@ export function setupEffectTooltip(): void {
             m.reduction.forEach(r => {
                 const icon = document.createElement("span")
                 icon.className = `sym-icon bg-${r}`
-                icon.dataset.colorLabel = COLOR_SYMBOLS[r] || ""
+                icon.dataset.colorLabel = r === "ultimate" ? "極" : COLOR_SYMBOLS[r] || ""
                 redEl.appendChild(icon)
             })
         }
@@ -115,6 +115,7 @@ export function setupEffectTooltip(): void {
             m.symbol.forEach(symColor => {
                 const icon = document.createElement("span")
                 icon.className = `sym-icon bg-${symColor}`
+                if (symColor === "ultimate") icon.dataset.colorLabel = "極"
                 symbolEl.appendChild(icon)
             })
         } else {
