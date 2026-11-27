@@ -137,6 +137,8 @@ export function sendPlay(
             ...(exReductionTrashIndices && exReductionTrashIndices.length > 0 ? { exReductionTrashIndices } : {}),
             ...(paySoulCoreFromReserve ? { paySoulCoreFromReserve } : {}),
         })
+    } else if (cardType === "ultimate") {
+        // 召喚手順を足すまでは出せない（ULTIMATE.md 段3）
     } else {
         // カード種別の網羅チェック。**新しい種別が増えるとここで typecheck が落ちる**ので、
         // 出し方を決めないまま既存のアクションへ紛れ込むことがない（2026-08-28 ユーザー指示）

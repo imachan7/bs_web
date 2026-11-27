@@ -624,7 +624,7 @@ function flushPendingLeaves(view: GameView): void {
     const onField = new Map<string, CardInstance>()
     for (const pid of ["p1", "p2"] as const) {
         const f = view.players[pid].field
-        for (const inst of [...f.spirits, ...f.nexuses, ...f.combinedBraves, ...(f.magics ?? [])]) onField.set(inst.instanceId, inst)
+        for (const inst of [...f.spirits, ...f.ultimates, ...f.nexuses, ...f.combinedBraves, ...(f.magics ?? [])]) onField.set(inst.instanceId, inst)
     }
     for (const [id, kind] of pendingLeaves) {
         const inst = onField.get(id)

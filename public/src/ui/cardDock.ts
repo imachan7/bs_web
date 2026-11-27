@@ -14,7 +14,7 @@ const mobile = { get matches(): boolean { return typeof window !== "undefined" &
 // 分離・交換は合体中のブレイヴごとにある。欄では「分離」「交換」を1つずつにまとめ、ブレイヴが2つ以上のときだけ押したあとにどれかを選ばせる
 // （1行ずつ「分離：カード名」と並べると長い名前で欄が横にはみ出した。2026-11-24 ユーザー指摘）
 const HAND_SOURCES = ":scope > .burst-set-badge, :scope > .hand-ability-badge"
-const PLAY_LABEL = { spirit: "召喚", brave: "召喚", nexus: "配置", magic: "使用" } as const
+const PLAY_LABEL = { spirit: "召喚", brave: "召喚", nexus: "配置", magic: "使用", ultimate: "召喚" } as const
 
 interface Selection { zone: "field" | "hand"; id: string }
 // els が2つ以上なら、押したときにどのブレイヴかを選ぶ（names は els と同じ順のブレイヴ名）

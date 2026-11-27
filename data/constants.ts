@@ -37,6 +37,7 @@ export const CARD_TYPE_LABELS: Record<CardType, string> = {
     nexus: "ネクサス",
     magic: "マジック",
     brave: "ブレイヴ",
+    ultimate: "アルティメット",
 }
 
 export const INITIAL_LIFE = 5

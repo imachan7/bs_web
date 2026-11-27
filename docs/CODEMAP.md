@@ -269,7 +269,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isTrashReturnAtEndStep`（fn）：トラッシュにあるこのカードが、持ち主の『自分のエンドステップ』に手札へ戻るか（kind:"trashReturnAtEndStep"）。
 - `instIsVanilla`（fn）：インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
 - `instEffectsSuppressed`（fn）：この個体が「持つ効果すべてを発揮しない」状態か。判定軸は2つ:
-- `effectSources`（fn）：「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
+- `battlers`（fn）：「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
+- `effectSources`（fn）
 - `nexusEffectsStopped`（fn）：場のネクサス1つの効果が止められているか。常在効果は effectSources が外すが、誘発・ステップ効果は
 - `nexusEffectsDisabledFor`（fn）：pid のネクサスの効果が、相手の kind:"nexusEffectsDisabled" によって発揮されない状態か
 - `isVirtualSource`（fn）：このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。

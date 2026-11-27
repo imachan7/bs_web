@@ -49,8 +49,8 @@ export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
 export type SymbolMark = Color | "ultimate"
 // ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
 // 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
-export type CardType = "spirit" | "nexus" | "magic" | "brave"
-export type ImmuneSource = "spirit" | "brave" | "magic" | "nexus" | "burst" // immuneToEffects/immune の against が絞る発生源種別
+export type CardType = "spirit" | "nexus" | "magic" | "brave" | "ultimate"
+export type ImmuneSource = "spirit" | "brave" | "magic" | "nexus" | "burst" | "ultimate" // immuneToEffects/immune の against が絞る発生源種別
 
 // **効果の発生源の種別は CardType をそのまま流す**（sourceType / srcType）。
 // ⚠️ ブレイヴを "spirit" に丸めないこと（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
@@ -371,6 +371,7 @@ export interface PlayerView {
     tegamoto: string[] // 公開ゾーンのため自分/相手とも常に配信する
     field: {
         spirits: CardInstance[]
+        ultimates: CardInstance[]
         nexuses: CardInstance[]
         combinedBraves: CardInstance[] // 公開情報のため自分/相手とも常に配信する（合体表示に要る）
         magics: CardInstance[] // 場に残るマジック（BS19-099 等）。公開情報のため両者に配信する
