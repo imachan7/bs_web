@@ -349,7 +349,7 @@ export interface BraveConditionTerm {
 | --: | :-- | :-- |
 | 0 | `lv1Cores` → `minLevelCores`（§4）。**済み**（2026-07-26。`shared/rules/activation.ts`） | 既存が無変更で通る（値が変わらないこと） |
 | 1 | `SymbolMark` の導入（§5）。データは全て色のままなので挙動不変。**済み**（2026-11-27。色を見る所は `onlyColors`（shared/rules/symbols.ts）で極を除く。極の軽減の枠は極シンボルだけで埋まる。smoke part1066） | 既存が無変更で通る |
-| 2 | `CardType` に `"ultimate"`／`field.ultimates`／`battlers()` の新設。**まだ召喚できない** | 既存が無変更で通る |
+| 2 | `CardType` に `"ultimate"`／`field.ultimates`／`battlers()` の新設。**まだ召喚できない**。**済み**（2026-11-27。`battlers` は shared/rules/level.ts。smoke part1067）。段3 の走査は 2026-11-27 時点で `field.spirits` 566か所・97ファイル（§2 の159か所から増えた） | 既存が無変更で通る |
 | 3 | §2.1 の分類表にもとづく 159箇所の仕分け（`battlers()` への置換） | アタック・ブロック・維持コア割れの smoke |
 | 4 | 召喚条件（§6）＋召喚経路2つ | 条件未達で召喚不可・効果召喚でも不可 |
 | 5 | `TargetFilter.kinds`（§2.2）＝「スピリット指定効果が当たらない」 | **アルティメットが破壊されないこと**の smoke |

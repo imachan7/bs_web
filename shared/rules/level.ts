@@ -231,6 +231,12 @@ export function instEffectsSuppressed(inst: CardInstance): boolean {
 //    物理的な存在を見る処理であり、意味的に発生源とは別物（TURN_EFFECT_SOURCES.md §1 の分類B）。
 //    それらは player.field を直接見ること。この区別は将来ブレイヴが乗っても効く
 //    （合体中のブレイヴを軽減シンボル集計に混ぜると、実在しないもう1体として数えてしまう事故になる）
+// アタック・ブロック・維持コア・レベルなど「カード実体としての振る舞い」を問う走査用。
+// この段ではまだ誰も呼ばない（docs/design/ULTIMATE.md §2.1。スピリットを数える・対象にする走査は field.spirits のまま）
+export function battlers(player: BoardPlayer): CardInstance[] {
+    return [...player.field.spirits, ...player.field.ultimates]
+}
+
 export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
     const player = board.players[pid]
     return [

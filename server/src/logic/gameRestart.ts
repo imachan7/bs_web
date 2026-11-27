@@ -29,14 +29,14 @@ export function restartGame(state: GameState): void {
             ...p.trashCards,
             ...p.tegamoto,
             ...(p.burst === null ? [] : [p.burst]),
-            ...[...f.spirits, ...f.nexuses, ...f.combinedBraves, ...f.magics].flatMap(cardsOfInstance),
+            ...[...f.spirits, ...f.ultimates, ...f.nexuses, ...f.combinedBraves, ...f.magics].flatMap(cardsOfInstance),
         ]
         p.deck = shuffle(all)
         p.hand = p.deck.splice(0, RESTART_HAND)
         p.trashCards = []
         p.tegamoto = []
         p.tegamotoPlayable = []
-        p.field = { spirits: [], nexuses: [], combinedBraves: [], magics: [] }
+        p.field = { spirits: [], ultimates: [], nexuses: [], combinedBraves: [], magics: [] }
         p.burst = null
         p.burstSet = false
         p.burstSetThisTurn = false

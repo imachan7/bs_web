@@ -28,6 +28,7 @@ export interface PlayerState {
     tegamotoPlayable: string[]
     field: {
         spirits: CardInstance[]
+        ultimates: CardInstance[] // スピリット指定の走査に混ぜないための別置き場（docs/design/ULTIMATE.md §2）
         nexuses: CardInstance[]
         combinedBraves: CardInstance[] // 合体中のブレイヴの実体置き場（docs/design/BRAVE.md §2.3・§2.4）。
         // **フィールド走査の対象に入れない**（spirits に置くと合体スピリットが2体に数えられ、

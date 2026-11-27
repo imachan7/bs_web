@@ -179,7 +179,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         excludedCards: [],
         tegamoto: [],
         tegamotoPlayable: [],
-        field: { spirits: [], nexuses: [], combinedBraves: [], magics: [] },
+        field: { spirits: [], ultimates: [], nexuses: [], combinedBraves: [], magics: [] },
         turnVirtualInstances: [],
         battleVirtualInstances: [],
         gameVirtualInstances: [],
@@ -665,7 +665,7 @@ export function findNexus(
 // 発火対象から除くため）
 export function fieldInstanceIdsOf(state: GameState, pid: PlayerId): Set<string> {
     const p = state.players[pid]
-    return new Set([...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves].map((s) => s.instanceId))
+    return new Set([...p.field.spirits, ...p.field.ultimates, ...p.field.nexuses, ...p.field.combinedBraves].map((s) => s.instanceId))
 }
 
 // 両プレイヤーのスピリット（ネクサスは含まない）から instanceId を検索する。
@@ -678,6 +678,7 @@ export function findInstanceAnywhere(
         const f = state.players[pid].field
         const hit =
             f.spirits.find((x) => x.instanceId === instanceId) ??
+            f.ultimates.find((x) => x.instanceId === instanceId) ??
             f.nexuses.find((x) => x.instanceId === instanceId) ??
             f.combinedBraves.find((x) => x.instanceId === instanceId) ??
             f.magics.find((x) => x.instanceId === instanceId)
@@ -766,6 +767,7 @@ function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState,
         tegamoto: [...player.tegamoto],
         field: {
             spirits: player.field.spirits.map((s) => forView(s, !isSelf)),
+            ultimates: player.field.ultimates.map((s) => forView(s, !isSelf)),
             nexuses: player.field.nexuses.map((s) => forView(s, !isSelf)),
             combinedBraves: player.field.combinedBraves.map((s) => forView(s, !isSelf)),
             magics: player.field.magics.map((s) => forView(s, !isSelf)),

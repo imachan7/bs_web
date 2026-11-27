@@ -10,7 +10,7 @@
 
     const peak = $derived(Math.max(1, ...stats.byCost))
     const COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
-    const TYPE_BG: Record<CardType, string> = { spirit: "#4a6cd4", brave: "#d4824a", nexus: "#4ab08a", magic: "#a86ad4" }
+    const TYPE_BG: Record<CardType, string> = { spirit: "#4a6cd4", brave: "#d4824a", nexus: "#4ab08a", magic: "#a86ad4", ultimate: "#d4b04a" }
 
     const colorBg = (colors: Color[]) =>
         colors.length === 1 ? `var(--c-${colors[0]})` : `linear-gradient(90deg, ${colors.map((c) => `var(--c-${c})`).join(", ")})`
