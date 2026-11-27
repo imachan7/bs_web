@@ -16,7 +16,7 @@ import { placeDenial, summonDenial } from "../summonGate"
 import { askSummonCores } from "../summonCores"
 import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
-import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { clearBattle, createInstance, draw, getCard, log, summonMinCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
     attachBrave,
     bothSidesPids,
@@ -402,7 +402,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             if (placeCores === undefined && askSummonCores(state, owner, getCard(cardId), 0, { ...action, deployIndex: idx })) return true
             if (action.from === "hand") zone.splice(idx, 1)
             else if (takeFromTrash(state, owner, idx, "effect") === null) return false
-            const maintain = placeCores ?? minLevelCores(getCard(cardId))
+            const maintain = placeCores ?? summonMinCores(state, owner, getCard(cardId))
             // 選んだ数はリザーブから置く。選ばない経路は従来どおり（リザーブを減らさない）
             if (placeCores !== undefined) player.reserve -= placeCores
             const inst = createInstance(cardId, state.turn, maintain)
@@ -689,8 +689,8 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
             return
         }
         // count指定時：count枚まで複数体を召喚する（BS06アルカナキング・カール＝4枚まで）。
-        // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
-        // interactiveTargetsでも選択式にはしない（この経路は自動選択のみ）
+        // 非対話はコスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る。
+        // 対話では候補が2枚以上なら1枚ずつ選ばせる（下の「素の count」。#710）
         if (action.count !== undefined) {
             // 召喚の途中で置くコアの待ちなどが立ったら、残りは再開スタックへ（立った待ちを上書きしない）
             const resumeAfterPending = (next: typeof action): boolean => {
@@ -862,6 +862,34 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                 }
                 return
             }
+            // 素の count：対話では、候補が2枚以上なら1枚ずつ選ばせる。コスト最大の自動選択を対戦の既定にしない
+            // （PROCEDURES_AUDIT の 2026-09-02 ユーザー確定の一般則。リリア等で選べなかった。#710）。候補が1枚ならそれを出す
+            if (state.interactiveTargets) {
+                let remaining = action.count
+                if (chosenCardIndex !== undefined) {
+                    summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
+                    if (state.winner) return
+                    remaining--
+                    if (resumeAfterPending({ ...action, count: remaining })) return
+                }
+                while (remaining > 0) {
+                    const indices: number[] = []
+                    for (let i = 0; i < player.hand.length; i++) if (matchesCardId(player.hand[i]!)) indices.push(i)
+                    if (indices.length === 0) {
+                        if (remaining === action.count && chosenCardIndex === undefined) log(state, `${sourceName}：召喚できるスピリットがいなかった。`)
+                        return
+                    }
+                    if (indices.length >= 2) {
+                        requestCardChoice(state, owner, `${sourceName}：召喚するスピリットを選んでください${remaining >= 2 ? `（あと${remaining}枚）` : ""}`, "hand", indices, false, { ...action, count: remaining }, self, true)
+                        return
+                    }
+                    summonFreeFromHandIndex(state, owner, sourceName, indices[0]!, action.skipTensho, summonOpts)
+                    if (state.winner) return
+                    remaining--
+                    if (resumeAfterPending({ ...action, count: remaining })) return
+                }
+                return
+            }
             let summonedCount = 0
             for (let n = 0; n < action.count; n++) {
                 let bestIdx = -1
@@ -876,7 +904,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                     }
                 }
                 if (bestIdx === -1) break
-                const maintain = minLevelCores(getCard(player.hand[bestIdx]!))
+                const maintain = summonMinCores(state, owner, getCard(player.hand[bestIdx]!))
                 if (player.reserve < maintain) break
                 summonFreeFromHandIndex(state, owner, sourceName, bestIdx, action.skipTensho, summonOpts)
                 summonedCount++

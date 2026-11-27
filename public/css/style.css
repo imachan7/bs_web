@@ -40,7 +40,7 @@ body {
 
 /* ---- ロビー ---- */
 #lobby {
-    max-width: 400px;
+    max-width: 480px;
     margin: 100px auto;
     padding: 32px;
     background: var(--bg-panel);
@@ -162,6 +162,33 @@ button:active {
     width: 100%;
 }
 
+.lobby-rooms {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+    font-size: 14px;
+}
+
+.lobby-rooms li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+}
+
+.lobby-rooms .lobby-room-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lobby-section .lobby-rooms button {
+    width: auto;
+    flex: none;
+}
+
 .match-waiting-text {
     color: var(--warning);
     font-size: 14px;
@@ -241,9 +268,15 @@ button:active {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 50px;
-    padding: 8px 20px;
-    gap: 8px;
+    /* 高さは固定。効果の通知・案内で伸びると、下の自分の場と手札が上下にずれて画面が揺れた（2026-11-24 ユーザー指摘。PC で約190px動いた）。
+       入りきらない分は帯の上下へはみ出して場の上に重ねる（中央寄せなので上下に均等に出る）。重ねても読めるよう中身に背景を付ける */
+    height: 50px;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 110;
+    overflow: visible;
+    padding: 0 20px;
+    gap: 4px;
     border-top: 1px solid rgba(239, 68, 68, 0.3);
     border-bottom: 1px solid rgba(59, 130, 246, 0.3);
     background: linear-gradient(
@@ -252,6 +285,20 @@ button:active {
         transparent 50%,
         rgba(59, 130, 246, 0.05) 100%
     );
+}
+
+/* 対象を選ぶ間は、はみ出す向きを対象の無い側へ寄せる。均等にはみ出すと、中央の帯のすぐ上の相手のスピリットに効果の通知が重なり、
+   対象を押しにくかった（2026-11-25 プレイヤーの感想）。両方の側に対象があるときは今までどおり均等 */
+#game:has(#opponent-area .targetable):not(:has(#player-area .targetable)) #center-info-area { justify-content: flex-start; }
+#game:has(#player-area .targetable):not(:has(#opponent-area .targetable)) #center-info-area { justify-content: flex-end; }
+
+#center-info-area > :not(.hidden) {
+    max-width: 100%;
+    box-sizing: border-box;
+    background: rgba(20, 23, 30, 0.96);
+    border-radius: 8px;
+    padding: 4px 12px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
 }
 
 #action-buttons-container {
@@ -310,7 +357,8 @@ button:active {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* 中央の帯からはみ出した通知を、盤面の下（自分の場）の上にも重ねて出すため切らない */
+    overflow: visible;
     transition: box-shadow 0.3s;
 }
 
@@ -338,6 +386,17 @@ button:active {
     gap: 16px;
     font-size: 13px;
     color: var(--text-muted);
+}
+
+.core-icon {
+    height: 1em;
+    width: auto;
+    vertical-align: -0.15em;
+    margin-right: 0.2em;
+}
+
+[id^="mat-"] {
+    display: none;
 }
 
 .player-info .life {
@@ -422,11 +481,6 @@ button:active {
     100% { opacity: 0; transform: translateY(-6px); }
 }
 
-.player-info .turn-mark {
-    color: var(--warning);
-    font-weight: 600;
-}
-
 /* 覚醒モード中にリザーブからコアを移せるときのハイライト */
 .player-info span.targetable {
     color: var(--danger);
@@ -466,6 +520,10 @@ button:active {
 }
 .spirit-zone {
     flex: 1;
+}
+/* PC は場のカードを欄の真ん中に寄せる（左に詰めると右に大きく空きが残った。2026-11-25 ユーザー指示）。スマホは ui/spiritLayout.ts が段に分けて並べるので変えない */
+@media (min-width: 769px) {
+    .spirit-zone, .nexus-zone { justify-content: center; }
 }
 
 /* バーストエリア（docs/design/BURST.md）。ネクサスゾーンと同じ行に横並びさせるための
@@ -562,13 +620,17 @@ button:active {
 .burst-slot.has-art > .name { display: none; }
 /* バーストには場のカードの色の帯（.card::before）を出さない（2026-11-17 ユーザー指摘：伏せた自分のバーストの上に赤い線が出ていた） */
 .burst-slot.card::before { display: none; }
-/* 相手の表向きのバーストは、伏せていたときの裏面と同じ大きさ（.card の 100×140 にしない）。画面幅ごとの大きさは下の @media でも揃える */
-#opp-burst .burst-slot.burst-revealed { width: 46px; height: 56px; padding: 0; }
+/* 絵を出すバースト（自分が伏せたもの・表向き）は .card が付くので、空の枠・相手の裏面と同じ大きさにする（.card の 100×140 にしない。
+   自分が伏せたものが抜けていて、PC でセットすると欄が急に大きくなった。2026-11-25 ユーザー指摘）。画面幅ごとの大きさは下の @media でも揃える */
+.burst-slot.card { width: 46px; height: 56px; }
+#opp-burst .burst-slot.burst-revealed { padding: 0; }
 .burst-hidden-icon {
     position: absolute;
     top: -6px;
     right: -6px;
     font-size: 10px;
+    /* カードの絵（attachCardArt が最後に足す）より上に出す */
+    z-index: 1;
 }
 
 /* 手札のバーストセットボタン */
@@ -644,6 +706,26 @@ button:active {
     cursor: pointer;
 }
 .log-toggle-btn:hover { background: #2c3044; }
+
+/* 表示の設定（main.ts の installDisplaySettings）。ボタンの下に開く小さな欄 */
+.display-settings-wrap { position: relative; display: inline-block; }
+.display-settings {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 150;
+    min-width: 180px;
+    padding: 8px 10px;
+    background: var(--bg-card);
+    border: 1px solid #444;
+    border-radius: 6px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+    font-size: 13px;
+}
+.display-settings fieldset { border: none; margin: 0 0 6px; padding: 0; }
+.display-settings fieldset:last-child { margin-bottom: 0; }
+.display-settings legend { padding: 0; margin-bottom: 2px; color: var(--text-sub, #aab); font-size: 12px; }
+.display-settings label { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; cursor: pointer; }
 
 #log-panel, #trash-panel, #tegamoto-panel {
     position: fixed;
@@ -872,6 +954,27 @@ button:active {
 
 
 
+/* マウスを載せたときの拡大の絵（cardArt.ts の hoverArt）。効果文の上に出す */
+#effect-tooltip.with-art {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    column-gap: 12px;
+    width: min(540px, calc(100vw - 24px));
+    max-width: min(540px, calc(100vw - 24px));
+}
+#effect-tooltip.with-art > :not(.hover-art) {
+    grid-column: 2;
+}
+#effect-tooltip .hover-art {
+    grid-column: 1;
+    grid-row: 1 / span 40;
+    align-self: start;
+    display: block;
+    width: 170px;
+    aspect-ratio: 675 / 983;
+    border-radius: 8px;
+}
+
 /* 効果全文のツールチップ */
 #effect-tooltip {
     position: fixed;
@@ -989,13 +1092,20 @@ button:active {
 .card.unusable:has(> .burst-set-badge) { filter: none; opacity: 1; }
 .card.unusable:has(> .burst-set-badge) > *:not(.burst-set-badge) { filter: brightness(0.5) grayscale(30%); opacity: 0.6; }
 
-.card.targetable {
-    box-shadow: 0 0 0 2px var(--danger), 0 0 12px rgba(239, 68, 68, 0.4);
+/* 選べるカードは、カードの外側に少し離した水色の輪を明滅させる。選んだものは白い輪で止める。
+   赤・緑の枠だと同じ色のカードの枠と見分けにくかった（2026-11-25 ユーザー指摘）。色だけでなく、離れた輪と明滅で区別する */
+.card.targetable, .spirit-zone .card.targetable {
+    outline: 3px solid var(--target, #22d3ee);
+    outline-offset: 2px;
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.55);
 }
-
-/* トグル選択（予算内で好きなだけ破壊する）で選択済みのもの。候補の赤枠と区別する */
-.card.targetable.choice-selected {
-    box-shadow: 0 0 0 3px var(--success), 0 0 16px rgba(16, 185, 129, 0.6);
+@media (prefers-reduced-motion: no-preference) {
+    .card.targetable:not(.choice-selected) { animation: target-pulse 1.2s ease-in-out infinite; }
+}
+@keyframes target-pulse { 50% { outline-color: rgba(34, 211, 238, 0.35); } }
+.card.targetable.choice-selected, .spirit-zone .card.targetable.choice-selected {
+    outline-color: #fff;
+    box-shadow: 0 0 14px rgba(255, 255, 255, 0.6);
 }
 
 .card.awaken-target {
@@ -1046,6 +1156,8 @@ button:active {
 .combine-badge,
 .as-spirit-badge {
     position: absolute;
+    /* 合体したブレイヴの箱（.brave-combined-box。ホストの右に置く暗い箱）が右下のバッジに重なって隠すため、前に出す */
+    z-index: 5;
     min-width: 44px;
     padding: 4px 10px;
     font-size: 11px;
@@ -1128,6 +1240,120 @@ button:active {
 }
 .detach-badge:hover {
     filter: brightness(1.2);
+}
+/* カーソルのある環境では、合体スピリットに載せたときだけ出す（タッチでは載せられないので常に出す） */
+@media (hover: hover) {
+    .card:not(:hover) .detach-badge { display: none; }
+}
+
+/* 合体したブレイヴの見せ方（<html data-brave>）。
+   art＝イラストだけをホストの右斜め上に／full＝カード全体をホストの右斜め上に。
+   縁と絵で前後を分ける：ブレイヴの箱（縁）はホストの絵より先に DOM に入るので後ろに回り、重なった部分の縁はホストの絵に隠れる。
+   絵とボタンだけ z-index で前に出すと、ホストの縁のうちブレイヴの下の部分は絵に隠れ、外側の縁だけが残る
+   （箱に z-index を付けると重ね合わせの単位ができて、絵だけを前に出せなくなる）。
+   表示の設定（main.ts の installDisplaySettings）で切り替える。絵が読めないブレイヴ（.has-brave-art が無い）は右の帯のまま */
+.brave-art { display: none; }
+:root[data-brave="art"] .brave-combined.has-brave-art > .brave-art,
+:root[data-brave="full"] .brave-combined.has-brave-art > .brave-art {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    z-index: 3;
+}
+:root:is([data-brave="art"], [data-brave="full"]) .brave-combined.has-brave-art > .detach-badge { z-index: 4; }
+:root[data-brave="art"] .brave-combined.has-brave-art > .brave-name,
+:root[data-brave="full"] .brave-combined.has-brave-art > .brave-name { display: none; }
+:root[data-brave="art"] .brave-combined-box:has(> .has-brave-art),
+:root[data-brave="full"] .brave-combined-box:has(> .has-brave-art) {
+    left: 50%;
+    bottom: auto;
+    /* ホストと同じ大きさ。% はホストの縁の内側が基準なので、縁（左右 3px）のぶんを足す */
+    width: calc(100% + 6px);
+}
+:root[data-brave="art"] .brave-combined.has-brave-art,
+:root[data-brave="full"] .brave-combined.has-brave-art {
+    flex: none;
+    padding: 0;
+    /* 縁はほかのスピリットと同じ（合体スピリットの今の色。fieldCard.ts の --frame） */
+    border: 3px solid transparent;
+    border-radius: 6px;
+    background: linear-gradient(#111, #111) padding-box,
+                var(--frame, linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333))) border-box;
+}
+:root[data-brave="art"] .brave-combined-box:has(> .has-brave-art) { top: -30px; }
+/* ブレイヴが2枚のとき：2枚目は1枚目のさらに右上へずらして重ねる（実物は左右に付けるが、左はコストの丸を隠し、スマホでは幅が増えるため。2026-11-25 ユーザーと決定）。
+   PC はカーソルを0.5秒合わせると前に出る（z-index を遅らせて切り替える。すぐ切り替えると、通り過ぎただけで入れ替わってちらつく） */
+:root:is([data-brave="art"], [data-brave="full"]) .brave-combined-box:has(> .has-brave-art) > .brave-combined:nth-child(2) {
+    position: absolute;
+    left: 38%;
+    top: -26px;
+    width: 100%;
+    /* z-index: -1 で後ろに回すと、.spirit-zone の背景の下まで沈む（上の .brave-combined-box の注意を参照）。2枚目は DOM の順で前に描かれる */
+}
+:root:is([data-brave="art"], [data-brave="full"]) .brave-combined-box:has(> .has-brave-art) > .brave-combined {
+    transition: z-index 0s;
+}
+@media (hover: hover) {
+    :root:is([data-brave="art"], [data-brave="full"]) .brave-combined-box:has(> .has-brave-art) > .brave-combined:hover {
+        z-index: 6;
+        transition: z-index 0s 0.5s;
+    }
+}
+/* イラストの枠だけを切り出す。カード画像（360×525）でイラストは横 22〜345px・縦 38〜300px（上はコストと名前、左は飾りの縁）。
+   縁の写り込みを避けるため、少し内側（横 30〜325px・縦 56〜286px）を取る。
+   枠の縦横比を箱に持たせ、画像をその枠の外まで広げてはみ出しを隠す */
+:root[data-brave="art"] .brave-combined.has-brave-art { aspect-ratio: 295 / 230; }
+:root[data-brave="art"] .brave-combined.has-brave-art > .brave-art {
+    inset: auto;
+    left: -10.17%;
+    top: -24.35%;
+    width: 122.03%;
+    height: auto;
+    max-width: none;
+    object-fit: fill;
+}
+:root[data-brave="full"] .brave-combined-box:has(> .has-brave-art) { top: -38px; }
+:root[data-brave="full"] .brave-combined.has-brave-art { aspect-ratio: 675 / 985; }
+/* 場のスピリットの色の縁を外す（<html data-frame="off">。表示の設定で選ぶ。絵のあるカードだけ。文字表示は縁が無いと読みにくいので残す） */
+/* 縁の幅は残して色だけ消す（幅を 0 にすると絵の入る場所が広がり、なしにした途端に絵が大きくなる） */
+:root[data-frame="off"] .spirit-zone .card.has-art,
+:root[data-frame="off"] .brave-combined.has-brave-art { background: linear-gradient(#111, #111) padding-box; }
+
+/* ブレイヴがはみ出すぶんは並び全体の上に空ける（合体したスピリットだけを下げると、隣と段差になる） */
+:root[data-brave="art"] .spirit-zone:has(.has-brave-art) { padding-top: 32px; }
+:root[data-brave="full"] .spirit-zone:has(.has-brave-art) { padding-top: 40px; }
+/* 交換（§6.4.1）は分離の1段上に置く */
+.exchange-badge { bottom: 18px; }
+/* 合体・交換の移せる先。赤の targetable だと赤のスピリットの縁と見分けられないので、カードの色に無い水色の外枠にする */
+.spirit-zone .card.brave-dest {
+    outline: 3px solid #4fd8ff;
+    outline-offset: 3px;
+    box-shadow: 0 0 12px 3px rgba(79, 216, 255, 0.7);
+}
+
+/* カードの下の操作ボタンの行（fieldCard.ts の cardActions）。中のボタンは角に重ねず、並べて置く */
+.card-actions {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 4px;
+    display: flex;
+    gap: 4px;
+    z-index: 5;
+    white-space: nowrap;
+}
+.card-actions > button {
+    position: static;
+}
+/* ボタンが出ているカードの下に、その行のぶんの隙間を空ける */
+.spirit-zone .card:has(> .card-actions),
+.nexus-zone .card:has(> .card-actions) {
+    margin-bottom: 28px;
 }
 
 /* 合体（メインステップの任意合体。§6.4）。スピリット状態のブレイヴにだけ出る */
@@ -1376,11 +1602,9 @@ button:active {
 
 /* 状態バッジの上書き（トークン用） */
 .spirit-zone .card.usable { box-shadow: inset 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6); }
-.spirit-zone .card.targetable { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
-.spirit-zone .card.targetable.choice-selected { border-color: var(--success); box-shadow: 0 0 14px var(--success); }
 .spirit-zone .card.attacker-mark { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
 .nexus-zone .card.usable::after { background: linear-gradient(145deg, var(--warning), #20232c); }
-.nexus-zone .card.targetable::after { background: linear-gradient(145deg, var(--danger), #20232c); }
+.nexus-zone .card.targetable::after { background: linear-gradient(145deg, #22d3ee, #20232c); }
 .nexus-zone .card.attacker-mark::after { background: linear-gradient(145deg, var(--danger), #20232c); }
 
 /* ---- シンボルアイコン（盤面トークン用） ---- */
@@ -1485,14 +1709,6 @@ button:active {
     }
 }
 
-/* スマホではカードが64pxに縮み、縦1列のボタン（最大4個で約140px）が下へはみ出して
-   ライフ・リザーブ表示や次の段のスピリットを覆う。はみ出す分だけ下に余白を取る */
-@media (hover: none) and (max-width: 768px) {
-    .spirit-zone .card:has(.core-buttons) {
-        margin-bottom: 80px;
-    }
-}
-
 /* ---- レスポンシブ: タブレット ---- */
 @media (max-width: 768px) {
     :root {
@@ -1512,52 +1728,6 @@ button:active {
         padding: 3px 6px;
         font-size: 10px;
     }
-    .field-row {
-        flex-direction: column;
-        gap: 8px;
-        min-height: auto;
-    }
-    .nexus-zone {
-        min-width: auto;
-        min-height: auto;
-        flex-direction: row;
-    }
-    .spirit-zone {
-        min-height: auto;
-    }
-    .spirit-zone .card {
-        width: 64px;
-        height: 64px;
-    }
-    .spirit-zone .card .name {
-        font-size: 8px;
-        max-width: 54px;
-    }
-    .nexus-zone .card {
-        width: 55px;
-        height: 64px;
-    }
-    .burst-slot {
-        width: 38px;
-        height: 48px;
-        font-size: 8px;
-    }
-    /* スマホは、上の行にバーストとスピリット、下の行にネクサス。バーストはスピリットのカードと同じ大きさ（カードの縦横比）で左端（2026-11-17 ユーザー指示）。
-       HTML ではバーストがネクサスの行の中にあるので、ネクサスの行を display: contents でほどいて格子に並べ直す */
-    .field-row {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        grid-template-areas: "burst spirits" "nexus nexus";
-        align-items: center;
-    }
-    .field-row > .nexus-row { display: contents; }
-    .field-row .burst-zone { grid-area: burst; }
-    .field-row .nexus-zone { grid-area: nexus; }
-    .field-row > .spirit-zone { grid-area: spirits; }
-    /* 相手側は鏡写し：上からネクサス、その下にバースト＋スピリット（スピリットが中央寄り） */
-    #opponent-area .field-row { grid-template-areas: "nexus nexus" "burst spirits"; }
-    .burst-zone .burst-slot,
-    #opp-burst .burst-slot.burst-revealed { width: 64px; height: auto; aspect-ratio: 675 / 985; }
     .player-area {
         padding: 8px 12px;
         gap: 8px;
@@ -1579,27 +1749,6 @@ button:active {
         font-size: 10px;
     }
 
-    /* 縦画面ではボタンを手札の右に縦1列で置き、手札側はその幅だけ空ける（手札と重ならない） */
-    #action-buttons-container {
-        position: fixed;
-        bottom: 8px;
-        right: 8px;
-        top: auto;
-        transform: none;
-        width: var(--action-col-width);
-        max-height: 45vh;
-        overflow-y: auto;
-    }
-    #action-buttons {
-        flex-direction: column;
-        gap: 6px;
-    }
-    #action-buttons button {
-        padding: 8px 6px;
-        font-size: 13px;
-        width: 100%;
-        white-space: normal;
-    }
     .my-hand-area {
         padding-right: calc(var(--action-col-width) + 8px);
     }
@@ -1627,38 +1776,6 @@ button:active {
     .phase-step:not(.active)::before {
         content: attr(data-short);
         font-size: 10px;
-    }
-    .spirit-zone .card {
-        width: 64px;
-        height: 64px;
-    }
-    .spirit-zone .card .name {
-        font-size: 8px;
-        max-width: 56px;
-    }
-    .spirit-zone .card .stats,
-    .spirit-zone .card .cores,
-    .nexus-zone .card .stats,
-    .nexus-zone .card .cores {
-        font-size: 10px;
-    }
-    .nexus-zone .card {
-        width: 60px;
-        height: 60px;
-    }
-    .nexus-zone .card .name {
-        font-size: 8px;
-    }
-    .burst-slot {
-        width: 32px;
-        height: 42px;
-        font-size: 7px;
-    }
-    .burst-zone .burst-slot,
-    #opp-burst .burst-slot.burst-revealed { width: 64px; height: auto; aspect-ratio: 675 / 985; }
-    .burst-mine .name {
-        max-width: 26px;
-        font-size: 7px;
     }
     #hand .card {
         width: 68px;
@@ -1720,6 +1837,25 @@ button:active {
 /* ---- 増減式の選択（PendingChoice.stepper） ----
    トラッシュに置くコアの数のように「どれを選ぶか」でなく個数だけを決めるものを、
    ボタンの列ではなく −／＋ で選ばせる。候補が20個を超えることがあるため */
+#choice-options .stepper-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+#choice-options .stepper-row > button {
+    flex: none;
+    width: 32px;
+    min-width: 0;
+    padding: 6px 0;
+}
+/* 数の欄は文字の幅だけにして、−／＋ をそのすぐ両側に寄せる。flex: 1 で伸ばすと、列の幅（長い「Lv2 (…フィールドから取得)」のボタンに合わせた幅）いっぱいに
+   −／＋ が離れて、どれが増減のボタンか分かりにくかった（2026-11-24 ユーザー指摘） */
+#choice-options .stepper-row > .stepper-value {
+    min-width: 3.5em;
+    flex: none;
+    white-space: nowrap;
+}
 #choice-options .stepper-value {
     display: inline-block;
     min-width: 4.5em;
@@ -1727,6 +1863,45 @@ button:active {
     font-variant-numeric: tabular-nums;
     font-weight: 600;
 }
+
+/* ---- 召喚・配置の支払い（①コスト → ②置くコア。ui/payStages.ts）：PC は右の列に縦に積む ---- */
+#choice-options .pay-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    /* 場の上に重なるので、背景と幅を持たせる（背景が無いと場のカードが透けて読めなかった） */
+    box-sizing: border-box;
+    width: 300px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(20, 23, 30, 0.97);
+    border: 1px solid #3a3f4e;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+/* 召喚・使用の途中（「対象選択をやめる」が出ている間）は、アタックステップへ・ターン終了を出さない（押す場面がない。スマホと同じ） */
+#game:has(#btn-cancel-target:not(.hidden)) :is(#btn-attack-phase, #btn-end-turn) { display: none; }
+/* 支払いの画面は背が高いので、右の列を上下中央でなく盤面の上端から並べ、入りきらなければ列の中でスクロールする（中央寄せだと「対象選択をやめる」が画面の上へはみ出した） */
+@media (min-width: 769px) {
+    #action-buttons-container:has(#choice-options .pay-sheet) { top: 8px; transform: none; max-height: calc(100vh - 24px); overflow-y: auto; }
+}
+/* 支払いの画面（右の列）を出している間は、オープン中・破棄したカードの欄を左へ寄せる（右だと支払いの画面と重なった） */
+@media (min-width: 769px) {
+    body:has(#choice-options .pay-sheet) :is(#reveal-panel, #mill-panel) { right: auto; left: 12px; }
+}
+#choice-options .pay-stage-title { font-weight: 700; }
+#choice-options .pay-meter { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+#choice-options .pay-boxes { letter-spacing: 2px; color: #7fd1ff; }
+#choice-options .pay-hint { color: #b8b8b8; font-size: 12px; }
+/* バーストのあとにコストを払って発揮するかの確認で、発揮する効果の中身（renderer.ts） */
+#choice-options .choice-effect-text { grid-column: 1 / -1; flex-basis: 100%; font-size: 12px; line-height: 1.5; color: var(--text-main); white-space: pre-wrap; text-align: left; padding: 4px 2px; }
+#choice-options .pay-field-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+#choice-options .pay-field-row > button { flex: none; width: 32px; min-width: 0; padding: 4px 0; }
+#choice-options .pay-warn { color: #ffb347; font-size: 12px; }
+#choice-options .pay-levels,
+#choice-options .pay-tools,
+#choice-options .pay-nav { display: flex; flex-direction: column; gap: 6px; }
+#choice-options .pay-sheet button.selected { border-color: #7fd1ff; box-shadow: 0 0 0 1px #7fd1ff inset; }
 
 /* ---- ネクサスのコア移動ボタン ----
    ネクサスは clip-path で六角形に切り抜くため、カード要素の子に置いたボタンは
@@ -2282,37 +2457,45 @@ body:has(#notice-banner:not(.hidden)) {
     to { opacity: 1; transform: none; }
 }
 
-/* 直前に使われたマジック（カーソルを合わせると効果文） */
-#last-magic {
-    position: fixed;
-    left: 12px;
-    bottom: 12px;
-    z-index: 40;
-    max-width: calc(100vw - 24px);
-    padding: 6px 10px;
+/* 解決中の効果（盤面中央の帯。場のカードやボタンを覆わないよう帯の中で並べる） */
+#effect-notice {
+    box-sizing: border-box;
+    width: min(560px, 100%);
+    padding: 6px 12px;
     border-radius: 8px;
-    font-size: 12px;
-    background: rgba(26, 29, 36, 0.85);
-    border: 1px solid #8e6cf0;
+    border: 1px solid;
+    border-left-width: 5px;
+    background: rgba(20, 23, 30, 0.96);
     color: var(--text-main);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-#last-magic .tip-card {
-    cursor: help;
-}
-
-.last-magic-close {
-    border: none;
-    background: none;
-    color: var(--text-main);
-    font-size: 14px;
-    line-height: 1;
-    padding: 2px 4px;
     cursor: pointer;
+    animation: event-detail-in 180ms ease-out;
 }
+#effect-notice { display: flex; gap: 12px; align-items: flex-start; }
+.effect-notice-art { flex: none; width: 120px; aspect-ratio: 675 / 983; border-radius: 6px; }
+.effect-notice-text { min-width: 0; flex: 1; }
+#effect-notice.effect-mine { border-color: #4fb3d9; }
+#effect-notice.effect-opp { border-color: #e0524a; }
+.effect-notice-title { font-size: 14px; font-weight: 700; }
+.effect-notice-body {
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-muted);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    white-space: pre-wrap;
+}
+@media (max-width: 700px) {
+    #effect-notice { padding: 4px 8px; gap: 8px; }
+    .effect-notice-art { width: 56px; }
+    .effect-notice-title { font-size: 13px; }
+    .effect-notice-body { -webkit-line-clamp: 2; font-size: 11px; }
+}
+/* 発揮した内容（ログの行）を出しているときは、効果文より目立たせる */
+#effect-notice.effect-result .effect-notice-body { color: var(--text-main); }
+.card.effect-source { outline: 3px solid #f5c542; outline-offset: 2px; box-shadow: 0 0 16px 4px rgba(245, 197, 66, 0.7); }
 
 /* 場を離れたカードの写し（消滅・破壊・手札/デッキへ戻る） */
 .leave-ghost {
@@ -2361,7 +2544,8 @@ body:has(#notice-banner:not(.hidden)) {
 .leave-slot { flex: none; }
 
 /* オープン中のカード（選択待ちの間は出しっぱなし。カーソルで効果文） */
-#reveal-panel {
+#reveal-panel,
+#mill-panel {
     position: fixed;
     right: 12px;
     top: 50%;
@@ -2374,6 +2558,11 @@ body:has(#notice-banner:not(.hidden)) {
     border: 1px solid #4fb3d9;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
 }
+/* 破棄されたカード（ui/millCount.ts）。オープンと同じ形で、縁の色で見分ける。
+   たくさん破棄しても欄が広がらないよう、5枚ぶんの幅で横にスクロールする */
+#mill-panel { border-color: #f5b041; max-width: min(476px, calc(100vw - 24px)); }
+#mill-panel .reveal-row { flex-wrap: nowrap; overflow-x: auto; max-width: calc(5 * 84px + 4 * 8px); }
+#mill-panel .reveal-card { flex: none; }
 .reveal-head {
     display: flex;
     justify-content: space-between;
@@ -2404,12 +2593,29 @@ body:has(#notice-banner:not(.hidden)) {
 .reveal-card .card-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
 .reveal-name { position: relative; font-size: 11px; font-weight: 700; line-height: 1.3; }
 .reveal-type { position: relative; font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+/* PC でバーストが発動したときに左に大きく出すカード（renderer.ts の showBurstCard）。左の列（トラッシュ・デッキ・バースト）の上に一時的に重ねる */
+.burst-reveal-big {
+    position: fixed;
+    left: 16px;
+    top: calc(50% - 160px);
+    width: 220px;
+    min-height: 0;
+    aspect-ratio: 675 / 985;
+    z-index: 55;
+    cursor: pointer;
+    border: 2px solid #e0524a;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 18px rgba(224, 82, 74, 0.5);
+    animation: event-detail-in 200ms ease-out;
+}
+.burst-reveal-big .card-art { opacity: 1; }
+.burst-reveal-big .reveal-name { font-size: 16px; }
+.burst-reveal-big .reveal-type { font-size: 12px; }
 
-/* スマホ幅：マジックの通知（上）とオープン中のカードが重ならないよう、オープン中のカードは下に横長で出す */
+/* スマホ幅：オープン中のカードは横長で出す（上下の位置は battle-mobile.css で、上の行の下に固定） */
 @media (max-width: 700px) {
-    #reveal-panel {
-        top: auto;
-        bottom: 48px;
+    #reveal-panel,
+    #mill-panel {
         left: 8px;
         right: 8px;
         transform: none;
@@ -2418,6 +2624,7 @@ body:has(#notice-banner:not(.hidden)) {
     }
     .reveal-row { flex-wrap: nowrap; overflow-x: auto; }
     .reveal-card { flex: none; width: 64px; min-height: 88px; }
+    #mill-panel .reveal-row { max-width: calc(5 * 64px + 4 * 8px); }
     .event-detail { padding: 8px 12px; }
     .event-detail-title { font-size: 14px; }
     /* 効果文を打ち切らない（4行で切ると肝心の効果が見えなかった。2026-11-17 ユーザー指摘）。長いときはバナーの中でスクロール */
@@ -2488,4 +2695,257 @@ body:has(#notice-banner:not(.hidden)) {
     width: auto;
     height: auto;
     transform: none;
+}
+
+/* ---- ロビーの組み立て（2026-11-24）----
+   名前・デッキは全部の入り方で共通なので一番上に1回だけ。主役は「対戦する」の4つの入り方で、
+   いちばん使うランダムマッチだけを塗りのボタンにして重みを付ける。右の細い列は「いま誰がいるか」とお知らせ */
+#lobby {
+    max-width: 1080px;
+    margin: 48px auto;
+    padding: 28px 32px 32px;
+    text-align: left;
+}
+.lobby-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 24px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+#lobby .lobby-top h1 { margin: 0; letter-spacing: 0.5px; }
+.lobby-links { display: flex; gap: 4px 18px; flex-wrap: wrap; font-size: 13px; }
+.lobby-links a { color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+.lobby-links a:hover { color: var(--text-main); }
+
+.lobby-player {
+    display: grid;
+    grid-template-columns: minmax(0, 200px) minmax(0, 1fr) auto;
+    gap: 10px 16px;
+    align-items: end;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: 10px;
+}
+.lobby-player .starter-toggle { grid-column: 2; }
+/* デッキ選びの隣に置く（デッキを決める場所で作り直しにも行けるように） */
+#lobby .lobby-player #deck-builder-link {
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    color: var(--accent-hover);
+    font-size: 14px;
+    white-space: nowrap;
+    text-align: center;
+}
+#lobby .lobby-player #deck-builder-link:hover { background: rgba(59, 130, 246, 0.12); text-decoration: none; }
+.lobby-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-muted); }
+.lobby-field input,
+.lobby-field select,
+.mode-inline input,
+.mode-inline select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #14161b;
+    color: var(--text-main);
+    font-size: 14px;
+    min-width: 0;
+}
+.lobby-field input:focus, .lobby-field select:focus,
+.mode-inline input:focus, .mode-inline select:focus { outline: none; border-color: var(--accent); }
+
+.lobby-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 32px;
+    margin-top: 28px;
+    align-items: start;
+}
+/* 長いデッキ名の select が列を押し広げないよう、中身の最小幅を0にする */
+.lobby-player > *, .lobby-modes, .lobby-side, .mode, .lobby-live { min-width: 0; }
+.lobby-field select, .mode-inline select { width: 100%; text-overflow: ellipsis; }
+#lobby .seo-description { max-width: none !important; }
+.lobby-heading { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+
+.mode-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.mode {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px;
+    border: 1px solid #2c313b;
+    border-radius: 10px;
+}
+.mode h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.mode > p { margin: 0 0 6px; font-size: 13px; color: var(--text-muted); flex: 1; }
+.mode-primary { border-color: var(--btn-bg); background: rgba(29, 78, 216, 0.08); }
+.mode button { width: 100%; }
+.mode-inline { display: flex; gap: 8px; }
+.mode-inline input, .mode-inline select { flex: 1; }
+.mode-inline button { width: auto; flex: none; }
+.btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent-hover); }
+.btn-outline:hover { background: rgba(59, 130, 246, 0.12); }
+#lobby #waiting-message { margin: 4px 0 0; font-size: 13px; }
+
+.lobby-side { display: flex; flex-direction: column; gap: 20px; }
+.lobby-live { padding: 16px; background: var(--bg-card); border-radius: 10px; }
+.lobby-counts { margin: 0 0 10px; font-size: 13px; color: var(--text-muted); }
+.lobby-live .lobby-rooms { margin: 0; }
+.lobby-live .lobby-rooms li { border-top: 1px solid #2c313b; padding: 8px 0; }
+.lobby-live .lobby-rooms li:first-child { border-top: none; }
+.lobby-live .lobby-rooms button { width: auto; padding: 6px 12px; }
+#lobby .lobby-announcements { margin: 0; }
+/* 広い画面：右は「いまのロビー」だけにして左の「対戦する」と同じ高さに伸ばし、部屋が多ければ中でスクロールする
+   （高さ0＋min-height:100% で行の高さを左だけで決めさせる）。お知らせは2列の下に全幅で置く。
+   右にお知らせまで積むと、左より長くなってタイルの下に余白が出るか、お知らせが潰れるため */
+@media (min-width: 900px) {
+    .lobby-body {
+        grid-template-areas: "modes live" "news news";
+        align-items: stretch;
+    }
+    .lobby-side { display: contents; }
+    .lobby-modes { grid-area: modes; }
+    .lobby-live { grid-area: live; height: 0; min-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; }
+    .lobby-live .lobby-rooms { flex: 1; min-height: 0; overflow-y: auto; }
+    .lobby-side .lobby-announcements { grid-area: news; max-width: none; }
+}
+
+/* 狭い画面：プレイヤー → いまのロビー → 入り方 → お知らせ。入り方のタイルは1列 */
+@media (max-width: 899px) {
+    #lobby { margin: 16px auto; padding: 20px 16px; }
+    .lobby-player { grid-template-columns: minmax(0, 1fr); }
+    .lobby-player .starter-toggle { grid-column: 1; }
+    .lobby-player .starter-toggle { order: 3; }
+    #lobby .lobby-player #deck-builder-link { order: 4; }
+    .lobby-body { display: flex; flex-direction: column; align-items: stretch; gap: 24px; }
+    .lobby-side { display: contents; }
+    .lobby-live { order: 1; }
+    .lobby-modes { order: 2; }
+    .lobby-side .lobby-announcements { order: 3; }
+}
+@media (max-width: 560px) {
+    .mode-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* プレイマットの枠の部品（ui/mat.ts）。PC の配置（下の 1100px 以上）と、スマホ（battle-mobile.css が小さくして置く）で同じものを使う */
+@media (min-width: 1100px), (max-width: 768px) {
+    [id^="mat-"] { display: block; }
+    .mat-box {
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        padding: 14px 8px 8px;
+        min-height: 64px;
+    }
+    /* ラベルは枠の上辺にかぶせる。枠の線がラベルの背後で切れる */
+    .burst-zone::before,
+    .mat-head {
+        position: absolute;
+        top: -0.65em;
+        left: 8px;
+        right: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        line-height: 1.3;
+        color: var(--text-muted);
+    }
+    .mat-head { pointer-events: none; }
+    .mat-head > span:first-child { background: var(--bg-main); padding: 0 4px; }
+    .mat-n { color: var(--text-main); font-size: 13px; font-weight: 700; background: var(--bg-main); padding: 0 4px; }
+    .mat-life .mat-n { color: var(--danger); font-size: 26px; line-height: 1; }
+    .mat-cores { display: flex; flex-wrap: wrap; gap: 2px; font-size: 22px; min-height: 22px; }
+    .mat-cores .core-icon { margin: 0; vertical-align: top; }
+    .mat-cores .mat-core-count { align-self: center; font-size: 15px; font-weight: 700; line-height: 1; }
+    .mat-half { font-size: 13px; color: var(--text-muted); padding: 4px 0; }
+    .mat-half + .mat-half { border-top: 1px solid rgba(255, 255, 255, 0.18); }
+    .mat-box.targetable, .mat-half.targetable { outline: 2px solid var(--accent); cursor: pointer; }
+    /* デッキ破棄の枚数を数えている間（ui/millCount.ts）。デッキとトラッシュの枠を光らせて、どこからどこへ動いたかを見せる */
+    .mat-box.milling { border-color: var(--warning, #f5b041); box-shadow: 0 0 10px rgba(245, 176, 65, 0.55); }
+    /* 同じ数を情報の行と二重に出さない */
+    .player-info .life,
+    .player-info .reserve,
+    .player-info .trash-cores,
+    .player-info .deck-n,
+    .player-info .trash-n {
+        display: none;
+    }
+}
+
+/* 広い画面（PC）では場のカードを大きくする。場の行に対してカードが小さく、余白ばかりが目立ったため（2026-11-24 ユーザー指摘）。
+   中の文字・コア・合体したブレイヴの箱・ボタンの位置を一緒に拡大できるよう、個々の寸法ではなく zoom で倍率を掛ける */
+@media (min-width: 1100px) {
+    .spirit-zone > .card,
+    .nexus-zone > .card,
+    .nexus-zone > .nexus-slot,
+    .burst-zone .burst-slot {
+        zoom: 1.2;
+    }
+    .nexus-zone {
+        min-width: 200px;
+    }
+    /* 手札も同じく、左右に空きが残らないよう大きくする（文字が読みやすくなる） */
+    #hand > .card {
+        zoom: 1.15;
+    }
+    /* バトスピの公式プレイマットの並び。左の列がバースト・ライフ・リザーブ、右の列がデッキ・トラッシュで、
+       相手側は点対称（下の #opponent-area の指定）。
+       場の行を格子にし、バースト（ネクサスの行の中にある）は nexus-row を display: contents でほどいて左の列へ置く */
+    /* ネクサスはスマホと同じくスピリットの下の段（相手側は上の段）に置く（2026-11-24 ユーザー指示） */
+    .field-row {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr) 150px;
+        grid-template-rows: auto auto auto;
+        grid-template-areas:
+            "burst spirits deck"
+            "life spirits trash"
+            "reserve nexus trash";
+        gap: 10px 14px;
+    }
+    /* 相手側は自分側を180度回した形（点対称）。向かい合わせに置いたマットと同じ見え方にする（2026-11-24 ユーザー指示） */
+    #opponent-area .field-row {
+        grid-template-areas:
+            "trash nexus reserve"
+            "trash spirits life"
+            "deck spirits burst";
+    }
+    .field-row .nexus-zone { min-height: 0; min-width: 0; padding: 6px 12px; }
+    /* 場の枠の最低の高さは中のカードに合わせて詰める（縦に長くなって手札が画面の外に出たため） */
+    .field-row > .spirit-zone { min-height: 0; padding: 8px 12px; }
+    .field-row { min-height: 0; gap: 8px 14px; }
+    .field-row > .nexus-row { display: contents; }
+    .field-row .nexus-zone { grid-area: nexus; align-self: stretch; }
+    .field-row > .spirit-zone { grid-area: spirits; align-self: stretch; }
+    .field-row .burst-zone { grid-area: burst; }
+    #opponent-area .field-row .burst-zone { align-self: stretch; }
+    [id$="-life-self"], [id$="-life-opp"] { grid-area: life; }
+    [id^="mat-reserve"] { grid-area: reserve; }
+    [id^="mat-deck"] { grid-area: deck; }
+    [id^="mat-trash"] { grid-area: trash; cursor: pointer; }
+    /* 押せることが分かるように、枠の下に「中身を見る」を出し、載せたら枠を明るくする */
+    [id^="mat-trash"]::after {
+        content: "中身を見る ›";
+        display: block;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+        font-size: 12px;
+        color: var(--accent-hover);
+    }
+    [id^="mat-trash"]:hover { border-color: var(--accent); background: rgba(59, 130, 246, 0.08); }
+    /* トラッシュはマットの枠から開けるので、上のボタンは狭い画面だけに出す */
+    #btn-toggle-trash { display: none; }
+    /* バーストの欄もマットの枠と同じ見た目にする。以前はここで「.burst-zone,」の後ろに上のトラッシュの指定が挟まり、バーストの欄ごと消えていた（#694 から。2026-11-25 ユーザー指摘） */
+    .burst-zone { position: relative; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 6px; padding: 14px 8px 8px; min-height: 64px; }
+    /* 操作ボタンは中央の高さで右端に浮くので、右の列（デッキ・トラッシュ）の左へずらして重ねない */
+    #action-buttons-container { right: 196px; }
+    .burst-zone::before { content: "バースト"; right: auto; width: max-content; padding: 0 4px; background: var(--bg-main); }
 }

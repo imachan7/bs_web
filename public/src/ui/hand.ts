@@ -112,6 +112,14 @@ export function renderHand(view: GameView, ui: UiState): void {
         el.dataset.cardId = cardId
         attachCardArt(el, cardId, m.name)
         
+        // スマホの欄に出す、必要なコアと払える元の見比べ（手札のカードは小さく「盤面コア必要」のバッジを隠している。2026-11-25 ユーザー指摘）
+        if (isUsableState && need > 0) {
+            const lvPart = lv1 && lv1.cores > 0 && m.type !== "magic" ? `＋Lv1の${lv1.cores}` : ""
+            const fromField = Math.max(0, need - reserve)
+            // 場のコアは、リザーブで足りないときだけ出す（足りるときに場の合計を出しても見比べに要らない）
+            const fieldPart = reserve >= need ? "" : usableField ? ` → 場から${fromField}` : `・場 ${fieldCores}`
+            el.dataset.payInfo = `必要 ${need}（コスト${cost}${lvPart}）／ リザーブ ${reserve}${fieldPart}`
+        }
         if (usable) el.classList.add("usable", "clickable")
         else if (usableField) {
             el.classList.add("usable-field", "clickable")
@@ -120,7 +128,11 @@ export function renderHand(view: GameView, ui: UiState): void {
             badge.textContent = "盤面コア必要"
             el.appendChild(badge)
         }
-        else el.classList.add("unusable")
+        else {
+            el.classList.add("unusable")
+            // 出せる場面なのにコアだけが足りないときは、欄の「召喚」を押せない形で残して足りない数を出す（コストと Lv1 の維持コアの合計で見る。2026-11-25 ユーザー指摘）
+            if (isUsableState) el.dataset.short = String(need - reserve - fieldCores)
+        }
 
         if (targetable) {
             el.classList.add("targetable", "clickable")
@@ -130,13 +142,12 @@ export function renderHand(view: GameView, ui: UiState): void {
 
         // 召喚・配置・マジック使用のために選択されたカードをハイライト
         // 手元から出しているときは、手札の同じ添字のカードを光らせない
-        const selectingTegamoto = (ui.paying ?? ui.soulCoreOnlySelect ?? ui.exReductionSelect ?? ui.summonLevelSelect)?.fromTegamoto === true
+        const selectingTegamoto = (ui.paying ?? ui.soulCoreOnlySelect ?? ui.exReductionSelect)?.fromTegamoto === true
         const selectedHandIndex = selectingTegamoto ? null :
             ui.paying?.handIndex ??
             ui.soulCoreOnlySelect?.handIndex ??
             ui.magicTimingSelect?.handIndex ??
             ui.exReductionSelect?.handIndex ??
-            ui.summonLevelSelect?.handIndex ??
             ui.targeting?.handIndex ?? null
         if (selectedHandIndex !== null && g.indices.includes(selectedHandIndex)) {
             el.classList.add("selected")

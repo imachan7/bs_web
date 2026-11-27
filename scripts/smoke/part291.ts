@@ -187,7 +187,7 @@ console.log("=== §I BS12-079アブソリュートストライク：timedEffect 
 console.log("=== §J AE braveHostUnblockableThisTurn：BS12-055ゲッコ・グライダー『このブレイヴの召喚時』＝毎回いまのホストを見る ===")
 {
     const s = game("ae-unblockable")
-    const host = createInstance("BS01-001", s.turn, 1)
+    const host = createInstance("BS12-033", s.turn, 1) // コグマル（星魂）。ゲッコ・グライダーの合体条件（神星/光導/星魂）を満たす
     const glider = createInstance("BS12-055", s.turn, 0)
     s.players.p1.field.spirits.push(host)
     attachBrave(s, "p1", host, glider)

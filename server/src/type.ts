@@ -168,10 +168,16 @@ export type GameEvent =
     // instanceId＝場を離れた個体。画面が消える位置にエフェクトを出す（急に消えたように見えないため。2026-11-12 ユーザー要望）
     | { seq: number; type: "destroy"; pid: PlayerId; cardName: string; vanish?: true; instanceId?: string } // 破壊。vanish は消滅（維持コア割れ）
     | { seq: number; type: "draw"; pid: PlayerId; count: number } // ドロー
+    | { seq: number; type: "mill"; pid: PlayerId; cardIds: string[] } // デッキを上から破棄した（コストの破棄も含む）。破棄したカードはトラッシュに表向きで置かれる公開情報。画面が枚数を1枚ずつ減らし、カードを並べて見せる
     | { seq: number; type: "lifeDamage"; pid: PlayerId; amount: number } // ライフのコアが減った（このpidが被弾した側）
-    | { seq: number; type: "magic"; pid: PlayerId; cardName: string; cardId?: string; timing?: "main" | "flash" } // マジック使用。画面が使った効果の文面を出す
+    // logAt（magic・burst）＝出した時点の state.log の行数。画面の効果の通知が、前の効果の中身をここで切る（2026-11-25）
+    | { seq: number; type: "magic"; pid: PlayerId; cardName: string; cardId?: string; timing?: "main" | "flash"; logAt: number } // マジック使用。画面が使った効果の文面を出す
+    // スピリット・ネクサス・ブレイヴの効果が解決を始めた（マジック・バーストは上の出来事）。heading は効果文の見出し行（Lv1･Lv2『このスピリットのアタック時』）
+    | { seq: number; type: "effect"; pid: PlayerId; cardId: string; cardName: string; instanceId?: string; heading?: string; trigger?: string; logAt: number } // logAt＝出した時点の state.log の行数。画面がこの効果で増えたログの行（発揮した内容）を切り出すのに使う
     | { seq: number; type: "reveal"; pid: PlayerId; cardIds: string[] } // デッキ・バーストのカードをオープンした（pid＝オープンしたカードの持ち主）
-    | { seq: number; type: "burst"; pid: PlayerId; cardName: string; cardId?: string }
+    | { seq: number; type: "burst"; pid: PlayerId; cardName: string; cardId?: string; logAt: number }
+    // バーストで発動したマジックが、その後のメイン効果・フラッシュ効果を発揮すると決まった（keywords/burstMagicEffect.ts）。画面がその効果文を出す
+    | { seq: number; type: "burstMagicEffect"; pid: PlayerId; cardId: string; cardName: string; timing: "main" | "flash"; logAt: number }
     // バウンス／デッキ戻し。
     // pid は**カードの持ち主**（＝戻された側）。sourceName は戻した効果の発生源カード名（分かる場合のみ）
     | { seq: number; type: "returnToHand"; pid: PlayerId; cardName: string; sourceName?: string; instanceId?: string } // フィールドから手札へ戻った（スピリット／ネクサス）
@@ -313,7 +319,7 @@ export type TimedRecord = {
         | { kind: "braveHost"; braveInstanceId: string } // そのブレイヴがいま合体しているホスト。読むたびに引き直す（分離したら誰にも当たらない）
     until: "turn" | "battle" | "attack" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock" | "effect" // effect＝一番外側の効果の解決が終わる（選択待ちで止まっていない）ときに消える（resolveAction）。 beforeBlock＝そのアタックのブロック宣言前のフラッシュの間だけ効く（ブロックが宣言されたら効かなくなり、バトル終了で消える）。 step＝いまのステップの終わりで消える（PhaseManager.endStepScoped）。attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
     ownerPid: PlayerId
-    sourceInstanceId?: string // 発生源が場を離れたら効かなくなる記録だけが付ける（braveBpBonusZero）
+    sourceInstanceId?: string // 発生源が場を離れたら効かなくなる記録だけが付ける（braveBpBonusZero）。blockCost の記録は、コストの破壊を起こした効果の発生源として持つ（GameEngine.destroyBlockToll が DestroyContext へ渡す）
     sourceType?: CardType // amountCounter を数え直すとき、数える効果の発生源の種別（スリーカードの sourceTypes 判定に要る）
     sourceColors?: Color[] // 「すべて」の Lv の置き換えを計算し直すたびに耐性（装甲を含む）を判定するため
 }
@@ -394,6 +400,7 @@ export interface GameView {
     battle: BattleState | null
     players: Record<PlayerId, PlayerView>
     log: string[]
+    logTotal: number // state.log の全行数。log は末尾60行だけなので、GameEvent の logAt と突き合わせるのに要る
     winner: PlayerId | null
     you: PlayerId
     timedEffects: TimedRecord[] // 公開情報

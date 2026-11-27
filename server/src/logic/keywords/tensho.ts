@@ -11,7 +11,7 @@ import { activeConstraintsWithSource, effectActiveAtLevel, zoneSpiritEffectsDisa
 import { exhaustSpirit } from "../state/exhaust"
 import { requestChoice } from "../EffectModules"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
-import { minLevelCores } from "../../../../shared/rules/activation"
+import { summonMinCores } from "../../../../shared/rules/summonLevelCost"
 
 // 【転召】置換（tenshoCoreSubstitute）の選択肢ラベル。cores.ts の tenshoSubstituteChoice ハンドラと共有する
 export const TENSHO_SUBSTITUTE_REST = "疲労してコアを維持する"
@@ -84,7 +84,7 @@ export function burstTenshoTargets(state: GameState, ownerPid: PlayerId, card: C
         const cores = t.cores
         t.cores = 0
         try {
-            return canPayFreeSummonSurcharge(state, ownerPid, card, minLevelCores(card), true)
+            return canPayFreeSummonSurcharge(state, ownerPid, card, summonMinCores(state, ownerPid, card), true)
         } finally {
             t.cores = cores
         }

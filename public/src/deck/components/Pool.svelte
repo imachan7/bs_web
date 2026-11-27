@@ -1,0 +1,63 @@
+<script lang="ts">
+    import { cardStore } from "../state/cards.svelte"
+    import { visibleCards } from "../state/filters.svelte"
+    import { artEpoch } from "../state/artEpoch.svelte"
+    import Filters from "./Filters.svelte"
+    import PoolTile from "./PoolTile.svelte"
+    import PoolRow from "./PoolRow.svelte"
+
+    const PAGE = 200 // 全カードを一度に描かない
+    // 一覧の絵は、広い画面では高画質（lg）、狭い画面では軽い md（通信量を増やさない。2026-11-24 ユーザー方針）
+    const artSize: "lg" | "md" = matchMedia("(min-width: 900px)").matches ? "lg" : "md"
+
+    let mode: "grid" | "list" = $state("grid")
+    let limit = $state(PAGE)
+    const visible = $derived(visibleCards())
+    // 絞り込み・並び順が変わったら先頭の1ページに戻す
+    $effect(() => {
+        void visible
+        limit = PAGE
+    })
+    const shown = $derived(visible.slice(0, limit))
+</script>
+
+<section class="pool">
+    <Filters count={visible.length}>
+        <button type="button" onclick={() => (mode = mode === "grid" ? "list" : "grid")}>
+            {mode === "grid" ? "リスト表示" : "グリッド表示"}
+        </button>
+    </Filters>
+
+    {#if cardStore.error}
+        <p>{cardStore.error}</p>
+    {:else if !cardStore.loaded}
+        <p>読み込み中</p>
+    {:else}
+        <div class="body {mode}">
+            {#key artEpoch.n}
+                {#each shown as card (card.cardId)}
+                    {#if mode === "grid"}
+                        <PoolTile {card} size={artSize} area="pool" />
+                    {:else}
+                        <PoolRow {card} />
+                    {/if}
+                {/each}
+            {/key}
+            {#if visible.length > limit}
+                <button type="button" class="more" onclick={() => (limit += PAGE)}>
+                    もっと見る（残り{visible.length - limit}件）
+                </button>
+            {/if}
+        </div>
+    {/if}
+</section>
+
+<style>
+    .pool { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+    .pool > :global(.filters) { margin: 8px; }
+    .body { overflow-y: auto; padding: 8px; flex: 1; }
+    /* タイルが overflow: hidden なので、行の高さを中身に固定しないと枠の高さに合わせて行が潰れ、タイルが重なる */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); grid-auto-rows: max-content; gap: 8px; align-content: start; }
+    .list { display: flex; flex-direction: column; gap: 3px; }
+    .more { grid-column: 1 / -1; padding: 10px; }
+</style>

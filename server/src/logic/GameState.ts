@@ -1,7 +1,8 @@
 // GameState / PlayerState の状態生成・更新の土台
 import { takeFromTrash } from "./zones/trash"
 import { validateEndTurn } from "./RuleValidator"
-import { noteCoverage, noteInstance } from "../../../shared/coverage"
+import { noteInstance } from "../../../shared/coverage"
+import { deckCopyLimit, MAX_COPIES } from "../../../shared/deckLimit"
 import type {
     CardData,
     CardInstance,
@@ -107,9 +108,6 @@ export function shuffle<T>(array: T[]): T[] {
 
 // ---- デッキ検証・構築 ----
 
-// 同名カードの上限枚数（デッキビルダーと共通の制約）
-const MAX_COPIES = 3
-
 // カスタムデッキの内容を検証する。問題があれば日本語のエラーメッセージ、なければ null を返す
 // 検証項目: cardId の実在 / 枚数が正の整数 / 合計40枚ちょうど /
 // 同名（カード名で合算）min(3, limitCount)枚まで（制限カードはlimitCountで3枚未満に絞る） / 禁止カード不可
@@ -128,14 +126,7 @@ export function validateDeckCards(cards: Record<string, number>): string | null 
         }
         total += count
         byName.set(card.name, (byName.get(card.name) ?? 0) + count)
-        const anyCopies = card.effects.some((e) => {
-            if (e.kind !== "deckRule" || e.rule !== "anyCopies") return false
-            noteCoverage(e, "deckRule")
-            return true
-        })
-        const limit = anyCopies
-            ? Infinity
-            : card.limitCount !== undefined ? Math.min(MAX_COPIES, card.limitCount) : MAX_COPIES
+        const limit = deckCopyLimit(card)
         nameLimit.set(card.name, Math.min(nameLimit.get(card.name) ?? Infinity, limit))
     }
     for (const [name, count] of byName) {
@@ -290,8 +281,8 @@ export function setWaitingEvent(state: GameState, event: string | null | undefin
 export function suspend(state: GameState, choice: PendingChoice): void {
     const src = state.currentEffectSource
     const withSource: PendingChoice =
-        src !== undefined && choice.effectSource === undefined && (src.type !== undefined || src.colors !== undefined)
-            ? { ...choice, effectSource: { ...(src.type !== undefined ? { type: src.type } : {}), ...(src.colors !== undefined ? { colors: src.colors } : {}) } }
+        src !== undefined && choice.effectSource === undefined && (src.type !== undefined || src.colors !== undefined || src.instanceId !== undefined)
+            ? { ...choice, effectSource: { ...(src.type !== undefined ? { type: src.type } : {}), ...(src.colors !== undefined ? { colors: src.colors } : {}), ...(src.instanceId !== undefined ? { instanceId: src.instanceId } : {}) } }
             : choice
     const withCard: PendingChoice = src?.cardId !== undefined && withSource.sourceCardId === undefined ? { ...withSource, sourceCardId: src.cardId } : withSource
     const withBurst: PendingChoice = src?.burst && src.cardId !== undefined && withCard.burst === undefined ? { ...withCard, burst: { pid: src.pid, cardId: src.cardId } } : withCard
@@ -641,7 +632,7 @@ export function rawLevel(inst: CardInstance): number {
 // 維持コア数。実体は共有層（shared/rules.ts）にある——クライアント側の召喚可否判定
 // （canBattleSwapSummon）が同じ値を必要とするため。ここからの re-export は、
 // サーバー側の既存 import（GameEngine / RuleValidator / battleFlow）をそのまま使い続けるためのもの
-export { instMinLevelCores, minLevelCores, placedCoresForSummon } from "../../../shared/rules"
+export { instMinLevelCores, minLevelCores, placedCoresForSummon, summonLevelCostBonus, summonMinCores } from "../../../shared/rules"
 
 // 召喚／配置でそのレベルにするために置くコア数。存在しないレベルを指定された場合は null を返す
 // （呼び出し側＝RuleValidator が「そのカードに無いレベル」として弾く）
@@ -845,6 +836,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
             p2: playerView(state.players.p2, viewer === "p2", state.players.p1, burstRevealedOf(state, "p2")),
         },
         log: state.log.slice(-60),
+        logTotal: state.log.length,
         winner: state.winner,
         you: viewer,
         timedEffects: [...state.timedEffects],

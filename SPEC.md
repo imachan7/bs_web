@@ -1463,7 +1463,7 @@ exhaustAllByColor だけ完全耐性が抜け／クライアントの対象ハ�
 
 **実装状況の台帳は `data/card-notes.json`**（`npm run validate:notes` で検査）。
 status は `unimplemented`（未実装）/ `partial`（一部未実装）/ `simplified`（簡略化）の3種で、
-**デッキビルダー `/deck.html` がこれを読んでプレイヤーに警告を表示する**（`public/src/deck.ts`）。
+**デッキビルダー `/deck.html` がこれを読んでプレイヤーに警告を表示する**（`public/src/deck/`。Svelte。#703）。
 この章は要約であり、**個別の状況は card-notes.json を正とする**。
 
 ### 現状（2026-08-24 時点。全1065枚）
@@ -1664,7 +1664,7 @@ BS03-036 神鳥ピーゴッドは対応済み。**残り11枚は未着手**:
 
 ## 5.5 デッキビルダー
 
-`/deck.html` にデッキ構築ページを実装（`public/src/deck.ts` → `dist/deck.js`、専用CSS `deck.css`）。
+`/deck.html` にデッキ構築ページを実装（`public/src/deck/`〔Svelte 5。#703 で作り直し〕→ `dist/deck.js`・`dist/deck.css`、土台の CSS は `css/deck-base.css`）。
 
 - カードプール面: 全135枚のグリッド表示。色・タイプ・コスト帯・名前検索の複合フィルタ。
   禁止カードは追加不可。ホバー/クリックで効果テキスト全文の詳細パネル

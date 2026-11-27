@@ -7,6 +7,7 @@ import { negateBurstActivation } from "../burstNegate"
 import { burstActivationFee, burstFeeUnpayable, payBurstActivationFee } from "../burstActivationFee"
 import { withEffectTax } from "../effectTax"
 import { canPayMagicCost, payMagicCostThenResolve } from "../magic/payThenResolve"
+import { announceBurstMagicEffect } from "./burstMagicEffect"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import { anyWaiting } from "../../../../shared/rules/waiting"
 import type { CardInstance, Color, DeclaredBurst, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
@@ -46,9 +47,10 @@ export function placeBurst(state: GameState, pid: PlayerId, cardId: string): voi
 // 発動した時点でバーストは公開される。効果の解決（対象選択を含む）より前に相手へ見せる
 export function announceBurstActivation(state: GameState, pid: PlayerId, cardId: string): void {
     const name = getCard(cardId).name
+    const logAt = state.log.length
     log(state, `${state.players[pid].name}はバースト（${name}）を発動した。`)
     state.players[pid].burstRevealedCardId = cardId
-    emitEvent(state, { type: "burst", pid, cardName: name, cardId })
+    emitEvent(state, { type: "burst", pid, cardName: name, cardId, logAt })
 }
 
 // バースト効果の解決から後を進める：thenPay（その後コストを支払うことで〜）→ カードをトラッシュへ → 「自分のバースト発動後」。
@@ -150,9 +152,10 @@ function tryBurstThenPay(
             entry.action,
             null,
         )
-        if (state.pendingChoice) state.pendingChoice.burstThenPay = { pid, cost, cardId }
+        if (state.pendingChoice) state.pendingChoice.burstThenPay = { pid, cost, cardId, timing: thenPay }
         return
     }
+    announceBurstMagicEffect(state, pid, cardId, thenPay)
     payMagicCostThenResolve(state, pid, cardId, cost, entry.action)
 }
 
@@ -175,6 +178,7 @@ function tryBurstMagicFreeOrThenPay(
     const canPay = payEntry !== undefined && canPayMagicCost(state, pid, payCost)
     const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
         if (!entry) return
+        announceBurstMagicEffect(state, pid, cardId, entry.timing)
         // マジックの「使用」ではないのでresolveMagicは通さない（Q22399。docs/design/BURST.md §7.1）
         resolveAction(state, pid, null, markPayConfirmed(entry.action), undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
     }
@@ -182,7 +186,10 @@ function tryBurstMagicFreeOrThenPay(
         // 非対話の既定：無償でフラッシュがあればそれ、無ければ無償でメイン（2026-09-28ユーザー決定）
         if (flashEntry) return resolveFree(flashEntry)
         if (mainEntry) return resolveFree(mainEntry)
-        if (canPay && payEntry) payMagicCostThenResolve(state, pid, cardId, payCost, payEntry.action)
+        if (canPay && payEntry) {
+            announceBurstMagicEffect(state, pid, cardId, payEntry.timing)
+            payMagicCostThenResolve(state, pid, cardId, payCost, payEntry.action)
+        }
         return
     }
     const options: string[] = []

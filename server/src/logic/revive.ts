@@ -15,7 +15,7 @@ import { canPayLife, lifeCostQuery, recordLifeLoss, settleLifeZero } from "./lif
 import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId, ResolvedTargetFilter } from "../type"
 import { millAllowed, noteMilled } from "./zones/mill"
 import { trashUnderCards } from "./zones/underCards"
-import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
+import { createInstance, currentLevel, getCard, log, instMinLevelCores, summonMinCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
 import { revertDestroyGroupUsage } from "./triggers"
@@ -410,7 +410,7 @@ export function fushiCandidates(
             return families.some((f) => destroyedFamilies.includes(f))
         })
         if (!hit) continue
-        const maintain = minLevelCores(card)
+        const maintain = summonMinCores(state, ownerPid, card)
         // 通常どおりコスト+維持コアを払えるか。払えなくても、未疲労のLv2魔門があり
         // コストがmaxCost以下なら、維持コアだけで無償召喚の候補になる（BS15-064）
         const canPayNormally = fushiPayable(state, ownerPid, card)
@@ -427,7 +427,7 @@ function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: nu
     if (cardId === undefined) return
     const card = getCard(cardId)
     const player = state.players[ownerPid]
-    const maintain = minLevelCores(card)
+    const maintain = summonMinCores(state, ownerPid, card)
     const canPayNormally = fushiPayable(state, ownerPid, card)
     const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
     const canPayFree = freeSource !== null && canPayFreeSummonSurcharge(state, ownerPid, card, maintain)
@@ -474,7 +474,7 @@ export function fushiSummonOrConfirm(state: GameState, ownerPid: PlayerId, trash
     if (cardId === undefined) return
     const player = state.players[ownerPid]
     const card = getCard(cardId)
-    const maintain = minLevelCores(card)
+    const maintain = summonMinCores(state, ownerPid, card)
     // 非対話（テスト）の既定：味方のコアを削らずに通常どおり払えるならそちらを優先する（召喚時効果も発揮できて得なため）。
     // そうでなければ、未疲労のLv2魔門があれば無償召喚を使う（BS15-064冥府へ続く魔門）。どちらの道を選ぶかの好みで、払えるかの判定ではない
     if (autoPayPlan(state, ownerPid, fushiCostOf(state, ownerPid, card) + maintain + summonVoidToll(state, card), true) === null) {
@@ -506,7 +506,7 @@ export function applyFushiSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const maintain = placeCores ?? minLevelCores(card)
+    const maintain = placeCores ?? summonMinCores(state, info.pid, card)
     const freeNexus =
         useFree && info.freeNexusInstanceId !== undefined
             ? player.field.nexuses.find((n) => n.instanceId === info.freeNexusInstanceId && !n.isRested)
@@ -626,7 +626,7 @@ export function applySpiritMillFreeSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const maintain = placeCores ?? minLevelCores(card)
+    const maintain = placeCores ?? summonMinCores(state, info.pid, card)
     const resume = { type: "trashSummonPaidInternal", via: "mill", cardId: info.cardId, trashIndex: index } as const
     if (!prepaid) {
         const owed = surchargeOwed(state, info.pid, card, false)
@@ -1059,7 +1059,7 @@ function tryReviveOnDestroy(
             }
             const milled = getCard(cardId)
             player.trashCards.push(cardId)
-            noteMilled(state, ownerPid, 1, ownerPid, costSourceType(source))
+            noteMilled(state, ownerPid, [cardId], ownerPid, costSourceType(source))
             log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
             const ok = milled.type === cardType && milled.colors.includes(color)
             if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
@@ -1117,11 +1117,9 @@ function tryReviveOnDestroy(
             // 枚数が足りなければ払えない（2026-09-24 ユーザー確定「数も完全に」。COST_MODEL）
             const n = effect.cost.millSelfCount
             if (player.deck.length < n || millAllowed(state, { pid: ownerPid, count: n, actorPid: ownerPid, sourceType: costSourceType(source) }) < n) return false
-            for (let i = 0; i < n; i++) {
-                const cardId = player.deck.shift()!
-                player.trashCards.push(cardId)
-            }
-            noteMilled(state, ownerPid, n, ownerPid, costSourceType(source))
+            const milledIds = player.deck.splice(0, n)
+            player.trashCards.push(...milledIds)
+            noteMilled(state, ownerPid, milledIds, ownerPid, costSourceType(source))
             log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
             return true
         }

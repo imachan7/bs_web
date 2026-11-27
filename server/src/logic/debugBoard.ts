@@ -8,6 +8,7 @@
 // 状態の形だけを差し替えて通常の配信（broadcastState）に載せる。
 import { createInstance, getCard } from "./GameState"
 import { refreshLevelAsOverrides } from "./EffectModules"
+import { attachBrave } from "./brave"
 import type { CardInstance, GameState, Phase, PlayerId } from "../type"
 
 // 場に置く1体の指定。cores を省略するとLv1に必要なコア数（最低でも1個）
@@ -15,6 +16,7 @@ export interface DebugInstance {
     cardId: string
     cores?: number
     isRested?: boolean
+    braves?: string[] // 合体させるブレイヴ（スピリットだけ。attachBrave を通すので合体時の誘発も起きる）
 }
 
 export interface DebugPlayerBoard {
@@ -94,6 +96,7 @@ export function applyDebugBoard(state: GameState, board: DebugBoard): string | n
         }
         const err =
             checkCardIds(spec.field?.spirits?.map((s) => s.cardId), `${pid}のフィールド（スピリット）`) ??
+            checkCardIds(spec.field?.spirits?.flatMap((s) => s.braves ?? []), `${pid}のフィールド（ブレイヴ）`) ??
             checkCardIds(spec.field?.nexuses?.map((s) => s.cardId), `${pid}のフィールド（ネクサス）`)
         if (err) return err
         for (const [label, v] of [
@@ -139,6 +142,10 @@ export function applyDebugBoard(state: GameState, board: DebugBoard): string | n
         if (spec.field !== undefined) {
             p.field.spirits = toInstances(spec.field.spirits, state.turn)
             p.field.nexuses = toInstances(spec.field.nexuses, state.turn)
+            p.field.combinedBraves = []
+            ;(spec.field.spirits ?? []).forEach((s, i) => {
+                for (const braveId of s.braves ?? []) attachBrave(state, pid, p.field.spirits[i]!, createInstance(braveId, state.turn, 0))
+            })
         }
         // このターン限定の効果は盤面と噛み合わなくなるので落とす
         p.turnVirtualInstances = []

@@ -8,10 +8,12 @@ import type {
 } from "../../server/src/type"
 import { CARD_TYPE_LABELS } from "../../data/constants"
 import { attachCardArt } from "./cardArt"
+import { startMillCount } from "./ui/millCount"
 import { setCardLookup } from "../../shared/cardDb"
 import { choiceCounterView } from "./choiceCounter"
 import { effectiveCost } from "../../shared/cost"
 import { minLevelCores } from "../../shared/rules/activation"
+import { summonLevelCostBonus, summonMinCores } from "../../shared/rules/summonLevelCost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
@@ -31,8 +33,12 @@ import {
     spiritHasKeyword, type DirectAttackFilter, isEndStepLocked
 } from "../../shared/rules"
 import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui/tooltip"
+import { renderPayStageSheet, payStageHeading } from "./ui/payStages"
 import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
 import { renderField } from "./ui/fieldCard"
+import { renderCardDock } from "./ui/cardDock"
+import { layoutSpirits, revealBattlingSpirits, saveSpiritScroll } from "./ui/spiritLayout"
+import { syncEffectNotice } from "./ui/effectNotice"
 import { renderHand } from "./ui/hand"
 import { renderInfo, renderBurst, renderBattle, flashBurstReveal } from "./ui/infoPanels"
 export { activeConstraints, cantActByTimed, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
@@ -211,8 +217,6 @@ export interface UiState {
     paying: PayingState | null
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
     directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
-    // 召喚・配置レベル選択モード
-    summonLevelSelect: { handIndex: number; fromTegamoto?: true; cardId: string; targetInstanceId?: string; altSummonNexusInstanceIds?: string[]; exReductionTrashIndices?: number[] } | null
     // 《継召》(kind:"exTrashReduction")の除外カード選択モード。手札のスピリット/ブレイヴが効果を持ち、
     // トラッシュにEXシンボル持ちカードがあるとき、コストを支払う通常の召喚の前に開く。
     // candidateIndices/selected はどちらも自分の trashCards 内インデックス
@@ -236,7 +240,7 @@ export interface UiState {
     altSummonSelect: { handIndex: number; cardId: string; candidateNexusIds: string[] } | null
     // 任意合体モード（BRAVE.md §6.4）：合体させるスピリット状態のブレイヴを選んだ状態。
     // candidateIds は合体先に選べる自分のスピリット（braveCombineCandidates と同じ判定）
-    combineBrave: { braveInstanceId: string; candidateIds: string[] } | null
+    combineBrave: { braveInstanceId: string; candidateIds: string[]; exchange?: true } | null // exchange＝合体中のブレイヴの交換（§6.4.1）
     // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
     stepper: number | null
     // バーストを再セットするときの確認待ち（既存のバーストはトラッシュへ送られるため確認をはさむ）
@@ -302,11 +306,15 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
             return ev.vanish ? `💨 ${ev.cardName} 消滅` : `💥 ${ev.cardName} 破壊`
         case "magic": return `${ev.cardName} 使用`
         case "burst": return null // 詳しい表示（showDetailBanner）で出す
+        case "burstMagicEffect": return null // 同上
+        case "effect": return null // 解決中の効果の表示（ui/effectNotice.ts）で出す
         case "draw":
             // 自分のドローは手札の増加で分かるため表示しない。相手のドローのみ通知する
             return ev.pid === you ? null : `🃏 相手が${ev.count}枚ドロー`
         case "lifeDamage":
             return null // バナーは出さず、ライフ表示のシェイク演出のみ
+        case "mill":
+            return `🗑 ${ev.pid === you ? "あなた" : "相手"}のデッキを${ev.cardIds.length}枚破棄`
         case "returnToHand":
             return `💨 ${ev.cardName} 手札へ戻る`
         case "returnToDeck":
@@ -350,9 +358,26 @@ function timingIcon(kind: "main" | "flash" | "burst"): HTMLImageElement {
 }
 
 // 誰が何をしたかと中身を読める大きめの通知。相手の行動は長めに出し、押せば閉じる（2026-11-12 ユーザー要望：使ったマジック・オープンしたカードが分かりづらい）
+// 通知を出したときの場面（ターン・ステップ・アタック中のスピリット）。場面が先へ進んだら、出してから DETAIL_MIN_MS たった時点で閉じる。
+// 時間だけで消すと、操作の速い AI が次へ進んでも相手のマジックの通知が8秒残り、アタックしているのにマジックの通知が出ていた（2026-11-25 ユーザー指摘）
+let detailScene = ""
+const DETAIL_MIN_MS = 1500
+function sceneOf(view: GameView): string {
+    return `${view.turn}:${view.phase}:${view.battle?.attackerInstanceId ?? ""}`
+}
+function closeStaleDetails(): void {
+    for (const el of document.querySelectorAll<HTMLElement>(".event-detail")) {
+        if (el.dataset.scene === detailScene || el.dataset.closing !== undefined) continue
+        el.dataset.closing = ""
+        setTimeout(() => el.remove(), Math.max(0, DETAIL_MIN_MS - (Date.now() - Number(el.dataset.at))))
+    }
+}
+
 function showDetailBanner(layer: HTMLElement, kind: string, title: string, body: string, mine: boolean, icon?: "main" | "flash" | "burst"): void {
     const banner = document.createElement("div")
     banner.className = `event-detail event-${kind}`
+    banner.dataset.scene = detailScene
+    banner.dataset.at = String(Date.now())
     const t = document.createElement("div")
     t.className = "event-detail-title"
     t.textContent = title
@@ -364,36 +389,6 @@ function showDetailBanner(layer: HTMLElement, kind: string, title: string, body:
     banner.addEventListener("click", () => banner.remove())
     layer.appendChild(banner)
     setTimeout(() => banner.remove(), mine ? 4000 : 8000)
-}
-
-// 直前に使われたマジックを画面の隅に残す（次のマジックか、ターンが変わるまで。×で閉じられる。カーソルを合わせると効果文）
-function showLastMagic(ev: Extract<GameEvent, { type: "magic" | "burst" }>, view: GameView): void {
-    document.getElementById("last-magic")?.remove()
-    const chip = document.createElement("div")
-    chip.id = "last-magic"
-    chip.dataset.turn = String(view.turn)
-    const text = document.createElement("span")
-    const who = ev.pid === view.you ? "あなた" : "相手"
-    text.textContent = ev.type === "burst"
-        ? `直前のバースト：${who}の${ev.cardName}`
-        : `直前のマジック：${who}の${ev.cardName}${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`
-    if (ev.type === "burst") text.prepend(timingIcon("burst"))
-    else if (ev.timing) text.prepend(timingIcon(ev.timing))
-    // カードと同じ効果のツールチップを出す（tooltip.ts の .tip-card）
-    text.classList.add("tip-card")
-    if (ev.cardId !== undefined) text.dataset.cardId = ev.cardId
-    const close = document.createElement("button")
-    close.className = "last-magic-close"
-    close.textContent = "×"
-    close.setAttribute("aria-label", "閉じる")
-    close.addEventListener("click", () => chip.remove())
-    chip.append(text, close)
-    document.getElementById("game")?.appendChild(chip)
-}
-
-function clearStaleLastMagic(view: GameView): void {
-    const chip = document.getElementById("last-magic")
-    if (chip && chip.dataset.turn !== String(view.turn)) chip.remove()
 }
 
 // 場を離れたカードの位置に、消えていく写しを重ねる（描き直す前に呼ぶ。急に消えたように見えないため）
@@ -414,7 +409,7 @@ function showLeaveGhost(instanceId: string, kind: "vanish" | "destroy" | "bounce
     // 消えるまでは元の場所を空けておく（詰めると隣のカードが写しの下から出てくるように見えるため）
     const zone = el.parentElement
     if (zone?.id) {
-        leavingSlots.set(instanceId, { zoneId: zone.id, index: Array.from(zone.children).indexOf(el), width: rect.width, height: rect.height })
+        leavingSlots.set(instanceId, { zoneId: zone.id, index: Array.from(zone.children).filter((c) => !c.classList.contains("sp-break")).indexOf(el), width: rect.width, height: rect.height })
         setTimeout(() => {
             leavingSlots.delete(instanceId)
             document.querySelector(`.leave-slot[data-slot="${CSS.escape(instanceId)}"]`)?.remove()
@@ -487,13 +482,22 @@ function restoreLeavingSlots(): void {
     }
 }
 
-// オープンしたカード：選択待ちのあいだ（公開ゾーンが残っている間）は出しっぱなし、すぐ片付いた場合も8秒は出す。
-// カードの形で並べ、カーソルを合わせると効果文（画像が使える設定なら画像も）
-let revealShown: { pid: PlayerId; cardIds: string[]; until: number } | null = null
+// オープンしたカード：× で閉じるまで出す（時間で消すと、いつ消えるか分からない。2026-11-24 ユーザー指摘）。
+// 選択待ちのあいだ（公開ゾーンが残っている間）は閉じても出し直す。カードの形で並べ、カーソルを合わせると効果文
+let revealShown: { pid: PlayerId; cardIds: string[] } | null = null
+// 自分がオープンしたカードから選ぶ場面を見せたか。選び終わったあとに同じカードを出し直すのは要らない（2026-11-24 ユーザー指摘）。
+// 相手のオープンは、相手が選んだあとも何が出たかを見られるよう残す
+let ownRevealChosen = false
 function renderRevealPanel(view: GameView): void {
     let panel = document.getElementById("reveal-panel")
     const live = view.revealedCards
-    const src = live && live.cardIds.length > 0 ? { pid: live.pid, cardIds: live.cardIds } : revealShown && Date.now() < revealShown.until ? revealShown : null
+    if (live && live.cardIds.length > 0) {
+        if (live.pid === view.you) ownRevealChosen = true
+    } else if (ownRevealChosen) {
+        ownRevealChosen = false
+        revealShown = null
+    }
+    const src = live && live.cardIds.length > 0 ? { pid: live.pid, cardIds: live.cardIds } : revealShown
     if (!src) {
         panel?.remove()
         return
@@ -520,58 +524,79 @@ function renderRevealPanel(view: GameView): void {
     head.appendChild(close)
     const row = document.createElement("div")
     row.className = "reveal-row"
-    for (const id of src.cardIds) {
-        const m = master(id)
-        const c = document.createElement("div")
-        c.className = "reveal-card tip-card"
-        c.dataset.cardId = id
-        const name = document.createElement("div")
-        name.className = "reveal-name"
-        name.textContent = m.name
-        const type = document.createElement("div")
-        type.className = "reveal-type"
-        type.textContent = `${CARD_TYPE_LABELS[m.type]}・コスト${m.cost}`
-        c.append(name, type)
-        attachCardArt(c, id, m.name)
-        row.appendChild(c)
-    }
+    for (const id of src.cardIds) row.appendChild(revealCardEl(id))
     panel.append(head, row)
+}
+
+// PC はバーストの発動で、そのカードを画面の左に大きく出す（盤面のバーストの欄は 55×67 で、何が発動したかが見えにくかった。2026-11-25 ユーザー案）。
+// 押すか、文字の通知と同じ時間で消える。スマホは画面が狭く、盤面のバーストの欄と文字の通知で足りるので作らない
+function showBurstCard(cardId: string, mine: boolean): void {
+    if (window.matchMedia("(max-width: 768px)").matches) return
+    // 幅 220px で出すので、絵は大きい方（lg）を読む
+    const c = revealCardEl(cardId, "lg")
+    c.classList.add("burst-reveal-big")
+    c.addEventListener("click", () => c.remove())
+    document.body.appendChild(c)
+    setTimeout(() => c.remove(), mine ? 4000 : 8000)
+}
+
+// オープン・破棄で見せるカード1枚（名前・種別・コスト。絵があれば重ねる。カーソルで効果文）
+export function revealCardEl(id: string, artSize: "lg" | "md" = "md"): HTMLDivElement {
+    const m = master(id)
+    const c = document.createElement("div")
+    c.className = "reveal-card tip-card"
+    c.dataset.cardId = id
+    const name = document.createElement("div")
+    name.className = "reveal-name"
+    name.textContent = m.name
+    const type = document.createElement("div")
+    type.className = "reveal-type"
+    type.textContent = `${CARD_TYPE_LABELS[m.type]}・コスト${m.cost}`
+    c.append(name, type)
+    attachCardArt(c, id, m.name, artSize)
+    return c
 }
 
 // view.events のうち前回描画より新しいものだけを処理する：
 // 召喚・破壊・マジック・相手ドローはオーバーレイのバナー通知、ライフダメージは
 // 対象プレイヤーのpidを集めて返す（renderInfoでの life-changed クラス付与に使う）
+let effectNoticeEvents: GameEvent[] = []
 function processNewEvents(view: GameView): Set<PlayerId> {
     const layer = document.getElementById("event-layer")
     const lifeDamagedPids = new Set<PlayerId>()
-    clearStaleLastMagic(view)
     const newEvents = view.events.filter((ev) => ev.seq > lastEventSeq)
+    detailScene = sceneOf(view)
     for (const ev of newEvents) {
         if (ev.type === "lifeDamage") {
             lifeDamagedPids.add(ev.pid)
             continue
         }
+        // 枚数を1枚ずつ数える（バナーは下の通常の流れで出す）
+        if (ev.type === "mill") startMillCount(ev.pid, ev.cardIds, ev.pid === view.you)
         if ((ev.type === "destroy" || ev.type === "returnToHand" || ev.type === "returnToDeck") && ev.instanceId !== undefined) {
             pendingLeaves.set(ev.instanceId, ev.type === "destroy" ? (ev.vanish ? "vanish" : "destroy") : "bounce")
         }
         const mine = ev.pid === view.you
         if (ev.type === "magic" && layer) {
-            showLastMagic(ev, view)
             showDetailBanner(layer, "magic", `${mine ? "あなた" : "相手"}が ${ev.cardName} を使用${ev.timing === "flash" ? "（フラッシュ）" : ev.timing === "main" ? "（メイン）" : ""}`, ev.cardId !== undefined ? magicEffectText(ev.cardId, ev.timing) : "", mine, ev.timing)
             continue
         }
         if (ev.type === "burst" && layer) {
-            if (ev.cardId !== undefined) flashBurstReveal(ev.pid, ev.cardId)
-            showLastMagic(ev, view)
+            if (ev.cardId !== undefined) {
+                flashBurstReveal(ev.pid, ev.cardId)
+                showBurstCard(ev.cardId, mine)
+            }
             showDetailBanner(layer, "burst", `${mine ? "あなた" : "相手"}の ${ev.cardName} バースト発動`, ev.cardId !== undefined ? burstEffectText(ev.cardId) : "", mine, "burst")
             continue
         }
+        // バーストのあとに発揮するメイン効果・フラッシュ効果。何の効果を発揮したかを出す（2026-11-25 ユーザー指摘：絶甲氷盾のフラッシュ効果の中身が分からなかった）
+        if (ev.type === "burstMagicEffect" && layer) {
+            const label = ev.timing === "flash" ? "フラッシュ" : "メイン"
+            showDetailBanner(layer, "burst", `${mine ? "あなた" : "相手"}の ${ev.cardName} の${label}効果を発揮`, magicEffectText(ev.cardId, ev.timing), mine, ev.timing)
+            continue
+        }
         if (ev.type === "reveal") {
-            revealShown = { pid: ev.pid, cardIds: ev.cardIds, until: Date.now() + 8000 }
-            setTimeout(() => {
-                const panel = document.getElementById("reveal-panel")
-                if (revealShown && Date.now() >= revealShown.until && panel?.dataset.live !== "1") panel?.remove()
-            }, 8100)
+            revealShown = { pid: ev.pid, cardIds: ev.cardIds }
             continue
         }
         const text = eventBannerText(ev, view.you)
@@ -586,6 +611,8 @@ function processNewEvents(view: GameView): Set<PlayerId> {
         lastEventSeq = newEvents.reduce((max, ev) => Math.max(max, ev.seq), lastEventSeq)
     }
     flushPendingLeaves(view)
+    closeStaleDetails()
+    effectNoticeEvents = newEvents
     return lifeDamagedPids
 }
 
@@ -704,12 +731,12 @@ export function render(view: GameView, ui: UiState): void {
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.exReductionSelect !== null || ui.soulCoreOnlySelect !== null || ui.magicTimingSelect !== null || ui.soulSwapSelect !== null || ui.burstResetConfirm !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.exReductionSelect !== null || ui.soulCoreOnlySelect !== null || ui.magicTimingSelect !== null || ui.soulSwapSelect !== null || ui.burstResetConfirm !== null
     show("btn-cancel-target", anyMode)
     // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
     // コアが足りていても支払いモードへ入る仕様（tryPlay）とセットで必要になる
-    show("btn-confirm-pay", ui.paying !== null && payingRemaining(view, ui.paying) === 0)
+    show("btn-confirm-pay", ui.paying !== null && ui.paying.step === undefined && payingRemaining(view, ui.paying) === 0)
     show("btn-attack-player", ui.directedAttack !== null && !ui.directedAttack.filter.onlyInstanceIds)
     show("targeting-info", anyMode || pendingChoiceActive)
     show("btn-skip-choice", myPendingChoice?.optional === true)
@@ -726,7 +753,11 @@ export function render(view: GameView, ui: UiState): void {
     // （cardZone:"hand"は手札のカード自体をクリックさせるためここには描画しない）
     const choiceOptionsEl = $("choice-options")
     choiceOptionsEl.innerHTML = ""
-    if (myPendingChoice && myPendingChoice.kind === "option" && myPendingChoice.stepper) {
+    if (ui.paying?.step !== undefined) {
+        // 召喚・配置の支払い（2段）。選択肢の列に、①コスト／②置くコアの画面を組む
+        renderPayStageSheet(view, ui.paying, choiceOptionsEl)
+        show("choice-options", true)
+    } else if (myPendingChoice && myPendingChoice.kind === "option" && myPendingChoice.stepper) {
         // 増減式（PendingChoice.stepper）：ボタンを options の数だけ並べる代わりに −／＋ で数を決める。
         // 「どれを選ぶか」に意味が無く候補数が多くなりうるもの（トラッシュに置くコアの数）に使う
         const opts = myPendingChoice.options ?? []
@@ -749,9 +780,17 @@ export function render(view: GameView, ui: UiState): void {
         const confirm = document.createElement("button")
         confirm.dataset.option = opts[value] ?? "0"
         confirm.textContent = "決定"
-        choiceOptionsEl.append(minus, readout, plus, confirm)
+        choiceOptionsEl.append(stepperRow(minus, readout, plus), confirm)
         show("choice-options", true)
     } else if (myPendingChoice && myPendingChoice.kind === "option") {
+        // バーストのあとにコストを払って発揮するかの確認では、発揮する効果の中身を一緒に出す（払うか決めるのに要る。2026-11-25 ユーザー指摘）
+        const thenPay = myPendingChoice.burstThenPay
+        if (thenPay) {
+            const text = document.createElement("div")
+            text.className = "choice-effect-text"
+            text.textContent = `${thenPay.timing === "flash" ? "フラッシュ" : "メイン"}：${magicEffectText(thenPay.cardId, thenPay.timing)}`
+            choiceOptionsEl.appendChild(text)
+        }
         for (const opt of myPendingChoice.options ?? []) {
             const b = document.createElement("button")
             b.dataset.option = opt
@@ -845,40 +884,6 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(confirmEx)
         }
         show("choice-options", true)
-    } else if (ui.summonLevelSelect) {
-        const card = master(ui.summonLevelSelect.cardId)
-        // 代替召喚（ネクサスをデッキの下に戻して払う）では召喚コストが0になる
-        const cost = ui.summonLevelSelect.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, ui.summonLevelSelect.exReductionTrashIndices))
-        const reserve = view.players[view.you].reserve
-        // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
-        // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
-        const fieldCores = payableFieldCores(view, ui.summonLevelSelect.cardId)
-        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
-        for (const l of affordableLevels) {
-            const b = document.createElement("button")
-            b.dataset.summonLevel = String(l.level)
-            const needsField = reserve < cost + l.cores
-            b.textContent = needsField
-                ? `Lv${l.level} (${l.cores}コア・フィールドから取得)`
-                : `Lv${l.level} (${l.cores}コア)`
-            if (needsField) b.classList.add("needs-field-cores")
-            choiceOptionsEl.appendChild(b)
-        }
-        // 《真界放》のwaiver配置: [ソウルコア]1個だけでLv2にする置き方（2026-10-07 ユーザー裁定。
-        // レベル選択の3パターン「Lv1分置く/Lv2分置く/Lv2を[ソウルコア]で置く」の3つ目）
-        const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
-        const marked = card.levels.some((l) => l.soulCoreRequired === true)
-        if (marked && soulInReserve && reserve + fieldCores >= cost + 1) {
-            const b = document.createElement("button")
-            b.dataset.soulWaiver = "1"
-            const needsField = reserve < cost + 1
-            b.textContent = needsField
-                ? "Lv2を[ソウルコア]で置く (1コア・フィールドから取得)"
-                : "Lv2を[ソウルコア]で置く (1コア)"
-            if (needsField) b.classList.add("needs-field-cores")
-            choiceOptionsEl.appendChild(b)
-        }
-        show("choice-options", true)
     } else if (ui.braveSummonSelect) {
         // ブレイヴの召喚方法。単体（スピリット状態）と、合体先ごとのボタンを並べる
         const single = document.createElement("button")
@@ -939,21 +944,20 @@ export function render(view: GameView, ui: UiState): void {
         $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
-        const alt = payingAltPay(view, ui.paying)
+        // 2段の画面では、代替コスト・肩代わり・破壊払いは①（コスト）だけで選ぶ
+        const staged = ui.paying.step !== undefined
+        const costExtras = ui.paying.step !== "place"
+        const alt = costExtras ? payingAltPay(view, ui.paying) : { kind: null, used: 0, max: 0 }
         // 任意分離（BRAVE.md §6.4）にはコストが無く、置くコアだけなので案内を分ける
         const base =
-            ui.paying.forBraveKeep !== undefined
-                ? `💎 残すブレイヴに置くコア: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+            staged
+                ? payStageHeading(view, ui.paying)
                 : ui.paying.forMeisai !== undefined
-                ? ui.paying.forMeisai.placing
-                    ? `💎 ${master(ui.paying.forMeisai.cardId).name}：${view.pendingChoice?.effectCostPay?.need ? "コストと" : ""}置くコア 残り ${remaining} 個。${Object.keys(ui.paying.assigned).length > 0 ? "おまかせの払い方を割り当ててあります（変えるときは「割り当てをやり直す」）" : "コアを出すスピリット・ネクサスを押してください"}${vanishingNote(view, ui.paying.assigned)}`
-                    : `💎 ${ui.paying.forMeisai.effectCost ? "効果" : "【迷彩】"}のコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                ? `💎 ${ui.paying.forMeisai.effectCost ? "効果" : "【迷彩】"}のコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forAttack !== undefined
                 ? `💎 アタックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forBlock !== undefined
                 ? `💎 ブロックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
-                : ui.paying.forDetachBraveInstanceId !== undefined
-                ? `💎 分離するブレイヴに置くコア: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください`
                 : `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
         if (alt.kind === "handDiscard") {
             // 破棄する手札は「どれを捨てるか」を選ぶので、手札そのものをクリックさせる
@@ -1003,7 +1007,7 @@ export function render(view: GameView, ui: UiState): void {
             }
         }
         // kind:"payAssistByExhaust"（BS16-021）：【神速】召喚のとき、疲労させて肩代わりする候補があれば選ばせる
-        const shinsokuCandidates = payingShinsokuAssistCandidates(view, ui.paying)
+        const shinsokuCandidates = costExtras ? payingShinsokuAssistCandidates(view, ui.paying) : []
         if (shinsokuCandidates.length > 0) {
             const buttons = shinsokuCandidates
                 .map((c) => {
@@ -1017,7 +1021,7 @@ export function render(view: GameView, ui: UiState): void {
         }
         // kind:"summonPayOff"：破壊して召喚コストを払ったものとして扱える個体があれば選ばせる
         const payingCardIdNow = payingCardId(view, ui.paying)
-        const payOffOptions = payingCardIdNow === undefined ? [] : summonPayOffOptions(view, view.you, payingCardIdNow)
+        const payOffOptions = payingCardIdNow === undefined || !costExtras ? [] : summonPayOffOptions(view, view.you, payingCardIdNow)
         if (payOffOptions.length > 0) {
             const p = view.players[view.you]
             const buttons = payOffOptions
@@ -1031,7 +1035,7 @@ export function render(view: GameView, ui: UiState): void {
                 .join(" ")
             $("targeting-info").innerHTML += `<br>${buttons}`
         }
-        if (ui.payMode === "manual" || ui.paying.forMeisai?.placing) {
+        if (ui.payMode === "manual" && !staged) {
             const need = payingNeed(view, ui.paying)
             const fromField = Object.values(ui.paying.assigned).reduce((a, b) => a + b, 0)
             const fromReserve = Math.max(0, Math.min(view.players[view.you].reserve, need - fromField))
@@ -1061,9 +1065,6 @@ export function render(view: GameView, ui: UiState): void {
             ui.exReductionSelect.phase === "ask"
                 ? `《継召》：トラッシュのEXシンボルを除外して、コスト${String(effectiveCost(view, view.you, master(ui.exReductionSelect.cardId)))}を軽減できます`
                 : `《継召》：除外するトラッシュのカードを選んでください（同じカードはまとめて1枚のボタンです）`
-    } else if (ui.summonLevelSelect) {
-        $("targeting-info").textContent =
-            `🌟 召喚/配置レベルを選択してください (リザーブからコアを置きます)`
     } else if (ui.battleSwapSummon) {
         $("targeting-info").textContent =
             `🔄 入れ替え召喚: 手札に戻す自分のスピリットを選んでください`
@@ -1092,9 +1093,12 @@ export function render(view: GameView, ui: UiState): void {
     renderInfo("my-info", view, ui, you, true, lifeDamagedPids.has(you))
 
     // フィールド
+    saveSpiritScroll()
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
     renderField("my-spirits", "my-nexuses", view, ui, you, true)
     restoreLeavingSlots()
+    layoutSpirits()
+    revealBattlingSpirits([view.battle?.attackerInstanceId, view.battle?.blockerInstanceId])
     renderRevealPanel(view)
 
     // バーストエリア（docs/design/BURST.md）。相手のバーストは常に裏面のみ（cardIdは来ない）
@@ -1103,6 +1107,7 @@ export function render(view: GameView, ui: UiState): void {
 
     // 手札
     renderHand(view, ui)
+    renderCardDock(view, ui)
 
     // 手元ボタン
     const myTegamotoCount = view.players[you].tegamoto?.length ?? 0
@@ -1197,6 +1202,8 @@ export function render(view: GameView, ui: UiState): void {
 
     // 再描画でホバー中のカードがDOMから外れた場合、ツールチップを消す
     if (currentHoverCard !== null && !document.body.contains(currentHoverCard)) hideEffectTooltip()
+    syncEffectNotice(view, effectNoticeEvents)
+    effectNoticeEvents = []
 }
 
 // ロビー側の表示制御
@@ -1205,7 +1212,7 @@ export function showWaiting(): void {
     // 待機中はボタンの文言を「参加を取り消す」に変えて残す
     const joinBtn = document.getElementById("join-btn")
     if (joinBtn) {
-        joinBtn.textContent = "参加を取り消す"
+        joinBtn.textContent = "やめる"
         joinBtn.classList.add("cancel-mode")
     }
 }
@@ -1215,7 +1222,7 @@ export function hideWaiting(): void {
     // ボタンの文言を元に戻す
     const joinBtn = document.getElementById("join-btn")
     if (joinBtn) {
-        joinBtn.textContent = "対戦ルームに入る"
+        joinBtn.textContent = "入る"
         joinBtn.classList.remove("cancel-mode")
     }
 }
@@ -1234,10 +1241,10 @@ export function showToast(message: string): void {
 
 
 
-// 割り当てたコアで維持コアを割るスピリットの名前（「〜が消滅します」）。支払いの確定前に見せる
-function vanishingNote(view: GameView, assigned: Record<string, number>): string {
-    const names = view.players[view.you].field.spirits
-        .filter((sp) => (assigned[sp.instanceId] ?? 0) > 0 && sp.cores - (assigned[sp.instanceId] ?? 0) < minLevelCores(master(sp.cardId)))
-        .map((sp) => master(sp.cardId).name)
-    return names.length > 0 ? `／⚠️ ${names.join("、")}が消滅します` : ""
+// −・数・＋ を1行にまとめる。選択肢の列はボタンを1つずつ縦に積むので、ばらばらに入れるとスマホで−だけが見えて残りが画面の外に出た
+function stepperRow(...items: HTMLElement[]): HTMLElement {
+    const row = document.createElement("div")
+    row.className = "stepper-row"
+    row.append(...items)
+    return row
 }

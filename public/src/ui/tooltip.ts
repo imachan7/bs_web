@@ -1,8 +1,22 @@
 // カードにホバーしたときの効果ツールチップ
 import { effectLineSegments } from "../effectText"
 import { master, COLOR_SYMBOLS, escapeHtml } from "../renderer"
+import { hoverArt } from "../cardArt"
+
+// battle-mobile.css の #effect-tooltip の max-height で引いている値と同じ
+const DOCK_RESERVE = 160
 
 export let currentHoverCard: HTMLElement | null = null
+
+// カードの絵を大きく出す（スマホの長押しと同じ表示）。下の欄の絵を押したとき（ui/cardDock.ts）にも使う
+let showLarge: (card: HTMLElement) => void = () => {}
+export function showCardLarge(card: HTMLElement): void {
+    showLarge(card)
+}
+export function cardLargeShown(): boolean {
+    const tip = document.getElementById("effect-tooltip")
+    return tip !== null && !tip.classList.contains("hidden") && tip.classList.contains("with-art")
+}
 
 // 効果を出す対象。.tip-card は選択待ちのカードの選択肢・発生源の表示（2026-11-12 ユーザー要望）
 const TIP_SELECTOR = ".card, .brave-combined, .log-card-name, .tip-card"
@@ -27,12 +41,16 @@ export function setupEffectTooltip(): void {
     tip.classList.add("hidden")
     document.body.appendChild(tip)
 
-    const showFor = (card: HTMLElement): void => {
+    // longPress：スマホの長押し。カードの絵を大きく出し、吹き出しを画面の真ん中に置く（2026-11-25 ユーザー要望）
+    const showFor = (card: HTMLElement, longPress = false): void => {
         const cardId = card.dataset.cardId
         if (!cardId) return
         const m = master(cardId)
         
         tip.innerHTML = ""
+        const art = hoverArt(cardId, longPress)
+        tip.classList.toggle("with-art", art !== null)
+        if (art) tip.appendChild(art)
         const titleArea = document.createElement("div")
         titleArea.style.display = "flex"
         titleArea.style.alignItems = "center"
@@ -157,17 +175,39 @@ export function setupEffectTooltip(): void {
             tip.appendChild(vanilla)
         }
         
+        tip.style.maxHeight = ""
         tip.classList.remove("hidden")
         // 位置決め: カードの上に出し、画面上端にかかるならカードの下へ。左右は画面内へクランプ
         const rect = card.getBoundingClientRect()
         const tipRect = tip.getBoundingClientRect()
         let top = rect.top - tipRect.height - 8
         if (top < 4) top = rect.bottom + 8
-        let left = rect.left + rect.width / 2 - tipRect.width / 2
+        // スマホは画面の下端に押したカードの欄（#card-dock。高さ最大約140px）と操作ボタンが出る。タップでも mouseover が来て欄と同時に開くので、
+        // 欄が開く前のこの時点で、欄の上端より上（下から DOCK_RESERVE px）に収まるようずらす。視線の移動が少ないようカードの近くに置く（2026-11-24 ユーザー）
+        const mobile = window.matchMedia("(max-width: 768px)").matches
+        tip.classList.toggle("touch-art", mobile && art !== null)
+        if (mobile && art !== null) {
+            // 絵を出すと高くなりカードの近くに置けないので、画面の真ん中に置く。入らなければ中を指でスクロールする
+            const h = Math.min(tipRect.height, window.innerHeight - 16)
+            tip.style.maxHeight = `${h}px`
+            top = Math.max(8, (window.innerHeight - h) / 2)
+        } else if (mobile) {
+            // カードを隠さないよう、上と下の空いている広い側に置き、入りきらなければその側の高さに縮めて中をスクロールさせる
+            const limit = window.innerHeight - DOCK_RESERVE
+            const roomAbove = Math.min(rect.top, limit) - 8 - 4
+            const roomBelow = limit - rect.bottom - 8
+            const h = Math.min(tipRect.height, Math.max(roomAbove, roomBelow))
+            tip.style.maxHeight = `${Math.max(80, h)}px`
+            top = roomAbove >= tipRect.height || roomAbove >= roomBelow ? Math.min(rect.top, limit) - 8 - h : rect.bottom + 8
+            top = Math.max(4, top)
+        }
+        let left = tip.classList.contains("touch-art") ? (window.innerWidth - tipRect.width) / 2 : rect.left + rect.width / 2 - tipRect.width / 2
         left = Math.max(4, Math.min(left, window.innerWidth - tipRect.width - 4))
         tip.style.top = `${top}px`
         tip.style.left = `${left}px`
     }
+
+    showLarge = (card) => showFor(card, true)
 
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
@@ -192,6 +232,8 @@ export function setupEffectTooltip(): void {
     let longPressed = false
     document.addEventListener("pointerdown", (e) => {
         if (e.pointerType !== "touch") return
+        // 吹き出しは中をスクロールできるので、触れただけでは閉じない（押すと閉じる）
+        if (tip.contains(e.target as Node)) return
         const card = (e.target as HTMLElement).closest<HTMLElement>(TIP_SELECTOR)
         window.clearTimeout(pressTimer)
         if (!card) {
@@ -200,7 +242,7 @@ export function setupEffectTooltip(): void {
         }
         pressTimer = window.setTimeout(() => {
             longPressed = true
-            showFor(card)
+            showFor(card, true)
         }, 500)
     })
     const cancelPress = (): void => window.clearTimeout(pressTimer)
@@ -217,6 +259,7 @@ export function setupEffectTooltip(): void {
         },
         true,
     )
+    tip.addEventListener("click", () => hideEffectTooltip())
     // 長押しでOSのコンテキストメニュー（テキスト選択等）が出るのを抑止
     document.addEventListener("contextmenu", (e) => {
         if (longPressed) e.preventDefault()

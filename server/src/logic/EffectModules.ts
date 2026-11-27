@@ -34,6 +34,7 @@ import ACTION_HANDLERS from "./actions"
 import { matchesPick } from "./actions/revealAction"
 import type { ActionCtx } from "./actions/types"
 import { handGainDenial } from "./handGate"
+import { separateBravesLostCondition, trashSpiritStateBravesWhenForbidden } from "./braveConditionGate"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -79,6 +80,7 @@ import {
     fieldColorCount,
    
 } from "../../../shared/rules"
+import { randomId } from "../../../shared/randomId"
 import { lastCoresCount, lastDestroyedCountOf, lastDrawnCount, lastEmptiedSpiritsOf, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
 import { checkExhaustOnCoreChange } from "./state/exhaust"
 export type { KeywordInfo }
@@ -580,7 +582,7 @@ export function tryLifeDamageMillGuard(
                 log(state, `${player.name}のデッキが尽きているため、${getCard(source.cardId).name}の効果は発揮されなかった。`)
                 return false
             }
-            noteMilled(state, defenderPid, 1, defenderPid, guardType)
+            noteMilled(state, defenderPid, [cardId], defenderPid, guardType)
             const milled = getCard(cardId)
             const guarded =
                 milled.type === effect.match.cardType &&
@@ -1393,16 +1395,20 @@ export function resolveAction(
     paySources?: PaySource[],
     // バースト効果の入口（burst.ts／choice.ts／handBurstEffect.ts）だけが true を渡す。入れ子と再開は下で引き継ぐ
     burst?: true,
+    sourceInstanceId?: string,
 ): void {
     // 召喚時効果を発揮した印。pay は払えないと発動していないので、確認を済ませたか払った時点で付ける（pay.ts）
     // summonSequence は召喚の手順の続き（内部専用）で、召喚時効果の発揮ではない
     // self が発生源でない（fieldEvent がイベントの主語を self にする）ときは、self の召喚時効果を発揮したことにしない
     const selfIsSource = self !== null && (sourceCardId === undefined || sourceCardId === self.cardId)
     if (self !== null && selfIsSource && action.type !== "pay" && action.type !== "summonSequence") markSummonEffectResolved(state, self)
+    // 一番外側の新しい解決だけ通知する（入れ子・選択待ちからの再開は effectId を引き継ぐので出ない）。
+    // 召喚の手順の続きとバーストの入口は効果の発揮ではない
+    if (self !== null && selfIsSource && burst !== true && state.currentEffectSource === undefined && state.resumeEffectId === undefined && state.resumeBurst === undefined && action.type !== "summonSequence" && getCard(self.cardId).type !== "magic") emitEffectNotice(state, owner, self, action)
     const opp = opponentOf(owner)
     // 効果の id。一番外側の効果が発行し、入れ子はそれを引き継ぐ。中断からの再開は resumeEffectId で同じ効果の続きになる
     // （derivedSettle：効果の中で待機に入ったカードの列は、この id の効果が終わってから解決する）
-    const effectId = state.currentEffectSource?.effectId ?? state.resumeEffectId ?? crypto.randomUUID()
+    const effectId = state.currentEffectSource?.effectId ?? state.resumeEffectId ?? randomId()
     if (state.currentEffectSource === undefined) delete state.resumeEffectId
     const sourceName = self ? getCard(selfIsSource ? self.cardId : sourceCardId!).name : "効果"
     const srcColors = sourceColors ?? (self ? instColors(self) : undefined)
@@ -1420,6 +1426,7 @@ export function resolveAction(
                 : undefined)
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する
+    const srcInstanceId = sourceInstanceId ?? self?.instanceId
     const destroyContext: DestroyContext = {
         effectId,
         sourcePid: owner,
@@ -1427,7 +1434,7 @@ export function resolveAction(
         // 発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用）
         ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
         // 発生源インスタンス（「その効果を発揮したスピリット」を対象にする軸用）
-        ...(self ? { sourceInstanceId: self.instanceId } : {}),
+        ...(srcInstanceId !== undefined ? { sourceInstanceId: srcInstanceId } : {}),
         ...(srcCardId !== undefined ? { sourceCardId: srcCardId } : {}),
     }
 
@@ -1441,6 +1448,7 @@ export function resolveAction(
         srcColors,
         srcType,
         sourceCardId: srcCardId,
+        srcInstanceId,
         destroyContext,
         targetInstanceId,
         chosenOption,
@@ -1461,6 +1469,9 @@ export function resolveAction(
                 opts?.chosenOption,
                 opts?.chosenCardIndex,
                 sameSource ? srcCardId : undefined,
+                undefined,
+                undefined,
+                sameSource ? srcInstanceId : undefined,
             )
         },
     }
@@ -1482,8 +1493,7 @@ export function resolveAction(
         pid: owner,
         ...(srcType !== undefined ? { type: srcType } : {}),
         ...(srcColors !== undefined ? { colors: srcColors } : {}),
-        // self が確定しているときだけ発生源インスタンスを載せる
-        ...(self !== null && self !== undefined ? { instanceId: self.instanceId } : {}),
+        ...(srcInstanceId !== undefined ? { instanceId: srcInstanceId } : {}),
         ...(srcCardId !== undefined ? { cardId: srcCardId } : {}),
     }
     // 「効果でコアが置かれた」の検出用スナップショット。**一番外側の効果でだけ**取る
@@ -1493,6 +1503,9 @@ export function resolveAction(
     // 「その後」の次の手は、前の手で変わった盤面の継続効果を見る（発生源が場を離れた・条件の体数が変わった等）。
     // 更新点（合体・召喚・期限つき効果の記録）を通らない変化もあるので、手ごとに組み直す（2026-11-03 ユーザーと決定）
     if (!state.winner) refreshLevelAsOverrides(state)
+    if (!state.winner && trashSpiritStateBravesWhenForbidden(state)) refreshLevelAsOverrides(state)
+    // 合体条件を満たさなくなったブレイヴも、手を解決するたびに分離してから次の手へ進む（2026-11-25 ユーザー決定。#707）。選択待ちが立ったら残りの手はその答えの後
+    if (!state.winner) separateBravesLostCondition(state)
     // コアの居場所を突き合わせ、増えた側だけを合計して "opponentCorePlaced" を発火する。
     // **currentEffectSource を戻す前に**呼ぶ（sourceColorFilter がこれを読むため）
     if (coreSnapshot) fireCorePlacedFromDiff(state, coreSnapshot)
@@ -1571,4 +1584,5 @@ export {
 } from "./targeting"
 export { placeBurst, finishBurstActivation, fireOwnBurstActivated, continueBurstActivation, announceBurstActivation, fireEventBursts, eventBurstsFrame, applyDeclaredBursts } from "./keywords/burst"
 import { markSummonEffectResolved } from "./keywords/burst"
+import { emitEffectNotice } from "./effectNotice"
 export { fireSummonSequence, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "./summon"

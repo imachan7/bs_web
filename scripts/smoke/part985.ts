@@ -128,8 +128,8 @@ console.log("=== 2. ネクサスとスピリットの破壊: 両方の誘発が1
 
 console.log("=== 3. 合体中のブレイヴとスピリットの破壊: 両方の誘発が1本の列になる ===")
 {
-    const { s, ids } = build("settle-3", {}, { spirits: [{ card: VAN, cores: 3 }, { card: LOCO, cores: 1 }], nexuses: [{ card: NEKO, cores: 1 }] })
-    const host = s.players.p2.field.spirits.find((x) => x.instanceId === ids[`p2.${VAN}.1`])!
+    const { s, ids } = build("settle-3", {}, { spirits: [{ card: "SD01-007", cores: 3 }, { card: LOCO, cores: 1 }], nexuses: [{ card: NEKO, cores: 1 }] })
+    const host = s.players.p2.field.spirits.find((x) => x.instanceId === ids[`p2.SD01-007.1`])! // スティラホーン（コスト5・効果なし）。ぐるみパンダの合体条件コスト4以上を満たす
     const brave = createInstance(PANDA, s.turn - 1, 0)
     brave.braveCombined = true
     s.players.p2.field.combinedBraves.push(brave)

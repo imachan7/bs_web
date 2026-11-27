@@ -2,19 +2,21 @@
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, PendingChoice, EffectAction, EffectDef, GameState, PlayerId } from "../../type"
-import { currentLevel, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import type { MagicUsedDecision } from "../../types/choice"
+import { currentLevel, findInstanceAnywhere, findSpirit, getCard, log, pushResumeFrames, suspend } from "../GameState"
 import { isSelfInBattle, magicEffectiveColors } from "../../../../shared/cost"
 import { magicConditionFailure } from "../../../../shared/magicCondition"
 import { effectSources } from "../../../../shared/rules"
 import { resolveAction } from "../EffectModules"
 import { hasPendingFramesOfEffect, settleDerived } from "../derivedSettle"
 import { markPayConfirmed } from "../actions/pay"
-import { fireFieldEventTriggers } from "../fieldEventTriggers"
+import { decideMagicUsedTriggers, runMagicUsedTriggers } from "./usedTriggers"
 import type { ActionHandler } from "../actions/types"
 import { resolveMagic } from "./cast"
 import { hasKeywordAtLevel } from "../keywords/kobo"
 import { hasEffectTax, withEffectTax } from "../effectTax"
 import { isOnceNameUsed, markOnceNameUsed } from "../oncePerTurn"
+import { randomId } from "../../../../shared/randomId"
 
 // マジックの効果本体の解決。resolveMagic から（無効化されなかったときに）呼ぶ。
 // usedMagicCardIds への記録と emitEvent は resolveMagic 側で済ませてあるので、ここでは行わない
@@ -25,6 +27,8 @@ export function resolveMagicEffects(
     timing: "main" | "flash",
     targetInstanceId?: string,
     paidCost = true,
+    // コストを払った時点で決めた「マジック使用時」の誘発。省略時（コストの無い経路）はここで決める
+    triggers: MagicUsedDecision = decideMagicUsedTriggers(state, owner, getCard(cardId), timing, paidCost),
 ): void {
     // BS07大天使イスフィール：使用者のフィールドに magicRepeatGrant が有効な発生源があれば、
     // 効果の並びをもう1周する。判定は1周目を始める前に固定する（1周目の結果で発生源が場を離れても
@@ -34,29 +38,29 @@ export function resolveMagicEffects(
     // 選択待ちで中断したら、残りのエントリ（runMagicActions が積んだ）の後に再発揮の確認と誘発を積む。
     // 積まないと選択のあるマジックで「マジックを使用したとき」が発火しなかった（BS09-X39 の報告。2026-11-11）
     if (state.pendingChoice) {
-        pushMagicAfterEffects(state, owner, cardId, timing, targetInstanceId, paidCost, repeatSource)
+        pushMagicAfterEffects(state, owner, cardId, timing, targetInstanceId, paidCost, repeatSource, triggers)
         return
     }
-    finishMagicEffects(state, owner, cardId, timing, targetInstanceId, paidCost, repeatSource)
+    finishMagicEffects(state, owner, cardId, timing, targetInstanceId, paidCost, repeatSource, triggers)
 }
 
-function pushMagicAfterEffects(state: GameState, owner: PlayerId, cardId: string, timing: "main" | "flash", targetInstanceId: string | undefined, paidCost: boolean, repeatSource: CardInstance | null): void {
+function pushMagicAfterEffects(state: GameState, owner: PlayerId, cardId: string, timing: "main" | "flash", targetInstanceId: string | undefined, paidCost: boolean, repeatSource: CardInstance | null, triggers: MagicUsedDecision): void {
     pushResumeFrames(state, [
         {
             kind: "action",
             selfInstanceId: null,
             actorPid: owner,
-            action: { type: "resumeMagicAfterEffects", cardId, timing, paidCost, ...(targetInstanceId !== undefined ? { targetInstanceId } : {}), ...(repeatSource ? { repeatSourceId: repeatSource.instanceId } : {}) },
+            action: { type: "resumeMagicAfterEffects", cardId, timing, paidCost, triggers, ...(targetInstanceId !== undefined ? { targetInstanceId } : {}), ...(repeatSource ? { repeatSourceId: repeatSource.instanceId } : {}) },
         },
     ])
 }
 
 export const resumeMagicAfterEffectsHandler: ActionHandler<"resumeMagicAfterEffects"> = (ctx, action) => {
     const repeatSource = action.repeatSourceId !== undefined ? (findInstanceAnywhere(ctx.state, action.repeatSourceId) ?? null) : null
-    finishMagicEffects(ctx.state, ctx.owner, action.cardId, action.timing, action.targetInstanceId, action.paidCost, repeatSource)
+    finishMagicEffects(ctx.state, ctx.owner, action.cardId, action.timing, action.targetInstanceId, action.paidCost, repeatSource, action.triggers)
 }
 
-function finishMagicEffects(state: GameState, owner: PlayerId, cardId: string, timing: "main" | "flash", targetInstanceId: string | undefined, paidCost: boolean, repeatSource: CardInstance | null): void {
+function finishMagicEffects(state: GameState, owner: PlayerId, cardId: string, timing: "main" | "flash", targetInstanceId: string | undefined, paidCost: boolean, repeatSource: CardInstance | null, triggers: MagicUsedDecision): void {
     if (repeatSource && !state.winner) {
         // 「もう1度だけ発揮**できる**」＝任意なので、1周目が解決しきってから聞く（2026-08-15 ユーザー確認）。
         // 非対話（テスト・自動解決）では従来どおり自動で2周目を走らせる
@@ -75,6 +79,7 @@ function finishMagicEffects(state: GameState, owner: PlayerId, cardId: string, t
                     targetInstanceId,
                     sourceInstanceId: repeatSource.instanceId,
                     paidCost,
+                    triggers,
                 },
                 action: { type: "noop" },
                 selfInstanceId: repeatSource.instanceId,
@@ -85,11 +90,11 @@ function finishMagicEffects(state: GameState, owner: PlayerId, cardId: string, t
         log(state, `${getCard(cardId).name}の効果をもう1度発揮する。`)
         runMagicActions(state, owner, cardId, timing, targetInstanceId)
         if (state.pendingChoice) {
-            pushMagicAfterEffects(state, owner, cardId, timing, targetInstanceId, paidCost, null)
+            pushMagicAfterEffects(state, owner, cardId, timing, targetInstanceId, paidCost, null, triggers)
             return
         }
     }
-    fireMagicUsedTriggers(state, owner, getCard(cardId), timing, paidCost)
+    runMagicUsedTriggers(state, owner, getCard(cardId), triggers)
 }
 
 // 使用者pidのフィールドにある、kind:"magicRepeatGrant" の有効な発生源を返す（BS07大天使イスフィール）。
@@ -147,14 +152,14 @@ export function applyMagicRepeatChoice(
         log(state, `${card.name}の効果をもう1度発揮する。`)
         runMagicActions(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
         if (state.pendingChoice) {
-            pushMagicAfterEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost, null)
+            pushMagicAfterEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost, null, info.triggers)
             return
         }
         if (state.winner) return
     } else {
         log(state, `${card.name}の効果をもう1度は発揮しなかった。`)
     }
-    fireMagicUsedTriggers(state, info.casterPid, card, info.timing, info.paidCost)
+    runMagicUsedTriggers(state, info.casterPid, card, info.triggers)
 }
 
 type MagicEntry = Extract<EffectDef, { kind: "magic" }>
@@ -213,7 +218,7 @@ export function runMagicActions(
     const taxed = hasEffectTax(state, owner, "magic")
     const collected: EffectAction[] = []
     // エントリは別々に解決するが、1枚のマジックの効果は1つ。破壊・戻すの派生は、全エントリを解決し終えてから解決する
-    const effectId = crypto.randomUUID()
+    const effectId = randomId()
     const prevHold = state.holdDerivedFor
     state.holdDerivedFor = effectId
     try {
@@ -249,37 +254,6 @@ export function runMagicActions(
         else delete state.holdDerivedFor
     }
     if (!state.pendingChoice && !hasPendingFramesOfEffect(state, effectId)) settleDerived(state, effectId)
-}
-
-// 「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
-// **効果が無効にされた場合もここは通す**（使用宣言とコストの支払いは済んでいるため）
-export function fireMagicUsedTriggers(
-    state: GameState,
-    owner: PlayerId,
-    card: CardData,
-    timing: "main" | "flash",
-    paidCost: boolean,
-): void {
-    // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
-    // （opponentDrewの実装を踏襲。緑芽吹く原野）。paidCost はBS11-X05のpaidCostOnly判定用
-    state.lastMagicUsed = { pid: owner, cardId: card.cardId }
-    if (!state.winner) {
-        fireFieldEventTriggers(state, owner, "ownMagicUsed", undefined, undefined, undefined, undefined, { paidCost, magicCardId: card.cardId })
-    }
-    // 「相手がマジックの効果を使用したとき」：使用者の相手側のフィールドから発火する（氷の女神フリッグ）。
-    // コスト（軽減前の素のコスト）と使用タイミングを eventInfo で渡し、fieldEvent 側で絞り込む
-    if (!state.winner) {
-        fireFieldEventTriggers(
-            state,
-            opponentOf(owner),
-            "opponentMagicUsed",
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            { magicCost: card.cost, magicTiming: timing },
-        )
-    }
 }
 
 // このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
