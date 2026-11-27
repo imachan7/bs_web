@@ -24,7 +24,7 @@
 
 ## ヘルパー（呼び出し元ごとの仕分けを減らす）
 
-`findSpirit`（約80か所）・`findSpiritAny`（約84か所）は**広げない**（選ばれた対象を id で引き直す行がスピリット扱いのまま残るべきで、広げると段5 の `kinds` より前にアルティメットが紛れ込む）。新しい名前で受ける：
+`findSpirit`（約80か所。自分の側だけ）は**広げない**。`findSpiritAny`（両陣営。約84か所）は 3a で `battlers` から引く形に広げた：id で引くだけなので、スピリットの候補から選んだ id はこれまでどおり見つかり、アルティメットの id を渡さない限り結果は変わらない（アルティメットを選べるのは段5 の `kinds` から）。新しい名前で受ける：
 `findBattler(player, id)`・`isOnField(player, inst)`（既存 `isOnFieldAnyZone` に1行足す）・`leaveField`（splice＋下のカード・ソウルコア・合体の解除の手順が7か所に書き写されている）・`hostsOf`（合体先ホスト）・`ownerPidOfInstance`（持ち主の逆引き）。
 
 ## PR の分け方（どれも ultimates が空なので挙動は変わらない。テストは ultimates に直接1体入れて組む）

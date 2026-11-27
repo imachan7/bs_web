@@ -26,7 +26,7 @@ import {
     validateSummon,
     validateTakeLife,
 } from "../logic/RuleValidator"
-import { activatableAbility, activatedActionResolvable, bravesOf, mustBeAttackTargetIds } from "../../../shared/rules"
+import { activatableAbility, battlers, activatedActionResolvable, bravesOf, mustBeAttackTargetIds } from "../../../shared/rules"
 import { mandatoryDirectAttackTargetIds } from "../../../shared/block"
 import { braveCombineCandidates } from "../../../shared/summon"
 import { anyNode, burstRank, magicTags, tagsOfAction, type MoveTags } from "./moveTags"
@@ -321,7 +321,7 @@ function mainStepMoves(state: GameState, pid: PlayerId): AiMove[] {
 // 自分のアタックステップ
 function attackStepMoves(state: GameState, pid: PlayerId): AiMove[] {
     const moves: AiMove[] = []
-    for (const inst of state.players[pid].field.spirits) {
+    for (const inst of battlers(state.players[pid])) {
         if (validateAttack(state, pid, inst.instanceId) === null) {
             moves.push({
                 action: { type: "attack", instanceId: inst.instanceId },
@@ -357,7 +357,7 @@ function flashMoves(state: GameState, pid: PlayerId): AiMove[] {
 // ブロック宣言（防御側・フラッシュ窓の外）
 function blockMoves(state: GameState, pid: PlayerId): AiMove[] {
     const moves: AiMove[] = []
-    for (const inst of state.players[pid].field.spirits) {
+    for (const inst of battlers(state.players[pid])) {
         if (validateBlock(state, pid, inst.instanceId) !== null) continue
         moves.push({
             action: { type: "block", instanceId: inst.instanceId },

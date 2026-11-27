@@ -313,9 +313,9 @@ function boardFingerprint(state: GameState): string {
         const p = state.players[pid]
         parts.push(
             `${p.deck.length},${p.hand.length},${p.trashCards.length},${p.tegamoto.length}`,
-            `${p.field.spirits.length},${p.field.nexuses.length}`,
+            `${battlers(p).length},${p.field.nexuses.length}`,
             `${p.life},${p.reserve},${p.trashCores},${p.deckSideCores}`,
-            [...p.field.spirits, ...p.field.nexuses].map((i) => `${i.instanceId}:${i.cores}`).join("|"),
+            [...battlers(p), ...p.field.nexuses].map((i) => `${i.instanceId}:${i.cores}`).join("|"),
         )
     }
     parts.push(String(state.revealedCards?.cardIds.length ?? 0))
@@ -536,7 +536,7 @@ export function clearBattle(state: GameState): void {
             state.players[pid].battleVirtualInstances = []
         }
         // 「このバトルの間」のBP増減も同じ寿命（BS07ニードルショット）
-        for (const inst of state.players[pid].field.spirits) {
+        for (const inst of battlers(state.players[pid])) {
             // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）も同じ寿命
             // 「このバトルの間、色を無いものとして扱う」（器S。BS13-011/015/052）も同じ寿命
         }

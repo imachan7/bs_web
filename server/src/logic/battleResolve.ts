@@ -3,14 +3,14 @@ import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { addLifeDealt, recordLifeLoss, settleLifeZero } from "./lifeGate"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
-import { clearBattle, currentLevel, findSpirit, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
+import { clearBattle, currentLevel, findSpirit, findBattler, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
 import { destroyTargetsBatch, fireQueuedDestroyBursts } from "./removal"
 import { reserveBlockerDestroyByEntries } from "./battleEndDestroy"
 import { destroyCombinedBrave } from "./brave"
 import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
 import type { EffectAttempt } from "../../../shared/rules"
-import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsFor, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, noteLifeGuardTotal, bravesOf, effectiveBp } from "../../../shared/rules"
+import { battlers, effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsFor, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, noteLifeGuardTotal, bravesOf, effectiveBp } from "../../../shared/rules"
 import {
     activeConstraints,
     destroySpirit,
@@ -46,7 +46,7 @@ export function resolveLifeDamage(state: GameState, unblockedFired = false): voi
     if (!state.battle) return
     const attackerPid = state.turnPlayer
     const defenderPid = opponentOf(attackerPid)
-    const attacker = findSpirit(
+    const attacker = findBattler(
         state.players[attackerPid],
         state.battle.attackerInstanceId,
     )
@@ -221,7 +221,7 @@ export function resumeLifeDamageResolution(state: GameState, frame: LifeDamageRe
 function settleLifeDamageReplace(state: GameState, frame: LifeDamageResolveFrame): void {
     const attackerPid = frame.attackerPid
     const defender = state.players[opponentOf(attackerPid)]
-    const attacker = findSpirit(state.players[attackerPid], frame.attackerSnapshot.instanceId)
+    const attacker = findBattler(state.players[attackerPid], frame.attackerSnapshot.instanceId)
     if (!attacker) {
         log(state, "アタッカーが場を離れたため、ライフダメージは発生しなかった。")
         clearBattle(state)
@@ -239,7 +239,7 @@ function settleLifeDamageReplace(state: GameState, frame: LifeDamageResolveFrame
 function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: number): void {
     const attackerPid = f.attackerPid
     const defenderPid = opponentOf(attackerPid)
-    const attacker = findSpirit(state.players[attackerPid], f.attackerSnapshot.instanceId) ?? f.attackerSnapshot
+    const attacker = findBattler(state.players[attackerPid], f.attackerSnapshot.instanceId) ?? f.attackerSnapshot
     if (step === 0) {
         // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）とライフ減少後バースト。
         // targetInstanceIdにアタッカーを渡す（BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
@@ -265,7 +265,7 @@ function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: nu
         }
     } else if (step === 5) {
         // ブロックされなかったアタックもバトル。バトル終了時はブロックされたときと同じ関数を通す
-        const surviving = findSpirit(state.players[attackerPid], f.attackerSnapshot.instanceId)
+        const surviving = findBattler(state.players[attackerPid], f.attackerSnapshot.instanceId)
         if (surviving) fireBattleEndFor(state, attackerPid, surviving, "attacker")
     } else if (step === 6) {
         destroyMarkedAtBattleEnd(state)
@@ -282,14 +282,14 @@ function fireBattleEndFor(state: GameState, pid: PlayerId, inst: CardInstance, r
     if (instIsCombined(inst)) {
         fireFieldEventTriggers(state, pid, "ownCombinedSpiritBattleEnded", { pid, inst }, instColors(inst), inst.instanceId)
     }
-    if (!state.winner && inst.destroyAtBattleEnd && findSpirit(state.players[pid], inst.instanceId)) destroySpirit(state, pid, inst.instanceId)
+    if (!state.winner && inst.destroyAtBattleEnd && findBattler(state.players[pid], inst.instanceId)) destroySpirit(state, pid, inst.instanceId)
 }
 
 // 印（destroyAtBattleEnd）を付けられたスピリットと合体中のブレイヴの、バトル終了時の破壊。
 // 参加者は case 8/9 で破壊済みなので、残っている個体が対象。合体中のブレイヴ（X13-11）は field.spirits にいないので別に拾う
 function destroyMarkedAtBattleEnd(state: GameState): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const sp of [...state.players[pid].field.spirits]) {
+        for (const sp of battlers(state.players[pid])) {
             if (!state.winner && sp.destroyAtBattleEnd) destroySpirit(state, pid, sp.instanceId)
         }
         for (const host of [...state.players[pid].field.spirits]) {
@@ -324,7 +324,7 @@ export function resolveDirectedBlock(state: GameState): void {
     const id = state.battle.directedTargetInstanceId
     delete state.battle.directedTargetInstanceId
     const defenderPid = opponentOf(state.turnPlayer)
-    const attacker = findSpirit(state.players[state.turnPlayer], state.battle.attackerInstanceId)
+    const attacker = findBattler(state.players[state.turnPlayer], state.battle.attackerInstanceId)
     const target = id !== undefined ? findSpirit(state.players[defenderPid], id) : undefined
     // アタッカーが場を離れた／指定アタックの効果そのものを失った場合も通常のアタックに戻る
     // （2026-09-04 ユーザー確認。BS12-008 は Lv1-3 すべてで発揮するのでレベル低下は見なくてよい）
@@ -369,13 +369,13 @@ export function resolveBattle(state: GameState): void {
     if (!state.battle) return
     const attackerPid = state.turnPlayer
     const defenderPid = opponentOf(attackerPid)
-    const attacker = findSpirit(
+    const attacker = findBattler(
         state.players[attackerPid],
         state.battle.attackerInstanceId,
     )
     const blockerPid = state.battle.blockerPid ?? defenderPid
     const blocker = state.battle.blockerInstanceId
-        ? findSpirit(state.players[blockerPid], state.battle.blockerInstanceId)
+        ? findBattler(state.players[blockerPid], state.battle.blockerInstanceId)
         : undefined
 
     if (!attacker || !blocker) {
@@ -428,8 +428,8 @@ export function resolveBattle(state: GameState): void {
     // 「疲労したときコアを置く」効果は、ブロックの疲労でも発火してその場で消滅させうる）
     if (state.winner) return
     if (
-        !findSpirit(state.players[attackerPid], attacker.instanceId) ||
-        !findSpirit(state.players[blockerPid], blocker.instanceId)
+        !findBattler(state.players[attackerPid], attacker.instanceId) ||
+        !findBattler(state.players[blockerPid], blocker.instanceId)
     ) {
         clearBattle(state)
         return
@@ -616,8 +616,8 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
     const sameSide = blockerPid === attackerPid
     // 破壊された個体は場から消えるので、生存していれば実体を、していなければ写しを使う
     const attacker =
-        findSpirit(state.players[attackerPid], f.attackerInstanceId) ?? f.attackerSnapshot
-    const blocker = findSpirit(state.players[blockerPid], f.blockerInstanceId) ?? f.blockerSnapshot
+        findBattler(state.players[attackerPid], f.attackerInstanceId) ?? f.attackerSnapshot
+    const blocker = findBattler(state.players[blockerPid], f.blockerInstanceId) ?? f.blockerSnapshot
     const attackerContext: DestroyContext = {
         sourcePid: attackerPid,
         sourceType: "spirit",
@@ -645,7 +645,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (f.outcome === "none") return
             // 26RBS03-036：BP比べでは破壊されない個体はバッチから外す（相打ちなら相手側だけ破壊）
             const guarded = (pid: PlayerId, id: string): boolean => {
-                const s = findSpirit(state.players[pid], id)
+                const s = findBattler(state.players[pid], id)
                 return s !== undefined && destroyDenial(state, { ownerPid: pid, target: s, cause: "bpCompare" }) !== null
             }
             if (f.outcome === "attackerWins" && guarded(blockerPid, f.blockerInstanceId)) return
@@ -694,7 +694,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
             const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
             if (sameSide || !(f.attackerJugeki ?? spiritHasKeywordOrLabel(state, attackerPid, attacker, "jugeki")) || attackerJugekiReplaced) return
-            const stillOnField = findSpirit(state.players[blockerPid], f.blockerInstanceId)
+            const stillOnField = findBattler(state.players[blockerPid], f.blockerInstanceId)
             if (!stillOnField) return
             if (hasArmorAgainst(state, stillOnField, f.attackerColors)) {
                 log(state, `${getCard(blocker.cardId).name}は装甲によって【呪撃】を防いだ。`)
@@ -735,7 +735,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         case 7: {
             if (sameSide || !hasJugekiOnBlockReplace(state, defenderPid)) return
             if (!spiritHasKeywordOrLabel(state, blockerPid, blocker, "jugeki")) return
-            const attackerStill = findSpirit(state.players[attackerPid], f.attackerInstanceId)
+            const attackerStill = findBattler(state.players[attackerPid], f.attackerInstanceId)
             if (!attackerStill) return
             if (hasArmorAgainst(state, attackerStill, f.blockerColors)) {
                 log(state, `${getCard(attacker.cardId).name}は装甲によって【呪撃】を防いだ。`)
@@ -809,13 +809,13 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             // ブロッカーのカードが防御側のトラッシュにあればそのコスト。破壊後に手札へ
             // 戻されていたら減らない＝トラッシュに無ければ0）
             recordBlockerTrashCost(state, blockerPid)
-            const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
+            const survivingAttacker = findBattler(state.players[attackerPid], f.attackerInstanceId)
             if (survivingAttacker) fireBattleEndFor(state, attackerPid, survivingAttacker, "attacker", f.blockerInstanceId)
             return
         }
         case 10: {
             if (state.winner) return
-            const survivingBlocker = findSpirit(state.players[blockerPid], f.blockerInstanceId)
+            const survivingBlocker = findBattler(state.players[blockerPid], f.blockerInstanceId)
             if (survivingBlocker) fireBattleEndFor(state, blockerPid, survivingBlocker, "blocker", f.attackerInstanceId)
             return
         }

@@ -1406,7 +1406,7 @@ export function mustAttackOnceBlocksEnd(board: Board, pid: PlayerId, canDeclare:
         if (hit) break
     }
     if (!hit) return false
-    const declarable = board.players[pid].field.spirits.some(
+    const declarable = battlers(board.players[pid]).some(
         (s) => canDeclare(s) || mustBeAttackTargetIds(board, pid, s).some((t) => canDeclare(s, t)),
     )
     if (!declarable) return false

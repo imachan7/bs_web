@@ -2,7 +2,7 @@
 // （TIMING_CHART ＞３-2B・§0-3。2026-10-08 ユーザー確認：解決順はターンプレイヤーが選ぶ）。
 // ブロッカーの疲労による「疲労したとき」も同じ列に入れる（2026-11-03 ユーザー確認。アタック側と同じ）
 import type { CardInstance, EventBurstCheck, GameState, PlayerId, ResumeFrame } from "../type"
-import { findSpirit, opponentOf, pushResumeFrames, resolveInOrder } from "./GameState"
+import { findSpirit, findBattler, opponentOf, pushResumeFrames, resolveInOrder } from "./GameState"
 import {
     battleOpponentConditionedOnBattleStartIds,
     eventBurstsFrame,
@@ -75,7 +75,7 @@ export function resolveBlockDeclared(
         }
     }
     const attackerPid = state.turnPlayer // 強制ブロックではブロッカーの持ち主(pid)＝アタッカー側なので opponentOf(pid) は使えない
-    const attacker = findSpirit(state.players[attackerPid], attackerId)
+    const attacker = findBattler(state.players[attackerPid], attackerId)
     // アタッカーの『このスピリットのバトル時』のうちバトル相手を条件に持つもの
     // （condition.battleOpponentMatches）は、アタック宣言の時点ではブロッカーがまだ
     // 決まっていないため条件不成立で見送られている。ブロックが確定したこの時点で

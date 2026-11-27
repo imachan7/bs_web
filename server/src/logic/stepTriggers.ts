@@ -510,7 +510,7 @@ export function ensureBpSeen(state: GameState): void {
     if (state.bpSeen !== undefined) return
     const next: Record<string, number> = {}
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const inst of state.players[pid].field.spirits) next[inst.instanceId] = effectiveBp(state, pid, inst)
+        for (const inst of battlers(state.players[pid])) next[inst.instanceId] = effectiveBp(state, pid, inst)
     }
     state.bpSeen = next
 }
@@ -530,7 +530,7 @@ export function fireBpReachedTriggers(state: GameState): void {
     const next: Record<string, number> = {}
     const reached: { pid: PlayerId; inst: CardInstance; from: number; to: number }[] = []
     for (const pid of pids) {
-        for (const inst of state.players[pid].field.spirits) {
+        for (const inst of battlers(state.players[pid])) {
             const to = effectiveBp(state, pid, inst)
             next[inst.instanceId] = to
             const from = prev[inst.instanceId]

@@ -9,7 +9,7 @@ import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
 import { activateBurstCard, applyDeclaredBursts, declareBurst } from "./keywords/burst"
 import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameAction, GameState, PaySource, PendingChoice, PlayerId, ResumeFrame } from "../type"
-import { findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setWaitingEvent } from "./GameState"
+import { findInstanceAnywhere, findSpirit, findBattler, getCard, log, opponentOf, pushResumeFrames, resumeTriggerBatch, setWaitingEvent } from "./GameState"
 import { claimGroupOnce, groupOnceUsed, notifyHandGained, restStateHolds } from "./fieldEventTriggers"
 import { instColors } from "../../../shared/rules"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
@@ -173,14 +173,14 @@ function resolveChoiceInner(
     if (pending.blockExhaustPick) {
         if (instanceId === undefined || !pending.candidates.includes(instanceId)) return "選択できない対象です"
         const { blockerPid, blockerInstanceId, destroyTollIndex } = pending.blockExhaustPick
-        const chosen = findSpirit(state.players[blockerPid], instanceId)
+        const chosen = findBattler(state.players[blockerPid], instanceId)
         state.pendingChoice = null
         if (!state.battle || !chosen) return null
         if (destroyTollIndex === undefined) {
             exhaustBlockToll(state, blockerPid, chosen)
             payBlockDestroyTolls(state, blockerPid, blockerInstanceId, 0)
         } else {
-            const rec = blockDestroyTolls(state, findSpirit(state.players[opponentOf(blockerPid)], state.battle.attackerInstanceId))[destroyTollIndex]
+            const rec = blockDestroyTolls(state, findBattler(state.players[opponentOf(blockerPid)], state.battle.attackerInstanceId))[destroyTollIndex]
             if (rec) destroyBlockToll(state, blockerPid, chosen, rec)
             payBlockDestroyTolls(state, blockerPid, blockerInstanceId, destroyTollIndex + 1)
         }
@@ -196,7 +196,7 @@ function resolveChoiceInner(
         const info = pending.attackEffectsToll
         state.pendingChoice = null
         const battle = state.battle
-        const attacker = findSpirit(state.players[info.attackerPid], info.attackerInstanceId)
+        const attacker = findBattler(state.players[info.attackerPid], info.attackerInstanceId)
         if (battle && attacker) {
             const player = state.players[info.attackerPid]
             if (option === "置く" && player.reserve >= 1) {

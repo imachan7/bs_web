@@ -7,7 +7,7 @@ import { applyBothSidesRedirectToCandidates, bothSidesRedirectKeepPid } from "./
 import { currentRecordScope } from "./record"
 import { markPays, skipUnpayablePay } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
-import { boardResistanceAgainst, effectiveBp } from "../../../shared/rules"
+import { battlers, boardResistanceAgainst, effectiveBp } from "../../../shared/rules"
 
 // 効果の解決中、自分側の候補から「自分の効果も受けない」（immuneToEffects from:"own"/"any"）を除く。
 // 発生源の持ち主が pid のときだけ見る＝相手側の候補は従来どおり resistanceAgainst（pickEnemy*）が見る
@@ -351,7 +351,7 @@ export function requestChoice(
     }
     // 安全網：場の待機中のカードで対象にできないものは候補から落とす（手札・トラッシュの id は場にいないのでそのまま通る）
     const onField = (id: string): CardInstance | undefined =>
-        [state.players.p1, state.players.p2].flatMap((p) => [...p.field.spirits, ...p.field.nexuses]).find((c) => c.instanceId === id)
+        [state.players.p1, state.players.p2].flatMap((p) => [...battlers(p), ...p.field.nexuses]).find((c) => c.instanceId === id)
     candidates = candidates.filter((id) => canBeTargeted(state, onField(id)))
     if (candidates.length === 0) {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
