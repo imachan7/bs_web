@@ -7,7 +7,7 @@ import { applyBothSidesRedirectToCandidates, bothSidesRedirectKeepPid } from "./
 import { currentRecordScope } from "./record"
 import { markPays, skipUnpayablePay } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
-import { battlers, boardResistanceAgainst, effectiveBp } from "../../../shared/rules"
+import { battlers, boardResistanceAgainst, effectiveBp, fieldCandidates } from "../../../shared/rules"
 
 // 効果の解決中、自分側の候補から「自分の効果も受けない」（immuneToEffects from:"own"/"any"）を除く。
 // 発生源の持ち主が pid のときだけ見る＝相手側の候補は従来どおり resistanceAgainst（pickEnemy*）が見る
@@ -28,8 +28,9 @@ function ownEffectImmune(state: GameState, pid: PlayerId, inst: CardInstance): b
 // 対象の候補にするスピリット・ネクサス。待機中のカードは待機の出来事で誘発した効果の対象にだけなる（waiting.ts canBeTargeted）。
 // 数える・条件を見る用途には使わない（待機中も場にいるので数える）。候補を列挙するときは field.spirits.filter を直接書かずここを通す。
 // 自分の効果が自分側を選ぶときの効果耐性（ownEffectImmune）もここで除く。「すべて」に効く自分側の処理も、この入口から集める
-export function targetableSpirits(state: GameState, pid: PlayerId, pred: (s: CardInstance) => boolean = () => true): CardInstance[] {
-    return state.players[pid].field.spirits.filter((s) => canBeTargeted(state, s) && !ownEffectImmune(state, pid, s) && pred(s))
+// filter は候補の置き場（kinds）だけに使う。省略時はスピリットだけ
+export function targetableSpirits(state: GameState, pid: PlayerId, pred: (s: CardInstance) => boolean = () => true, filter?: { kinds?: ("spirit" | "ultimate")[] }): CardInstance[] {
+    return fieldCandidates(state.players[pid], filter).filter((s) => canBeTargeted(state, s) && !ownEffectImmune(state, pid, s) && pred(s))
 }
 
 export function targetableNexuses(state: GameState, pid: PlayerId, pred: (n: CardInstance) => boolean = () => true): CardInstance[] {
@@ -50,6 +51,7 @@ export function pickEnemyCandidates(
     sourceColors?: Color[],
     sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
+    filter?: { kinds?: ("spirit" | "ultimate")[] },
 ): CardInstance[] {
     const attempt: EffectAttempt = {
         // 「手札に戻らない」(bounceImmune)は対象に選べて解決で戻らないだけ（2026-10-23 ユーザー確認）なので、候補の列挙では bounce を渡さない。
@@ -70,6 +72,7 @@ export function pickEnemyCandidates(
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isResisted(state, targetPid, s, attempt) &&
             extraPredicate(s),
+        filter,
     )
 }
 
@@ -146,8 +149,9 @@ export function pickEnemyByBp(
     sourceColors?: Color[],
     sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
+    filter?: { kinds?: ("spirit" | "ultimate")[] },
 ): CardInstance | null {
-    const all = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType, op)
+    const all = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType, op, filter)
     // 破壊待機状態の体も対象に取れるが、自動選択（AI・非対話）では、ほかに候補がいれば選ばない
     // （破壊した相手を手札に戻して助ける手になる。勝敗の誘発を破壊待機の列で解決するので、敗者がまだ場にいる。#554）
     const live = all.filter((s) => !isTrashWaiting(s))

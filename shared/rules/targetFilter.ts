@@ -26,6 +26,17 @@ import { instanceSymbolCount } from "./symbols"
 // 注意: BP の self 相対指定（"selfBp"）は normalizeFilter が数値へ解決済みである前提。
 // 装甲・免疫・untargetable の判定はここには含まない（対象の「絞り込み」ではなく
 // 「そもそも対象に取れるか」の判定であり、pickEnemyCandidates 側の責務）
+// kinds の省略時は spirit だけ。判定は置き場でなくカードの種別で行う（ネクサスなどスピリット以外は spirit の側に入る）
+export function filterKinds(filter: { kinds?: ("spirit" | "ultimate")[] } | undefined): ("spirit" | "ultimate")[] {
+    return filter?.kinds ?? ["spirit"]
+}
+
+// 対象の候補を場から集める共通の入口。kinds に ultimate があるときだけ field.ultimates も含める
+export function fieldCandidates(player: Board["players"][PlayerId], filter: { kinds?: ("spirit" | "ultimate")[] } | undefined): CardInstance[] {
+    const kinds = filterKinds(filter)
+    return [...(kinds.includes("spirit") ? player.field.spirits : []), ...(kinds.includes("ultimate") ? player.field.ultimates : [])]
+}
+
 export function matchesTarget(
     board: Board,
     ownerPid: PlayerId,
@@ -34,6 +45,7 @@ export function matchesTarget(
     selfInstanceId?: string,
 ): boolean {
     if (!filter) return true
+    if (!filterKinds(filter).includes(card(inst.cardId).type === "ultimate" ? "ultimate" : "spirit")) return false
     if (filter.maxBp !== undefined && effectiveBp(board, ownerPid, inst) > filter.maxBp && !(filter.orMinBp !== undefined && effectiveBp(board, ownerPid, inst) >= filter.orMinBp)) return false
     if (filter.minBp !== undefined && effectiveBp(board, ownerPid, inst) < filter.minBp) return false
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
