@@ -1,6 +1,7 @@
 // 【バースト】のセットと発動
 import { handGainDenial } from "../handGate"
 import { noteCoverage } from "../../../../shared/coverage"
+import { battlers } from "../../../../shared/rules/level"
 import { requestActivationConfirm } from "../targeting"
 import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { negateBurstActivation } from "../burstNegate"
@@ -613,7 +614,7 @@ export function burstConditionMet(
     // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
     // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
     const fieldCores =
-        player.field.spirits.reduce((n, i) => n + i.cores, 0) +
+        battlers(player).reduce((n, i) => n + i.cores, 0) +
         player.field.nexuses.reduce((n, i) => n + i.cores, 0) +
         player.field.combinedBraves.reduce((n, i) => n + i.cores, 0)
     return fieldCores + player.reserve + player.trashCores >= condition.ownCoresTotalAtLeast

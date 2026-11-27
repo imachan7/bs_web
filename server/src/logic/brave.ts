@@ -21,6 +21,7 @@ import {
     instColors,
 } from "../../../shared/rules"
 import { entryActive } from "../../../shared/rules/effectStop"
+import { battlers } from "../../../shared/rules/level"
 import { noteCoverage } from "../../../shared/coverage"
 import { currentLevel } from "./GameState"
 import { recordDestroyedCount } from "./record"
@@ -335,7 +336,7 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
 // 「残す」を選べる状態かどうかの判定に使う（払えないなら確認を出さずトラッシュへ）
 function payableCores(state: GameState, pid: PlayerId): number {
     const player = state.players[pid]
-    const onField = [...player.field.spirits, ...player.field.nexuses]
+    const onField = [...battlers(player), ...player.field.nexuses]
         .reduce((sum, inst) => sum + coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: inst.cores, cause: "cost", actorPid: pid }), 0)
     return player.reserve + onField
 }
@@ -442,7 +443,7 @@ function autoPaySources(state: GameState, pid: PlayerId, need: number): PaySourc
     let short = need - player.reserve
     if (short <= 0) return []
     const sources: PaySource[] = []
-    const targets = [...player.field.spirits, ...player.field.nexuses]
+    const targets = [...battlers(player), ...player.field.nexuses]
     for (const surplusOnly of [true, false]) {
         for (const inst of targets) {
             if (short <= 0) break

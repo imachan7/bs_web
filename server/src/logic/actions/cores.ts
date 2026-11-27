@@ -1,5 +1,6 @@
 // コア操作系のアクションハンドラ（相手のコアを取り除く・自分のコアを払う／動かす）。コアを置く系は coreGain.ts、ライフは life.ts、【転召】は tensho.ts
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { battlers } from "../../../../shared/rules/level"
 import { targetableSpirits } from "../targeting"
 import { redirectReentryId, settleOne } from "../designation"
 import { coreGainBlocked, takeCoreGainAllowance } from "../coreGainCap"
@@ -45,7 +46,7 @@ function moveRichestSpiritCoresToTrash(state: GameState, pid: PlayerId, count: n
     let remaining = count
     let moved = 0
     while (remaining > 0) {
-        const richest = player.field.spirits
+        const richest = battlers(player)
             .filter((s) => s.cores > 0 && coreRemovalAllowed(state, { ownerPid: pid, target: s, amount: s.cores, cause: "cost", actorPid: pid }) > 0)
             .reduce<CardInstance | undefined>(
                 (best, s) => (best === undefined || s.cores > best.cores ? s : best),
@@ -78,7 +79,7 @@ export function payCoresFromFieldOrReserveToTrash(state: GameState, pid: PlayerI
 // 「自分のフィールド/リザーブ」から払えるコアの総量
 export function fieldOrReserveCores(state: GameState, pid: PlayerId): number {
     const player = state.players[pid]
-    return player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0)
+    return player.reserve + battlers(player).reduce((n, sp) => n + sp.cores, 0)
 }
 
 const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, action) => {
@@ -199,7 +200,7 @@ function coreSourcesOf(
         seen.set(name, n)
         return n === 1 ? name : `${name}（${n}体目）`
     }
-    for (const sp of player.field.spirits) {
+    for (const sp of battlers(player)) {
         if (sp.cores <= 0) continue
         if (!canTakeCoresFrom(state, targetPid, sp, actorPid, srcColors, srcType)) continue
         sources.push({ label: labelFor(getCard(sp.cardId).name), kind: "spirit", instanceId: sp.instanceId })
@@ -236,7 +237,7 @@ function autoTakeCoresToVoid(
     while (remaining > 0) {
         let richest: CardInstance | undefined
         let richestKind: "spirit" | "nexus" | undefined
-        for (const s of player.field.spirits) {
+        for (const s of battlers(player)) {
             if (s.cores > 0 && !skip.has(s.instanceId) && (!richest || s.cores > richest.cores)) {
                 richest = s
                 richestKind = "spirit"
@@ -277,7 +278,7 @@ function autoTakeCoresToVoid(
 function totalCoresOf(state: GameState, pid: PlayerId): number {
     const player = state.players[pid]
     return (
-        player.field.spirits.reduce((sum, s) => sum + s.cores, 0) +
+        battlers(player).reduce((sum, s) => sum + s.cores, 0) +
         player.field.nexuses.reduce((sum, n) => sum + n.cores, 0) +
         player.trashCores +
         player.reserve

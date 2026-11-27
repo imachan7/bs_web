@@ -1031,7 +1031,7 @@ export function reviveLastDestroyedNexusBlockReason(
     if (placeDenial(last.cardId, false) !== null) return "コストを支払わなければ配置できない"
     const player = state.players[owner]
     if (!player.field.nexuses.some((n) => isTrashWaiting(n)) && player.trashCards.lastIndexOf(last.cardId) === -1) return "戻せるネクサスがない"
-    if (fromFieldOrReserve && player.reserve + player.field.spirits.reduce((n, sp) => n + coreRemovalAllowed(state, { ownerPid: owner, target: sp, amount: sp.cores, cause: "cost", actorPid: owner }), 0) < (requiredCost ?? 1)) return "支払えるコアがない"
+    if (fromFieldOrReserve && player.reserve + battlers(player).reduce((n, sp) => n + coreRemovalAllowed(state, { ownerPid: owner, target: sp, amount: sp.cores, cause: "cost", actorPid: owner }), 0) < (requiredCost ?? 1)) return "支払えるコアがない"
     return null
 }
 

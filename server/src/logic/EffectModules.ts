@@ -1125,7 +1125,7 @@ export function countEffectCounter(
     }
     if (counter === "ownCoresTotal" || counter === "opponentCoresTotal") {
         const p = state.players[counter === "ownCoresTotal" ? owner : opp]
-        const onField = [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves].reduce((n, i) => n + i.cores, 0)
+        const onField = [...battlers(p), ...p.field.nexuses, ...p.field.combinedBraves].reduce((n, i) => n + i.cores, 0)
         return onField + p.reserve + p.trashCores
     }
     if (counter === "selfCores") return self?.cores ?? 0

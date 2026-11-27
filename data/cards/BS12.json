@@ -729,8 +729,7 @@
               "side": "opponent",
               "from": [
                 "reserve",
-                "spirit",
-                "nexus"
+                "field"
               ],
               "to": "void",
               "target": "spread",
@@ -1028,8 +1027,7 @@
             "type": "removeCores",
             "side": "own",
             "from": [
-              "spirit",
-              "nexus"
+              "field"
             ],
             "to": "void",
             "target": "spread",
@@ -1039,8 +1037,7 @@
             "type": "removeCores",
             "side": "opponent",
             "from": [
-              "spirit",
-              "nexus"
+              "field"
             ],
             "to": "void",
             "target": "spread",

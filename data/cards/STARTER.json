@@ -9276,8 +9276,7 @@
               "type": "removeCores",
               "side": "own",
               "from": [
-                "spirit",
-                "nexus",
+                "field",
                 "reserve",
                 "trash"
               ],

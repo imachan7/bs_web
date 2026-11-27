@@ -4453,8 +4453,7 @@
         "type": "removeCores",
         "side": "opponent",
         "from": [
-         "spirit",
-         "nexus"
+         "field"
         ],
         "to": "reserve",
         "target": "spread",

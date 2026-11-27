@@ -1,5 +1,6 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { battlers } from "../../../../shared/rules/level"
 import { canBeTargeted } from "../../../../shared/rules/waiting"
 import { takeFromTrash } from "../zones/trash"
 import { requestActivationConfirm, targetableSpirits, targetableNexuses } from "../targeting"
@@ -545,7 +546,7 @@ const nexusAsSpiritThisStepHandler: ActionHandler<"nexusAsSpiritThisStep"> = (ct
         return
     }
     if (action.placeCores) {
-        const max = normalReserveOf(player) + player.field.spirits.reduce((k, sp) => k + sp.cores, 0)
+        const max = normalReserveOf(player) + battlers(player).reduce((k, sp) => k + sp.cores, 0)
         if (max <= 0) {
             log(state, `${sourceName}：置けるコアがなかった。`)
             return
@@ -560,7 +561,7 @@ const nexusAsSpiritThisStepHandler: ActionHandler<"nexusAsSpiritThisStep"> = (ct
         const fromReserve = Math.min(n, normalReserveOf(player))
         player.reserve -= fromReserve
         for (let rest = n - fromReserve; rest > 0; rest--) {
-            const richest = player.field.spirits.filter((sp) => sp.cores > 0 && coreRemovalAllowed(state, { ownerPid: owner, target: sp, amount: sp.cores, cause: "cost", actorPid: owner }) > 0).reduce<CardInstance | undefined>((b, sp) => (b === undefined || sp.cores > b.cores ? sp : b), undefined)
+            const richest = battlers(player).filter((sp) => sp.cores > 0 && coreRemovalAllowed(state, { ownerPid: owner, target: sp, amount: sp.cores, cause: "cost", actorPid: owner }) > 0).reduce<CardInstance | undefined>((b, sp) => (b === undefined || sp.cores > b.cores ? sp : b), undefined)
             if (!richest) break
             richest.cores -= 1
             if (wouldDeplete(state, owner, richest)) destroySpirit(state, owner, richest.instanceId, "deplete")

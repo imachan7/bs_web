@@ -1,4 +1,5 @@
 // カードを選んで動かす統合の器（旧 toHand／toDeck ほか「選ぶ＋送る」の type をここへ寄せる）
+import { battlers } from "../../../../shared/rules/level"
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { costSpendableField } from "../coreGate"
 import { effectMagicUseDenial, useMagicByEffect } from "../magic/effectUse"
@@ -175,7 +176,7 @@ export function fieldCoresSpendable(state: GameState, pid: PlayerId): { inst: Ca
     const player = state.players[pid]
     return [
         ...player.field.nexuses.map((n) => ({ inst: n, max: normalCoresOn(player, n) })),
-        ...player.field.spirits.map((sp) => ({ inst: sp, max: isTrashWaiting(sp) ? sp.cores : Math.max(0, sp.cores - instMinLevelCores(sp)) })),
+        ...battlers(player).map((sp) => ({ inst: sp, max: isTrashWaiting(sp) ? sp.cores : Math.max(0, sp.cores - instMinLevelCores(sp)) })),
     ].map((x) => ({ inst: x.inst, max: Math.min(x.max, coreRemovalAllowed(state, { ownerPid: pid, target: x.inst, amount: x.max, cause: "cost", actorPid: pid })) })).filter((x) => x.max > 0)
 }
 
@@ -311,7 +312,7 @@ function castWithCost(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number):
         return true
     }
     const fromField = (ctx.paySources ?? []).reduce((sum, src) => {
-        const inst = player.field.spirits.find((i) => i.instanceId === src.instanceId) ?? player.field.nexuses.find((i) => i.instanceId === src.instanceId)
+        const inst = battlers(player).find((i) => i.instanceId === src.instanceId) ?? player.field.nexuses.find((i) => i.instanceId === src.instanceId)
         return sum + Math.min(Math.max(0, src.count), inst?.cores ?? 0)
     }, 0)
     if (player.reserve + fromField < cost) {
