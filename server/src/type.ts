@@ -45,6 +45,8 @@ export type Phase =
     | "end"
 
 export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
+// 極（アルティメット）は色ではない。色を見る所は onlyColors（shared/rules/symbols.ts）で除く
+export type SymbolMark = Color | "ultimate"
 // ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
 // 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
 export type CardType = "spirit" | "nexus" | "magic" | "brave"
@@ -229,12 +231,12 @@ export interface CardData {
     type: CardType
     colors: Color[] // カードの色（単色なら要素1。多色は表記順。BS05-X19 聖皇ジークフリーデン＝["red","white"]）
     cost: number
-    reduction: Color[] // 軽減シンボル（色の配列。長さ=軽減数。多色カードは混色になる）
+    reduction: SymbolMark[] // 軽減シンボル（色の配列。長さ=軽減数。多色カードは混色になる）
     family: string[] // 系統（日本語のまま）
     team?: string[] // 所属チーム（26系。【チーム：レッドステラ/シャイニーハーツ】＝2要素。effect文言から抽出した
     // カード静的な値で、ゾーンを問わず参照できる。付与系チームは現プールに無く未対応）
     levels: LevelDef[] // magic は空配列
-    symbol: Color[] // magic は空配列
+    symbol: SymbolMark[] // magic は空配列
     symbolEx?: boolean // EXシンボル持ちか（wiki の「シンボル：EX赤」等の表記由来）
     flash: boolean // magic のみ: フラッシュタイミングで使用可能か
     rarity: string // C/U/R/M/X など（表示用）

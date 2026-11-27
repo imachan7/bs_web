@@ -191,7 +191,7 @@ export function renderHand(view: GameView, ui: UiState): void {
             reductionCounts[c] = (reductionCounts[c] || 0) + 1
         }
         const reductionText = Object.entries(reductionCounts)
-            .map(([c, count]) => `${COLOR_LABELS[c as keyof typeof COLOR_LABELS]}${count}`)
+            .map(([c, count]) => `${c === "ultimate" ? "極" : COLOR_LABELS[c as keyof typeof COLOR_LABELS]}${count}`)
             .join("")
 
         const stats = document.createElement("div")

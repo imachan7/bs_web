@@ -15,7 +15,7 @@
         if (card.reduction.length === 0) return "軽減0"
         const counts = new Map<string, number>()
         for (const c of card.reduction) counts.set(c, (counts.get(c) ?? 0) + 1)
-        return `軽減: ${[...counts].map(([c, n]) => `${COLOR_LABELS[c as keyof typeof COLOR_LABELS]}${n}`).join("・")}`
+        return `軽減: ${[...counts].map(([c, n]) => `${c === "ultimate" ? "極" : COLOR_LABELS[c as keyof typeof COLOR_LABELS]}${n}`).join("・")}`
     })
     const lines = $derived.by(() => {
         const bp = maxBp(card)

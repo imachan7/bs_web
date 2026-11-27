@@ -1,6 +1,6 @@
 // 対戦中のクリック操作：手札・スピリットを押したときの召喚・アタック・選択の応答
 import type { CardData, GameAction, PaySource } from "../../../server/src/type"
-import { ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { ownHandKeyword, onlyColors, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { canDirectAttack, effectiveCost, magicTargetSide, master, matchesDirectedAttackFilter } from "../renderer"
 import { summonPayOffOptions } from "../../../shared/summonPayOff"
 import { exReductionSymbolsFor, type ExReductionGroup, payableFieldCores, payingStageNeeds } from "./paying"
@@ -190,7 +190,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
         // 候補は軽減に効くカード（色一致）だけ。同一カードは1グループにまとめて枚数で選ばせる
         const trash = view.players[view.you].trashCards
         const useful = exTrashReductionCandidateIndices(view, view.you, card).filter((i) =>
-            master(trash[i]!).symbol.some((c) => card.reduction.includes(c)),
+            onlyColors(master(trash[i]!).symbol).some((c) => card.reduction.includes(c)),
         )
         if (useful.length > 0) {
             const groups: ExReductionGroup[] = []

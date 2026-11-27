@@ -341,6 +341,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## shared/rules/symbols.ts
 
+- `onlyColors`（fn）：極は色ではないので、色を見る所（「◯のシンボルがある」・シンボルの色・色を写す）はこれで除く。
 - `grantedColorsOf`（fn）：「◯色としても扱う」で与えられた色（期間つき・継続・合体中のブレイヴに与えられた色）。
 - `instanceSymbolColors`（fn）：画面に出すシンボルの色の列（効果の増減・合体を含む今の値）。ダブルハートの追加は持っている色で埋める
 - `instanceSymbolUnits`（fn）：画面用：シンボル1つずつを「数えられる色の集合」で返す。「◯色としても扱う」を持つ個体のシンボルは
@@ -1454,6 +1455,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `PlayerId`（型）：プレイヤーIDやステップ名を厳格に定義（タイポを防ぎます）
 - `Phase`（型）
 - `Color`（型）
+- `SymbolMark`（型）：極（アルティメット）は色ではない。色を見る所は onlyColors（shared/rules/symbols.ts）で除く
 - `CardType`（型）：ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
 - `ImmuneSource`（型）
 - `DeckSpec`（型）：デッキの指定方法: DECK_RECIPES・TEST_DECK_RECIPES のキー（"sd02"・テスト用の "red" 等）またはカスタムデッキのカードリスト（cardId…

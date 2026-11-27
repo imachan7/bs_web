@@ -2,7 +2,7 @@
 import { rensaIgnoresCondition } from "../../../../shared/rules/rensa"
 import { noteCoverage, noteGrantSource } from "../../../../shared/coverage"
 import { countEffectCounter, fireFieldEventTriggers } from "../EffectModules"
-import type { CardInstance, Color, GameState, PlayerId, ResolvedTargetFilter, TimedRecord, PlayerRuleDef } from "../../type"
+import type { CardInstance, Color, SymbolMark, GameState, PlayerId, ResolvedTargetFilter, TimedRecord, PlayerRuleDef } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, opponentOf, rawLevel } from "../GameState"
 import { ownFieldSymbolColors } from "../../../../shared/cost"
 import { entryActive } from "../../../../shared/rules/effectStop"
@@ -36,6 +36,7 @@ import {
     ownAllSpiritsHaveFamily,
     spiritHasLabeledKeyword,
     LABELED_KEYWORDS,
+    onlyColors,
 } from "../../../../shared/rules"
 
 // 期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
@@ -98,7 +99,7 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "colorless") inst.colorless = true
             if (c.type === "alsoCost" && !inst.tempAlsoCosts.includes(c.cost)) inst.tempAlsoCosts.push(c.cost)
             if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount
-            if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color ?? getCard(inst.cardId).symbol[0]!)
+            if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color ?? onlyColors(getCard(inst.cardId).symbol)[0]!)
         }
     }
     // 1体に掛けた記録を写す。BP+ は一定量だけ（「すべて」と「1体につき」の量は effectiveBp が読むたびに数え直す＝timedRuleBp）
@@ -182,7 +183,7 @@ export function recordBp(state: GameState, ownerPid: PlayerId, inst: CardInstanc
 
 // ブレイヴ群がホストへ足すぶん。合体条件の確かめ直しが「そのブレイヴを除いた」ホストを作るときにも使う
 export function braveCompositeOf(state: GameState, pid: PlayerId, braves: CardInstance[]): NonNullable<CardInstance["braveComposite"]> {
-    const composite = { cost: 0, colors: [] as Color[], symbols: [] as Color[], grantedColors: [] as Color[] }
+    const composite = { cost: 0, colors: [] as Color[], symbols: [] as SymbolMark[], grantedColors: [] as Color[] }
     const costZero = braveCostZeroFor(state, pid)
     for (const brave of braves) {
         const master = getCard(brave.cardId)
@@ -652,7 +653,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
                         if (effect.minCores !== undefined && spirit.cores < effect.minCores) continue
                         // color 指定時はその色に固定する（省略時は対象が元々持つシンボルの1色目）
-                        const baseColor = effect.color ?? getCard(spirit.cardId).symbol[0]
+                        const baseColor = effect.color ?? onlyColors(getCard(spirit.cardId).symbol)[0]
                         if (!baseColor) continue
                         noteCoverage(effect, "symbolFix")
                         const fixed = new Array<Color>(effect.count).fill(baseColor)
@@ -684,7 +685,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         // シンボルの色も発生源が定める（ブレイヴごとに変わるなら一律に書けない）。
                         // そのため**元々シンボルを持たないブレイヴにも1個与えられる**。
                         // 別の色のシンボルを定める効果が出てきたら、そのときに色の軸をEffectDefへ足す
-                        const baseColor = getCard(source.cardId).symbol[0]
+                        const baseColor = onlyColors(getCard(source.cardId).symbol)[0]
                         if (!baseColor) continue
                         spirit.symbolsOverrideContinuous = new Array(effect.symbolCount).fill(baseColor)
                     }

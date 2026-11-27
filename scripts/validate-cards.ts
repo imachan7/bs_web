@@ -560,10 +560,10 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             }
         }
         for (const col of c.reduction ?? []) {
-            if (!VALID_COLORS.has(col)) add(id, `reduction に未知の色: ${String(col)}`)
+            if (col !== "ultimate" && !VALID_COLORS.has(col)) add(id, `reduction に未知の色: ${String(col)}`)
         }
         for (const col of c.symbol ?? []) {
-            if (!VALID_COLORS.has(col)) add(id, `symbol に未知の色: ${String(col)}`)
+            if (col !== "ultimate" && !VALID_COLORS.has(col)) add(id, `symbol に未知の色: ${String(col)}`)
         }
         // 軽減シンボルには**自色が少なくとも1つ**含まれるはず。
         // ⚠️ かつては「自色の範囲に収まるはず」という検査だったが、
@@ -572,7 +572,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         //    軽減の計算（shared/cost.ts）は色ごとに数えるので engine 側の変更は要らない。
         //    自色が1つも無いものだけを取り込みミスとして拾う形に弱めてある
         if (Array.isArray(c.colors) && (c.reduction ?? []).length > 0) {
-            if (!(c.reduction ?? []).some((col) => c.colors.includes(col))) {
+            if (!(c.reduction ?? []).some((col) => (c.colors as string[]).includes(col))) {
                 add(id, `reduction に自色が1つも含まれない（colors=${c.colors.join("/")} / reduction=${(c.reduction ?? []).join("/")}）`)
             }
         }

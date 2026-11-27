@@ -67,12 +67,14 @@
         <h4>シンボル供給（軽減に使える色）</h4>
         <div class="syms">
             {#each COLORS as c}{#if stats.symbols[c]}<span class="chip"><i style:background="var(--c-{c})"></i>{COLOR_LABELS[c]} {stats.symbols[c]}</span>{/if}{/each}
-            {#if COLORS.every((c) => !stats.symbols[c])}<span class="none">－</span>{/if}
+            {#if stats.symbols.ultimate}<span class="chip"><i style:background="#888"></i>極 {stats.symbols.ultimate}</span>{/if}
+            {#if COLORS.every((c) => !stats.symbols[c]) && !stats.symbols.ultimate}<span class="none">－</span>{/if}
         </div>
         <h4>軽減シンボル</h4>
         <div class="syms">
             {#each COLORS as c}{#if stats.reduction[c]}<span class="chip"><i style:background="var(--c-{c})"></i>{COLOR_LABELS[c]} {stats.reduction[c]}</span>{/if}{/each}
-            {#if COLORS.every((c) => !stats.reduction[c])}<span class="none">軽減なし</span>{/if}
+            {#if stats.reduction.ultimate}<span class="chip"><i style:background="#888"></i>極 {stats.reduction.ultimate}</span>{/if}
+            {#if COLORS.every((c) => !stats.reduction[c]) && !stats.reduction.ultimate}<span class="none">軽減なし</span>{/if}
         </div>
     {/if}
 </div>

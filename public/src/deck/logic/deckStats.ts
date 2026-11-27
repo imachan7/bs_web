@@ -1,5 +1,5 @@
 // デッキの統計。多色カードは旧 renderStats と同じく、色の組み合わせ（赤/白）を1区分として数える
-import type { CardData, CardType, Color } from "../../../../server/src/type"
+import type { CardData, CardType, Color, SymbolMark } from "../../../../server/src/type"
 
 export interface DeckEntry {
     card: CardData
@@ -14,8 +14,8 @@ export interface DeckStats {
     byColor: { colors: Color[]; count: number }[]
     byType: { type: CardType; count: number }[]
     families: { name: string; count: number }[] // 上位5
-    symbols: Partial<Record<Color, number>> // 場に出たときのシンボル供給
-    reduction: Partial<Record<Color, number>>
+    symbols: Partial<Record<SymbolMark, number>> // 場に出たときのシンボル供給
+    reduction: Partial<Record<SymbolMark, number>>
 }
 
 export function computeDeckStats(entries: DeckEntry[]): DeckStats {
@@ -27,8 +27,8 @@ export function computeDeckStats(entries: DeckEntry[]): DeckStats {
     const byColor = new Map<string, { colors: Color[]; count: number }>()
     const byType = new Map<CardType, number>()
     const fam = new Map<string, number>()
-    const symbols: Partial<Record<Color, number>> = {}
-    const reduction: Partial<Record<Color, number>> = {}
+    const symbols: Partial<Record<SymbolMark, number>> = {}
+    const reduction: Partial<Record<SymbolMark, number>> = {}
     for (const { card, count } of entries) {
         total += count
         costSum += card.cost * count

@@ -4,11 +4,18 @@ import type {
     CardInstance,
     Color,
     PlayerId,
+    SymbolMark,
 } from "../../server/src/type"
 import type { Board, BoardPlayer } from "../board"
 import { card } from "../cardDb"
 
 // ---- シンボル ----
+
+// 極は色ではないので、色を見る所（「◯のシンボルがある」・シンボルの色・色を写す）はこれで除く。
+// シンボルの数（ライフを減らす数・instanceSymbolCount）は極も1つと数えるので通さない
+export function onlyColors(marks: readonly SymbolMark[]): Color[] {
+    return marks.filter((s): s is Color => s !== "ultimate")
+}
 
 // 「◯色としても扱う」で与えられた色（期間つき・継続・合体中のブレイヴに与えられた色）。
 // 持つ個体はシンボルをその色としても数える（2026-08-20 ユーザー確認。合体スピリットは1体として扱う。#507）
@@ -26,7 +33,7 @@ function fixedSymbolsOf(inst: CardInstance, forSummon: boolean): Color[] | undef
 
 // 個体が持つシンボルの色の列。timedSymbolLoss（指定色を1つ失う）は持っている色だけ減る（持たなければ無変化）。
 // ダブルハートの timedExtraSymbols は色を持たない数だけの加算なので、呼び出し側で足す
-function symbolsOf(inst: CardInstance, forSummon = false): { symbols: Color[]; fixed: boolean } {
+function symbolsOf(inst: CardInstance, forSummon = false): { symbols: SymbolMark[]; fixed: boolean } {
     const fixed = fixedSymbolsOf(inst, forSummon)
     if (fixed) return { symbols: [...fixed], fixed: true }
     // 合体しているブレイヴのシンボルが加わる（BRAVE.md §3）。混色でも合成するだけ（§12.2）
@@ -47,7 +54,7 @@ function symbolsOf(inst: CardInstance, forSummon = false): { symbols: Color[]; f
 export function instanceSymbolColors(inst: CardInstance): Color[] {
     const { symbols, fixed } = symbolsOf(inst)
     const extra = fixed ? 0 : inst.timedExtraSymbols ?? 0
-    return extra > 0 && symbols[0] !== undefined ? [...symbols, ...new Array<Color>(extra).fill(symbols[0])] : symbols
+    return onlyColors(extra > 0 && symbols[0] !== undefined ? [...symbols, ...new Array<SymbolMark>(extra).fill(symbols[0])] : symbols)
 }
 
 // 画面用：シンボル1つずつを「数えられる色の集合」で返す。「◯色としても扱う」を持つ個体のシンボルは
@@ -73,7 +80,7 @@ export function combinedSpiritSymbolColors(board: Board, ownerPid: PlayerId, ins
         board.players[ownerPid].field.combinedBraves.filter((b) => b.instanceId === r.instanceId),
     )
     if (braves.length === 0) return colors
-    const braveSymbols = braves.flatMap((b) => card(b.cardId).symbol)
+    const braveSymbols = onlyColors(braves.flatMap((b) => card(b.cardId).symbol))
     return braveSymbols.every((c) => colors.includes(c)) ? colors : [...colors, ...braveSymbols]
 }
 
@@ -88,7 +95,7 @@ export function instanceSymbolCount(inst: CardInstance): number {
 // そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
 // forSummon: スピリット召喚の軽減計算から呼ばれたか。true のときだけ
 // symbolsForSummonReduction（BS11-039 天使ティアエル＝召喚の軽減の間だけ黄3つ）を使う
-export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = false, skipGranted = false): number {
+export function countSymbols(player: BoardPlayer, colors: SymbolMark[], forSummon = false, skipGranted = false): number {
     let count = 0
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
@@ -106,7 +113,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         const grantedMatches = grantedColors.some((c) => colors.includes(c))
         let matched = false
         for (const sym of cardSymbols) {
-            if (colors.includes(sym) || grantedMatches) {
+            if (colors.includes(sym) || (grantedMatches && sym !== "ultimate")) {
                 count++
                 matched = true
             }
@@ -118,23 +125,25 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
 
 // 軽減計算用：「◯色としても扱う」を持つ個体のシンボルを、1つずつ「満たせる色の集合」にして返す。
 // 1つのシンボルで軽減シンボル複数は満たせないので、countSymbols(skipGranted) と対にして、どの色に当てるかは呼び出し側が最適に割り当てる
-export function flexibleSymbolUnits(player: BoardPlayer, forSummon = false): Color[][] {
-    const units: Color[][] = []
+export function flexibleSymbolUnits(player: BoardPlayer, forSummon = false): SymbolMark[][] {
+    const units: SymbolMark[][] = []
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
         if (inst.colorless) continue
         const granted = grantedColorsOf(inst)
         if (granted.length === 0) continue
         const { symbols, fixed } = symbolsOf(inst, forSummon)
         const extra = fixed ? 0 : inst.timedExtraSymbols ?? 0
-        for (const sym of symbols) units.push([sym, ...granted])
-        if (symbols.length > 0) for (let i = 0; i < extra; i++) units.push([symbols[0]!, ...granted])
+        // 極のシンボルは色を付与されても極のまま（極の枠にしか使えない）
+        const unit = (sym: SymbolMark): SymbolMark[] => (sym === "ultimate" ? [sym] : [sym, ...granted])
+        for (const sym of symbols) units.push(unit(sym))
+        if (symbols.length > 0) for (let i = 0; i < extra; i++) units.push(unit(symbols[0]!))
     }
     return units
 }
 
 // 軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。
 // フィールドと違い個体（CardInstance）ではなくカードIDの列なので、カード静的な symbol だけで数える
-export function countTrashSymbols(player: BoardPlayer, colors: Color[]): number {
+export function countTrashSymbols(player: BoardPlayer, colors: SymbolMark[]): number {
     let count = 0
     for (const cardId of player.trashCards) {
         for (const sym of card(cardId).symbol) {
