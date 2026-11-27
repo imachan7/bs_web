@@ -20,6 +20,7 @@ import { activateBurstCard } from "../keywords/burst"
 import { attachBrave } from "../brave"
 import { recordMoved } from "../record"
 import { countedAmount } from "../counted"
+import { placeSummonedOnField } from "../summonPlacement"
 
 type RevealDest = NonNullable<Extract<EffectAction, { type: "revealApplyOne" }>["dest"]>
 
@@ -254,7 +255,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             if (action.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
             const braveHost = hostId === undefined ? undefined : player.field.spirits.find((sp) => sp.instanceId === hostId)
             if (braveHost !== undefined) attachBrave(state, owner, braveHost, inst)
-            else player.field.spirits.push(inst)
+            else placeSummonedOnField(state, owner, inst)
             log(state, `${player.name}は${sourceName}の効果で、${braveHost !== undefined ? `${getCard(braveHost.cardId).name}に合体させて` : ""}${card.name}を${action.pay === "cost" ? `コスト${fullCost}を支払って` : "コストを支払わずに"}召喚した。`)
             if (action.tensho === undefined) {
                 if (!state.winner) resolveTensho(state, owner, inst)

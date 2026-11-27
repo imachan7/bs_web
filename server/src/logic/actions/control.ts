@@ -5,6 +5,8 @@ import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { payMagicCostThenResolve } from "../magic/payThenResolve"
 import { announceBurstMagicEffect } from "../keywords/burstMagicEffect"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import { isSummonableCardType } from "../../../../shared/summon"
+import { placeSummonedOnField } from "../summonPlacement"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { burstTenshoTargets, hasBurstTensho } from "../keywords/tensho"
@@ -205,6 +207,10 @@ export function ifCondMet(ctx: ActionCtx, cond: Extract<EffectAction, { type: "i
     const { state, owner, self, srcType } = ctx
     return cond === undefined
         ? true
+        : "allOf" in cond
+        ? cond.allOf.every((c) => ifCondMet(ctx, c))
+        : "anyOf" in cond
+        ? cond.anyOf.some((c) => ifCondMet(ctx, c))
         : "lastEmptied" in cond
         ? lastEmptiedSpiritsOf(state) > 0
         : "last" in cond
@@ -378,7 +384,7 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action0: Extract<Effe
         fireNexusDeployed(state, owner, inst)
         return
     }
-    if (card.type !== "spirit" && card.type !== "brave") {
+    if (!isSummonableCardType(card.type)) {
         log(state, `${sourceName}：このカードは召喚できない。`)
         return
     }
@@ -446,7 +452,7 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action0: Extract<Effe
     if (combineHost !== undefined) {
         attachBrave(state, owner, combineHost, inst)
     } else {
-        player.field.spirits.push(inst)
+        placeSummonedOnField(state, owner, inst)
     }
     log(
         state,

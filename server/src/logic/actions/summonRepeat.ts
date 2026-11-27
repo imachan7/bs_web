@@ -6,6 +6,7 @@ import type { ActionCtx } from "./types"
 import type { CardData, EffectAction, PlayerId } from "../../type"
 import { createInstance, findSpirit, getCard, log, summonMinCores, pushResumeFrames, suspend } from "../GameState"
 import { payCost, requestChoice } from "../EffectModules"
+import { placeSummonedOnField } from "../summonPlacement"
 import { askCostPay, payVoidToll } from "../summonSurcharge"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { dumpAllCoresTensho, tenshoCandidates, tenshoSelfCostBonus, tenshoSpecOf } from "../keywords/tensho"
@@ -76,7 +77,7 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
         for (const i of [...idx].sort((a, b) => b - a)) player.hand.splice(i, 1)
         player.reserve -= t.keep - placed
         const insts = cards.map((id, k) => ({ ...createInstance(id, state.turn, lv[k] ?? summonMinCores(state, owner, getCard(id))), noOnSummon: true as const }))
-        player.field.spirits.push(...insts)
+        for (const i of insts) placeSummonedOnField(state, owner, i)
         log(state, `${player.name}は${sourceName}の効果で「${cards.map((id) => getCard(id).name).join("、")}」をコスト${t.cost}を支払い召喚した。（このスピリットの召喚時効果は発揮されない）`)
         // 【転召】は無償召喚でも必ず行う（公式Q&A 2024-10-31）。対象は支払いの前に選んである
         const rest: NonNullable<Repeat["tenshoRest"]> = []

@@ -4,7 +4,9 @@ import { noteCoverage } from "../../../shared/coverage"
 import { onlyUsableDenial, effectSources, isVanillaCard, timedPlayerRules, trashFrozen } from "../../../shared/rules"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { braveCombineCandidates } from "../../../shared/summon"
-import type { GameState, PlayerId } from "../type"
+import type { CardData, GameState, PlayerId } from "../type"
+import type { IfCond } from "../types/effectAction"
+import { countEffectCounter } from "./EffectModules"
 import { currentLevel, getCard, opponentOf } from "./GameState"
 
 export interface SummonAttempt {
@@ -46,9 +48,20 @@ function globalConstraintsOf(state: GameState, pid: PlayerId, type: string, with
     return out
 }
 
+// 召喚条件の判定。支払いでコアが尽きて条件のスピリットが消えても、宣言時に満たしていれば召喚できる（Q487）ので、
+// 支払いの前に呼ぶこと。破壊待機のスピリットは場に残っているので countEffectCounter がそのまま数える（A6）
+export function summonConditionMet(state: GameState, pid: PlayerId, card: CardData): boolean {
+    const met = (c: IfCond): boolean =>
+        "allOf" in c ? c.allOf.every(met) : "anyOf" in c ? c.anyOf.some(met) : "count" in c ? ((n) => (c.atLeast === undefined || n >= c.atLeast) && (c.atMost === undefined || n <= c.atMost))(countEffectCounter(state, pid, null, c.count)) : false
+    return card.summonCondition === undefined || met(card.summonCondition)
+}
+
 export function summonDenial(state: GameState, a: SummonAttempt): string | null {
     const card = getCard(a.cardId)
     const both: PlayerId[] = ["p1", "p2"]
+
+    // 効果による召喚でも条件が要る（Q445）。満たさない召喚は呼び出し側で不発になり、カードは元の場所に残る
+    if (card.type === "ultimate" && !summonConditionMet(state, a.pid, card)) return "召喚条件を満たしていません"
 
     const onlyBy = onlyUsableDenial(state, a.pid, a.cardId)
     if (onlyBy) return onlyBy

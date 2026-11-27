@@ -1364,7 +1364,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `SummonAttempt`（型）
 - `placeDenial`（fn）：ネクサスを場へ出す入口の禁止の問い合わせ（コストを支払わずに配置する効果が、配置の前に呼ぶ）。
+- `summonConditionMet`（fn）：召喚条件の判定。支払いでコアが尽きて条件のスピリットが消えても、宣言時に満たしていれば召喚できる（Q487）ので、
 - `summonDenial`（fn）
+
+## server/src/logic/summonPlacement.ts
+
+- `placeSummonedOnField`（fn）
 
 ## server/src/logic/summonSurcharge.ts
 
