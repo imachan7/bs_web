@@ -9,6 +9,7 @@
 // 先読みはしない（1手評価）。打った結果の盤面を作るにはエンジンの状態を複製する必要があり、
 // 効果解決の副作用まで正しく巻き戻せる保証がないため、**現在の盤面と手の内容だけ**から点を付ける。
 import { isTrashWaiting } from "../../../shared/rules/waiting"
+import { battlers } from "../../../shared/rules/level"
 import type { CardInstance, GameAction, GameView, PlayerId } from "../type"
 import { getCard } from "../logic/GameState"
 import { canBlock } from "../../../shared/block"
@@ -26,7 +27,7 @@ function findOnBoard(
 ): { inst: CardInstance; owner: PlayerId } | null {
     for (const pid of ["p1", "p2"] as const) {
         const field = view.players[pid].field
-        for (const inst of [...field.spirits, ...field.nexuses]) {
+        for (const inst of [...battlers(view.players[pid]), ...field.nexuses]) {
             if (inst.instanceId === instanceId) return { inst, owner: pid }
         }
     }
@@ -42,7 +43,7 @@ export function bpScore(view: GameView, owner: PlayerId, inst: CardInstance): nu
 // 判定は共有層の canBlock を通す（防御側UIが出すブロック候補と同じ実装）
 function hasBlocker(view: GameView, attackerPid: PlayerId, attacker: CardInstance): boolean {
     const defenderPid = opponentOf(attackerPid)
-    return view.players[defenderPid].field.spirits.some(
+    return battlers(view.players[defenderPid]).some(
         (inst) => canBlock(view, defenderPid, inst, attackerPid, attacker) === null,
     )
 }
@@ -51,7 +52,7 @@ function hasBlocker(view: GameView, attackerPid: PlayerId, attacker: CardInstanc
 function hasLethalBlocker(view: GameView, attackerPid: PlayerId, attacker: CardInstance): boolean {
     const defenderPid = opponentOf(attackerPid)
     const attackerBp = effectiveBp(view, attackerPid, attacker)
-    return view.players[defenderPid].field.spirits.some(
+    return battlers(view.players[defenderPid]).some(
         (inst) =>
             canBlock(view, defenderPid, inst, attackerPid, attacker) === null &&
             effectiveBp(view, defenderPid, inst) > attackerBp,
@@ -113,7 +114,7 @@ function scoreChoice(view: GameView, me: PlayerId, action: GameAction): number {
 // 効果の持ち主から見た、相手の最も強い対象の BP（千単位。スピリットがいなければ 0）
 function strongestOpponentBp(view: GameView, me: PlayerId): number {
     const opp = opponentOf(me)
-    return view.players[opp].field.spirits.reduce((m, s) => Math.max(m, bpScore(view, opp, s)), 0)
+    return battlers(view.players[opp]).reduce((m, s) => Math.max(m, bpScore(view, opp, s)), 0)
 }
 
 // 自分のバトル中のスピリットが今は負けていて、bonus だけ BP を足せば勝つか
@@ -123,8 +124,8 @@ function bonusFlipsBattle(view: GameView, me: PlayerId, bonus: number): boolean 
     const iAttack = view.turnPlayer === me
     const mineId = iAttack ? battle.attackerInstanceId : battle.blockerInstanceId
     const theirsId = iAttack ? battle.blockerInstanceId : battle.attackerInstanceId
-    const mine = view.players[me].field.spirits.find((s) => s.instanceId === mineId)
-    const theirs = view.players[opponentOf(me)].field.spirits.find((s) => s.instanceId === theirsId)
+    const mine = battlers(view.players[me]).find((s) => s.instanceId === mineId)
+    const theirs = battlers(view.players[opponentOf(me)]).find((s) => s.instanceId === theirsId)
     if (!mine || !theirs) return false
     const mineBp = effectiveBp(view, me, mine)
     const theirsBp = effectiveBp(view, opponentOf(me), theirs)
@@ -166,7 +167,7 @@ export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
     if (move.futile) return 0
     switch (action.type) {
         case "attack": {
-            const attacker = my.field.spirits.find((s) => s.instanceId === action.instanceId)
+            const attacker = battlers(my).find((s) => s.instanceId === action.instanceId)
             if (!attacker) return 0
             let score = 100 + bpScore(view, me, attacker)
             // 止める相手がいないならライフを削れる。相手のライフが残り1ならそれが勝ち筋
@@ -177,10 +178,10 @@ export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
             // 全員で殴ると次の相手ターンにライフで受けるしかなくなる。
             // 1手だけを見る評価だとこれが見えず、両者が殴り合って5ターンで終わる展開になっていた（2026-08-23）。
             // 今ターンで削り切れる見込み（相手ライフ1）のときは温存しない
-            const defendersLeft = my.field.spirits.filter(
+            const defendersLeft = battlers(my).filter(
                 (s) => !s.isRested && s.instanceId !== action.instanceId,
             ).length
-            const opponentThreats = opp.field.spirits.filter((s) => !s.isRested).length
+            const opponentThreats = battlers(opp).filter((s) => !s.isRested).length
             if (defendersLeft === 0 && opponentThreats > 0 && opp.life > 1) score -= 130
             return score
         }
@@ -207,7 +208,7 @@ export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
             // 外す手は計画（levelPick）だけが打つ。点数で選ぶ方針には打たせない
             if (action.direction === "remove") return 0
             const inst =
-                my.field.spirits.find((s) => s.instanceId === action.instanceId) ??
+                battlers(my).find((s) => s.instanceId === action.instanceId) ??
                 my.field.nexuses.find((n) => n.instanceId === action.instanceId)
             if (!inst) return 0
             // レベルが上がるコアだけ置く。上がらないコアはリザーブに残したほうが
@@ -219,10 +220,10 @@ export function scoreMove(view: GameView, me: PlayerId, move: AiMove): number {
             return after > before ? 75 : 5
         }
         case "block": {
-            const blocker = my.field.spirits.find((s) => s.instanceId === action.instanceId)
+            const blocker = battlers(my).find((s) => s.instanceId === action.instanceId)
             const battle = view.battle
             if (!blocker || !battle) return 0
-            const attacker = opp.field.spirits.find(
+            const attacker = battlers(opp).find(
                 (s) => s.instanceId === battle.attackerInstanceId,
             )
             const blockerBp = effectiveBp(view, me, blocker)

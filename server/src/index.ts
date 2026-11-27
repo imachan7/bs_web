@@ -274,6 +274,7 @@ function buildGameAttachment(gameId: string): Record<string, unknown> | null {
             deckCount: p.deck.length,
             hand: describeCards(p.hand),
             spirits: p.field.spirits.map(describeInstance),
+            ultimates: p.field.ultimates.map(describeInstance),
             nexuses: p.field.nexuses.map(describeInstance),
             tegamoto: describeCards(p.tegamoto),
             trashCards: describeCards(p.trashCards.slice(-20)), // 全部は多すぎるので直近20枚

@@ -944,7 +944,7 @@ export function validateMoveCore(
     if (timing) return timing
     const player = state.players[pid]
     // ネクサスもレベルを上げ下げできる。ネクサスの Lv1 は全カード0コアのため、維持コア判定でそのまま0まで戻せる
-    const inst = findSpirit(player, instanceId) ?? findNexus(player, instanceId)
+    const inst = findBattler(player, instanceId) ?? findNexus(player, instanceId)
     if (!inst) return "対象のカードが見つかりません"
     if (direction === "add" && coreIntakeRefused(inst)) return "このカードには、このカード自身の効果以外ではコアを置けません"
     if (soulCore) {

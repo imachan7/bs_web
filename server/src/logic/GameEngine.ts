@@ -1162,7 +1162,7 @@ function doMoveCore(
     if (error) return error
 
     const player = state.players[pid]
-    const spirit = findSpirit(player, instanceId)
+    const spirit = findBattler(player, instanceId)
     const inst = spirit ?? findNexus(player, instanceId)
     if (!inst) return "対象のカードが見つかりません"
 

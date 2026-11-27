@@ -285,14 +285,14 @@ function abilityMoves(state: GameState, pid: PlayerId): AiMove[] {
 function coreMoves(state: GameState, pid: PlayerId): AiMove[] {
     const moves: AiMove[] = []
     const field = state.players[pid].field
-    for (const inst of [...field.spirits, ...field.nexuses]) {
+    for (const inst of [...battlers(state.players[pid]), ...field.nexuses]) {
         if (validateMoveCore(state, pid, inst.instanceId, "add") !== null) continue
         moves.push({
             action: { type: "moveCore", instanceId: inst.instanceId, direction: "add" },
             reason: `${getCard(inst.cardId).name}にコアを置く`,
         })
     }
-    for (const inst of field.spirits) {
+    for (const inst of battlers(state.players[pid])) {
         if (validateMoveCore(state, pid, inst.instanceId, "remove") !== null) continue
         moves.push({
             action: { type: "moveCore", instanceId: inst.instanceId, direction: "remove" },
