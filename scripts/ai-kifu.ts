@@ -23,7 +23,7 @@ const opp = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1")
 
 function findInst(state: GameState, id: string): CardInstance | undefined {
     for (const p of [state.players.p1, state.players.p2]) {
-        const f = [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves, ...p.field.magics].find((i) => i.instanceId === id)
+        const f = [...p.field.spirits, ...p.field.ultimates, ...p.field.nexuses, ...p.field.combinedBraves, ...p.field.magics].find((i) => i.instanceId === id)
         if (f) return f
     }
 }

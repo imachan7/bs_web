@@ -21,10 +21,6 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：アルティメットの土台 段2（ブランチ `refactor/ultimate-stage2-field-ultimates`。段0〜6 はカード無しで段ごとに PR：2026-11-27 ユーザーと合意）
-- `CardType` に `"ultimate"`。`field.ultimates: CardInstance[]`（server の PlayerState と shared/board.ts の Board。spirits と同じ並び）。`battlers(player)`＝`[...field.spirits, ...field.ultimates]` を shared/rules に置く。まだ召喚できないので配列は常に空＝挙動不変
-- 既存の `field.spirits` の走査を `battlers()` に置き換えるのは段3（仕分けが本体。機械的に置換しない）。`effectSources` に足すのも段3
-
 ### 進行中：スマホの対戦画面（ブランチ `feat/mobile-battle-layout`。ユーザーに見せてから PR）
 
 - 状態（11-25 夜）：ユーザーが実機（Android 412×830 相当）で触りながら直している。点検ページ `/dev/ui-gallery.html`（場面×大きさ5、崩れを自動点検）で各回確かめている

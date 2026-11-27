@@ -35,7 +35,7 @@ export interface BoardPlayer {
     tegamoto: string[]
     // combinedBraves は合体中のブレイヴの実体置き場（docs/design/BRAVE.md §2.3）。
     // **spirits/nexuses と違いフィールド走査の対象ではない**。効果発生源としてだけ読む（effectSources）
-    field: { spirits: CardInstance[]; nexuses: CardInstance[]; combinedBraves: CardInstance[]; magics: CardInstance[] }
+    field: { spirits: CardInstance[]; ultimates: CardInstance[]; nexuses: CardInstance[]; combinedBraves: CardInstance[]; magics: CardInstance[] }
     turnVirtualInstances: CardInstance[] // このターンの間だけ有効な仮想の効果発生源（マジックが貸した継続効果）。effectSources() が参照する
     battleVirtualInstances: CardInstance[] // 上のバトル限定版（lendSelfThisBattle）。同じく effectSources() が参照し、clearBattle で消える
     gameVirtualInstances: CardInstance[] // 上の「このゲームの間」版（lendSelfThisGame）。どこでも消さない
