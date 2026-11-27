@@ -23,6 +23,7 @@ export type AuraCondition =
     | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 持ち主から見た相手フィールドの色の種類数がこれ以上（shared/rules.opponentFieldColorCount。BS15共通器）
     | { ownFieldOnlyColor: Color; spiritsOnly?: true } // 自分フィールドのスピリット/ネクサスがすべてこの色1色だけの間（多色混在・0枚は不成立。shared/rules.ownFieldOnlyColor。BS15共通器）
     | { opponentBurstSet: boolean } // 発生源の持ち主から見た**相手**がバーストをセットしている間（false指定時はセットしていない間）だけ有効（triggered.conditionの同名軸と同じ判定。BS15共通器：kind:"constraint"のcondition用。BS15-060バンディット・アームズ【合体時】：「相手がバーストをセットしている間」）
+    | { uTriggerHitting: ResolvedTargetFilter } // このバトルで、絞り込みに合う持ち主のアルティメットの【Uトリガー】がヒットしている間（BattleState.uTriggerHitters。ULTIMATE_STAGE6.md §5）
     | { maxOwnSpirits: number } // 自分のスピリット（発生源を含む）がこの数以下の間
     | { battleOpponentMatches: ResolvedTargetFilter } // 現在のバトルで、持ち主から見た相手側の当事者が絞り込みに合う間（triggered.condition の同名軸は発生源のバトル相手で引く）
     | { ownTeamAtLeast: { team: string; count: number; restedOnly?: true } } // 自分フィールドに指定チーム（CardData.team）所属のスピリットがcount体以上いる間。restedOnly指定時は疲労状態の個体だけを数える（26系ジェーン・ボゥ：「疲労状態の【レッドステラ】を持つ自分のスピリットが2体以上いるなら」）

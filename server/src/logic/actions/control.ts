@@ -29,6 +29,7 @@ import { placeDenial, summonDenial } from "../summonGate"
 import { stayOnFieldRevived } from "../revive"
 import { combinedSpiritSymbolColors, effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { uTriggerHittingNow } from "../../../../shared/rules/uTrigger"
 import { claimOnce } from "../oncePerTurn"
 import { currentRecordScope, lastEmptiedSpiritsOf, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
 
@@ -286,6 +287,8 @@ export function ifCondMet(ctx: ActionCtx, cond: Extract<EffectAction, { type: "i
           ? self !== null && matchesTarget(state, owner, self, { nameIs: cond.selfNameIs })
           : "self" in cond
           ? ((f) => self !== null && f !== SELF_REQUIRED && matchesTarget(state, owner, self, f, self.instanceId))(normalizeFilter(ctx, { filter: cond.self }))
+          : "uTriggerHitting" in cond
+          ? ((f) => f !== SELF_REQUIRED && uTriggerHittingNow(state, owner, f))(normalizeFilter(ctx, { filter: cond.uTriggerHitting }))
           : "selfSummonedBy" in cond
           ? self?.summonedBy === cond.selfSummonedBy
           : "lastBuffed" in cond

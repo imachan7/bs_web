@@ -372,6 +372,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `UTriggerVerdict`（型）
 - `uTriggerVerdict`（fn）：placedPrintedCost は置かれた札の印刷コスト（デッキのカードに軽減は効かない。C3）。ultimateCost は合体・コスト増減を反映した今のコスト。
 - `isUTriggerGuard`（fn）：置かれた札が、このアルティメットのUトリガーをガードするか（札側の静的な性質。コスト上限つきはアルティメットの今のコストで見る。C4）
+- `uTriggerHittingNow`（fn）：条件 uTriggerHitting：このバトルでヒットしている pid のアルティメットのうち、絞り込みに合うものがあるか
+- `clearUTriggerHitter`（fn）：段3 の窓でUトリガー全体がガードされたら呼ぶ（窓は未実装なので呼び出し元は uTriggerWindow の印だけ）
 
 ## shared/rules/waiting.ts
 

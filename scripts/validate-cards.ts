@@ -667,6 +667,10 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             if (!e.kind || !VALID_KINDS.has(e.kind)) {
                 add(id, `未知の effect kind: ${String(e.kind)}`)
             }
+            // 「Uトリガーがヒットしている」の絞り込みは kinds を省くとスピリットだけになり、決して成り立たない
+            for (const m of JSON.stringify(e).matchAll(/"uTriggerHitting":(\{[^{}]*\})/g)) {
+                if (!/"kinds":\[[^\]]*"ultimate"/.test(m[1]!)) add(id, `uTriggerHitting の絞り込みに kinds:["ultimate"] が無い（${String(e.id)}）`)
+            }
             if (e.kind === "keyword" && (!e.keyword || !VALID_KEYWORDS.has(e.keyword))) {
                 add(id, `未知の keyword: ${String(e.keyword)}`)
             }

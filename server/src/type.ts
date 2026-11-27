@@ -307,6 +307,8 @@ export interface BattleState {
     // アタック宣言後のフラッシュ（＞２〜＞３）が、ブロックされずに閉じた（公式Q22290。2026-11-16 ユーザー確認）。
     // 閉じる前にアタッカーが場を離れてもバトルは終わらない。閉じた後に離れていたらブロック／ライフ受けを出さずに終える
     flashOneClosed?: true
+    // このバトル中に【Uトリガー】がヒットしているアルティメットの instanceId。バトル外のUトリガーでは書かない。条件 uTriggerHitting だけが読む
+    uTriggerHitters?: string[]
 }
 
 

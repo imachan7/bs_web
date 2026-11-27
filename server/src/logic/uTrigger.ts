@@ -6,7 +6,7 @@ import { getCard, log } from "./GameState"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { isWaiting } from "../../../shared/rules/waiting"
 import { instBaseCost } from "../../../shared/rules/level"
-import { isUTriggerGuard, uTriggerVerdict } from "../../../shared/rules/uTrigger"
+import { clearUTriggerHitter, isUTriggerGuard, uTriggerVerdict } from "../../../shared/rules/uTrigger"
 
 type UTriggerAction = Extract<EffectAction, { type: "uTrigger" }>
 
@@ -42,6 +42,7 @@ function uTriggerJudge(ult: CardInstance, placedIds: string[]): UTriggerProgress
 }
 
 // 段3：【トリガーカウンター】の窓（C6）。BS26 を入れるとき、ここに選択待ちを足して再開フレームで続ける。ヒットのときだけ呼ぶ
+// 全体がガードされたら clearUTriggerHitter(ctx.state, progress.ultimateInstanceId) で印を外す
 function uTriggerWindow(_ctx: ActionCtx, _progress: UTriggerProgress): void {}
 
 // 段4：ヒット効果とダブルヒット等を1本の列にし、その後ろに段5 を積む。同じ effectId のまま解決するので C11 の「1回」は出口の派生の列がまとめる
@@ -51,6 +52,8 @@ function uTriggerStart(ctx: ActionCtx, action: UTriggerAction): void {
     const placed = uTriggerJudge(self, uTriggerPlace(ctx, action.count))
     const progress: UTriggerProgress = { stage: "after", ultimateInstanceId: self.instanceId, placed }
     const n = placed.filter((p) => p.verdict === "hit").length
+    const battle = ctx.state.battle
+    if (n >= 1 && battle) battle.uTriggerHitters = [...new Set([...(battle.uTriggerHitters ?? []), self.instanceId])]
     if (n >= 1) uTriggerWindow(ctx, progress)
     const actions: EffectAction[] = []
     if (n >= 1 && stillOnField(ctx, self)) {
@@ -63,7 +66,7 @@ function uTriggerStart(ctx: ActionCtx, action: UTriggerAction): void {
 }
 
 // 段5：派生の出来事。効果の中なら出口で1本の列にまとまり、ヒット効果で起きた破壊の誘発と同じ列で解決する（C12）
-function uTriggerAfter(ctx: ActionCtx, _action: UTriggerAction, progress: UTriggerProgress): void {
+function uTriggerAfter(ctx: ActionCtx, action: UTriggerAction, progress: UTriggerProgress): void {
     const { state, owner, self } = ctx
     const onField = stillOnField(ctx, self)
     const fire = (event: FieldEvent, withExtra = false): void => {
@@ -72,4 +75,6 @@ function uTriggerAfter(ctx: ActionCtx, _action: UTriggerAction, progress: UTrigg
     if (progress.hitFired === true && onField) fire("ownUTriggerHit")
     if ((progress.guardedAll === true || progress.placed.some((p) => p.verdict === "guard")) && onField) fire("ownUTriggerGuarded")
     fire("ownUTriggered", !onField)
+    // 段6：XU（C14）は派生がすべて解決した後。ガードされていても、デッキが0枚でも行う（Q818・Q836）
+    if (action.xu && action.xu.length > 0) ctx.resolve({ type: "sequence", actions: [{ type: "settleDerived" }, ...action.xu] })
 }

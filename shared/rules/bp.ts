@@ -1,6 +1,7 @@
 // 常時BP修正（オーラ）と実効BP、数を数えるときの重み（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
 import { continuousEffectReaches } from "./resistance"
 import { battlers } from "./level"
+import { uTriggerHittingNow } from "./uTrigger"
 import { noteCoverage } from "../coverage"
 
 import type {
@@ -379,6 +380,7 @@ export function checkAuraCondition(
         const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
         return handSizeOf(board.players[oppPid]) >= condition.opponentHandAtLeast
     }
+    if ("uTriggerHitting" in condition) return uTriggerHittingNow(board, sourcePid, condition.uTriggerHitting)
     if ("maxOwnSpirits" in condition) {
         return player.field.spirits.length <= condition.maxOwnSpirits
     }
