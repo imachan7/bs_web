@@ -1,7 +1,7 @@
 // マジックの使用（コスト支払いから解決まで）
 import { takeFromTrash } from "../zones/trash"
 import type { CardData, Color, GameState, PlayerId, EffectAction, PaySource, PendingChoice, EffectDef } from "../../type"
-import { getCard, opponentOf, suspend, findInstanceAnywhere, log } from "../GameState"
+import { getCard, opponentOf, suspend, findInstanceAnywhere, log, findBattler } from "../GameState"
 import { findMagicFreeGrantSource, hasMagicRestriction, effectiveCost, exSymbolsOfTrashCard, magicEffectiveColors } from "../../../../shared/cost"
 import { moveSoulCore, normalReserveOf, wouldDepleteOf } from "../soulCore"
 import { recordMagicUse } from "../record"
@@ -14,7 +14,7 @@ import { findMagicNegateSource, payMagicNegate } from "./negate"
 import { resolveMagicEffects } from "./resolve"
 import { decideMagicUsedTriggers, runMagicUsedTriggers } from "./usedTriggers"
 import { beginMagicUse, finishMagicUseOrDefer } from "./inUse"
-import { handCardBanned, matchesTarget, magicPayAssistCandidates } from "../../../../shared/rules"
+import { handCardBanned, matchesTarget, magicPayAssistCandidates, battlers } from "../../../../shared/rules"
 import { noteCoverage } from "../../../../shared/coverage"
 import { validateCastMagic } from "../RuleValidator"
 import { magicUseTiming } from "../../../../shared/magicTiming"
@@ -119,7 +119,7 @@ export function consumeOncePerBattleMagicFree(state: GameState, pid: PlayerId, c
         findMagicFreeGrantSource(state, pid, cardData) ?? findMagicFreeGrantSource(state, pid, cardData, true)
     if (!sourceId) return
     const effects = getCard(
-        [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses].find(
+        [...battlers(state.players[pid]), ...state.players[pid].field.nexuses].find(
             (s) => s.instanceId === sourceId,
         )!.cardId,
     ).effects
@@ -257,7 +257,7 @@ export function doCastMagic(
         // 個体から払って維持コア（Lv1）を割ったら消滅させる（2026-10-06 ユーザー確認: 所在不問で使用可）
         const soulFrom = player.soulCore
         const carrier = soulFrom !== null && soulFrom.zone === "instance"
-            ? player.field.spirits.find((s) => s.instanceId === soulFrom.instanceId) ?? player.field.nexuses.find((n) => n.instanceId === soulFrom.instanceId)
+            ? findBattler(player, soulFrom.instanceId) ?? player.field.nexuses.find((n) => n.instanceId === soulFrom.instanceId)
             : undefined
         moveSoulCore(player, { zone: "trash" }, carrier)
         const whereNote = carrier !== undefined ? `${getCard(carrier.cardId).name}の` : "リザーブの"
@@ -296,7 +296,7 @@ export function doCastMagic(
     if (!useSoulCoreOnly && cost > 0) {
         const assist = magicPayAssistCandidates(state, pid)[0]
         if (assist) {
-            const src = [...player.field.spirits, ...player.field.nexuses].find((s) => s.instanceId === assist.instanceId)
+            const src = [...battlers(player), ...player.field.nexuses].find((s) => s.instanceId === assist.instanceId)
             if (src) {
                 src.isRested = true
                 noteCoverage(getCard(src.cardId).effects.find((e) => e.kind === "payAssistByExhaust"), "payAssistByExhaust")

@@ -2,7 +2,7 @@
 // 選んだ結果は state.destroyGroup.pickMany に控え、各体の復活判定（revive.ts の tryReviveOnDestroy）が読む。
 import { canDiscardHand } from "../../../shared/rules"
 import type { CardInstance, DestroyContext, EffectDef, GameState, PendingChoice, PlayerId, ResumeFrame } from "../type"
-import { findInstanceAnywhere, getCard, log, suspend } from "./GameState"
+import { findInstanceAnywhere, getCard, log, suspend, findBattler } from "./GameState"
 import { collectPickManyEntries } from "./revive"
 
 type Target = { pid: PlayerId; instanceId: string; context?: DestroyContext }
@@ -35,7 +35,7 @@ function nextOffer(state: GameState, targets: Target[], context?: DestroyContext
     const found = new Map<string, { pid: PlayerId; sourceId: string; effectId: string; candidates: string[] }>()
     for (const t of targets) {
         if (taken.has(t.instanceId)) continue
-        const inst = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
+        const inst = findBattler(state.players[t.pid], t.instanceId)
         if (!inst) continue
         for (const e of collectPickManyEntries(state, t.pid, inst, t.context ?? context)) {
             const key = keyOf(e.sourceInstanceId, e.effectId)

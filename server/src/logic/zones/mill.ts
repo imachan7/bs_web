@@ -6,7 +6,7 @@ import { noteCoverage } from "../../../../shared/coverage"
 import { recordMoved } from "../record"
 import { canPayLife, lifeCostQuery, recordLifeLoss, settleLifeZero } from "../lifeGate"
 import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId, PlayerRuleDef } from "../../type"
-import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"
+import { createInstance, currentLevel, getCard, log, opponentOf, suspend, findBattler } from "../GameState"
 import { returnSpiritToDeckBottom } from "../removal"
 import { spiritMillFreeSummonOrConfirm } from "../revive"
 import { resolveMagicEffects } from "../triggers"
@@ -155,7 +155,7 @@ export function noteMilled(state: GameState, pid: PlayerId, cardIds: string[], a
 // 破棄を起こした側（actorPid）のフィールドから発火し、self に破棄を起こした発生源のスピリットを渡す
 function fireOwnDeckMillPrevented(state: GameState, actorPid: PlayerId): void {
     const srcId = state.currentEffectSource?.instanceId
-    const inst = srcId !== undefined ? state.players[actorPid].field.spirits.find((s) => s.instanceId === srcId) : undefined
+    const inst = srcId !== undefined ? findBattler(state.players[actorPid], srcId) : undefined
     fireFieldEventTriggers(state, actorPid, "ownDeckMillPrevented", inst ? { pid: actorPid, inst } : undefined)
 }
 
@@ -403,7 +403,7 @@ export function payDeckMillNegateCost(
     // BS15共通器：thenReturnCauseToDeckBottom（BS15-042オリンピアの天使アラトロンLv2）
     if (effect.thenReturnCauseToDeckBottom && causingInstanceId !== undefined) {
         const causePid = pid === "p1" ? "p2" : "p1"
-        const cause = state.players[causePid].field.spirits.find((s) => s.instanceId === causingInstanceId)
+        const cause = findBattler(state.players[causePid], causingInstanceId)
         if (cause) {
             returnSpiritToDeckBottom(state, causePid, cause, getCard(source.cardId).name)
         } else {
@@ -489,7 +489,7 @@ export function resolveMilledFromDeck(
                 const causer = state.currentEffectSource
                 const causerInst =
                     causer?.instanceId !== undefined
-                        ? state.players[opponentOf(pid)].field.spirits.find((s) => s.instanceId === causer.instanceId)
+                        ? findBattler(state.players[opponentOf(pid)], causer.instanceId)
                         : undefined
                 if (causerInst) {
                     resolveAction(state, pid, null, { type: "destroy", count: 1 }, causerInst.instanceId, getCard(cardId).colors, "spirit")

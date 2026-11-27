@@ -3,7 +3,7 @@ import { noteCoverage } from "../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
-import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, matchesTarget, refreshBlockedByRule, refreshRestrictionsFor } from "../../../shared/rules"
+import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, matchesTarget, refreshBlockedByRule, refreshRestrictionsFor, battlers } from "../../../shared/rules"
 import { timedPlayerRules } from "../../../shared/rules/constraints"
 import { activeConstraints, coreStepBonusFor, coreStepToLifeActive, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
@@ -287,7 +287,7 @@ export function runExtraStep(state: GameState, option: string): void {
 // BS15-X04 Lv2 の発生源（ターンプレイヤーの場の Lv2 の個体）
 function extraStepSource(state: GameState) {
     const player = state.players[state.turnPlayer]
-    return player.field.spirits.find((inst) =>
+    return battlers(player).find((inst) =>
         getCard(inst.cardId).effects.some(
             (e) => e.kind === "extraStepAfterAttackStep" && effectActiveOn(inst, e, currentLevel(inst).level),
         ),

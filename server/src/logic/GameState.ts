@@ -40,7 +40,7 @@ import { handGainDenial } from "./handGate"
 import { isOnceNameUsed, markOnceNameUsed } from "./oncePerTurn"
 // 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
 // 再エクスポートで名前を残す
-import { countSymbols, currentLevel, hasGlobalConstraint } from "../../../shared/rules"
+import { battlers, countSymbols, currentLevel, hasGlobalConstraint } from "../../../shared/rules"
 export { countSymbols, currentLevel }
 
 // ---- カードマスターデータの読み込み ----
@@ -651,6 +651,14 @@ export function findSpirit(
     instanceId: string,
 ): CardInstance | undefined {
     return player.field.spirits.find((s) => s.instanceId === instanceId)
+}
+
+// 選ばれた対象の引き直しは findSpirit のまま（スピリットだけを引く）。アタッカー・ブロッカー・バトル参加者など「実体」を引く所だけこちら
+export function findBattler(
+    player: PlayerState,
+    instanceId: string,
+): CardInstance | undefined {
+    return battlers(player).find((s) => s.instanceId === instanceId)
 }
 
 export function findNexus(

@@ -1,6 +1,6 @@
 // coresGainedFromVoid で増えたコアを、置かれた場所からボイドへ戻す（BS18-013）
 import type { ActionHandler, ActionRegistry } from "./types"
-import { getCard, log, opponentOf } from "../GameState"
+import { getCard, log, opponentOf, findBattler } from "../GameState"
 import { removeCoresToVoid } from "../EffectModules"
 import { lifeLossAllowed, recordLifeLoss, settleLifeZero } from "../lifeGate"
 
@@ -25,7 +25,7 @@ const voidGainedCoresHandler: ActionHandler<"voidGainedCores"> = (ctx) => {
             if (n > 0) log(state, `${gp.name}のライフのコア${n}個をボイドに置いた。`)
             settleLifeZero(state, g.gainerPid)
         } else {
-            const spirit = gp.field.spirits.find((i) => i.instanceId === pl.instanceId)
+            const spirit = pl.instanceId === undefined ? undefined : findBattler(gp, pl.instanceId)
             if (spirit) {
                 removeCoresToVoid(state, g.gainerPid, spirit, pl.n, owner, ctx.srcType)
                 continue

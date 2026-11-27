@@ -6,7 +6,7 @@ import { effectActiveAtLevel, effectSources, matchesTarget } from "../../../shar
 import { noteCoverage } from "../../../shared/coverage"
 import type { ActionCtx } from "./actions/types"
 import type { PickProgress } from "./pickTargets"
-import { currentLevel, getCard, log, opponentOf, suspend } from "./GameState"
+import { currentLevel, getCard, log, opponentOf, suspend, findBattler } from "./GameState"
 import { isResisted } from "./EffectModules"
 
 type RedirectEffect = Extract<NonNullable<ReturnType<typeof getCard>["effects"]>[number], { kind: "targetRedirect" }>
@@ -51,7 +51,7 @@ export function settleTargets(
 ): string[] | null {
     const { state, owner, self, srcType, sourceName } = ctx
     const holder = opponentOf(owner)
-    const holderSpirit = (id: string): CardInstance | undefined => state.players[holder].field.spirits.find((s) => s.instanceId === id)
+    const holderSpirit = (id: string): CardInstance | undefined => findBattler(state.players[holder], id)
     if (action.picked?.settled === true) {
         const pick = ctx.targetInstanceId
         const found = pick === undefined ? undefined : redirectOffers(state, holder, srcType, action.picked.ids, candidates, attempt).find((o) => o.options.includes(pick))
@@ -123,7 +123,7 @@ export function settleOne(
     const id = settled[0]
     if (id === undefined || id === target.instanceId) return target
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const found = ctx.state.players[pid].field.spirits.find((s) => s.instanceId === id)
+        const found = findBattler(ctx.state.players[pid], id)
         if (found) return found
     }
     return target

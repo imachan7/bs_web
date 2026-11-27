@@ -3,7 +3,7 @@ import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
-import { effectSources, isVirtualSource } from "../../../../shared/rules"
+import { effectSources, isVirtualSource, battlers } from "../../../../shared/rules"
 
 export { bofuCountFor } from "../../../../shared/rules"
 
@@ -11,7 +11,7 @@ export { bofuCountFor } from "../../../../shared/rules"
 // hasKyoshuOnBlock と同型で、こちらは phase に加えて turn 条件も持つ
 export function hasBofuOnBlock(state: GameState, ownerPid: PlayerId): boolean {
     const player = state.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = [...battlers(player), ...player.field.nexuses]
     for (const source of sources) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {

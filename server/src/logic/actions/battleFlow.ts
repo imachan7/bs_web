@@ -16,7 +16,7 @@ import { placeDenial, summonDenial } from "../summonGate"
 import { askSummonCores } from "../summonCores"
 import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
-import { clearBattle, createInstance, draw, getCard, log, summonMinCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { clearBattle, createInstance, draw, getCard, log, summonMinCores, opponentOf, pushResumeFrames, suspend, findBattler } from "../GameState"
 import {
     attachBrave,
     bothSidesPids,
@@ -122,7 +122,7 @@ const battleLoserCoresToVoidHandler: ActionHandler<"battleLoserCoresToVoid"> = (
         return
     }
     for (const pid of ["p1", "p2"] as const) {
-        const inst = state.players[pid].field.spirits.find((sp) => sp.instanceId === id)
+        const inst = findBattler(state.players[pid], id)
         if (!inst) continue
         if (inst.cores === 0) return
         log(state, `${sourceName}：${getCard(inst.cardId).name}の上のコア${inst.cores}個はボイドに置かれた。`)

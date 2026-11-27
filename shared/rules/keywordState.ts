@@ -15,7 +15,7 @@ import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
 import { timedKeywords, zoneSpiritEffectsDisabled } from "./constraints"
 import { entryActive } from "./effectStop"
-import { bravesOf, cardHasColor, combinedBraveEntryOk, ownAllHaveTeam, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instEffectsSuppressed, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVanillaCard, isVirtualSource, keywordMatches } from "./level"
+import { bravesOf, cardHasColor, combinedBraveEntryOk, ownAllHaveTeam, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instEffectsSuppressed, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVanillaCard, isVirtualSource, keywordMatches, battlers } from "./level"
 import { instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
 // ---- キーワード・系統の状態判定（盤面の付与効果を考慮する） ----
@@ -258,11 +258,11 @@ export function targetArmorColorCount(board: Board, inst: CardInstance): number 
 // ここでは系統を一切参照しないので、spiritHasFamily から呼んでも再帰しない
 export function familiesSuppressed(board: Board, inst: CardInstance): boolean {
     // target:"opponentAll"（BS09-079キャラクターロスト）用に、対象の持ち主を割り出す
-    const instPid: PlayerId | undefined = board.players.p1.field.spirits.some(
+    const instPid: PlayerId | undefined = battlers(board.players.p1).some(
         (s) => s.instanceId === inst.instanceId,
     )
         ? "p1"
-        : board.players.p2.field.spirits.some((s) => s.instanceId === inst.instanceId)
+        : battlers(board.players.p2).some((s) => s.instanceId === inst.instanceId)
           ? "p2"
           : undefined
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {

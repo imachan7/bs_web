@@ -76,7 +76,8 @@ import {
     ownFieldOnlyColor,
     ownAllHaveFamily,
     ownAllHaveTeam,
-    ownTeamAtLeast
+    ownTeamAtLeast,
+    battlers,
 } from "../../../shared/rules"
 export type { KeywordInfo }
 export {
@@ -149,7 +150,7 @@ export function isTriggerSuppressed(
     for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
         if (opponentOf(sourcePid) !== ownerPid) continue
         const player = state.players[sourcePid]
-        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        for (const inst of [...battlers(player), ...player.field.nexuses]) {
             const level = currentLevel(inst).level
             for (const effect of getCard(inst.cardId).effects) {
                 if (effect.kind !== "triggerSuppression") continue

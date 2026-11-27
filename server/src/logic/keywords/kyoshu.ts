@@ -3,14 +3,14 @@ import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
-import { bravesOf, effectActiveAtLevel } from "../../../../shared/rules"
+import { bravesOf, effectActiveAtLevel, battlers } from "../../../../shared/rules"
 import { continuousKeywordGrantCount } from "../EffectModules"
 
 // 持ち主のフィールドに kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）が有効な発生源があるか。
 // hasFunsaiOnBlock と同型だが、phase 指定（相手のアタックステップ限定）を持つ
 export function hasKyoshuOnBlock(state: GameState, ownerPid: PlayerId): boolean {
     const player = state.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = [...battlers(player), ...player.field.nexuses]
     for (const source of sources) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -46,7 +46,7 @@ export function kyoshuUsedOf(state: GameState, self: CardInstance): number {
 // phaseTurn の turn は発生源の持ち主から見る（P055 は両者のアタックステップで有効）
 export function kyoshuSelfExhaustSources(state: GameState, ownerPid: PlayerId): CardInstance[] {
     const out: CardInstance[] = []
-    for (const source of state.players[ownerPid].field.spirits) {
+    for (const source of battlers(state.players[ownerPid])) {
         if (source.isRested) continue
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {

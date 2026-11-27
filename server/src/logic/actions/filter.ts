@@ -12,7 +12,7 @@
 // 無言で無視されてしまうため、データ側の検査が必要）。
 import type { ResolvedTargetFilter, TargetFilter } from "../../type"
 import type { EffectAttempt } from "../../../../shared/rules"
-import { effectiveBp, iceWallColorsOf, instAllCosts, matchesFamilyFilter, matchesTarget } from "../../../../shared/rules"
+import { effectiveBp, iceWallColorsOf, instAllCosts, matchesFamilyFilter, matchesTarget, battlers } from "../../../../shared/rules"
 import { currentLevel, findInstanceAnywhere, getCard } from "../GameState"
 import type { ActionCtx } from "./types"
 import { countEffectCounter } from "../EffectModules"
@@ -92,7 +92,7 @@ export function normalizeFilter(
     }
     if (sameLevelAsSource) {
         const src = ctx.self
-        const onField = src !== null && (ctx.state.players.p1.field.spirits.includes(src) || ctx.state.players.p2.field.spirits.includes(src))
+        const onField = src !== null && (battlers(ctx.state.players.p1).includes(src) || battlers(ctx.state.players.p2).includes(src))
         if (!onField) return SELF_REQUIRED
         resolved.level = [currentLevel(src).level]
     }

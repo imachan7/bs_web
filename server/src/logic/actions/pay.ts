@@ -20,7 +20,7 @@ import { suspend } from "../GameState"
 import { exhaustNexus, exhaustSpirit } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuSelfExhaustSources, kyoshuUsedOf } from "../keywords/kyoshu"
 import { lifeLossAllowed } from "../lifeGate"
-import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instBaseCost, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, bravesOf, refreshBlockedByRule } from "../../../../shared/rules"
+import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instBaseCost, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, bravesOf, refreshBlockedByRule, battlers } from "../../../../shared/rules"
 import { budgetDestroyHasTarget, destroyCandidateCountForPay, destroyNexusCandidateCountForPay, ownSideDestroyCandidates, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { ownSideBounceCandidates, returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { removeCoresAchievableCountForPay, removeCoresKyokaBonus } from "./removeCores"
@@ -168,19 +168,19 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         // 予算つきは、予算に収まる相手のスピリットが1体以上いること
         if (action.budget) return budgetDestroyHasTarget(state, owner, self, action, srcColors, srcType)
         // ネクサス自身も自分自身として払える
-        if (action.target === "self") return self !== null && [...state.players[owner].field.spirits, ...state.players[owner].field.nexuses].some((s) => s.instanceId === self.instanceId)
+        if (action.target === "self") return self !== null && [...battlers(state.players[owner]), ...state.players[owner].field.nexuses].some((s) => s.instanceId === self.instanceId)
         if (action.nexus === "only") return action.count === "any" || destroyNexusCandidateCountForPay(state, owner, action, srcType) >= action.count
         return action.count === "any" || destroyCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
     },
     return: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "return") return false
         if (action.to !== "hand") {
-            if (action.to === "deckBottom" && action.target === "self") return self !== null && state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId) && bounceDenial(state, owner, self, "deckBottom", true) === null
+            if (action.to === "deckBottom" && action.target === "self") return self !== null && battlers(state.players[owner]).some((s) => s.instanceId === self.instanceId) && bounceDenial(state, owner, self, "deckBottom", true) === null
             return returnToDeckTopCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= (action.count ?? 1)
         }
         if (action.costBudget !== undefined) return true
         // 戻らないスピリットは戻すコストの候補から外す（cantBounce）。この表はマジックの対象の有無にも使うので、相手を戻す形には掛けない
-        if (action.target === "self") return self !== null && state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId) && bounceDenial(state, owner, self, "hand", true) === null
+        if (action.target === "self") return self !== null && battlers(state.players[owner]).some((s) => s.instanceId === self.instanceId) && bounceDenial(state, owner, self, "hand", true) === null
         if (action.target === "selfBrave") return self !== null && (self.braveRefs?.length ?? 0) >= 1
         return returnToHandCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
     },
@@ -283,7 +283,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.to === "spirit" || action.to === "nexus") {
             if (action.target === "self") {
                 if (!self) return false
-                const onField = [...state.players[owner].field.spirits, ...state.players[owner].field.nexuses].includes(self)
+                const onField = [...battlers(state.players[owner]), ...state.players[owner].field.nexuses].includes(self)
                 if (!onField) return false
             } else {
                 const ctx = { state, owner, self, targetInstanceId: undefined } as ActionCtx

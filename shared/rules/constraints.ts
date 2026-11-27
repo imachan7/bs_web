@@ -21,7 +21,7 @@ import { card } from "../cardDb"
 import { isEndStepLocked } from "./activation"
 import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { hasKeyword, instColors, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
+import { hasKeyword, instColors, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource, battlerOwnerOf, battlers } from "./level"
 import { entryActive } from "./effectStop"
 import { rensaIgnoresCondition } from "./rensa"
 import { continuousEffectReaches, hasUntargetableConstraint } from "./resistance"
@@ -745,7 +745,7 @@ export function instCantBlockByCost(board: Board, inst: CardInstance): boolean {
                 if (constraint.type !== "cantBlockByCost" && constraint.type !== "opponentCantBlockByCost") continue
                 if (!entryActive(board, pid, source, effect, level)) continue
                 if (constraint.type === "opponentCantBlockByCost") {
-                    if (board.players[pid].field.spirits.some((s) => s.instanceId === inst.instanceId)) continue
+                    if (battlers(board.players[pid]).some((s) => s.instanceId === inst.instanceId)) continue
                     if (effect.phase !== undefined && board.phase !== effect.phase) continue
                     if (effect.turn !== undefined && effect.turn !== "both" && (effect.turn === "own") !== (board.turnPlayer === pid)) continue
                 }
@@ -995,7 +995,7 @@ export function protectedByBpUpToSelf(
     defenderPid: PlayerId,
     attacker: CardInstance,
 ): boolean {
-    const attackerPid: PlayerId = board.players.p1.field.spirits.includes(attacker) ? "p1" : "p2"
+    const attackerPid: PlayerId = battlerOwnerOf(board, attacker)
     const attackerBp = effectiveBp(board, attackerPid, attacker)
     return board.players[defenderPid].field.spirits.some(
         (inst) =>
@@ -1125,7 +1125,7 @@ function hasImmunityAgainst(
     to?: "hand" | "deck",
 ): boolean {
     const player = board.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = [...battlers(player), ...player.field.nexuses]
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
@@ -1256,7 +1256,7 @@ export function magicUseWindowDenial(board: Board, pid: PlayerId, cardId: string
     const entries = card(cardId).effects.filter((e) => e.kind === "magic" && e.timing === useTiming)
     if (entries.length === 0 || !entries.every((e) => e.kind === "magic" && e.useWindow === "beforeBlock")) return null
     const attackerId = board.battle?.attackerInstanceId
-    const attackerPid = board.players.p1.field.spirits.some((s) => s.instanceId === attackerId) ? "p1" : "p2"
+    const attackerPid = battlers(board.players.p1).some((s) => s.instanceId === attackerId) ? "p1" : "p2"
     if (!isBeforeBlockWindow(board) || attackerPid === pid) return "このマジックは相手のアタックのブロック前のフラッシュタイミングでしか使用できません"
     return null
 }
@@ -1325,7 +1325,7 @@ export function burstActivationForbidden(board: Board, holderPid: PlayerId, even
                 if (!c.events.includes(event) || !entryActive(board, opp, source, effect, level)) continue
                 if (!globalConstraintWindowOpen(board, effect, opp)) continue
                 if (c.whileOwnAttackerFamily !== undefined) {
-                    const attacker = board.battle && board.turnPlayer === opp ? board.players[opp].field.spirits.find((s) => s.instanceId === board.battle!.attackerInstanceId) : undefined
+                    const attacker = board.battle && board.turnPlayer === opp ? battlers(board.players[opp]).find((s) => s.instanceId === board.battle!.attackerInstanceId) : undefined
                     if (!attacker || !matchesFamilyFilter(board, opp, attacker, c.whileOwnAttackerFamily)) continue
                 }
                 noteCoverage(effect, "globalConstraint")
@@ -1336,7 +1336,7 @@ export function burstActivationForbidden(board: Board, holderPid: PlayerId, even
                 if (!globalConstraintWindowOpen(board, effect, opp)) continue
                 if (burstCardId === undefined || !card(burstCardId).colors.some((col) => c.colors.includes(col))) continue
                 if (c.whileOwnAttackerKeyword !== undefined) {
-                    const attacker = board.battle && board.turnPlayer === opp ? board.players[opp].field.spirits.find((s) => s.instanceId === board.battle!.attackerInstanceId) : undefined
+                    const attacker = board.battle && board.turnPlayer === opp ? battlers(board.players[opp]).find((s) => s.instanceId === board.battle!.attackerInstanceId) : undefined
                     if (!attacker || !spiritHasKeyword(board, opp, attacker, c.whileOwnAttackerKeyword)) continue
                 }
                 noteCoverage(effect, "globalConstraint")

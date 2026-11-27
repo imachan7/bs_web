@@ -4,7 +4,7 @@ import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, opponentOf } from "../GameState"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { deckMillBlockedByRule, countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
+import { deckMillBlockedByRule, countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, noteHeldKeyword, spiritHasKeyword, battlers } from "../../../../shared/rules"
 import { millDeck } from "../zones/mill"
 import { kyokaBonus } from "./kyoka"
 
@@ -59,7 +59,7 @@ export function millCapBonusFor(state: GameState, ownerPid: PlayerId): number {
 // 持ち主フィールドに funsaiOnBlock（士気高き大本営）が有効な発生源があるか
 export function hasFunsaiOnBlock(state: GameState, ownerPid: PlayerId): boolean {
     const player = state.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = [...battlers(player), ...player.field.nexuses]
     for (const source of sources) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {

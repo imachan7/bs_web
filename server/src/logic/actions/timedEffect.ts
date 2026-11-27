@@ -4,7 +4,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, CardType, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log, suspend } from "../GameState"
 import { applyMagicBuffBonus, gateTargetedApply, recordBp, findSpiritAny, pickAnySideByBp, pickAnySideCandidates, resistanceAgainst, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
-import { KEYWORDS, bravesOf, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget, printedSides } from "../../../../shared/rules"
+import { KEYWORDS, bravesOf, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget, printedSides, battlers } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
@@ -807,7 +807,7 @@ function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], ac
         log(state, `${sourceName}：バトル外のため不発。`)
         return
     }
-    const usedInBattle = [state.battle?.attackerInstanceId ?? null, state.battle?.blockerInstanceId ?? null].some((id) => id !== null && state.players[owner].field.spirits.some((sp) => sp.instanceId === id))
+    const usedInBattle = [state.battle?.attackerInstanceId ?? null, state.battle?.blockerInstanceId ?? null].some((id) => id !== null && battlers(state.players[owner]).some((sp) => sp.instanceId === id))
     const contents = action.content.filter((c) => c.type !== "swapBattleBp" || usedInBattle).filter((c) => c.type === "compareBy" || c.type === "swapBattleBp" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled" || c.type === "coresProtected")
     recordFrom(ctx, { content: contents, target: { kind: "battle" }, until: forTurn ? "turn" : "battle", ownerPid: owner })
     const label = { level: "Lv", cores: "コアの数", cost: "コスト" }

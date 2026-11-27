@@ -31,6 +31,7 @@ import {
     refreshLevelAsOverrides,
 } from "./EffectModules"
 import { randomId } from "../../../shared/randomId"
+import { removeFromField } from "./leaveField"
 
 // **合体処理の唯一の入口。** ブレイヴの実体を field.combinedBraves へ入れ、
 // ホストが braveRefs で参照する（参照方式。§2.3）。かつては GameEngine.ts の
@@ -43,8 +44,7 @@ export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance,
     const player = state.players[pid]
     // 分離してスピリット状態で field.spirits にいるブレイヴを再合体させる経路（detachBrave.combineToChosenSpirit）
     // では、まずそこから抜く。ダイレクトブレイヴ・召喚直後のインスタンスはそもそも spirits にいないので no-op
-    const at = player.field.spirits.findIndex((sp) => sp.instanceId === brave.instanceId)
-    if (at !== -1) player.field.spirits.splice(at, 1)
+    removeFromField(state, pid, brave)
     player.field.combinedBraves.push(brave)
     // ブレイヴが載せていたコアは必ず一度ホストの上に置く（ブレイヴQ&A Q6。BRAVE.md §6 末尾）
     host.cores += brave.cores

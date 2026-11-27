@@ -3,7 +3,7 @@
 // 「破壊されない」は対象に取られることを防がない（Q1711・2026-10-30）。選択肢には出し、破壊の時点で止める。
 // コストの破壊だけは、全部払えるときだけ払えるので候補から外す（呼び出し側が cause:"cost" で聞く）
 import { entryActive } from "../../../shared/rules/effectStop"
-import { cardNameContains, checkAuraCondition, hasGlobalConstraint, instHasColor, timedContentsOn } from "../../../shared/rules"
+import { cardNameContains, checkAuraCondition, hasGlobalConstraint, instHasColor, timedContentsOn, battlers } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import type { CardInstance, CardType, Color, DestroyContext, GameState, PlayerId } from "../type"
 import { currentLevel, getCard } from "./GameState"
@@ -20,7 +20,7 @@ function hasOwnNexusIndestructible(
     context?: DestroyContext,
 ): boolean {
     const player = state.players[ownerPid]
-    const instances = [...player.field.spirits, ...player.field.nexuses]
+    const instances = [...battlers(player), ...player.field.nexuses]
     for (const inst of instances) {
         const level = currentLevel(inst).level
         for (const effect of getCard(inst.cardId).effects) {

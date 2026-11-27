@@ -22,8 +22,8 @@ import type {
     PlayerId,
     ResolvedTargetFilter,
 } from "../type"
-import { instLevels } from "../../../shared/rules"
-import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, noteMissedPayAsk, opponentOf, suspend } from "./GameState"
+import { instLevels, battlers } from "../../../shared/rules"
+import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, noteMissedPayAsk, opponentOf, suspend, findBattler } from "./GameState"
 // shared/ の純粋述語。外部が EffectModules 経由で import しているため、再エクスポートで名前を残す
 // triggers.ts とは相互 import になる（CommonJS の循環 require で安全）
 import { destroySpirit } from "./removal"
@@ -272,7 +272,7 @@ export function autoPayPlan(state: GameState, pid: PlayerId, need: number, keepL
         const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: inst.cores, cause: "cost", actorPid: pid })
         // 破壊待機の個体は場を離れるので維持コアも払える（2026-10-15 ユーザー確認）
         const keepFloor = keepAlive === "current" ? instLevels(inst).reduce((m, l) => (l.cores <= inst.cores ? Math.max(m, l.cores) : m), 0) : instMinLevelCores(inst)
-        const spare = keepAlive !== undefined && !isTrashWaiting(inst) ? inst.cores - keepFloor : keepLevel1 && player.field.spirits.includes(inst) && !isTrashWaiting(inst) ? inst.cores - instMinLevelCores(inst) : Infinity
+        const spare = keepAlive !== undefined && !isTrashWaiting(inst) ? inst.cores - keepFloor : keepLevel1 && battlers(player).includes(inst) && !isTrashWaiting(inst) ? inst.cores - instMinLevelCores(inst) : Infinity
         const take = Math.min(rest, normalCoresOn(player, inst), spare, allowed)
         if (take <= 0) continue
         paySources.push({ instanceId: inst.instanceId, count: take })
@@ -467,15 +467,6 @@ export function isResisted(
     attempt: EffectAttempt,
 ): boolean {
     return resistanceAgainst(state, targetOwnerPid, target, attempt) !== null
-}
-
-// 無ければ undefined
-function ownerPidOfInstance(state: GameState, inst: CardInstance): PlayerId | undefined {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const field = state.players[pid].field
-        if (field.spirits.includes(inst) || field.nexuses.includes(inst)) return pid
-    }
-    return undefined
 }
 
 // スピリットのコアが増減したとき、相手フィールドの exhaustOnManualCoreAdd 持ち発生源（レベル有効。effectSources 経由で lendSelfThisTurn の貸与も対応）があれば、そのスピリットを疲労させる。
@@ -703,7 +694,7 @@ export function hasLifeDamageNegate(
     if (!attacker) return false
     const attackerBp = effectiveBp(state, attackerPid, attacker)
     const player = state.players[defenderPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = [...battlers(player), ...player.field.nexuses]
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -741,7 +732,7 @@ export function drawStepBonusFor(state: GameState, pid: PlayerId): number {
     const player = state.players[pid]
     const counted = new Set<string>()
     let bonus = 0
-    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+    for (const inst of [...battlers(player), ...player.field.nexuses]) {
         const level = currentLevel(inst).level
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "drawStepBonus" || !entryActive(state, pid, inst, effect, level)) continue
@@ -761,7 +752,7 @@ export function drawStepBonusFor(state: GameState, pid: PlayerId): number {
 // ownFieldHasNames 指定時は、指定カード名すべてが持ち主のスピリットにそろっているときのみ。PhaseManager から呼ぶ
 export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
     const player = state.players[pid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = [...battlers(player), ...player.field.nexuses]
     let bonus = 0
     for (const inst of sources) {
         const level = currentLevel(inst).level
@@ -793,7 +784,7 @@ export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
 // 満たせば自動で置く簡略化（ライフを増やすことを拒む場面はこの弾に無い）。PhaseManager から呼ぶ
 export function coreStepToLifeActive(state: GameState, pid: PlayerId): boolean {
     const player = state.players[pid]
-    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+    for (const inst of [...battlers(player), ...player.field.nexuses]) {
         const level = currentLevel(inst).level
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "coreStepBonus" || !effect.toLife) continue
@@ -941,7 +932,7 @@ export function findSpiritAny(
     instanceId: string,
 ): { pid: PlayerId; inst: CardInstance } | null {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const inst = state.players[pid].field.spirits.find(
+        const inst = battlers(state.players[pid]).find(
             (s) => s.instanceId === instanceId,
         )
         if (inst) return { pid, inst }
@@ -1168,7 +1159,7 @@ export function countEffectCounter(
                 ? state.battle.blockerInstanceId
                 : state.battle.attackerInstanceId
         if (!otherId) return 0
-        const otherInst = state.players[opp].field.spirits.find((s) => s.instanceId === otherId)
+        const otherInst = findBattler(state.players[opp], otherId)
         if (!otherInst || !instIsCombined(otherInst)) return 0
         return instanceSymbolCount(otherInst)
     }
@@ -1180,7 +1171,7 @@ export function countEffectCounter(
                 ? state.battle.blockerInstanceId
                 : state.battle.attackerInstanceId
         if (!otherId) return 0
-        const otherInst = state.players[opp].field.spirits.find((s) => s.instanceId === otherId)
+        const otherInst = findBattler(state.players[opp], otherId)
         return otherInst ? instanceSymbolCount(otherInst) : 0
     }
     if ("ownKeyword" in counter) {
@@ -1267,7 +1258,7 @@ export function countEffectCounter(
 // draw アクションの枚数確定箇所からのみ参照する（deckReveal・通常のドローステップは対象外）
 export function drawDoubleMultiplier(state: GameState, owner: PlayerId): number {
     const player = state.players[owner]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = [...battlers(player), ...player.field.nexuses]
     for (const source of sources) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -1302,7 +1293,7 @@ type CorePlaces = Record<PlayerId, { reserve: number; life: number; byInstance: 
 function hasCorePlacedWatcher(state: GameState): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
-        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        for (const inst of [...battlers(player), ...player.field.nexuses]) {
             for (const effect of getCard(inst.cardId).effects) {
                 if (effect.kind === "fieldEvent" && (effect.event === "opponentCorePlaced" || effect.event === "coresGainedFromVoid" || effect.event === "lifeCorePlaced")) return true
             }
@@ -1316,7 +1307,7 @@ function snapshotCorePlaces(state: GameState): CorePlaces {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
         const byInstance = new Map<string, number>()
-        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        for (const inst of [...battlers(player), ...player.field.nexuses]) {
             byInstance.set(inst.instanceId, inst.cores)
         }
         snap[pid] = { reserve: player.reserve, life: player.life, byInstance }
@@ -1331,7 +1322,7 @@ function fireCorePlacedFromDiff(state: GameState, before: CorePlaces): void {
         const player = state.players[pid]
         const prev = before[pid]
         let placed = Math.max(0, player.reserve - prev.reserve)
-        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        for (const inst of [...battlers(player), ...player.field.nexuses]) {
             // この効果の間に場に出たカード（スナップショットに無い）は、そこに置かれたコアも「置いた」分
             placed += Math.max(0, inst.cores - (prev.byInstance.get(inst.instanceId) ?? 0))
         }
@@ -1355,7 +1346,7 @@ function fireCoreGainEvents(state: GameState, before: CorePlaces): void {
         let totalBefore = prev.reserve + prev.life
         let totalAfter = player.reserve + player.life
         for (const v of prev.byInstance.values()) totalBefore += v
-        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        for (const inst of [...battlers(player), ...player.field.nexuses]) {
             totalAfter += inst.cores
             const up = inst.cores - (prev.byInstance.get(inst.instanceId) ?? 0)
             if (up > 0) places.push({ where: "instance", instanceId: inst.instanceId, n: up })

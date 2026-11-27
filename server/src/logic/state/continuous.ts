@@ -37,6 +37,7 @@ import {
     spiritHasLabeledKeyword,
     LABELED_KEYWORDS,
     onlyColors,
+    battlers,
 } from "../../../../shared/rules"
 
 // 期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
@@ -903,11 +904,11 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     const battle = state.battle
                     const kw = effect.keywordFilter
                     if (battle && battle.blockerInstanceId && kw) {
-                        const attacker = state.players[pid].field.spirits.find(
+                        const attacker = battlers(state.players[pid]).find(
                             (sp) => sp.instanceId === battle.attackerInstanceId,
                         )
                         if (attacker && spiritHasKeyword(state, pid, attacker, kw)) {
-                            const blocker = state.players[opponentOf(pid)].field.spirits.find(
+                            const blocker = battlers(state.players[opponentOf(pid)]).find(
                                 (sp) => sp.instanceId === battle.blockerInstanceId,
                             )
                             if (blocker) {
