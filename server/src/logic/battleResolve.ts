@@ -264,16 +264,25 @@ function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: nu
             if (!state.winner) fireTrigger(state, attackerPid, attacker, "onLifeReduced")
         }
     } else if (step === 5) {
-        // 『バトル終了時』誘発: ブロックされずライフで受けたバトルも「バトル終了時」に含まれるため、
-        // 生存しているアタッカーに発火する（26系【地鳴】。減算記録はブロックが無いので0）
+        // ブロックされなかったアタックもバトル。バトル終了時はブロックされたときと同じ関数を通す
         const surviving = findSpirit(state.players[attackerPid], f.attackerSnapshot.instanceId)
-        if (surviving) fireTrigger(state, attackerPid, surviving, "onBattleEnd", "attacker")
+        if (surviving) fireBattleEndFor(state, attackerPid, surviving, "attacker")
     } else if (step === 6) {
         destroyMarkedAtBattleEnd(state)
         resolveKoboOnBattleEnd(state, attackerPid, attacker)
     } else {
         clearBattle(state)
     }
+}
+
+// バトル参加者のバトル終了時。ブロックの有無・ブロッカーが離れたかを問わず通す（アタックした時点でバトル。2026-11-27 ユーザー確認。TIMING_CHART §1.9）
+function fireBattleEndFor(state: GameState, pid: PlayerId, inst: CardInstance, role: "attacker" | "blocker", opponentId?: string): void {
+    fireTrigger(state, pid, inst, "onBattleEnd", role, opponentId)
+    fireFieldEventTriggers(state, pid, "ownSpiritBattleEnded", { pid, inst }, instColors(inst))
+    if (instIsCombined(inst)) {
+        fireFieldEventTriggers(state, pid, "ownCombinedSpiritBattleEnded", { pid, inst }, instColors(inst), inst.instanceId)
+    }
+    if (!state.winner && inst.destroyAtBattleEnd && findSpirit(state.players[pid], inst.instanceId)) destroySpirit(state, pid, inst.instanceId)
 }
 
 // 印（destroyAtBattleEnd）を付けられたスピリットと合体中のブレイヴの、バトル終了時の破壊。
@@ -375,9 +384,10 @@ export function resolveBattle(state: GameState): void {
         // 減算記録はこの時点で確定させる＝ブロッカーがトラッシュに無ければ減らない）
         if (attacker) {
             recordBlockerTrashCost(state, blockerPid)
-            fireTrigger(state, attackerPid, attacker, "onBattleEnd", "attacker", state.battle.blockerInstanceId ?? undefined)
+            fireBattleEndFor(state, attackerPid, attacker, "attacker", state.battle.blockerInstanceId ?? undefined)
         }
         destroyMarkedAtBattleEnd(state)
+        if (attacker) resolveKoboOnBattleEnd(state, attackerPid, attacker)
         clearBattle(state)
         return
     }
@@ -800,49 +810,13 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             // 戻されていたら減らない＝トラッシュに無ければ0）
             recordBlockerTrashCost(state, blockerPid)
             const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
-            if (survivingAttacker) {
-                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd", "attacker", f.blockerInstanceId)
-                fireFieldEventTriggers(state, attackerPid, "ownSpiritBattleEnded", { pid: attackerPid, inst: survivingAttacker }, instColors(survivingAttacker))
-                // fieldEvent "ownCombinedSpiritBattleEnded"：ネクサス等から見る誘発なので、
-                // バトル参加者にしか発火しないonBattleEndとは別に呼ぶ必要がある（BS10-086巨星望む大樹Lv2）
-                if (instIsCombined(survivingAttacker)) {
-                    fireFieldEventTriggers(
-                        state,
-                        attackerPid,
-                        "ownCombinedSpiritBattleEnded",
-                        { pid: attackerPid, inst: survivingAttacker },
-                        instColors(survivingAttacker),
-                        survivingAttacker.instanceId,
-                    )
-                }
-                // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
-                if (!state.winner && survivingAttacker.destroyAtBattleEnd && findSpirit(state.players[attackerPid], survivingAttacker.instanceId)) {
-                    destroySpirit(state, attackerPid, survivingAttacker.instanceId)
-                }
-            }
+            if (survivingAttacker) fireBattleEndFor(state, attackerPid, survivingAttacker, "attacker", f.blockerInstanceId)
             return
         }
         case 10: {
             if (state.winner) return
             const survivingBlocker = findSpirit(state.players[blockerPid], f.blockerInstanceId)
-            if (survivingBlocker) {
-                fireTrigger(state, blockerPid, survivingBlocker, "onBattleEnd", "blocker", f.attackerInstanceId)
-                fireFieldEventTriggers(state, blockerPid, "ownSpiritBattleEnded", { pid: blockerPid, inst: survivingBlocker }, instColors(survivingBlocker))
-                if (instIsCombined(survivingBlocker)) {
-                    fireFieldEventTriggers(
-                        state,
-                        blockerPid,
-                        "ownCombinedSpiritBattleEnded",
-                        { pid: blockerPid, inst: survivingBlocker },
-                        instColors(survivingBlocker),
-                        survivingBlocker.instanceId,
-                    )
-                }
-                // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
-                if (!state.winner && survivingBlocker.destroyAtBattleEnd && findSpirit(state.players[blockerPid], survivingBlocker.instanceId)) {
-                    destroySpirit(state, blockerPid, survivingBlocker.instanceId)
-                }
-            }
+            if (survivingBlocker) fireBattleEndFor(state, blockerPid, survivingBlocker, "blocker", f.attackerInstanceId)
             return
         }
         case 11: {
