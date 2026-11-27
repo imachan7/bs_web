@@ -296,8 +296,6 @@ console.log("=== BS10-086 Lv2：実際のアタック→バトル終了から誘
     // ⚠️ 上のケースは fireFieldEventTriggers を直接呼んでおり、**GameEngine が実際にこの
     // フィールドイベントを発火しているか**は見ていない。「データは正しいのに実戦で呼ばれない」は
     // 2026-08-28 にネクサスの『配置時』で実際に起きた形なので、実アタック経由でも1本通す。
-    // **ブロックさせるのが要点**：ブロックされなかったアタックはバトルにならないので、
-    // 『バトル終了時』もこのフィールドイベントも発火しない（効果文も「バトルしたとき」）
     const s = base("086-refresh-realbattle", false)
     const nexus = createInstance("BS10-086", s.turn, getCard("BS10-086").levels[1]!.cores) // Lv2
     s.players.p1.field.nexuses.push(nexus)
