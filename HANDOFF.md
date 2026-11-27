@@ -21,6 +21,10 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：バトル終了の処理を1つにまとめる（ブランチ `fix/battle-end-unify`。2026-11-27 ユーザー確認）
+- ブロックされた／されなかった／ブロッカーがフラッシュ中に離れた、の3つの終わり方を `battleResolve.ts` の1関数 `fireBattleEndFor(state, pid, inst, opponentId, role)`（`onBattleEnd`・`ownSpiritBattleEnded`・合体なら `ownCombinedSpiritBattleEnded`・`destroyAtBattleEnd`）に通す。順は アタッカー → ブロッカー → 印の破壊・【光芒】（TIMING_CHART ＞７）。ブロックされなかったときはライフ減少後の誘発・バーストの後
+- 規則：アタックした時点でバトル（TIMING_CHART §1 の原本「ブロックしない場合、４はパスして５へ」）。変わる挙動：BS18-006・BS10-086 がブロックされなかったアタックでも発揮、ブロッカーが離れたときも【光芒】
+
 ### 進行中：スマホの対戦画面（ブランチ `feat/mobile-battle-layout`。ユーザーに見せてから PR）
 
 - 状態（11-25 夜）：ユーザーが実機（Android 412×830 相当）で触りながら直している。点検ページ `/dev/ui-gallery.html`（場面×大きさ5、崩れを自動点検）で各回確かめている
