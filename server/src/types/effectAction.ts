@@ -58,6 +58,15 @@ export type PickedTargets = { ids: string[]; passed: string[]; failed: string[];
 // paidCost＝コストを支払った召喚か（state.summoningPaid の写し。後半で読む前に state の印は消えるので、続きに持たせる。#437 F5）
 export type SummonTail = { stage: number; paidCost: boolean; end?: number } // end＝この段の手前で止める（効果の後へ回した段2〜3だけを出口で解くフレーム。DERIVED_AFTER_EFFECT §11）
 
+// 【Uトリガー】の途中経過。カードデータには書かない（再開フレームの action に載って中断をまたぐ。ULTIMATE_STAGE6.md）
+export type UTriggerProgress = {
+    stage: "after"
+    ultimateInstanceId: string
+    placed: { cardId: string; verdict: "hit" | "miss" | "guard" }[]
+    guardedAll?: true
+    hitFired?: boolean
+}
+
 export type EffectAction =
  | { type: "draw"; count: number; side?: "own" | "both"; fillTo?: number; costSkipCoreStep?: true; countCounter?: EffectCounter; countMax?: number; costSacrificeChosen?: true; nth?: number } // 自分がデッキから引く。nth＝デッキの上から nth 枚目を引く（上の nth-1 枚はそのまま残す）。デッキが nth 枚未満なら引かない（2026-11-20）。countMaxはmill.countMaxと同義。side:"both"は自分→相手の順の両者、省略時は自分のみ。costSkipCoreStep＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）。fillTo＝手札がその枚数になるまで引く（count は見ない。0〜N の upTo とは別の意味）
  | { type: "destroy"; picked?: PickedTargets; eachFilter?: ResolvedTargetFilter[]; eachChosen?: string[]; filter?: TargetFilter; count: number | "any"; budget?: { by: "bp" | "cost"; amount?: number; fromFamilyBpSum?: FamilyFilter; counter?: EffectCounter; atLeast?: "paidCost" | number }; suppressOnDestroy?: true; suppressOwnEffects?: true; braveCantRemain?: true; chosenIds?: string[]; asCost?: true; choosing?: true; all?: true; voidCoreToSelfPerDestroyed?: true; countCounter?: EffectCounter; countPerOpponentTrashMagicColors?: boolean; anySide?: true; side?: "own" | "both"; excludeTarget?: true; chooserIsTarget?: true; drawPerDestroyed?: number; millPerDestroyed?: number; thenDrawFixed?: number; lowestCost?: true; costSacrificeChosen?: true; upTo?: true; nexus?: "only"; levelFilter?: number[]; target?: "self"; nexusProgress?: { s: number; i: number; d: number }; awaiting?: true; recordAppend?: true } // 相手スピリットを破壊（既定。nexus:"only"＝ネクサスを破壊（levelFilter は表示レベルで判定。anySide は自分か相手のネクサスを持ち主が選び非対話は相手側優先。side:"both"＝両陣営それぞれ。awaiting／nexusProgress は再入用の内部軸）。target:"self"＝このカード自身を破壊（ネクサス自身も可）。side:"own"は自分側で、選ぶのは持ち主＝pay { cost: destroy{side:"own"} } の器）。upTo＝0〜count の好きな数（非対話は count 体まで破壊）。thenDrawFixed は破壊処理後に発火（「その後」＝0体でも）。lowestCost は自動選択の基準をコスト最小にする（同コストはBP最大）。drawPerDestroyed は「残る」で残った個体を数えない。chooserIsTarget は破壊される側（相手）が選ぶ（実行は発生源の持ち主の効果）。filter省略時はBP不問。anySide の自動選択は実効BP最大（同値は相手側優先）。excludeTarget は誘発が渡す targetInstanceId を避ける。recordAppend は「残りN体」の分割再開フレームの内部印：lastMoved への記録を上書きでなく追記にする（選択のたびに再入しても「この効果で破壊した1体につき」が全数を見られる） // braveCantRemain＝この効果で合体スピリットを破壊したとき、ブレイヴはスピリット状態で残せない（残す確認を出さずトラッシュへ。BS22-016）
@@ -120,6 +129,7 @@ export type EffectAction =
 
  // 自分のトラッシュのスピリットカードを手札に戻す。costBudget＝countを無視し、コスト合計がbudget以下で好きなだけ（コスト最大から貪欲に選ぶ決定的簡略化）。anyCardType＝カード種別を問わない。vanillaFilter＝効果の記述を持たないカードのみ（isVanillaCard）。bravesOnly＝ブレイヴカードだけ（includeBravesの「両方」とは別軸）。colorFilter は静的なcolorsで判定。costSkipDraw＝そのドローステップのドローを支払いに使う（実際に戻せたときだけ GameState.drawStepSkipped を立てる）。keywordFilter は静的に持つエントリで判定、keywordFilterAny は OR。thenDestroyIfFamily＝戻したカードがその系統（配列＝OR）を持つときだけ続けて maxBp以下の相手スピリット1体を破壊。自動選択は末尾＝新しい方から（本来は選択の簡略化）。all＝countを無視しfamilyFilter該当カードすべて
  | { type: "settleDerived" } // その時点までに効果の中で待機に入った破壊・消滅の列を解決して確定する（「この効果発揮後」の区切り）。通常は効果の出口が自動で行うので、データには「この効果発揮後」の位置にだけ書く
+ | { type: "uTrigger"; count: number; hit: EffectAction[]; hitBonus?: { need: number | "all"; actions: EffectAction[] }[]; xu?: EffectAction[]; progress?: UTriggerProgress } // 【Uトリガー】。相手のデッキ上 count 枚をトラッシュへ置き、置いた札ごとにヒット／ガード／ミスを決める（デッキ破棄ではない。C2）。hit はヒットあり、hitBonus の need はヒット枚数（"all"＝count 枚すべて）で発揮。xu は段6b
  | { type: "loseGame"; side: "opponent" | "own" } // 効果で敗北させる（相手は負けたことになる）。side は効果の持ち主から見た負ける側
  | { type: "restartGame" } // お互いのカードすべてをデッキへ戻して切り直し、1ターン目からゲームを再開する（PB13-05）。ゲーム中に1回だけで、2回目以降は何もしない。除外ゾーンとライフは残る
  | { type: "noop" } // 何もしない。magicNegate の確認など、アクション解決以外の pendingChoice のプレースホルダ。カードデータには書かない

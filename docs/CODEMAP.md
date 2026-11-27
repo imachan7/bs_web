@@ -367,6 +367,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `matchesCostFilter`（fn）：コスト範囲の判定（TargetFilter.cost）。
 - `instMatchesCostFilter`（fn）：フィールド上のインスタンスに対するコスト範囲の判定。実コストに加えて
 
+## shared/rules/uTrigger.ts
+
+- `UTriggerVerdict`（型）
+- `uTriggerVerdict`（fn）：placedPrintedCost は置かれた札の印刷コスト（デッキのカードに軽減は効かない。C3）。ultimateCost は合体・コスト増減を反映した今のコスト。
+- `isUTriggerGuard`（fn）：置かれた札が、このアルティメットのUトリガーをガードするか（札側の静的な性質。コスト上限つきはアルティメットの今のコストで見る。C4）
+
 ## shared/rules/waiting.ts
 
 - `isWaiting`（fn）
@@ -1419,6 +1425,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isStillOnField`（fn）：発生源がまだ持ち主のフィールドに居るか（スピリット／ネクサスのどちらでも）。
 - `notifySpiritCoresRemovedByOpponent`（fn）：フィールドイベント誘発「自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき」
 
+## server/src/logic/uTrigger.ts
+
+- `resolveUTrigger`（fn）
+
 ## server/src/logic/zones/fieldMagic.ts
 
 - `trashFieldMagic`（fn）：フィールドに置いてあるマジック1枚を持ち主のトラッシュへ破棄する（破棄条件の fieldEvent から呼ぶ）
@@ -1543,6 +1553,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `IfCond`（型）：last＝GameState.lastMoved に pick を満たすカードが1枚以上
 - `PickedTargets`（型）：複数の対象を選び終えた後の、耐性の確認の途中経過（logic/pickTargets.ts）
 - `SummonTail`（型）：召喚の後半（ブレイヴの召喚の誘発・トラッシュの同名召喚・同名で手札へ戻る・天使長ファニムの疲労）の続き。stage＝次に行う段。
+- `UTriggerProgress`（型）：【Uトリガー】の途中経過。カードデータには書かない（再開フレームの action に載って中断をまたぐ。ULTIMATE_STAGE6.md）
 - `EffectAction`（型）
 
 ## server/src/types/effectCounter.ts

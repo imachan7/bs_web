@@ -649,6 +649,12 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "uTriggerGuard" // Uトリガーで置かれたとき、そのUトリガーをガードする（札側の静的な性質。ultimateMaxCost 以下のコストのアルティメットに対してだけ。省略＝コスト不問）
+          levels: number[] | null
+          ultimateMaxCost?: number
+      }
+    | {
+          id: string
           kind: "bofuCountBonus" // 持ち主のスピリットの【暴風】の指定数（静的keywordのcount）
           // 暴風を持たない（base=0）スピリットには加算しない
           levels: number[] | null
