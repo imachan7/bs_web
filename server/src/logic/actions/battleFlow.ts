@@ -80,6 +80,7 @@ import {
     checkAuraCondition,
     directAttackFilterOf,
     mustBeAttackTargetIds,
+    battlers,
 } from "../../../../shared/rules"
 import { matchesDirectedAttackFilter } from "../../../../shared/block"
 import { flushBraveKeeps } from "../brave"
@@ -558,7 +559,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
             }
             // thenRefreshCombinedHost（BS13-073バーニングサン）：実際に合体できたときだけ合体先を回復させる
             if (action.thenRefreshCombinedHost && combineTargetInstanceId !== undefined && !state.winner) {
-                const host = player.field.spirits.find((sp) => sp.instanceId === combineTargetInstanceId)
+                const host = battlers(player).find((sp) => sp.instanceId === combineTargetInstanceId)
                 if (host) refreshSpirit(state, owner, host, srcType)
             }
         }
@@ -1171,7 +1172,7 @@ const refreshSelfBraveThenCombineHandler: ActionHandler<"refreshSelfBraveThenCom
     // selfがスピリット状態（field.spiritsにいる）でなければ対象外（既に合体済み等）
     if (!player.field.spirits.some((sp) => sp.instanceId === self.instanceId)) return
     if (isInBattle(state, self)) return
-    const host = targetInstanceId !== undefined ? player.field.spirits.find((sp) => sp.instanceId === targetInstanceId) : undefined
+    const host = targetInstanceId !== undefined ? battlers(player).find((sp) => sp.instanceId === targetInstanceId) : undefined
     if (!host || !braveCombineCandidates(state, owner, self.cardId).includes(host.instanceId)) {
         return
     }
@@ -1226,7 +1227,7 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
     // 合体先の選択から再開（ブレイヴは既に選んである）
     if (action.chosenBraveInstanceId !== undefined) {
         const brave = player.field.spirits.find((sp) => sp.instanceId === action.chosenBraveInstanceId)
-        const host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId)
+        const host = battlers(player).find((sp) => sp.instanceId === targetInstanceId)
         if (brave && host) attachBrave(state, owner, host, brave)
         return
     }
@@ -1274,7 +1275,7 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
         )
         return
     }
-    const host = player.field.spirits.find((sp) => sp.instanceId === hosts[0])
+    const host = battlers(player).find((sp) => sp.instanceId === hosts[0])
     if (!host) {
         log(state, `${sourceName}：合体させられるスピリットがいなかった。`)
         return
@@ -1332,7 +1333,7 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
     }
     // 自分の合体スピリットのブレイヴ（発生源自身が合体しているホストも含むため、
     // イリテバン自身がここで拾われる＝2026-09-07 ユーザー確認）
-    for (const host of player.field.spirits) {
+    for (const host of battlers(player)) {
         for (const brave of bravesOf(player, host)) collect(brave, host)
     }
     // 「自身を選ぶ」＝候補の中に、この借用アクション自身と同じ種類（type:"borrowCombinedAttackEffect"）の
@@ -1535,7 +1536,7 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
         if (braves.some((b) => b.instanceId === chosen.instanceId)) {
             // ホスト探索は絞り込み前の全スピリットから行う（types:["brave"]単独指定時、
             // candidates用のspiritsはブレイヴ型に絞っているためホスト自身は含まれない）
-            const host = oppPlayer.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
+            const host = battlers(oppPlayer).find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
             if (!host) return
             if (action.mode === "destroy") destroyCombinedBrave(state, opp, host, chosen, destroyContext)
             else if (action.mode === "toDeckBottom") returnCombinedBraveToDeckBottom(state, opp, host, chosen)
@@ -1711,7 +1712,7 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
         const brave = player.field.spirits.find((sp) => sp.instanceId === action.detachedBraveInstanceId)
         if (!brave) return
         if (targetInstanceId !== undefined) {
-            const host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId)
+            const host = battlers(player).find((sp) => sp.instanceId === targetInstanceId)
             if (host) attachBrave(state, owner, host, brave)
         }
         return
@@ -1719,7 +1720,7 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
 
     let host: CardInstance | undefined
     if (targetInstanceId !== undefined) {
-        host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId && (sp.braveRefs ?? []).length > 0)
+        host = battlers(player).find((sp) => sp.instanceId === targetInstanceId && (sp.braveRefs ?? []).length > 0)
     } else {
         const hostCandidates = targetableSpirits(state, owner, (sp) => (sp.braveRefs ?? []).length > 0)
         if (hostCandidates.length === 0) {

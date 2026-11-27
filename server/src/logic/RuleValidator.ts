@@ -182,7 +182,7 @@ export function validateSummon(
 
     if (braveTargetInstanceId !== undefined) {
         if (card.type !== "brave") return "ブレイヴカードではありません"
-        const host = player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
+        const host = battlers(player).find((sp) => sp.instanceId === braveTargetInstanceId)
         if (host === undefined) return "合体先のスピリットが自分のフィールドにいません"
         if (getCard(host.cardId).type === "brave") return "スピリット状態のブレイヴにはブレイヴを合体できません"
         if (!canCombineBraveCount(state, pid, host, cardId)) return "そのスピリットには既にブレイヴが合体しています"
@@ -919,7 +919,7 @@ export function validateDetachBrave(
     const brave = player.field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
     if (!brave) return "合体しているブレイヴが見つかりません"
     // 異魔神ブレイヴ（実体1つ・参照2本）は片方だけ外す形が未確定なので、当面は対象外にする（§11.6）
-    const hosts = player.field.spirits.filter((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
+    const hosts = battlers(player).filter((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     if (hosts.length !== 1) return "このブレイヴは分離できません"
     if (activeConstraints(state, pid, hosts[0]!).some((c) => c.type === "cantSeparate")) {
         return "この合体スピリットは分離できません"

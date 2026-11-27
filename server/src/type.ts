@@ -73,6 +73,7 @@ export interface LevelDef {
 // ブレイヴの合体条件（docs/design/BRAVE.md §2.2）。読点区切りの複数条件は配列＝OR。
 // TargetFilter と軸が似ているが「対象は合体先スピリット1体」で意味が違うため共用しない
 export interface BraveConditionTerm {
+    kind?: "spirit" | "ultimate" | ("spirit" | "ultimate")[] // 合体先の種類。省略はスピリットだけ（ULTIMATE.md §8・B13）
     family?: string // 系統
     minCost?: number // コスト◯以上（BS10 の18枚中12枚）
     maxCost?: number // コスト◯以下

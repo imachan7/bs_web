@@ -17,7 +17,7 @@ import { eventBurstsFrame, fireEventBursts } from "./EffectModules"
 import type { CollectedTrigger } from "./blockDeclared"
 import type { EventBurstCheck, ResumeFrame, SummonTail } from "../type"
 import { entryActive } from "../../../shared/rules/effectStop"
-import { bravesOf, currentLevel } from "../../../shared/rules"
+import { bravesOf, currentLevel, battlers } from "../../../shared/rules"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { effectiveCost } from "../../../shared/cost"
 import { cardHasColor, handSummonCostPayable, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter } from "../../../shared/rules"
@@ -376,7 +376,7 @@ export function summonFreeFromHandIndex(
     const braveHost =
         opts?.braveTargetInstanceId === undefined
             ? undefined
-            : player.field.spirits.find((sp) => sp.instanceId === opts.braveTargetInstanceId)
+            : battlers(player).find((sp) => sp.instanceId === opts.braveTargetInstanceId)
     if (braveHost !== undefined) {
         attachBrave(state, owner, braveHost, inst)
     } else {
@@ -471,7 +471,7 @@ export function summonFreeFromTrashIndex(
     if (opts?.payCost) state.summoningPaid = true
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
     if (opts?.skipOnSummon) inst.noOnSummon = true
-    const braveHost = opts?.braveTargetInstanceId === undefined ? undefined : player.field.spirits.find((sp) => sp.instanceId === opts.braveTargetInstanceId)
+    const braveHost = opts?.braveTargetInstanceId === undefined ? undefined : battlers(player).find((sp) => sp.instanceId === opts.braveTargetInstanceId)
     if (braveHost !== undefined) attachBrave(state, owner, braveHost, inst)
     else placeSummonedOnField(state, owner, inst)
     // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）

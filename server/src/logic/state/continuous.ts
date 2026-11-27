@@ -240,7 +240,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
     // ここには入れず、shared/rules.ts の effectiveBp が都度引く
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
-        for (const host of player.field.spirits) {
+        for (const host of battlers(player)) {
             const braves = bravesOf(player, host)
             if (braves.length === 0) continue
             const composite = braveCompositeOf(state, pid, braves)

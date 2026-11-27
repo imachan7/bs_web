@@ -527,7 +527,7 @@ export function placeSummonedSpirit(
     const host =
         braveTargetInstanceId === undefined
             ? undefined
-            : player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
+            : battlers(player).find((sp) => sp.instanceId === braveTargetInstanceId)
     if (host !== undefined) {
         attachBrave(state, pid, host, inst)
     } else {
@@ -732,7 +732,7 @@ export function doSummon(
     const braveNote =
         braveTargetInstanceId === undefined
             ? ""
-            : `${getCard(player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)?.cardId ?? cardId).name}に合体させて`
+            : `${getCard(battlers(player).find((sp) => sp.instanceId === braveTargetInstanceId)?.cardId ?? cardId).name}に合体させて`
     const altSummonNote = altSummonNexusInstanceIds !== undefined ? "、ネクサスをデッキの下に戻すことでコストを支払わずに" : ""
     const logText = `${player.name}は${flashNote}${braveNote}${altSummonNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`
     // [ソウルコア]を維持コアとして置く（2026-10-06）。リザーブの[ソウルコア]（placeSoulCoreFromReserve）でも、
@@ -1090,7 +1090,7 @@ function doDetachBrave(state: GameState, pid: PlayerId, braveInstanceId: string,
     if (error) return error
     const player = state.players[pid]
     const brave = player.field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
-    const host = player.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
+    const host = battlers(player).find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     if (!brave || !host) return "対象のカードが見つかりません"
     detachBraveVoluntary(state, pid, host, brave, paySources)
     return null
@@ -1103,7 +1103,7 @@ function doExchangeBrave(state: GameState, pid: PlayerId, braveInstanceId: strin
     if (error) return error
     const swap = braveExchangeMode(state, pid, braveInstanceId, toInstanceId) === "swap"
     const player = state.players[pid]
-    const from = player.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
+    const from = battlers(player).find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     const to = findSpirit(player, toInstanceId)
     if (!from || !to) return "対象のカードが見つかりません"
     const take = (host: CardInstance, id: string): CardInstance | undefined => {

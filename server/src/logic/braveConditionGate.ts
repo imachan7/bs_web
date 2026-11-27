@@ -1,7 +1,7 @@
 // 合体条件が後から厳しくなったときの強制分離（BS21-X06「合体条件をコスト7以上にする」。2026-11-06 ユーザー確認）
 import { isWaiting } from "../../../shared/rules/waiting"
 import type { CardInstance, GameState, PlayerId } from "../type"
-import { boardResistanceAgainst, braveExtraMinCostFor, bravesOf, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, braveExtraMinCostFor, bravesOf, matchesBraveCondition, battlers } from "../../../shared/rules"
 import { braveCompositeOf, refreshLevelAsOverrides } from "./state/continuous"
 import { braveSlotsUsed } from "../../../shared/rules/braveExtraCombine"
 import { combineLimitFor } from "../../../shared/summon"
@@ -33,7 +33,7 @@ function separateOnce(state: GameState): void {
     if (state.pendingChoice || state.winner) return
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
-        for (const host of [...player.field.spirits]) {
+        for (const host of battlers(player)) {
             if ((host.braveRefs ?? []).length === 0) continue
             // 待機状態（破壊・消滅・バウンス待機）の合体スピリットは、条件を満たさなくなっても合体したまま（ルールマニュアル（エターナル）Ver.17.0 の改訂「待機状態の統一」）
             if (isWaiting(host)) continue
@@ -73,7 +73,7 @@ export function separateBravesOverLimit(state: GameState): void {
     if (state.pendingChoice || state.winner) return
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
-        for (const host of [...player.field.spirits]) {
+        for (const host of battlers(player)) {
             if (isWaiting(host)) continue
             while (braveSlotsUsed(state, pid, host) > combineLimitFor(state, pid, host)) {
                 const last = (host.braveRefs ?? []).at(-1)

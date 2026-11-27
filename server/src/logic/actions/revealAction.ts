@@ -14,7 +14,7 @@ import { emitEvent, payCost, fireSummonSequence, fireSummonTrigger, notifyHandGa
 import { fireNexusDeployed } from "../fieldEventTriggers"
 import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
 import { placeDenial, summonDenial } from "../summonGate"
-import { hasKeyword, instHasColor, countSymbols } from "../../../../shared/rules"
+import { hasKeyword, instHasColor, countSymbols, battlers } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { activateBurstCard } from "../keywords/burst"
 import { attachBrave } from "../brave"
@@ -253,7 +253,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             const inst = createInstance(cardId, state.turn, maintain)
             if (action.returnToDeckBottomAtEndStep) inst.returnToDeckBottomAtEndStep = true
             if (action.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
-            const braveHost = hostId === undefined ? undefined : player.field.spirits.find((sp) => sp.instanceId === hostId)
+            const braveHost = hostId === undefined ? undefined : battlers(player).find((sp) => sp.instanceId === hostId)
             if (braveHost !== undefined) attachBrave(state, owner, braveHost, inst)
             else placeSummonedOnField(state, owner, inst)
             log(state, `${player.name}は${sourceName}の効果で、${braveHost !== undefined ? `${getCard(braveHost.cardId).name}に合体させて` : ""}${card.name}を${action.pay === "cost" ? `コスト${fullCost}を支払って` : "コストを支払わずに"}召喚した。`)

@@ -292,7 +292,7 @@ function destroyMarkedAtBattleEnd(state: GameState): void {
         for (const sp of battlers(state.players[pid])) {
             if (!state.winner && sp.destroyAtBattleEnd) destroySpirit(state, pid, sp.instanceId)
         }
-        for (const host of [...state.players[pid].field.spirits]) {
+        for (const host of battlers(state.players[pid])) {
             for (const brave of bravesOf(state.players[pid], host)) {
                 if (!state.winner && brave.destroyAtBattleEnd) destroyCombinedBrave(state, pid, host, brave)
             }
