@@ -347,7 +347,7 @@ export interface BraveConditionTerm {
 
 | 段 | 内容 | 検証 |
 | --: | :-- | :-- |
-| 0 | `lv1Cores` → `minLevelCores`（§4）。**この段だけ単独でコミットできる** | 既存が無変更で通る（値が変わらないこと） |
+| 0 | `lv1Cores` → `minLevelCores`（§4）。**済み**（2026-07-26。`shared/rules/activation.ts`） | 既存が無変更で通る（値が変わらないこと） |
 | 1 | `SymbolMark` の導入（§5）。データは全て色のままなので挙動不変 | 既存が無変更で通る |
 | 2 | `CardType` に `"ultimate"`／`field.ultimates`／`battlers()` の新設。**まだ召喚できない** | 既存が無変更で通る |
 | 3 | §2.1 の分類表にもとづく 159箇所の仕分け（`battlers()` への置換） | アタック・ブロック・維持コア割れの smoke |
