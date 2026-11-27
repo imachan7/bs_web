@@ -27,7 +27,7 @@ import type { GameState, PlayerId } from "./helpers"
 import { fireTrigger, fireFieldEventTriggers, fireBattleWonTriggers, resolveMagic } from "../../server/src/logic/EffectModules"
 import { activateBurstCard } from "../../server/src/logic/keywords/burst"
 import { attachBrave } from "../../server/src/logic/brave"
-import { activeConstraints, hasGlobalConstraint, instHasColor, lifeDamageLimit, lifeLossAllowed } from "../../shared/rules"
+import { activeConstraints, hasGlobalConstraint, instHasColor, lifeDamageLimit, lifeLossAllowed, matchesBraveCondition } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
 import { countCards } from "./countCards"
@@ -128,6 +128,20 @@ function putNexus(s: GameState, pid: PlayerId, card: CardData, cores: number): R
     return inst
 }
 // そのカードの最高レベルに必要なコア数
+// 盤面の p1 のスピリットから合体条件を満たすものを選ぶ（合体先は盤面を作るときに ensureBraveHost が置く）
+function braveHostFor(s: GameState, braveInstanceId: string, braveCardId: string): ReturnType<typeof createInstance> | undefined {
+    return s.players.p1.field.spirits.find((sp) => sp.instanceId !== braveInstanceId && matchesBraveCondition(s, "p1", sp, braveCardId))
+}
+// テスト対象がブレイヴなら、合体条件を満たす効果なしのスピリットを p1 に1体置く（盤面を作るとき＝カードの総数を数える前）
+function ensureBraveHost(s: GameState, braveCardId: string): void {
+    if (s.players.p1.field.spirits.some((sp) => matchesBraveCondition(s, "p1", sp, braveCardId))) return
+    for (const c of CARDS) {
+        if (c.type !== "spirit" || (c.effects ?? []).length > 0 || c.levels.length === 0) continue
+        const inst = put(s, "p1", c, maxCores(c))
+        if (matchesBraveCondition(s, "p1", inst, braveCardId)) return
+        s.players.p1.field.spirits.pop()
+    }
+}
 const maxCores = (card: CardData): number =>
     (card.levels ?? []).reduce((max, lv) => Math.max(max, lv.cores), 1)
 
@@ -175,6 +189,7 @@ export function buildBoard(testCard: CardData): {
         for (const h of HELPERS) put(s, pid, h, maxCores(h))
         putNexus(s, pid, FILLER.nexus, 3)
     }
+    if (testCard.type === "brave") ensureBraveHost(s, testCard.cardId)
     // テスト対象が**系統を条件にしている**なら、その系統を持つスピリットを両陣営に置く。
     // これが無いと「系統：〇〇のスピリット」を見る効果は永久に発火しない（殻虫・剣獣・天霊…）
     const families = new Set<string>()
@@ -405,7 +420,8 @@ for (const card of CARDS) {
             }
             // (2b) ブレイヴの【合体時】：p1 の別のスピリットに合体させ、合体先の誘発として撃つ
             if (card.type === "brave") {
-                const host = s.players.p1.field.spirits.find((sp) => sp.instanceId !== selfInst.instanceId)
+                // 合体条件を満たす合体先にする。満たさない合体は効果の途中で分離される（#713）ので【合体時】が撃てない
+                const host = braveHostFor(s, selfInst.instanceId, card.cardId)
                 if (host) {
                     attachBrave(s, "p1", host, selfInst)
                     refreshLevelAsOverrides(s)
