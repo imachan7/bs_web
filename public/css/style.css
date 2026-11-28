@@ -2959,3 +2959,7 @@ body:has(#notice-banner:not(.hidden)) {
 .card .alloc-step { position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 2px 4px; background: var(--bg-panel); border: 1px solid #4a90d9; border-radius: 14px; z-index: 10; }
 .card .alloc-step > button { width: 28px; height: 24px; padding: 0; font-size: 15px; line-height: 1; }
 .card .alloc-step > span { min-width: 2em; text-align: center; font-size: 13px; font-weight: bold; }
+/* 任意の効果による召喚の「召喚しない」（#745）は決定の左に横並び。縦に「召喚しない」「召喚」と並ぶと押し間違えやすい */
+#choice-options .pay-nav:has([data-skip-choice]) { display: flex; flex-direction: row; gap: 6px; }
+#choice-options .pay-nav:has([data-skip-choice]) > button { flex: 2 1 0; }
+#choice-options .pay-nav:has([data-skip-choice]) > [data-skip-choice] { flex: 1 1 0; white-space: nowrap; }

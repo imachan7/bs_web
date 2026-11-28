@@ -85,6 +85,11 @@ function setMeisaiOption(v: GameView, pay: PayingState, index: number): void {
 }
 
 // 効果による召喚・配置の支払いを2段の画面で開く。②の置く数は index 番目から始める
+// 効果による召喚・配置の置くコアを、支払いのシートで払っているところか（openEffectSummonPay で開いたもの）
+export function effectSummonSheet(v: GameView, pay: PayingState | null): boolean {
+    return pay?.forMeisai?.placing === true && v.pendingChoice?.effectCostPay !== undefined
+}
+
 export function openEffectSummonPay(v: GameView, index = 0): void {
     const pc = v.pendingChoice
     const cp = pc?.effectCostPay
@@ -403,6 +408,14 @@ export function renderPayStageSheet(v: GameView, pay: PayingState, host: HTMLEle
     sheet.append(tools)
 
     const nav = div("pay-nav")
+    // 任意の効果による召喚・配置（#745）は、断るボタンを決定の左に並べる（縦に「召喚」「召喚しない」と並ぶと押し間違えやすい。2026-11-28 ユーザー合意）
+    const pc = v.pendingChoice
+    if (effectSummonSheet(v, pay) && pc?.optional === true) {
+        const decline = document.createElement("button")
+        decline.dataset.skipChoice = "1"
+        decline.textContent = pc.skipLabel ?? "召喚しない"
+        nav.append(decline)
+    }
     const ok = filled === need
     if (stage === "cost" && hasPlaceStage) {
         nav.append(btn("次へ", "next", { disabled: !ok }))

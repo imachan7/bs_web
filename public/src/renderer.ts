@@ -34,7 +34,7 @@ import {
     spiritHasKeyword, type DirectAttackFilter, isEndStepLocked
 } from "../../shared/rules"
 import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui/tooltip"
-import { renderPayStageSheet, payStageHeading } from "./ui/payStages"
+import { renderPayStageSheet, payStageHeading, effectSummonSheet } from "./ui/payStages"
 import { renderCoreAllocSheet, type CoreAlloc } from "./ui/coreAllocSheet"
 import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
 import { renderField } from "./ui/fieldCard"
@@ -737,7 +737,9 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
         ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.exReductionSelect !== null || ui.soulCoreOnlySelect !== null || ui.magicTimingSelect !== null || ui.soulSwapSelect !== null || ui.burstResetConfirm !== null
-    show("btn-cancel-target", anyMode)
+    // 効果による召喚・配置の支払いのシートでは「対象選択をやめる」を出さない（押しても置く数の選択に戻るだけで、「召喚しない」と紛らわしい。#745）
+    const inEffectSummonSheet = effectSummonSheet(view, ui.paying)
+    show("btn-cancel-target", anyMode && !inEffectSummonSheet)
     // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
     // コアが足りていても支払いモードへ入る仕様（tryPlay）とセットで必要になる
@@ -746,7 +748,8 @@ export function render(view: GameView, ui: UiState): void {
     show("targeting-info", anyMode || pendingChoiceActive)
     // 任意の召喚・配置の支払い（#743）は、支払いのシートを開いている間も「召喚しない」でやめられるようにする
     const skippable = myPendingChoice ?? (view.pendingChoice?.pid === view.you && view.pendingChoice.effectCostPay ? view.pendingChoice : null)
-    show("btn-skip-choice", skippable?.optional === true)
+    // シートの中に断るボタンを出すときは、外の「選ばない」は出さない（二重になる）
+    show("btn-skip-choice", skippable?.optional === true && !inEffectSummonSheet)
     // トグル選択では、スキップは「中止」ではなく「これで確定」を意味する（PendingChoice.skipLabel）
     $("btn-skip-choice").textContent = skippable?.skipLabel ?? "選ばない"
     const counterView = myPendingChoice?.counter ? choiceCounterView(myPendingChoice.counter) : null

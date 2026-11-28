@@ -1081,6 +1081,13 @@ async function init(): Promise<void> {
                 return
             }
         }
+        // 支払いのシートの中の「召喚しない」（#745）。外の「選ばない」と同じく、選択待ちを断る
+        if (closestData(e, "data-skip-choice")) {
+            ui.stepper = null
+            ui.paying = null
+            send({ type: "resolveChoice" })
+            return
+        }
         // 増減式の選択（PendingChoice.stepper）の −／＋。表示を1つ動かして描き直すだけで、
         // サーバーへ送るのは「決定」を押したとき（data-option）だけ
         const stepEl = closestData(e, "data-stepper")
