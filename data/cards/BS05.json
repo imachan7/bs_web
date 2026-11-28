@@ -190,6 +190,7 @@
     "optional": true,
     "action": {
      "type": "moveCards",
+     "declinable": true,
      "skipOnSummon": true,
      "from": "trash",
      "dest": "summon",
@@ -524,6 +525,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "skipOnSummon": true,
      "familyFilter": "竜人"
@@ -2137,6 +2139,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "skipOnSummon": true,
      "familyFilter": "氷姫"
@@ -2272,6 +2275,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "skipOnSummon": true,
      "costFilter": 2
@@ -2504,6 +2508,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "skipOnSummon": true,
      "familyFilter": "想獣"
@@ -3948,6 +3953,7 @@
     },
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "skipOnSummon": true,
      "nameIncludes": "ペンタン"

@@ -3431,6 +3431,7 @@
      },
      "then": {
       "type": "summon",
+      "declinable": true,
       "from": "hand",
       "familyFilter": "天霊",
       "costFilter": {

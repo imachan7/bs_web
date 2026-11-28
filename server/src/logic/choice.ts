@@ -367,6 +367,13 @@ function resolveChoiceInner(
 
     // 効果の「Nコスト支払う」の支払い。払ってから pay の then を解決する。支払い元の指定が無いとき（AI・自動応答）は autoPayPlan で払う
     if (pending.effectCostPay) {
+        // 任意の召喚・配置（declinable）では、支払いの途中でもやめられる。カードは支払いが済むまで動かしていない
+        if (option === undefined && pending.optional === true) {
+            state.pendingChoice = null
+            const card = getCard(pending.effectCostPay.sourceCardId)
+            log(state, `${state.players[pending.pid].name}：${card.name}を${card.type === "nexus" ? "配置" : "召喚"}しなかった。`)
+            return finishChoiceResolution(state, pending.pid)
+        }
         if (option === undefined || !(pending.options ?? []).includes(option)) return "支払ってください"
         const info = pending.effectCostPay
         if (info.reserveOnly && paySources !== undefined && paySources.length > 0) return "この支払いはリザーブからだけ行えます"

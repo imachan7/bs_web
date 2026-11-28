@@ -151,6 +151,10 @@ export function fieldCoresSpendable(state: GameState, pid: PlayerId): { inst: Ca
     ].map((x) => ({ inst: x.inst, max: Math.min(x.max, coreRemovalAllowed(state, { ownerPid: pid, target: x.inst, amount: x.max, cause: "cost", actorPid: pid })) })).filter((x) => x.max > 0)
 }
 
+// 「〜できる」の召喚・配置は、支払いの選択待ちで「しない」を選べる。declinable はカードを選ぶ段階を変えずにこれだけを付けるデータの印
+// （効果全体の optional は支払いまで届かず、選ぶ段階を任意にする optional/upTo を足すと、確認のあとにもう一度選ばせることになった。2026-11-28）
+const declinableOf = (action: MoveCards): { declinable?: true } => (action.declinable === true || action.optional === true || action.upTo === true || action.ask === true || action.pay !== undefined ? { declinable: true as const } : {})
+
 // 1枚を送る。送れたら true（払えない・種別が違うなどで送れなければゾーンに残して false）
 function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number, hostId?: string): boolean {
     const { state, sourceName } = ctx
@@ -172,6 +176,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number, ho
             ...(action.skipOnSummon ? { skipOnSummon: true as const } : {}),
             summonedBy: action.summonedBy ?? "freeEffect",
             surchargeBatch: true,
+            ...declinableOf(action),
             ...(hostId !== undefined ? { braveTargetInstanceId: hostId } : {}),
         })
         return zone.length < before
@@ -191,6 +196,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number, ho
             ...(action.skipTensho ? { tensho: "none" as const } : {}),
             ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
             ...(hostId !== undefined ? { braveTargetInstanceId: hostId } : {}),
+            ...declinableOf(action),
         })
         return true
     }
@@ -204,6 +210,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number, ho
             ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
             ...(hostId !== undefined ? { braveTargetInstanceId: hostId } : {}),
             surchargeBatch: true,
+            ...declinableOf(action),
         })
         return zone.length < before
     }
@@ -218,7 +225,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number, ho
     // コストを支払わない配置／使用：オープンしたカードと同じ送り先の処理に渡す
     if (card.type !== (action.dest === "cast" ? "magic" : "nexus") || !affordable(state, pid, action, cardId)) return false
     zone.splice(j, 1)
-    ctx.resolve({ type: "revealApplyOne", cardId, srcPid: pid, dest: action.dest === "cast" ? "cast" : "placeNexus" })
+    ctx.resolve({ type: "revealApplyOne", cardId, srcPid: pid, dest: action.dest === "cast" ? "cast" : "placeNexus", ...declinableOf(action) })
     return true
 }
 
@@ -435,6 +442,7 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
         ...(action.returnToDeckBottomAtEndStep ? { returnToDeckBottomAtEndStep: true as const } : {}),
         ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
         ...(action.pay === "cost" && (dest === "summon" || dest === "summonOrPlace") ? { pay: "cost" as const } : {}),
+        ...declinableOf(action),
     })
     // 取り出した順に送る（途中で選択待ちになったら残りは再開スタックへ）
     const sendAll = (ids: string[], after?: EffectAction, hostId?: string): void => {

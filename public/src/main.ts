@@ -1038,6 +1038,7 @@ async function init(): Promise<void> {
     })
     byId("btn-skip-choice").addEventListener("click", () => {
         ui.stepper = null
+        ui.paying = null
         send({ type: "resolveChoice" })
     })
     byId("choice-options").addEventListener("click", onPayStageClick)

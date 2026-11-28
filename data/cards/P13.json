@@ -1783,6 +1783,7 @@
           "actions": [
             {
               "type": "summon",
+              "declinable": true,
               "from": "hand",
               "costFilter": 2
             },

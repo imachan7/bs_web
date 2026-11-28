@@ -276,6 +276,7 @@
         "optional": true,
         "action": {
           "type": "summon",
+          "declinable": true,
           "from": "hand",
           "bravesOnly": true,
           "spiritStateOnly": true
@@ -293,6 +294,7 @@
         "optional": true,
         "action": {
           "type": "summon",
+          "declinable": true,
           "from": "hand",
           "bravesOnly": true,
           "spiritStateOnly": true,
@@ -3820,6 +3822,7 @@
         "optional": true,
         "action": {
           "type": "summon",
+          "declinable": true,
           "from": "hand",
           "colorFilter": [
             "green",

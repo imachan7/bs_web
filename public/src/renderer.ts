@@ -744,9 +744,11 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-confirm-pay", ui.paying !== null && ui.paying.step === undefined && payingRemaining(view, ui.paying) === 0)
     show("btn-attack-player", ui.directedAttack !== null && !ui.directedAttack.filter.onlyInstanceIds)
     show("targeting-info", anyMode || pendingChoiceActive)
-    show("btn-skip-choice", myPendingChoice?.optional === true)
+    // 任意の召喚・配置の支払い（#743）は、支払いのシートを開いている間も「召喚しない」でやめられるようにする
+    const skippable = myPendingChoice ?? (view.pendingChoice?.pid === view.you && view.pendingChoice.effectCostPay ? view.pendingChoice : null)
+    show("btn-skip-choice", skippable?.optional === true)
     // トグル選択では、スキップは「中止」ではなく「これで確定」を意味する（PendingChoice.skipLabel）
-    $("btn-skip-choice").textContent = myPendingChoice?.skipLabel ?? "選ばない"
+    $("btn-skip-choice").textContent = skippable?.skipLabel ?? "選ばない"
     const counterView = myPendingChoice?.counter ? choiceCounterView(myPendingChoice.counter) : null
     show("choice-counter", counterView !== null)
     if (counterView) {

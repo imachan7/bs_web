@@ -377,6 +377,8 @@
     #action-buttons-container:has(#choice-options .pay-sheet) { max-height: 75dvh; }
     /* 「対象選択をやめる」はシートの一番下に置く（上に置くと、背の高いシートで画面の上の方になり片手で届かなかった） */
     #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > #btn-cancel-target { order: 99; }
+    /* 任意の召喚の「召喚しない」（#743）も支払いのシートの下へ（上に出ると片手で届かなかった） */
+    #action-buttons:has(#choice-options .pay-sheet) > #btn-skip-choice { order: 98; }
     #choice-options .pay-hint:not(.pay-no-reserve) { display: none; }
     #choice-options .core-alloc :is(.pay-stage-title, .pay-warn) { white-space: nowrap; }
     /* スマホは盤面のカードに −／＋ を出さず（小さくて押しにくい）、欄を広げて直す。数はカードのバッジで見せる */

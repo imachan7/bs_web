@@ -725,6 +725,7 @@
           "actions": [
             {
               "type": "summon",
+              "declinable": true,
               "from": "hand",
               "bravesOnly": true
             },

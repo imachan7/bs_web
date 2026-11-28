@@ -21,14 +21,6 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：任意の召喚・配置を支払いの途中でもやめられるようにする（#743 の前半。ブランチ `fix/optional-summon-decline`。2026-11-28 ユーザー合意）
-
-- 規則：効果文が「召喚できる／配置できる」の召喚・配置は、置くコア・追加の支払い（`effectCostPay`）の選択待ちでも「召喚しない／配置しない」でやめられる。やめたらカードは元のゾーンのまま効果の続きへ（天守閣ならオープンしたカードは次の手順で破棄）。強制（「召喚する」）には付けない
-- データ：任意の印は**召喚の部分そのもの**に持たせる（効果全体の `optional` は実行時に支払いまで届かない）。moveCards は `optional: true`、summon は `upTo: true`。効果全体だけが任意の約60エントリと、印の無い X013-e1（手札・トラッシュからの召喚）・BS23-072-e3 に足す
-- エンジン：`askSummonCores`／`askSurchargePay`（`askCostPay`）に `declinable` 引数を足し、選択待ちを `optional: true`・`skipLabel: "召喚しない"`（ネクサスは「配置しない」）で立てる。`choice.ts` の `effectCostPay` は、スキップかつ `pending.optional` なら選択待ちを消してログを出し `finishChoiceResolution`。呼び出し側は元の action の印（moveCards：optional/upTo/ask/pay、summon：upTo/cancelable）を `declinable` として渡す。revealApplyOne は moveCards から印を引き継ぐ内部欄を持つ。復活・入れ替え・奪って召喚・【烈神速】は対象外
-- 対象外にしたもの：pay.ts の「N コスト支払う」の選択待ち（召喚ではない）。バーストの自分自身の召喚
-
-
 ### 進行中：スマホの対戦画面（ブランチ `feat/mobile-battle-layout`。ユーザーに見せてから PR）
 
 - 状態（11-25 夜）：ユーザーが実機（Android 412×830 相当）で触りながら直している。点検ページ `/dev/ui-gallery.html`（場面×大きさ5、崩れを自動点検）で各回確かめている
