@@ -64,7 +64,7 @@ export function renderCoreAllocSheet(pc: PendingChoice, alloc: CoreAlloc, open: 
             const n = alloc[dest] ?? 0
             if (dest !== "reserve" && n === 0) continue
             const label = dest === "reserve" ? "リザーブ" : (options[d.destinations.indexOf(dest)] ?? dest).replace(/に置く$/, "")
-            const row = el("div", "stepper-row")
+            const row = el("div", dest === "reserve" ? "stepper-row" : "stepper-row alloc-field-row")
             row.append(stepBtn("−", dest, -1, n <= 0), el("span", "stepper-value", `${label} +${n}`), stepBtn("＋", dest, 1, !canMove))
             list.append(row)
         }

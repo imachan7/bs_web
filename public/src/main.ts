@@ -574,6 +574,13 @@ export function byId(id: string): HTMLElement {
 // 場のカードの操作ボタン（コアの −／＋・覚醒・合体・分離・交換・起動・[ソウルコア]の交換と支払い）を押したときの処理。押したのがボタンでなければ false。
 // スマホでは同じボタンを場のカードでなく下の欄（ui/cardDock.ts）に出すので、場とネクサスの欄と下の欄の3か所から呼ぶ
 function cardButtonAction(t: HTMLElement): boolean {
+    // 【烈神速】の配分：カードの上の −／＋（PC。ui/coreAllocSheet.ts）
+    const allocBtn = t.closest<HTMLElement>("[data-alloc]")
+    if (allocBtn && view?.pendingChoice?.distributeCores) {
+        ui.coreAlloc = stepCoreAlloc(view.pendingChoice, ui.coreAlloc ?? {}, String(allocBtn.dataset.alloc), Number(allocBtn.dataset.delta))
+        rerender()
+        return true
+    }
     // [ソウルコア]の1:1交換バッジ（§1.4）が先（カードクリックと区別する）
     const soulSwapBtn = t.closest<HTMLElement>("[data-soulswap]")
     if (soulSwapBtn) {

@@ -763,7 +763,7 @@ export function render(view: GameView, ui: UiState): void {
         renderPayStageSheet(view, ui.paying, choiceOptionsEl)
         show("choice-options", true)
     } else if (myPendingChoice?.distributeCores) {
-        renderCoreAllocSheet(myPendingChoice, ui.coreAlloc ?? {}, ui.coreAllocOpen, choiceOptionsEl)
+        renderCoreAllocSheet(myPendingChoice, ui.coreAlloc ?? {}, ui.coreAllocOpen || window.innerWidth > 768, choiceOptionsEl)
         show("choice-options", true)
     } else if (myPendingChoice && myPendingChoice.kind === "option" && myPendingChoice.stepper) {
         // 増減式（PendingChoice.stepper）：ボタンを options の数だけ並べる代わりに −／＋ で数を決める。
