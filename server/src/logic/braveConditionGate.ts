@@ -7,7 +7,7 @@ import { braveSlotsUsed } from "../../../shared/rules/braveExtraCombine"
 import { combineLimitFor } from "../../../shared/summon"
 import { detachBraveByOwnerChoice } from "./brave"
 import { cantSpiritStateBrave } from "../../../shared/rules/constraints"
-import { soulCoreLeavesField } from "./soulCore"
+import { leaveField } from "./leaveField"
 import { getCard, log } from "./GameState"
 
 // 効果の手ごとの出口（EffectModules）と handleAction の後始末（継続効果を組み直した後）で呼ぶ（#707）。
@@ -100,10 +100,8 @@ export function trashSpiritStateBravesWhenForbidden(state: GameState): boolean {
         const player = state.players[pid]
         for (const brave of [...player.field.spirits]) {
             if (getCard(brave.cardId).type !== "brave" || isWaiting(brave)) continue
-            player.field.spirits.splice(player.field.spirits.indexOf(brave), 1)
+            leaveField(state, pid, brave, false)
             player.trashCards.push(brave.cardId)
-            soulCoreLeavesField(player, brave)
-            player.reserve += brave.cores
             log(state, `${player.name}の${getCard(brave.cardId).name}は、ブレイヴをスピリット状態にできないためトラッシュに置かれた。`)
             trashed = true
         }

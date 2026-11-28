@@ -15,7 +15,7 @@ import {
     requestChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { coreIntakeRefused, effectiveBp, hasGlobalConstraint, isEndStepLocked, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
+import { coreIntakeRefused, effectiveBp, hasGlobalConstraint, isEndStepLocked, noteHeldKeyword, spiritHasKeyword, battlers } from "../../../../shared/rules"
 import { takeCoresFromSpirit } from "../removal"
 import { matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -98,7 +98,7 @@ function takeFromSource(
         }
         case "self": {
             if (!self) return 0
-            if (player.field.spirits.includes(self)) return takeCoresFromSpirit(state, owner, self, amount)
+            if (battlers(player).includes(self)) return takeCoresFromSpirit(state, owner, self, amount)
             const taken = Math.min(amount, normalCoresOn(player, self))
             self.cores -= taken
             return taken
@@ -108,7 +108,7 @@ function takeFromSource(
             const taken = Math.min(amount, normalCoresOn(player, self))
             self.cores -= taken
             // 破壊待機のまま残っているスピリットのコアが0になったら消滅へ切り替わる（enterDestroyWaiting）
-            if (taken > 0 && self.cores === 0 && player.field.spirits.includes(self)) destroySpirit(state, owner, self.instanceId, "deplete")
+            if (taken > 0 && self.cores === 0 && battlers(player).includes(self)) destroySpirit(state, owner, self.instanceId, "deplete")
             return taken
         }
         case "field": {
@@ -279,7 +279,7 @@ function placeCoresLegacy(ctx: ActionCtx, inAction: PlaceCoresAction): void {
 
         if (action.target === "self") {
             // 「自分自身」は発生源そのもの。ネクサスの誘発で召喚されたスピリットを指すこともあるので、to に関係なく両方から探す
-            const onField = [...player.field.spirits, ...player.field.nexuses].includes(self as CardInstance)
+            const onField = [...battlers(player), ...player.field.nexuses].includes(self as CardInstance)
             // candidates が SELF_REQUIRED でない時点で normalizeFilter は解決済み（同じ ctx/action への再呼び出しは同じ結果になる）
             const resolvedFilter = normalizeFilter(ctx, action) as ResolvedTargetFilter
             if (!self || !onField || !matchesTarget(state, owner, self, resolvedFilter, self.instanceId)) {

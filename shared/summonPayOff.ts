@@ -1,6 +1,7 @@
 // 概念: kind:"summonPayOff"（自分のカードを破壊することで、召喚コストを払ったものとして扱う）の候補と、その場合の支払うコスト。
 // サーバーの validateSummon／doSummon とクライアントの支払いUIが共用する
 import type { Color, PlayerId } from "../server/src/type"
+import { battlers } from "./rules"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { cardMatchesSummonPick, effectiveCost } from "./cost"
@@ -20,7 +21,7 @@ export function summonPayOffOptions(board: Board, pid: PlayerId, cardId: string)
     const summoned = card(cardId)
     const result: SummonPayOffOption[] = []
     for (const source of effectSources(board, pid)) {
-        if (!player.field.spirits.includes(source)) continue
+        if (!battlers(player).includes(source)) continue
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "summonPayOff") continue

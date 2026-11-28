@@ -15,7 +15,7 @@ import { canPayLife, lifeCostQuery, recordLifeLoss, settleLifeZero } from "./lif
 import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId, ResolvedTargetFilter } from "../type"
 import { millAllowed, noteMilled } from "./zones/mill"
 import { trashUnderCards } from "./zones/underCards"
-import { createInstance, currentLevel, getCard, log, instMinLevelCores, summonMinCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
+import { createInstance, currentLevel, getCard, log, instMinLevelCores, summonMinCores, opponentOf, pushResumeFrames, suspend, findBattler } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
 import { revertDestroyGroupUsage } from "./triggers"
@@ -25,6 +25,7 @@ import { returnWaitingSpiritToHand } from "./actions/bounce"
 import { matchesTarget } from "../../../shared/rules/targetFilter"
 import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
 import { unpayableLine } from "./actions/pay"
+import { removeFromField } from "./leaveField"
 import { soulCoreLeavesField } from "./soulCore"
 
 import { handGainDenial } from "./handGate"
@@ -52,6 +53,7 @@ import {
     hasGlobalConstraint,
     zoneSpiritEffectsDisabled,
     trashCardEffectsDisabled,
+    battlers,
 } from "../../../shared/rules"
 
 import {
@@ -204,7 +206,7 @@ export function wouldAskReviveConfirm(
     instanceId: string,
     context?: DestroyContext,
 ): boolean {
-    const inst = state.players[ownerPid].field.spirits.find((s) => s.instanceId === instanceId)
+    const inst = findBattler(state.players[ownerPid], instanceId)
     if (!inst) return false
     return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, "confirm")
 }
@@ -666,7 +668,7 @@ export function applyReviveConfirm(
     entry: NonNullable<PendingChoice["reviveConfirm"]>,
 ): void {
     const player = state.players[entry.pid]
-    const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
+    const inst = findBattler(player, entry.instanceId)
     if (!inst) return // 確認を出したあとに場から居なくなっていたら何もしない
     // 保留したときと同じ判定経路を、対象のエントリだけに絞って**確定モード**で通す
     // （forced 指定時は optional の保留分岐に入らない）。コストが払えない等で成立しなければ破壊する
@@ -689,7 +691,7 @@ export function applyReviveCostPick(
     source?: { fromHand?: true; tegamotoCardId?: string },
 ): void {
     const player = state.players[entry.pid]
-    const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
+    const inst = findBattler(player, entry.instanceId)
     if (!inst) return // 選択を出したあとに場から居なくなっていたら何もしない
     if (
         !tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId, skipConfirm: true }, undefined, undefined, undefined, {
@@ -711,7 +713,7 @@ export function declineReviveConfirm(
     entry: NonNullable<PendingChoice["reviveConfirm"]>,
 ): void {
     const player = state.players[entry.pid]
-    const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
+    const inst = findBattler(player, entry.instanceId)
     if (!inst) return
     log(state, `${player.name}の${getCard(inst.cardId).name}は復活しなかった。`)
     // 同時破壊グループの仮消費を戻す（このsourceInstanceIdはscope:"self"のときは元々マークしていないので
@@ -909,10 +911,10 @@ function tryReviveOnDestroy(
     ): boolean | "pending" => {
         // 「このスピリットを手札に戻すことで」（BSC05-011 Lv3）。発生源が破壊待機中（同時破壊）なら待機中の経路で戻す
         if (effect.cost?.returnSelfToHand) {
-            if (!source || !player.field.spirits.some((s) => s.instanceId === source.instanceId)) return false
+            if (!source || !battlers(player).some((s) => s.instanceId === source.instanceId)) return false
             if (isTrashWaiting(source)) returnWaitingSpiritToHand(state, ownerPid, source, getCard(source.cardId).name)
             else returnSpiritToHand(state, ownerPid, source, getCard(source.cardId).name)
-            return !player.field.spirits.some((s) => s.instanceId === source.instanceId)
+            return !battlers(player).some((s) => s.instanceId === source.instanceId)
         }
         // 発生源自身を疲労させる（BS17-069）。COST_MODEL.mdのexhaustSelfと同じく既疲労なら不発
         if (effect.cost?.exhaustSelf) {
@@ -1198,7 +1200,7 @@ function tryReviveOnDestroy(
         const cost = effect.cost
         if (!cost) return null
         if (cost.exhaustSelf) return !source || source.isRested ? "疲労させられない" : null
-        if (cost.returnSelfToHand) return !source || !player.field.spirits.some((s) => s.instanceId === source.instanceId) ? "手札に戻せない" : null
+        if (cost.returnSelfToHand) return !source || !battlers(player).some((s) => s.instanceId === source.instanceId) ? "手札に戻せない" : null
         if ((cost.millSelfCount !== undefined || cost.millSelfOneMatching) && millAllowed(state, { pid: ownerPid, count: cost.millSelfCount ?? 1, actorPid: ownerPid, sourceType: costSourceType(source) }) < (cost.millSelfCount ?? 1)) return "デッキを破棄できない"
         if (cost.millSelfCount !== undefined) return player.deck.length < cost.millSelfCount ? "デッキが足りない" : null
         if (cost.sourceCoresToTrash !== undefined) return !source || source.cores < cost.sourceCoresToTrash ? "コアが足りない" : null
@@ -1260,10 +1262,10 @@ function tryReviveOnDestroy(
             // BS15-004ハンゾウ・シノビ・ドラゴン：トラッシュへ置かれる代わりに持ち主のバーストエリアへ
             // （placeBurstと同じ規則：既にセットしていたバーストはトラッシュへ押し出される。
             // EffectModulesからのimportは循環参照になるためここでは直接書く）
-            const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
-            if (idx !== -1) player.field.spirits.splice(idx, 1)
+            // 場にいなくても下のカードの破棄・退避・コアの戻しは行う（従来どおり。ここは leaveField の「場にいなければ何もしない」と違う）
+            removeFromField(state, ownerPid, inst)
             trashUnderCards(state, ownerPid, inst) // 場を離れるので下のカードは破棄（BS19-X02）
-            soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避
+            soulCoreLeavesField(player, inst)
             player.reserve += inst.cores
             detachBravesOnLeave(state, ownerPid, inst)
             if (player.burst !== null) {
@@ -1273,10 +1275,10 @@ function tryReviveOnDestroy(
             player.burstSet = true
             delete player.burstRevealedCardId
         } else if ("toHand" in revived || "handOrDeckTop" in revived) {
-            const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
-            if (idx !== -1) player.field.spirits.splice(idx, 1)
+            // 場にいなくても下のカードの破棄・退避・コアの戻しは行う（従来どおり。ここは leaveField の「場にいなければ何もしない」と違う）
+            removeFromField(state, ownerPid, inst)
             trashUnderCards(state, ownerPid, inst) // 場を離れるので下のカードは破棄（BS19-X02）
-            soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避
+            soulCoreLeavesField(player, inst)
             player.reserve += inst.cores
             // handOrDeckTop の対話モードは行き先が決まるまでどのゾーンにも入れない（手札を経由すると手札が増えた誘発が起きる）。
             // 破壊処理の途中では中断できないので、確認は handleAction の末尾で出す

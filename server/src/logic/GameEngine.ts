@@ -29,6 +29,7 @@ import {
     noteHandleActionEntry,
     pushResumeFrames,
     suspend,
+    findBattler,
 } from "./GameState"
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import { fireQueuedDestroyBursts } from "./removal"
@@ -64,6 +65,7 @@ import {
     payAssistCandidates,
     ownHandKeyword,
     noteHeldKeyword,
+    battlers,
 } from "../../../shared/rules"
 import {
     placeBurst,
@@ -250,7 +252,7 @@ function requestPendingReviveConfirm(state: GameState): void {
     if (!queue || queue.length === 0) return
     while (queue.length > 0) {
         const entry = queue.shift()!
-        const inst = state.players[entry.pid].field.spirits.find((s) => s.instanceId === entry.instanceId)
+        const inst = findBattler(state.players[entry.pid], entry.instanceId)
         if (!inst) continue
         suspend(state, {
             pid: entry.pid,
@@ -655,7 +657,7 @@ export function doSummon(
     }
     const cost = sokuFree && baseCost > 0 ? 0 : baseCost
     if (sokuFree && baseCost > 0) {
-        const src = [...player.field.spirits, ...player.field.nexuses].find((s) => s.instanceId === sokuFreeSource)
+        const src = [...battlers(player), ...player.field.nexuses].find((s) => s.instanceId === sokuFreeSource)
         if (src) src.sokuFreeSummonUsedTurn = state.turn
     }
     // 「〜ならコストNにする。同じカード名でターンに1回」：この注記のコストで召喚したら1回と数える
@@ -772,7 +774,7 @@ export function doSummon(
 // 破壊は召喚コストの支払いの一部（コスト計算は支払い前の盤面で済んでいる）。コアは通常の破壊どおりリザーブへ戻る
 function payOffDestroy(state: GameState, pid: PlayerId, option: SummonPayOffOption): void {
     const player = state.players[pid]
-    const host = player.field.spirits.find((s) => s.instanceId === option.sourceInstanceId)
+    const host = findBattler(player, option.sourceInstanceId)
     if (host === undefined) return
     noteCoverage(getCard(host.cardId).effects.find((e) => e.kind === "summonPayOff"), "summonPayOff")
     if (option.treatAs === "fullReduction") {

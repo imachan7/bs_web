@@ -36,7 +36,7 @@ import {
     continuousKeywordGrantCount,
     recordTimed,
 } from "../EffectModules"
-import { KEYWORDS, timedContentsOn, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
+import { battlerOwnerOf, KEYWORDS, timedContentsOn, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { detachBraveByEffect } from "../brave"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -885,7 +885,7 @@ const refreshOneHandler = (ctx: ActionCtx, action: Extract<EffectAction, { type:
 function applyLevelUpThisTurn(state: GameState, target: CardInstance): void {
     const maxLevel = getCard(target.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
     const nextLevel = Math.min(currentLevel(target).level + 1, maxLevel)
-    recordTimed(state, { content: [{ type: "level", set: nextLevel }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: state.players.p1.field.spirits.includes(target) ? "p1" : "p2" })
+    recordTimed(state, { content: [{ type: "level", set: nextLevel }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: battlerOwnerOf(state, target) })
     log(state, `${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`)
 }
 

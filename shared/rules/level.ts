@@ -243,6 +243,8 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         // フィールドに実在するスピリット。「持つ効果すべては発揮されない」を受けている個体は外す
         // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
         ...player.field.spirits.filter((s) => !instEffectsSuppressed(s)),
+        // アルティメット。スピリットと同じ「持つ効果すべては発揮されない」を受ける
+        ...player.field.ultimates.filter((s) => !instEffectsSuppressed(s)),
         // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は外す
         // （targetLevels指定時はそのLvのネクサスだけ。BS16-041）。
         // さらに「**疲労状態の**ネクサスすべての効果は発揮されない」（BS10-074 きぐるみクマッター）は両陣営に効く
@@ -296,7 +298,7 @@ export function nexusEffectsDisabledFor(
     if (timedPlayerRules(board, pid).some((c) => c.type === "nexusEffectsDisabledForPid")) return true
     const opp = board.players[pid === "p1" ? "p2" : "p1"]
     const sources = [
-        ...opp.field.spirits,
+        ...battlers(opp),
         ...opp.field.nexuses,
         ...opp.turnVirtualInstances,
         ...opp.battleVirtualInstances,
@@ -319,7 +321,7 @@ export function nexusEffectsDisabledFor(
     // target:"bothAll" は**自分の**ネクサスも止める（BS15-034：白しかない間、両陣営のネクサス効果が発揮されない）
     const own = board.players[pid]
     const ownSources = [
-        ...own.field.spirits,
+        ...battlers(own),
         ...own.field.nexuses,
         ...own.turnVirtualInstances,
         ...own.battleVirtualInstances,
@@ -626,6 +628,11 @@ export function hostsOf(player: BoardPlayer, brave: CardInstance): CardInstance[
     )
 }
 
+// 個体を持つ側。スピリット・アルティメットのどちらにも無ければ "p2"（従来の直書き `spirits.includes(x) ? "p1" : "p2"` と同じ既定）
+export function battlerOwnerOf(board: Board, inst: CardInstance): PlayerId {
+    return battlers(board.players.p1).includes(inst) ? "p1" : "p2"
+}
+
 // 合体状態のブレイヴのレベル。**合体スピリット上のコア数**（＝ホストのコア数）を
 // ブレイヴの `braveLevels` で引く。合体状態の Lv1 は 0 コアなので、コア0でも Lv1 になる。
 //
@@ -647,7 +654,7 @@ export function braveLevelOf(host: CardInstance, brave: CardInstance): number {
 // braveComposite（レベルに依らない値のキャッシュ）には入れず、ここで都度引く
 export function braveBpBonus(board: Board, player: BoardPlayer, host: CardInstance): number {
     // BS14-090勇壮なる船上都市：両陣営の合体スピリットすべての「合体時BP+」を0にする
-    if (braveBpBonusZeroFor(board, board.players.p1.field.spirits.includes(host) ? "p1" : "p2")) return 0
+    if (braveBpBonusZeroFor(board, battlerOwnerOf(board, host))) return 0
     let total = 0
     for (const brave of bravesOf(player, host)) {
         // braveCombined が載っていれば currentLevel が合体状態のレベル表を引く（instLevels）。
@@ -750,6 +757,7 @@ export function isSpiritOnField(board: Board, pid: PlayerId, instanceId: string)
 export function isOnFieldAnyZone(player: BoardPlayer, instanceId: string): boolean {
     return (
         player.field.spirits.some((x) => x.instanceId === instanceId) ||
+        player.field.ultimates.some((x) => x.instanceId === instanceId) ||
         player.field.nexuses.some((x) => x.instanceId === instanceId) ||
         player.field.combinedBraves.some((x) => x.instanceId === instanceId) ||
         player.field.magics.some((x) => x.instanceId === instanceId)

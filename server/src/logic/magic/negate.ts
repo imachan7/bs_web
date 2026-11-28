@@ -6,7 +6,7 @@ import { noteCoverage, noteKeyword } from "../../../../shared/coverage"
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf } from "../GameState"
 import { magicEffectiveColors } from "../../../../shared/cost"
-import { effectSources, instHasStaticKeyword, isVirtualSource } from "../../../../shared/rules"
+import { effectSources, instHasStaticKeyword, isVirtualSource, battlers } from "../../../../shared/rules"
 import { canExhaustNexus, exhaustNexus, exhaustSpirit } from "../EffectModules"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { resolveMagicEffects } from "./resolve"
@@ -161,7 +161,7 @@ export function payMagicNegate(
         const player = state.players[pid]
         const index = player.field.nexuses.findIndex((n) => n.instanceId === inst.instanceId)
         const zone = index >= 0 ? player.field.nexuses : player.field.spirits
-        const idx = index >= 0 ? index : player.field.spirits.findIndex((sp) => sp.instanceId === inst.instanceId)
+        const idx = index >= 0 ? index : battlers(player).findIndex((sp) => sp.instanceId === inst.instanceId)
         if (idx >= 0) {
             // 場を離れるので、上に乗っていたコアは持ち主のリザーブへ戻る（通常の離脱と同じ）
             player.reserve += inst.cores

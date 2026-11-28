@@ -1,5 +1,6 @@
 // 常時BP修正（オーラ）と実効BP、数を数えるときの重み（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
 import { continuousEffectReaches } from "./resistance"
+import { battlers } from "./level"
 import { noteCoverage } from "../coverage"
 
 import type {
@@ -15,7 +16,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { bofuCountFor, matchesFamilyFilter, spiritHasFamily, spiritHasKeywordOrLabel, targetArmorColorCount } from "./keywordState"
 import { entryActive } from "./effectStop"
-import { braveBpBonus, instColors, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllNexusesHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast } from "./level"
+import { braveBpBonus, instColors, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllNexusesHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast, battlerOwnerOf } from "./level"
 import { countSymbols, handSizeOf, instanceSymbolCount } from "./symbols"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
@@ -124,7 +125,7 @@ export function countAuraCounter(
         const families = instFamilies(targetInst)
         return board.players[sourcePid].field.spirits.filter((s) => families.some((f) => spiritHasFamily(board, sourcePid, s, f))).length
     }
-    if (counter === "targetBofuCount") return targetInst ? bofuCountFor(board, board.players.p1.field.spirits.includes(targetInst) ? "p1" : "p2", targetInst) : 0
+    if (counter === "targetBofuCount") return targetInst ? bofuCountFor(board, battlerOwnerOf(board, targetInst), targetInst) : 0
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(board, targetInst) : 0
     }
@@ -150,7 +151,7 @@ export function countAuraCounter(
                 ? board.battle.blockerInstanceId
                 : board.battle.attackerInstanceId
         if (!otherId) return 0
-        const otherInst = board.players[opp].field.spirits.find((s) => s.instanceId === otherId)
+        const otherInst = battlers(board.players[opp]).find((s) => s.instanceId === otherId)
         if (!otherInst) return 0
         if (counter === "battlingOpponentCombinedSymbols" && !instIsCombined(otherInst)) return 0
         return instanceSymbolCount(otherInst)
@@ -269,7 +270,7 @@ export function checkAuraCondition(
     if (typeof condition === "object" && "ownAttacksAtLeast" in condition) return board.turnPlayer === sourcePid && board.attacksThisTurn >= condition.ownAttacksAtLeast
     if (condition === "opponentAttackerRefreshed") {
         const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
-        const atk = board.players[oppPid].field.spirits.find((s) => s.instanceId === board.battle?.attackerInstanceId)
+        const atk = battlers(board.players[oppPid]).find((s) => s.instanceId === board.battle?.attackerInstanceId)
         return !!atk && !atk.isRested
     }
     // "hasOwnBurstSet"：自分がバーストエリアにカードをセットしている間（docs/design/BURST.md）。
@@ -384,7 +385,7 @@ export function checkAuraCondition(
     if ("battleOpponentMatches" in condition) {
         if (!board.battle) return false
         const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
-        const oppInst = board.players[oppPid].field.spirits.find(
+        const oppInst = battlers(board.players[oppPid]).find(
             (s) => s.instanceId === board.battle!.attackerInstanceId || s.instanceId === board.battle!.blockerInstanceId,
         )
         if (!oppInst) return false

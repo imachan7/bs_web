@@ -9,7 +9,7 @@ import { instColors } from "../../../shared/rules"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { fireBattleWonTriggers } from "./stepTriggers"
 import { fireTrigger } from "./triggers"
-import { withWaitingEvent } from "./GameState"
+import { withWaitingEvent, findBattler } from "./GameState"
 
 export type BattleWinner = { pid: PlayerId; instanceId: string; role: "attacker" | "blocker" }
 
@@ -20,7 +20,7 @@ export function collectBattleOutcomeTriggers(
     winner: BattleWinner,
     collect: CollectedTrigger[],
 ): void {
-    const winnerInst = state.players[winner.pid].field.spirits.find((s) => s.instanceId === winner.instanceId)
+    const winnerInst = findBattler(state.players[winner.pid], winner.instanceId)
     if (!winnerInst) return
     const raw: CollectedTrigger[] = []
     fireTrigger(state, winner.pid, winnerInst, "onBattleWin", winner.role, undefined, undefined, undefined, undefined, undefined, raw)

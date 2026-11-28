@@ -24,9 +24,9 @@ export function markOnceNameUsed(state: GameState, pid: PlayerId, cardId: string
 export function ownerPidOfInstance(state: GameState, inst: CardInstance): PlayerId | undefined {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const f = state.players[pid].field
-        if (f.spirits.includes(inst) || f.nexuses.includes(inst) || f.combinedBraves.includes(inst)) return pid
+        if (f.spirits.includes(inst) || f.ultimates.includes(inst) || f.nexuses.includes(inst) || f.combinedBraves.includes(inst)) return pid
         const id = inst.instanceId
-        if ([...f.spirits, ...f.nexuses, ...f.combinedBraves].some((x) => x.instanceId === id)) return pid
+        if ([...f.spirits, ...f.ultimates, ...f.nexuses, ...f.combinedBraves].some((x) => x.instanceId === id)) return pid
     }
     return undefined
 }

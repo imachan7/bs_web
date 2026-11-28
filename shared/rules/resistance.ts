@@ -1,5 +1,6 @@
 // 効果耐性（装甲・効果を受けない・対象にならない）の一本化（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
 import { entryActive } from "./effectStop"
+import { battlers } from "./level"
 import { noteCoverage } from "../coverage"
 
 import type {
@@ -191,7 +192,7 @@ export function isInBattle(board: Board, inst: CardInstance): boolean {
 // サーバーの isExhaustImmune と同じ判定を Board で行う（あちらはこの関数へ委譲している）
 export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, inst: CardInstance, sourceType?: CardType): boolean {
     const player = board.players[targetOwnerPid]
-    for (const source of [...player.field.spirits, ...player.field.nexuses]) {
+    for (const source of [...battlers(player), ...player.field.nexuses]) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "exhaustImmunityGrant") continue

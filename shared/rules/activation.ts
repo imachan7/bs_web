@@ -1,5 +1,6 @@
 // 覚醒・起動能力・指定アタック・維持コア・フラッシュのロック・代替召喚（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
 import { isWaiting } from "./waiting"
+import { battlers } from "./level"
 import { noteCoverage } from "../coverage"
 
 import type {
@@ -600,7 +601,7 @@ export function isFlashLockedFor(board: Board, pid: PlayerId, cardType?: CardTyp
     const attackerId = board.battle?.attackerInstanceId
     if (attackerId === undefined) return false
     const opp: PlayerId = pid === "p1" ? "p2" : "p1"
-    const attacker = board.players[opp].field.spirits.find((s) => s.instanceId === attackerId)
+    const attacker = battlers(board.players[opp]).find((s) => s.instanceId === attackerId)
     if (!attacker) return false
     for (const source of effectSources(board, opp)) {
         const level = currentLevel(source).level

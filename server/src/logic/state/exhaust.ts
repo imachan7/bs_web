@@ -1,7 +1,7 @@
 // スピリット・ネクサスの疲労処理
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 import { entryActive } from "../../../../shared/rules/effectStop"
-import { trashCardEffectsDisabled } from "../../../../shared/rules"
+import { trashCardEffectsDisabled, battlers } from "../../../../shared/rules"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, CardType, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf, requestTrashReturn } from "../GameState"
@@ -148,7 +148,7 @@ function returnTrashOnHeavyExhaust(state: GameState, pid: PlayerId): void {
         getCard(cardId).effects.some(
             (e) =>
                 e.kind === "trashReturnOnOwnHeavyExhaust" &&
-                [...player.field.spirits, ...player.field.nexuses].some((i) => instFamilies(i).includes(e.familyFilter)),
+                [...battlers(player), ...player.field.nexuses].some((i) => instFamilies(i).includes(e.familyFilter)),
         ),
     )
     if (index === -1) return

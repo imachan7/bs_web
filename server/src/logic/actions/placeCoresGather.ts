@@ -7,7 +7,7 @@ import { fireFieldEventTriggers, placeCoresOnSpirit, requestChoice } from "../Ef
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
 import { takeCoresFromSpirit } from "../removal"
 import { canPayLife, lifeCostQuery, recordLifeLoss, settleLifeZero } from "../lifeGate"
-import { minLevelCores } from "../../../../shared/rules"
+import { minLevelCores, battlers } from "../../../../shared/rules"
 
 type WidePlaceCores = Extract<EffectAction, { type: "placeCores" }>
 type Single = Exclude<WidePlaceCores["from"], unknown[]>
@@ -32,7 +32,7 @@ function sourcesOf(ctx: ActionCtx, action: WidePlaceCores): Src[] {
     const addInst = (inst: CardInstance, label: string): void => {
         if (inst === destSelf || out.some((s) => s.key === inst.instanceId)) return
         const cap = normalCoresOn(player, inst)
-        if (cap > 0) out.push({ key: inst.instanceId, label, cap, inst, spare: player.field.spirits.includes(inst) ? Math.max(0, inst.cores - minLevelCores(getCard(inst.cardId))) : cap })
+        if (cap > 0) out.push({ key: inst.instanceId, label, cap, inst, spare: battlers(player).includes(inst) ? Math.max(0, inst.cores - minLevelCores(getCard(inst.cardId))) : cap })
     }
     for (const f of fromsOf(action)) {
         if (f === "reserve" && normalReserveOf(player) > 0) out.push({ key: "reserve", label: "リザーブ", cap: normalReserveOf(player), spare: Infinity })
@@ -78,7 +78,7 @@ function take(ctx: ActionCtx, src: Src, n: number): number {
     }
     const inst = src.inst
     if (!inst) return 0
-    if (player.field.spirits.includes(inst)) return takeCoresFromSpirit(state, owner, inst, n)
+    if (battlers(player).includes(inst)) return takeCoresFromSpirit(state, owner, inst, n)
     const t = Math.min(n, normalCoresOn(player, inst))
     inst.cores -= t
     return t
@@ -105,7 +105,7 @@ export function gatherPayable(ctx: ActionCtx, action: WidePlaceCores): boolean {
     const { state, owner, self } = ctx
     if (action.to === "self") {
         const p = state.players[owner]
-        if (!self || ![...p.field.spirits, ...p.field.nexuses].includes(self)) return false
+        if (!self || ![...battlers(p), ...p.field.nexuses].includes(self)) return false
     } else if (action.to !== "life" && action.to !== "reserve" && action.to !== "trash") return false
     if (typeof action.count !== "number") return true
     return sourcesOf(ctx, action).reduce((sum, s) => sum + s.cap, 0) >= action.count
@@ -202,7 +202,7 @@ function place(ctx: ActionCtx, action: WidePlaceCores, gathered: number): void {
     if (action.to === "life") player.life += gathered
     else if (action.to === "reserve") player.reserve += gathered
     else if (action.to === "trash") player.trashCores += gathered
-    else if (self && [...player.field.spirits, ...player.field.nexuses].includes(self)) placeCoresOnSpirit(state, self, gathered, owner)
+    else if (self && [...battlers(player), ...player.field.nexuses].includes(self)) placeCoresOnSpirit(state, self, gathered, owner)
     else {
         // 取っている間に行き先が場を離れていた。コアは失わずリザーブへ
         player.reserve += gathered

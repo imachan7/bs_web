@@ -6,7 +6,7 @@ import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { normalCoresOn, normalReserveOf, normalTrashOf, soulCoreInclusionDecision } from "../soulCore"
 import type { ActionCtx } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { coresForLevel, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
+import { coresForLevel, getCard, log, opponentOf, pushResumeFrames, findBattler } from "../GameState"
 import {
     askPayToNegateIfNeeded,
     bothSidesPids,
@@ -19,7 +19,7 @@ import {
     resistanceAgainst,
 } from "../EffectModules"
 import { coreRemovalAllowed } from "../coreGate"
-import { coreZoneChoiceId, coresToOpponentReserveGoToTrash, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
+import { coreZoneChoiceId, coresToOpponentReserveGoToTrash, currentLevel, effectiveBp, instBaseCost, matchesTarget, battlers } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { redirectReentryId, settleList, settleOne } from "../designation"
@@ -100,7 +100,7 @@ function depositTo(state: GameState, pid: PlayerId, to: Dest, amount: number, la
 function soulFor(ctx: ActionCtx, resume0: RemoveCoresAction, pid: PlayerId, inst: CardInstance, to: Dest): boolean | "asked" {
     const resume = continueWith(ctx, resume0)
     if (to !== "reserve" && to !== "trash") return false
-    if (!ctx.state.players[pid].field.spirits.includes(inst)) return false
+    if (!battlers(ctx.state.players[pid]).includes(inst)) return false
     const answered = resume.soulAnswers?.[inst.instanceId]
     if (answered !== undefined) return answered
     return soulCoreInclusionDecision(ctx.state, ctx.owner, pid, inst, to, resume, ctx.self, ctx.sourceName, ctx.chosenOption)
@@ -128,7 +128,7 @@ function noteEmptied(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, before: 
 // ネクサスは装甲・維持コアの概念が無いので直接動かす＝bothSidesCoreToVoid等と同じ扱い）
 function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest, includeSoul = false): void {
     const { state, owner, srcType } = ctx
-    if (state.players[pid].field.spirits.includes(inst)) {
+    if (battlers(state.players[pid]).includes(inst)) {
         const before = inst.cores
         applyToSpirit(ctx, pid, inst, amount, to, includeSoul)
         noteEmptied(ctx, pid, inst, before)
@@ -197,7 +197,7 @@ export function removeCoresAchievableCountForPay(
     if (defaultTarget(action) === "self") {
         if (!self) return 0
         const own = state.players[owner]
-        if (!own.field.spirits.includes(self) && !own.field.nexuses.includes(self)) return 0
+        if (!battlers(own).includes(self) && !own.field.nexuses.includes(self)) return 0
         return amountFor(self, countSpec, action.leaveAtLeast)
     }
 
@@ -241,7 +241,7 @@ export function removeCoresAchievableCountForPay(
 const resolveSelfTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     const { state, owner, self, sourceName } = ctx
     const to = action.to ?? "reserve"
-    if (!self || !state.players[owner].field.spirits.includes(self) && !state.players[owner].field.nexuses.includes(self)) {
+    if (!self || !battlers(state.players[owner]).includes(self) && !state.players[owner].field.nexuses.includes(self)) {
         log(state, `${sourceName}のコア除去：対象がいなかった。`)
         return
     }
@@ -586,7 +586,7 @@ function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest, includeSou
         depositTo(state, s.pid, to, 1, `${getCard(nx.cardId).name}（ネクサス）`)
         return 1
     }
-    const sp = player.field.spirits.find((x) => x.instanceId === s.inst!.instanceId)
+    const sp = findBattler(player, s.inst!.instanceId)
     if (!sp) return 0
     const before = sp.cores
     const taken = takeOneFromSpirit(ctx, s.pid, sp, to, includeSoul)

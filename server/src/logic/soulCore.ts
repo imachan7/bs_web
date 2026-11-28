@@ -8,7 +8,7 @@
 // 通常コアだけを扱いたい場面（通常コアの取り出し上限・「リザーブからコアを置く」の候補数等）では
 // normalReserveOf / normalTrashOf / normalCoresOn を使うこと（ソウルコアぶんを差し引いた数）。
 import type { CardInstance, GameState, PlayerId, PlayerState, SoulCoreLocation } from "../type"
-import { instMinLevelCores, getCard } from "./GameState"
+import { instMinLevelCores, getCard, findBattler } from "./GameState"
 import { requestChoice } from "./targeting"
 import { cardHasTeam } from "../../../shared/rules/level"
 import type { EffectAction } from "../types/effectAction"
@@ -55,7 +55,7 @@ export function keishoExcludedTeamAtLeast(state: GameState, spec: { team: string
 // オブジェクトを持っている場合は moveSoulCore の fromInst 引数に直接渡すこと
 function soulInstance(player: PlayerState, instanceId: string): CardInstance | undefined {
     return (
-        player.field.spirits.find((s) => s.instanceId === instanceId) ??
+        findBattler(player, instanceId) ??
         player.field.nexuses.find((n) => n.instanceId === instanceId) ??
         player.field.combinedBraves.find((b) => b.instanceId === instanceId)
     )

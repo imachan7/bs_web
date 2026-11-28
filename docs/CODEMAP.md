@@ -298,6 +298,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instInShinkaihoState`（fn）：真界放状態（26系《真界放》）: soulCoreRequired のLv（常にLv2）に現在いること。
 - `bravesOf`（fn）：ホストに合体しているブレイヴの実体。参照が切れている（実体が既に無い）ぶんは黙って落とす
 - `hostsOf`（fn）：ブレイヴが合体しているホスト。**異魔神ブレイヴは2体returnsする**（実体1つ・参照2本）
+- `battlerOwnerOf`（fn）：個体を持つ側。スピリット・アルティメットのどちらにも無ければ "p2"（従来の直書き `spirits.includes(x) ? "p1" : "p2"` と同じ既定）
 - `braveLevelOf`（fn）：合体状態のブレイヴのレベル。**合体スピリット上のコア数**（＝ホストのコア数）を
 - `braveBpBonus`（fn）：合体しているブレイヴが足す「合体時BP+」の合計。**ホストのコア数で合体状態のレベルが変わる**ため、
 - `braveKeepCores`（fn）：スピリット状態のブレイヴを場に残すのに必要なコア数（＝**スピリット状態の**Lv1維持コスト。§1.4）。
@@ -594,6 +595,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `rawLevel`（fn）：コア数のみによる素のレベル判定（levelAsContinuous / levelOverrideThisTurn による上書きは無視する）。
 - `coresForLevel`（fn）：召喚／配置でそのレベルにするために置くコア数。存在しないレベルを指定された場合は null を返す
 - `findSpirit`（fn）
+- `findBattler`（fn）：選ばれた対象の引き直しは findSpirit のまま（スピリットだけを引く）。アタッカー・ブロッカー・バトル参加者など「実体」を引く所だけこちら
 - `findNexus`（fn）
 - `fieldInstanceIdsOf`（fn）：pid のフィールド（スピリット/ネクサス/合体中ブレイヴ）にある instanceId の集合。
 - `findInstanceAnywhere`（fn）：両プレイヤーのスピリット（ネクサスは含まない）から instanceId を検索する。
@@ -1054,6 +1056,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyTenshoSubstitute`（fn）：【転召】の置換を実際に適用する（疲労 or 手札に戻す）。どちらもコアは指定場所へ行かない。
 - `applyTenshoSubstituteCrossSource`（fn）：tenshoCoreSubstituteのfamilyFilter/costFilter版（BS12-061剣の誕生地）：疲労するのは対象スピリット
 - `tenshoDumpAndDestroy`（fn）：【転召】の最終段：対象の上のコアをすべて dest へ置き、維持コア割れなら消滅させる。
+
+## server/src/logic/leaveField.ts
+
+- `removeFromField`（fn）：場にいなければ false（何も動かさない）
+- `leaveField`（fn）：抜く → 下のカードを破棄 → [ソウルコア]退避 → 乗っていたコアをリザーブへ。この順は既存の各所と同じ。
 
 ## server/src/logic/levelRecheck.ts
 

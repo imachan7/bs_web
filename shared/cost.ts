@@ -8,7 +8,7 @@ import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { entryActive } from "./rules/effectStop"
-import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, onlyColors, countSymbols, grantedColorsOf, instanceSymbolColors, flexibleSymbolUnits, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
+import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, onlyColors, countSymbols, grantedColorsOf, instanceSymbolColors, flexibleSymbolUnits, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard, battlers } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -31,7 +31,7 @@ function costModSum(board: Board, usingPid: PlayerId, cardData: CardData, before
     let total = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = board.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
+        const sources = [...battlers(player), ...player.field.nexuses]
         for (const source of sources) {
             const sourceLevel = currentLevel(source).level
             for (const effect of card(source.cardId).effects) {
@@ -244,7 +244,7 @@ export function hasMagicRestriction(
         // noFlashAll（BS06軍師ショウジョウジ）はoncePerTurnAllと同じく「お互い」に効くため、
         // usingPid===ownerPidでもスキップしない
         if (restriction !== "oncePerTurnAll" && restriction !== "noFlashAll" && usingPid === ownerPid) continue
-        const sources = [...board.players[ownerPid].field.spirits, ...board.players[ownerPid].field.nexuses]
+        const sources = [...battlers(board.players[ownerPid]), ...board.players[ownerPid].field.nexuses]
         for (const source of sources) {
             const level = currentLevel(source).level
             for (const effect of card(source.cardId).effects) {
@@ -270,7 +270,7 @@ export function hasMagicRestriction(
 // requireOwnKeyword 指定時は、発生源の持ち主のフィールドにそのキーワードを持つスピリットがいる間だけ有効
 export function hasMagicCostLock(board: Board, cardData: CardData): boolean {
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
-        const sources = [...board.players[ownerPid].field.spirits, ...board.players[ownerPid].field.nexuses]
+        const sources = [...battlers(board.players[ownerPid]), ...board.players[ownerPid].field.nexuses]
         for (const source of sources) {
             const level = currentLevel(source).level
             for (const effect of card(source.cardId).effects) {
@@ -302,7 +302,7 @@ export function hasMagicCostLock(board: Board, cardData: CardData): boolean {
 // 含むマジックカードを使用できない（BS19-066「お互い、緑/白/黄のマジックカードを使用できない」）
 export function hasMagicColorBan(board: Board, cardData: CardData): boolean {
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
-        const sources = [...board.players[ownerPid].field.spirits, ...board.players[ownerPid].field.nexuses]
+        const sources = [...battlers(board.players[ownerPid]), ...board.players[ownerPid].field.nexuses]
         for (const source of sources) {
             const level = currentLevel(source).level
             for (const effect of card(source.cardId).effects) {
@@ -388,7 +388,7 @@ export function findMagicFreeGrantSource(
     cardData: CardData,
     requireTegamotoScope = false,
 ): string | null {
-    const sources = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
+    const sources = [...battlers(board.players[pid]), ...board.players[pid].field.nexuses]
     for (const source of sources) {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
@@ -436,7 +436,7 @@ export function isSelfInBattle(board: Board, instanceId: string): boolean {
 // レベル有効・phaseTurn一致・ターンに1回の枠が残っている発生源があればその instanceId を返す（無ければ null）
 export function findSokuFreeSummonSource(board: Board, pid: PlayerId): string | null {
     if (!board.isFlashTiming) return null
-    const sources = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
+    const sources = [...battlers(board.players[pid]), ...board.players[pid].field.nexuses]
     for (const source of sources) {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {

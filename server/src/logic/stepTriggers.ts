@@ -7,7 +7,7 @@ import { markPays } from "./actions/pay"
 import type { CardInstance, EffectAction, EffectDef, GameState, Phase, PlayerId, ResumeFrame } from "../type"
 import { currentLevel, getCard, log, opponentOf, resolveInOrder, withWaitingEvent } from "./GameState"
 import { isWaiting, waitingEventFor } from "../../../shared/rules/waiting"
-import { countSpiritsWeighted, countSymbols, effectiveBp, effectSources, hostsOf, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, isTrashReturnAtEndStep, trashCardEffectsDisabled } from "../../../shared/rules"
+import { countSpiritsWeighted, countSymbols, effectiveBp, effectSources, hostsOf, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, isTrashReturnAtEndStep, trashCardEffectsDisabled, battlers } from "../../../shared/rules"
 import { applyDeclaredBursts, requestActivationConfirm, resolveAction } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
@@ -231,7 +231,7 @@ export function fireStepTriggers(
     const firing: StepFiring[] = []
     for (const pid of order) {
         const player = state.players[pid]
-        const instances = [...player.field.spirits, ...player.field.nexuses]
+        const instances = [...battlers(player), ...player.field.nexuses]
         // 合体中のブレイヴの【合体時】ステップ効果も発火させる（色・数の集計 instances には混ぜない）
         for (const inst of [...instances, ...player.field.combinedBraves]) {
             const card = getCard(inst.cardId)

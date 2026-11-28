@@ -10,13 +10,13 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { applyBothSidesRedirectToCandidates, returnNexusToDeckTop, voidCoreToOwnTrash, bothSidesPids, askPayToNegateIfNeeded, gateTargetedApply, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestActivationConfirm, requestChoice, requestUpToChoice, returnNexusToHand, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
-import { bravesOf, effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { bravesOf, effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget, battlers } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { lastMovedOf, recordMoved } from "../record"
 import { detachBraveByEffect, returnCombinedBraveToHand } from "../brave"
 import { withBounceBraveCantRemain } from "../removal"
 import { countedAmount } from "../counted"
-import { soulCoreLeavesField } from "../soulCore"
+import { leaveField } from "../leaveField"
 
 type HandReturn = Extract<EffectAction, { type: "return"; to: "hand" }>
 
@@ -115,7 +115,7 @@ function returnToHandByBudget(ctx: ActionCtx, action: HandReturn): void {
 // selfBrave は合体中のブレイヴを外してから手札へ（2体以上なら持ち主が選ぶ。再入は costSacrificeChosen＋targetInstanceId）
 function returnOwnAsCost(ctx: ActionCtx, action: HandReturn, target: "self" | "selfBrave"): void {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
-    if (!self || !state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId)) {
+    if (!self || !battlers(state.players[owner]).some((s) => s.instanceId === self.instanceId)) {
         log(state, `${sourceName}：手札に戻す自分のスピリットがいなかった。`)
         return
     }
@@ -177,7 +177,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // target:"self" の入口は2つ。破壊待機中・場にいない個体は破壊時の誘発（returnDestroyedSelfToHand）、
         // 場に健在な個体は pay のコスト（returnOwnAsCost）。データ側のどちらも onDestroy でしか使われないので状態で見分ける
-        if (action.target === "self" && (isTrashWaiting(self) || !self || !state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId))) {
+        if (action.target === "self" && (isTrashWaiting(self) || !self || !battlers(state.players[owner]).some((s) => s.instanceId === self.instanceId))) {
             returnDestroyedSelfToHand(ctx)
             return
         }
@@ -673,7 +673,7 @@ type DeckReturnAction = Extract<EffectAction, { type: "return"; to: "deckTop" | 
 
 function returnSelfToDeckBottomAsCost(ctx: ActionCtx): void {
     const { state, owner, self, sourceName } = ctx
-    if (!self || !state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId)) {
+    if (!self || !battlers(state.players[owner]).some((s) => s.instanceId === self.instanceId)) {
         log(state, `${sourceName}：デッキの下に戻す自分のスピリットがいなかった。`)
         return
     }
@@ -832,11 +832,7 @@ function returnDestroyedSelfToHand(ctx: ActionCtx): void {
         // 破壊待機状態を解いてから抜けるので、あとで commitPendingDestruction がトラッシュへ送ることはない
         if (isTrashWaiting(self)) {
             if (blocked("field")) return
-            const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
-            if (fieldIdx >= 0) {
-                player.field.spirits.splice(fieldIdx, 1)
-                soulCoreLeavesField(player, self) // 案B-inside: 先に[ソウルコア]退避
-                player.reserve += self.cores
+            if (leaveField(state, owner, self, false)) {
                 detachBravesOnLeave(state, owner, self, false, "hand") // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1。残さないなら手札へ §6.3.2）
             }
             // 破壊待機の、合体していたブレイヴ（ブレイヴだけの破壊。brave.ts の destroyCombinedBraves）：
@@ -872,11 +868,7 @@ function returnDestroyedSelfToDeckTop(ctx: ActionCtx): void {
         const player = state.players[owner]
         // returnDestroyedSelfToHand と同じ形：破壊待機状態ならそこからデッキトップへ、既にトラッシュならそこから
         if (isTrashWaiting(self)) {
-            const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
-            if (fieldIdx >= 0) {
-                player.field.spirits.splice(fieldIdx, 1)
-                soulCoreLeavesField(player, self) // 案B-inside: 先に[ソウルコア]退避
-                player.reserve += self.cores
+            if (leaveField(state, owner, self, false)) {
                 detachBravesOnLeave(state, owner, self, false, "deckTop")
             }
             delete self.waiting

@@ -3,7 +3,7 @@
 import { isReturnWaiting, isTrashWaiting, isVanishWaiting, destroyContextOf, destroyBurstInfoOf } from "../../../shared/rules/waiting"
 import { bounceDenial, reviveOnReturnStay } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
-import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { battlers, trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
 import { millDeck } from "./zones/mill"
 import { kyokaBonus } from "./keywords/kyoka"
@@ -12,7 +12,7 @@ import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { askNextPickMany } from "./revivePickMany"
 import type { CardInstance, CardType, Color, EffectAction, EventBurstCheck, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import type { WaitingState } from "../types/cardInstance"
-import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, summonMinCores, opponentOf, pushResumeFrames, requestTrashReturn, resolveInOrder, suspend } from "./GameState"
+import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, summonMinCores, opponentOf, pushResumeFrames, requestTrashReturn, resolveInOrder, suspend, findBattler } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
 import { getAllFamilies, resolveAction } from "./EffectModules"
 import { destroyDenial } from "./destroyGate"
@@ -31,6 +31,7 @@ import { isOnceNameUsed } from "./oncePerTurn"
 import { leavesNothingBehind } from "./keywords/bunshin"
 import { isTokenCard } from "../../../shared/cardDb"
 import { trashUnderCards } from "./zones/underCards"
+import { leaveField, removeFromField } from "./leaveField"
 import { collectBattleOutcomeTriggers } from "./battleOutcomeTriggers"
 import type { BattleWinner } from "./battleOutcomeTriggers"
 import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, nexusReviveSource } from "./revive"
@@ -202,7 +203,7 @@ function enterDestroyWaiting(
     // 「この効果で破壊したスピリット1体につき」を数える効果が参照する（RESUME_STACK.md §7）
 ): DestroyEntry | null {
     const player = state.players[ownerPid]
-    const index = player.field.spirits.findIndex(
+    const index = battlers(player).findIndex(
         (s) => s.instanceId === instanceId,
     )
     if (index === -1) return null
@@ -590,7 +591,7 @@ function flushDeferredCommits(state: GameState): number {
     if (group) group.deferred = []
     let n = 0
     for (const d of deferred) {
-        const inst = state.players[d.pid].field.spirits.find((s) => s.instanceId === d.instanceId)
+        const inst = findBattler(state.players[d.pid], d.instanceId)
         if (!inst || !isTrashWaiting(inst)) continue
         commitPendingDestruction(state, d.pid, inst)
         n++
@@ -602,7 +603,7 @@ export function resumeDestroyCommit(
     state: GameState,
     frame: Extract<ResumeFrame, { kind: "destroyCommit" }>,
 ): void {
-    const inst = state.players[frame.pid].field.spirits.find((s) => s.instanceId === frame.instanceId)
+    const inst = findBattler(state.players[frame.pid], frame.instanceId)
     if (!inst || !isTrashWaiting(inst)) return
     if (frame.step <= 1) {
         fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
@@ -629,7 +630,7 @@ function hasOwnTrigger(state: GameState, pid: PlayerId, inst: CardInstance, trig
 function destroyedCoresToSelfCandidates(state: GameState, ownerPid: PlayerId): CardInstance[] {
     const out: CardInstance[] = []
     for (const source of effectSources(state, ownerPid)) {
-        if (!state.players[ownerPid].field.spirits.includes(source) || isTrashWaiting(source)) continue
+        if (!battlers(state.players[ownerPid]).includes(source) || isTrashWaiting(source)) continue
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "destroyedCoresToSelf") continue
@@ -681,7 +682,7 @@ export function applyCoreDestination(state: GameState, ownerPid: PlayerId, cores
     } else if (dest === "reserve") {
         state.players[ownerPid].reserve += cores
     } else if (dest !== "void") {
-        const target = state.players[ownerPid].field.spirits.find((s) => s.instanceId === dest)
+        const target = findBattler(state.players[ownerPid], dest)
         if (target) {
             target.cores += cores
             log(state, `破壊されたスピリットのコア${cores}個は${getCard(target.cardId).name}に置かれた。`)
@@ -706,8 +707,7 @@ export function commitPendingDestruction(
     const commitContext = destroyContextOf(inst)
     const braveCantRemain = commitContext?.braveCantRemain === true
     const player = state.players[ownerPid]
-    const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
-    if (index === -1) {
+    if (!battlers(player).some((s) => s.instanceId === inst.instanceId)) {
         delete inst.waiting
         return
     }
@@ -731,7 +731,7 @@ export function commitPendingDestruction(
         destroyedBp: burstInfo?.bp ?? 0,
         setCardId: player.burst,
     })
-    player.field.spirits.splice(index, 1)
+    removeFromField(state, ownerPid, inst)
     trashUnderCards(state, ownerPid, inst) // 下のカードは場を離れるとき破棄（BS19-X02。トラッシュでは下のカードが先）
     if (inst.bunshinOf !== undefined) {
         player.trashCards.push(inst.bunshinOf) // Q787：元のカードが表向きでトラッシュへ（BP0でもデッキ下へは行かない）
@@ -1006,7 +1006,7 @@ export function destroyTargetsBatch(
     // 破壊待機のスピリットすべての系統を持ち主ごとに控える（1回の誘発で全員を参照するため。2026-09-22 ユーザー確認）
     const familiesByPid: Partial<Record<PlayerId, string[]>> = {}
     for (const t of targets) {
-        const inst = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
+        const inst = findBattler(state.players[t.pid], t.instanceId)
         if (!inst) continue
         familiesByPid[t.pid] = [...new Set([...(familiesByPid[t.pid] ?? []), ...grantedFamilies(state, t.pid, inst)])]
     }
@@ -1425,7 +1425,7 @@ export function markBounce(
     sourceName?: string,
 ): boolean {
     const player = state.players[ownerPid]
-    if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return false
+    if (!battlers(player).some((s) => s.instanceId === inst.instanceId)) return false
     if (isReturnWaiting(inst)) return false
     const denied = bounceDenial(state, ownerPid, inst, to)
     if (denied) {
@@ -1460,7 +1460,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
     if (state.currentEffectSource?.effectId !== undefined) {
         order?.forEach((id, i) => {
             for (const pid of ["p1", "p2"] as PlayerId[]) {
-                const w = state.players[pid].field.spirits.find((s) => s.instanceId === id)?.waiting
+                const w = findBattler(state.players[pid], id)?.waiting
                 if (w?.kind === "return") w.rank = i
             }
         })
@@ -1520,12 +1520,7 @@ export function moveReturned(state: GameState, event: string, order?: string[]):
             const pb = inst.waiting?.kind === "return" && inst.waiting.event === event ? inst.waiting : undefined
             if (!pb) continue
 
-            const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
-            if (index === -1) continue
-            player.field.spirits.splice(index, 1)
-            trashUnderCards(state, pid, inst) // 下のカードは場を離れるとき破棄（BS19-X02）
-            soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避（coresの数値調整込み）
-            player.reserve += inst.cores
+            if (!leaveField(state, pid, inst)) continue // 下のカードの破棄（BS19-X02）・[ソウルコア]退避を含む
             // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）。残すかの確認は全員を移し終えてから出す
             // （途中で確認の中断を立てると、その後の移動で盤面が変わる。smoke part778 の場面25）
             detachBravesOnLeave(state, pid, inst, true, pb.to === "burst" ? "trash" : pb.to, pb.braveCantRemain === true)
@@ -1832,7 +1827,7 @@ export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: Pl
 function coreFloorOwnNamedFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId, actorPid?: PlayerId): number {
     if (ownerPid === undefined || actorPid === undefined || actorPid === ownerPid) return 0
     let floor = 0
-    for (const source of state.players[ownerPid].field.spirits) {
+    for (const source of battlers(state.players[ownerPid])) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "coreFloorOwnNamedByOpponent") continue
@@ -1849,8 +1844,8 @@ function coreFloorBlockingKeywordFor(state: GameState, inst: CardInstance): numb
     if (state.battle?.blockerInstanceId !== inst.instanceId) return 0
     let floor = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const attacker = state.players[pid].field.spirits.find((s) => s.instanceId === state.battle?.attackerInstanceId)
-        if (!attacker || state.players[pid].field.spirits.some((s) => s.instanceId === inst.instanceId)) continue
+        const attacker = findBattler(state.players[pid], state.battle?.attackerInstanceId)
+        if (!attacker || battlers(state.players[pid]).some((s) => s.instanceId === inst.instanceId)) continue
         for (const source of effectSources(state, pid)) {
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
