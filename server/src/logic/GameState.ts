@@ -1,5 +1,6 @@
 // GameState / PlayerState の状態生成・更新の土台
 import { takeFromTrash } from "./zones/trash"
+import { costSpendableOn } from "./coreGate"
 import { validateEndTurn } from "./RuleValidator"
 import { noteInstance } from "../../../shared/coverage"
 import { deckCopyLimit, MAX_COPIES } from "../../../shared/deckLimit"
@@ -847,6 +848,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         ...(state.turnPlayer === viewer && !state.winner && validateEndTurn(state, viewer) !== null ? { endTurnBlocked: true as const } : {}),
         endStepLocks: state.endStepLocks.map((l) => ({ ...l, locks: [...l.locks] })),
         attacksThisTurn: state.attacksThisTurn,
+        costSpendable: Object.fromEntries([...state.players[viewer].field.spirits, ...state.players[viewer].field.nexuses].map((i) => [i.instanceId, costSpendableOn(state, viewer, i)])),
         magicUsedThisTurn: { ...state.magicUsedThisTurn },
         ...(state.lifeLostThisTurn ? { lifeLostThisTurn: state.lifeLostThisTurn } : {}),
         ...(state.spiritVanishedThisTurn ? { spiritVanishedThisTurn: state.spiritVanishedThisTurn } : {}),

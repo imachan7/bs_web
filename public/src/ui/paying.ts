@@ -13,9 +13,17 @@ export function payableFieldCores(view: GameView, cardId: string): number {
     const card = master(cardId)
     const isSoku = view.isFlashTiming && (card.type === "spirit" || card.type === "brave") && (ownHandKeyword(view, cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))
     const allowed = isSoku ? sokuPayableInstanceIds(view, view.you) : null
+    // コアの下限（天守閣・マサムネなど）で取れないぶんは数えない。下限の判定はサーバーにしか無いので GameView.costSpendable を使う（#743）
     return [...player.field.spirits, ...player.field.nexuses]
         .filter((i) => allowed === null || allowed.has(i.instanceId))
-        .reduce((sum, i) => sum + i.cores, 0)
+        .reduce((sum, i) => sum + (view.costSpendable?.[i.instanceId] ?? i.cores), 0)
+}
+
+// 1個体から支払いに使える通常コアの数。[ソウルコア]（専用ボタンで払う）と、コアの下限（GameView.costSpendable。#743）で取れないぶんを除く
+export function spendableNormals(view: GameView, inst: { instanceId: string; cores: number }): number {
+    const soul = view.players[view.you].soulCore
+    const soulHere = soul?.zone === "instance" && soul.instanceId === inst.instanceId ? 1 : 0
+    return Math.min(inst.cores - soulHere, view.costSpendable?.[inst.instanceId] ?? Infinity)
 }
 
 // コストだけの支払い（ブロックの追加コスト・【迷彩】）。置くコアが無いので[ソウルコア]は「コストに使う」だけ選べる

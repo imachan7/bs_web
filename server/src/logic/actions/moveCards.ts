@@ -1,5 +1,6 @@
 // カードを選んで動かす統合の器（旧 toHand／toDeck ほか「選ぶ＋送る」の type をここへ寄せる）
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
+import { costSpendableField } from "../coreGate"
 import { effectMagicUseDenial, useMagicByEffect } from "../magic/effectUse"
 import { coreRemovalAllowed } from "../coreGate"
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
@@ -135,7 +136,7 @@ function viaSoryo(action: MoveCards): boolean {
 function affordable(state: GameState, pid: PlayerId, action: MoveCards, cardId: string, soryo = false): boolean {
     const player = state.players[pid]
     const card = getCard(cardId)
-    const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
+    const fieldCores = costSpendableField(state, pid)
     if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= summonMinCores(state, pid, card) + effectiveCost(state, pid, card, false, [], soryo, action.from === "hand") + summonVoidToll(state, card) : canPayFreeSummonSurcharge(state, pid, card, summonMinCores(state, pid, card), true)
     if (action.dest === "cast") return action.pay === "cost" ? canPayMagicCost(state, pid, effectiveCost(state, pid, card)) : true
     if (action.pay === "fieldCoresOnly") return fieldCoresSpendable(state, pid).reduce((sum, x) => sum + x.max, 0) >= effectiveCost(state, pid, card)

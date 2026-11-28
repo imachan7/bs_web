@@ -143,6 +143,23 @@ const SCENES = [
       for (let i = 0; i < 2; i++) await clickSel(c.A, '#choice-options [data-alloc="reserve"][data-delta="1"]', 300)
     },
   },
+  // コアの下限（#743）：相手のアタックで天守閣Lv2が誘発し、オープンした殻虫を召喚する支払い。リザーブ0で、緑のスピリット（コア1）は下限で取れず光らない。赤のスピリットとネクサスだけ光る
+  {
+    id: "coreFloor", name: "10d コアの下限（天守閣）で取れないスピリットは光らない", turn: "opp", phase: "attack",
+    board: () => ({
+      me: base({ reserve: 0, deck: Array.from({ length: 10 }, () => "BS01-050"), field: { spirits: [...Array.from({ length: 3 }, () => ({ cardId: "BS01-060", cores: 1 })), { cardId: "BS01-002", cores: 2 }], nexuses: [{ cardId: "BS12-065", cores: 3 }] } }),
+      opp: base(),
+    }),
+    run: async (c) => {
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      for (let i = 0; i < 6 && !c.A.querySelector("#choice-options .pay-sheet"); i++) {
+        const b = [...c.A.querySelectorAll("#choice-options button, #btn-skip-choice")].find((e) => vis(e) && !/しない|選ばない|使わない/.test(e.textContent || ""))
+        if (!b) break
+        b.click(); await sleep(700)
+      }
+      await waitSel(c.A, "#choice-options .pay-sheet")
+    },
+  },
   {
     id: "notice", name: "10 効果の通知（召喚直後）",
     board: () => ({ me: base({ reserve: 6, hand: [GRIP] }), opp: base() }),

@@ -104,6 +104,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `directAttackFilterOf`（fn）：canDirectAttack の定義から対象条件を組む。forced＝相手の効果で指定が決まっている個体（mustBeAttackTarget）
 - `directAttackFilter`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
 - `handSummonCostPayable`（fn）：維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
+- `viewCostSpendableField`（fn）：画面側の「払いに使える場のコアの数」。サーバーが GameView.costSpendable で渡す（下限の判定はサーバーにしか無い）。無ければ全部を数える
 - `minLevelCores`（fn）
 - `minLevelCoresOf`（fn）：レベル表から最小レベルの必要コア数を求める素の計算（minLevelCores / instMinLevelCores の共通実体）
 - `placedCoresForSummon`（fn）：召喚/配置で置く維持コア数。サーバー（validateSummon/doSummon/validateSetNexus/doSetNexus）と
@@ -861,6 +862,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `CoreRemovalAttempt`（型）
 - `coreProtectedBy`（fn）：個体の constraint・場全体の globalConstraint・このバトルのブロッカーへの期間つき効果のどれかが、この取り除きを止めるか
 - `coreRemovalAllowed`（fn）：取り除いてよい数（0〜min(amount, target.cores)）
+- `costSpendableOn`（fn）：支払い（コスト・置くコア）に使えるコアの数。コアの下限（天守閣・マサムネの coreFloorByCost など）と[ソウルコア]を除く（#743）。
+- `costSpendableField`（fn）
 
 ## server/src/logic/counted.ts
 
@@ -1881,6 +1884,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/ui/paying.ts
 
 - `payableFieldCores`（fn）：支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
+- `spendableNormals`（fn）：1個体から支払いに使える通常コアの数。[ソウルコア]（専用ボタンで払う）と、コアの下限（GameView.costSpendable。#743）で取れないぶんを除く
 - `payingIsCostOnly`（fn）：コストだけの支払い（ブロックの追加コスト・【迷彩】）。置くコアが無いので[ソウルコア]は「コストに使う」だけ選べる
 - `payingStageNeeds`（fn）：支払いモードで満たすべきコア数を、コスト（①）と置くコア（②）に分けて返す。
 - `payingNeed`（fn）：支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）

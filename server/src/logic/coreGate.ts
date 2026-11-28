@@ -9,6 +9,7 @@ import { entryActive } from "../../../shared/rules/effectStop"
 import type { CardInstance, CardType, GameState, PlayerId } from "../type"
 import { coreFloorFor, isInCurrentBattle } from "./removal"
 import { getCard } from "./GameState"
+import { normalCoresOn } from "./soulCore"
 
 export type CoreRemovalAttempt = {
     ownerPid: PlayerId
@@ -74,4 +75,16 @@ export function coreRemovalAllowed(state: GameState, a: CoreRemovalAttempt): num
         allowed = Math.min(allowed, Math.max(0, target.cores - 1))
     }
     return allowed
+}
+
+// 支払い（コスト・置くコア）に使えるコアの数。コアの下限（天守閣・マサムネの coreFloorByCost など）と[ソウルコア]を除く（#743）。
+// 「払えるか」を先に見る判定はすべてこれで数える（場のコアを全部足すと、候補に出したのに払えず止まった）。画面へは GameView.costSpendable で渡す
+export function costSpendableOn(state: GameState, pid: PlayerId, inst: CardInstance): number {
+    const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: inst.cores, cause: "cost", actorPid: pid })
+    return Math.min(normalCoresOn(state.players[pid], inst), allowed)
+}
+
+export function costSpendableField(state: GameState, pid: PlayerId): number {
+    const f = state.players[pid].field
+    return [...f.spirits, ...f.nexuses].reduce((sum, i) => sum + costSpendableOn(state, pid, i), 0)
 }
