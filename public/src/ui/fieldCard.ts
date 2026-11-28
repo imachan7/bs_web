@@ -6,6 +6,7 @@ import { braveCombineCandidates, braveExchangeTargets } from "../../../shared/su
 import { attachCardArt, cardImageUrl } from "../cardArt"
 import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors, instBaseCost } from "../../../shared/rules"
 import { payingCardId } from "./paying"
+import { coreAllocCanMove } from "./coreAllocSheet"
 import { master, COLOR_SYMBOLS, levelOf, canBlockAttacker, canAwaken, activatableAbility, UiState, matchesDirectedAttackFilter, $ } from "../renderer"
 
 // スマホはカードの操作ボタンをカードに付けず、下の欄（ui/cardDock.ts）がここから読んで出す。カードに付けて CSS で隠すと、
@@ -395,6 +396,32 @@ export function fieldCardEl(
     // 選択の待ちの間に支払っているのは、どれも選択の解決のための支払い（起動効果の召喚・効果のコスト・効果による召喚・ブレイヴを残す）。ブレイヴを残すが抜けていて光っていなかった（2026-11-25）
     const payingForChoice = ui.paying !== null
     if (view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice) {
+        const dist = view.pendingChoice.distributeCores
+        if (dist?.destinations.includes(inst.instanceId)) {
+            if (coreAllocCanMove(view.pendingChoice, ui.coreAlloc ?? {})) el.classList.add("targetable", "clickable")
+            const n = ui.coreAlloc?.[inst.instanceId] ?? 0
+            if (n > 0) {
+                const badge = document.createElement("div")
+                badge.className = "pay-badge alloc-badge"
+                badge.textContent = `+${n}`
+                cardActions(el).appendChild(badge)
+            }
+            // PC はカードの上に −／＋ を出す（右上の欄に置き先ごとの行を足すと、置き先が増えるたびに下へ伸びた。2026-11-28 ユーザー指摘）。スマホは CSS で隠す
+            const step = document.createElement("div")
+            step.className = "alloc-step"
+            const btn = (label: string, delta: number, disabled: boolean): HTMLButtonElement => {
+                const b = document.createElement("button")
+                b.textContent = label
+                b.dataset.alloc = inst.instanceId
+                b.dataset.delta = String(delta)
+                b.disabled = disabled
+                return b
+            }
+            const count = document.createElement("span")
+            count.textContent = `+${n}`
+            step.append(btn("−", -1, n <= 0), count, btn("＋", 1, !coreAllocCanMove(view.pendingChoice, ui.coreAlloc ?? {})))
+            cardActions(el).appendChild(step)
+        }
         if (view.pendingChoice.candidates.includes(inst.instanceId)) {
             el.classList.add("targetable", "clickable")
             // トグル選択（予算内で好きなだけ破壊する）で、いま選ばれているもの。

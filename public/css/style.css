@@ -2950,3 +2950,12 @@ body:has(#notice-banner:not(.hidden)) {
     #action-buttons-container { right: 196px; }
     .burst-zone::before { content: "バースト"; right: auto; width: max-content; padding: 0 4px; background: var(--bg-main); }
 }
+
+/* 【烈神速】の配分画面のたたむ／広げる（ui/coreAllocSheet.ts） */
+#choice-options .core-alloc .pay-meter { display: flex; align-items: center; gap: 8px; }
+#choice-options .core-alloc .core-alloc-toggle { margin-left: auto; flex: none; min-height: 36px; padding: 0 10px; }
+/* PC：盤面のカードの上の −／＋ で数を直す。欄には場の置き先の行・たたむボタン・数のバッジを出さない（スマホは battle-mobile.css で逆にする） */
+#choice-options .core-alloc .alloc-field-row, #choice-options .core-alloc .core-alloc-toggle, .card .alloc-badge { display: none; }
+.card .alloc-step { position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 2px 4px; background: var(--bg-panel); border: 1px solid #4a90d9; border-radius: 14px; z-index: 10; }
+.card .alloc-step > button { width: 28px; height: 24px; padding: 0; font-size: 15px; line-height: 1; }
+.card .alloc-step > span { min-width: 2em; text-align: center; font-size: 13px; font-weight: bold; }

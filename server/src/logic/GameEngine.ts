@@ -381,7 +381,7 @@ function dispatchAction(
         case "activateAbility":
             return doActivateAbility(state, pid, action.instanceId, action.effectId)
         case "resolveChoice":
-            return doResolveChoice(state, pid, action.instanceId, action.option, action.cardIndex, action.paySources, action.paySoulCoreFromReserve)
+            return doResolveChoice(state, pid, action.instanceId, action.option, action.cardIndex, action.paySources, action.paySoulCoreFromReserve, action.allocation)
         case "nextPhase": {
             if (state.turnPlayer !== pid) return "自分のターンではありません"
             if (state.phase !== "main") return "メインステップではありません"
@@ -831,13 +831,18 @@ function requestResshinsokuDestination(state: GameState, pid: PlayerId, info: Re
               `${card.name}（このスピリット）に置く`,
           ]
     if (!forceSelf && info.remaining > 1) {
-        destinations.push("reserve_all", "self_all")
-        options.push("残り全部をリザーブに置く", "残り全部をこのスピリットに置く")
+        // 維持コアに届いていないうちは「残り全部をリザーブ」を出さない（Lv0 で場に出てしまう。#740）
+        if (need <= 0) {
+            destinations.push("reserve_all")
+            options.push("残り全部をリザーブに置く")
+        }
+        destinations.push("self_all")
+        options.push("残り全部をこのスピリットに置く")
     }
     suspend(state, {
         pid,
         kind: "option",
-        prompt: `【烈神速】：トラッシュのコア（残り${String(info.remaining)}個）の置き先を選んでください`,
+        prompt: `【烈神速】：トラッシュのコア${String(info.remaining)}個を置く場所を決めてください`,
         candidates: [],
         options,
         optional: false,
@@ -846,11 +851,41 @@ function requestResshinsokuDestination(state: GameState, pid: PlayerId, info: Re
         distributeCores: {
             remaining: info.remaining,
             selfCores: info.selfCores,
+            selfMin: summonMinCores(state, pid, card),
             destinations,
             handIndex: info.handIndex,
             cardId: info.cardId,
         },
     })
+}
+
+// 置き先ごとの数をまとめて受け取る（配分画面。#740）。合計が残り全部で、このスピリットが維持コアに届くときだけ受け付ける
+export function applyResshinsokuAllocation(
+    state: GameState,
+    pid: PlayerId,
+    info: ResshinsokuInfo & { destinations: string[]; selfMin: number },
+    allocation: Record<string, number>,
+): string | null {
+    const player = state.players[pid]
+    let total = 0
+    for (const [dest, n] of Object.entries(allocation)) {
+        if (!Number.isInteger(n) || n < 0) return "置く数が正しくありません"
+        if (!info.destinations.includes(dest) || dest.endsWith("_all")) return "置けない場所です"
+        total += n
+    }
+    if (total !== info.remaining) return `コア${String(info.remaining)}個をすべて置いてください`
+    const selfCores = info.selfCores + (allocation["self"] ?? 0)
+    if (selfCores < info.selfMin) return `このスピリットにコアを${String(info.selfMin)}個以上置いてください`
+    state.pendingChoice = null
+    for (const [dest, n] of Object.entries(allocation)) {
+        if (n === 0 || dest === "self") continue
+        const target = dest === "reserve" ? undefined : findSpirit(player, dest) ?? findNexus(player, dest)
+        if (target) target.cores += n
+        else player.reserve += n
+    }
+    log(state, `${player.name}はトラッシュのコア${String(info.remaining)}個を置いた（このスピリットに${String(selfCores)}個）。`)
+    requestResshinsokuDestination(state, pid, { handIndex: info.handIndex, cardId: info.cardId, selfCores, remaining: 0 })
+    return null
 }
 
 export function applyResshinsokuDestination(

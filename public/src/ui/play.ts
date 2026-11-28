@@ -11,6 +11,7 @@ import { blockPayCost } from "../../../shared/block"
 import { magicTimingChoosable, magicUseTiming } from "../../../shared/magicTiming"
 import { toggleDiscardPay, startChoicePaying, assignPayCore } from "./payInput"
 import { fillFromReserve } from "./payStages"
+import { stepCoreAlloc } from "./coreAllocSheet"
 import { view, ui, send, rerender, opponentOf } from "../main"
 
 // 器BM（BS13-043 鳥人イカロッシュ）／器BU（BS13-047 深海大帝ノーグ・デンス）：
@@ -504,7 +505,7 @@ export function onHandClick(handIndex: number): void {
         }
 
         // 【烈神速】：お互いのアタックステップ、トラッシュのコア5個以上でコストを支払わず召喚する
-        // （置き先はサーバーが立てる distributeCores の選択で1個ずつ聞かれる。BS16-X03）
+        // （置き先は distributeCores の配分画面でまとめて決める。ui/coreAllocSheet.ts）
         if (ownHandKeyword(view, cardId, "resshinsoku") && view.players[view.you].trashCores >= 5) {
             send({ type: "resshinsokuSummon", handIndex })
             return
@@ -540,6 +541,12 @@ export function startMagic(handIndex: number, card: CardData, timing: "main" | "
 export function tryResolveChoice(instanceId: string): boolean {
     if (!view || !view.pendingChoice) return false
     if (view.pendingChoice.pid !== view.you) return false
+    // 【烈神速】の配分中：押したスピリット／ネクサスに1個置く（ui/coreAllocSheet.ts）
+    if (view.pendingChoice.distributeCores?.destinations.includes(instanceId)) {
+        ui.coreAlloc = stepCoreAlloc(view.pendingChoice, ui.coreAlloc ?? {}, instanceId, 1)
+        rerender()
+        return true
+    }
     if (!view.pendingChoice.candidates.includes(instanceId)) return false
     send({ type: "resolveChoice", instanceId })
     return true

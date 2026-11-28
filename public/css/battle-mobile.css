@@ -378,6 +378,14 @@
     /* 「対象選択をやめる」はシートの一番下に置く（上に置くと、背の高いシートで画面の上の方になり片手で届かなかった） */
     #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > #btn-cancel-target { order: 99; }
     #choice-options .pay-hint:not(.pay-no-reserve) { display: none; }
+    #choice-options .core-alloc :is(.pay-stage-title, .pay-warn) { white-space: nowrap; }
+    /* スマホは盤面のカードに −／＋ を出さず（小さくて押しにくい）、欄を広げて直す。数はカードのバッジで見せる */
+    #choice-options .core-alloc .alloc-field-row { display: flex; }
+    #choice-options .core-alloc .core-alloc-toggle { display: inline-flex; align-items: center; }
+    .card .alloc-badge { display: block; }
+    .card .alloc-step { display: none; }
+    /* たたむ／広げるは見出しの右に小さく置く（欄のボタンの横幅いっぱいが効いて、文字が欄の外に押し出されていた） */
+    #choice-options .core-alloc .core-alloc-toggle { width: auto; flex: none; padding: 0 12px; white-space: nowrap; }
     #choice-options .pay-no-reserve { text-align: center; }
     .display-settings .mobile-only { display: block; }
 
