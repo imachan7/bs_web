@@ -1795,6 +1795,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `coreIcon`（fn）：コアの画像。文字の高さに合わせるため大きさは CSS（.core-icon）で em 指定
 
+## public/src/ui/declineLabel.ts
+
+- `declineLabelOf`（fn）：断るボタンの既定の文言。「発動しますか」型の確認（confirm）は、選択肢の動詞の打ち消しにする（「発動する」→「発動しない」、「戻す」→「戻さない」）。
+
 ## public/src/ui/effectNotice.ts
 
 - `effectBodyText`（fn）：見出し行から次の見出し行の手前までの本文。見出し行は Lv1･Lv2『…』／【合体時】Lv2『…』のように行頭が見出しの形

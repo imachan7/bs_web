@@ -53,6 +53,33 @@ function millEventIndices(zone: string[], ids: string[]): Set<number> {
     return out
 }
 
+// 1枚を選ぶ「〜できる」で、断るボタンの文言（「選ばない」では何をしないのか分からなかった。2026-11-28 ユーザー合意）
+function declineLabel(action: MoveCards): string | undefined {
+    switch (action.dest) {
+        case "summon":
+            return "召喚しない"
+        case "placeNexus":
+            return "配置しない"
+        case "summonOrPlace":
+            return "出さない"
+        case "hand":
+        case "deckTop":
+        case "deckBottom":
+            return "戻さない"
+        case "cast":
+            return "使用しない"
+        case "trash":
+            return "破棄しない"
+        default:
+            return undefined
+    }
+}
+
+function skipLabelOf(action: MoveCards): { skipLabel?: string } {
+    const label = declineLabel(action)
+    return label === undefined ? {} : { skipLabel: label }
+}
+
 function destLabel(action: MoveCards): string {
     switch (action.dest) {
         case "hand":
@@ -385,6 +412,7 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
             cardIndices: choosable,
             optional,
             ...(optional ? { resolveOnSkip: true } : {}),
+            ...(optional && action.count === 1 && !action.upTo && action.costBudget === undefined ? skipLabelOf(action) : {}),
             action: { ...action, asked: true },
             selfInstanceId: self ? self.instanceId : null,
         })
@@ -512,6 +540,7 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
                 cardZone: "reveal",
                 cardIndices: cands,
                 optional,
+                ...(optional && n < 2 && !action.upTo ? skipLabelOf(action) : {}),
                 action,
                 selfInstanceId: self ? self.instanceId : null,
             })
