@@ -10,7 +10,6 @@
     "actions/exhaustRefresh.ts:exhaustCore": "数える・条件を見る（待機中も場にいるので数える）",
     "actions/filter.ts:normalizeFilter": "数える・条件を見る（待機中も場にいるので数える）",
     "actions/fireEffect.ts:fireEffectHandler": "すべて＝対象を取らない（待機中のスピリットの『召喚時』等は canFireWhileWaiting で発揮しない）",
-    "actions/grant.ts:nexusAsSpiritThisStepHandler": "コスト支払い・条件の判定（効果の対象ではない）（置くコアの取り元を機械的に決める）",
     "actions/pay.ts:CHECKERS": "コスト支払い・条件の判定（効果の対象ではない）",
     "actions/pay.ts:payHandler": "コスト支払い・条件の判定（効果の対象ではない）",
     "actions/placeCores.ts:takeFromSource": "コスト支払い・条件の判定（効果の対象ではない）（コアの取り元を機械的に決める）",
