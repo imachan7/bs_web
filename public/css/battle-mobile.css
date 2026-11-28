@@ -378,6 +378,9 @@
     /* 「対象選択をやめる」はシートの一番下に置く（上に置くと、背の高いシートで画面の上の方になり片手で届かなかった） */
     #action-buttons:has(#choice-options:not(.hidden), #choice-counter:not(.hidden)) > #btn-cancel-target { order: 99; }
     #choice-options .pay-hint:not(.pay-no-reserve) { display: none; }
+    /* 【烈神速】の配分は自分の場のカードを押して置くので、置いた先の一覧は出さずシートを低くする（場の下半分を隠していた。2026-11-28 ユーザー指摘） */
+    #choice-options .core-alloc .pay-fields { display: none; }
+    #choice-options .core-alloc .pay-stage-title { white-space: nowrap; }
     #choice-options .pay-no-reserve { text-align: center; }
     .display-settings .mobile-only { display: block; }
 

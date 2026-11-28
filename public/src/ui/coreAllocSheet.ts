@@ -38,11 +38,12 @@ export function renderCoreAllocSheet(pc: PendingChoice, alloc: CoreAlloc, host: 
     const options = pc.options ?? []
     const self = d.selfCores + selfCount(d, alloc)
     const canMove = self - 1 >= d.selfMin
-    const sheet = el("div", "pay-sheet")
+    // 自分の場のカードを押して置くので、スマホではシートを低く保つ（場の下半分を隠していた。2026-11-28 ユーザー指摘）：
+    // 見出しと召喚するスピリットのコアを1行、リザーブの −／＋ を1行、やり直す・召喚を1行にする
+    const sheet = el("div", "pay-sheet core-alloc")
     const meter = el("div", "pay-meter")
-    meter.append(el("span", "pay-stage-title", `トラッシュのコア ${d.remaining}個を置く`))
+    meter.append(el("span", "pay-stage-title", `コア${d.remaining}個を置く`), el("span", "pay-boxes", `${master(d.cardId).name} ${self}個（Lv${levelAt(d.cardId, self)}）`))
     sheet.append(meter)
-    sheet.append(el("div", "pay-field-row", `${master(d.cardId).name}（召喚する）　コア ${self}（Lv${levelAt(d.cardId, self)}）`))
 
     if (d.destinations.includes("reserve")) {
         const n = alloc["reserve"] ?? 0
@@ -50,7 +51,8 @@ export function renderCoreAllocSheet(pc: PendingChoice, alloc: CoreAlloc, host: 
         row.append(stepBtn("−", "reserve", -1, n <= 0), el("span", "stepper-value", `リザーブ +${n}`), stepBtn("＋", "reserve", 1, !canMove))
         sheet.append(row)
     }
-    // 場のスピリット・ネクサスは、カードを押して1個ずつ置く（支払い画面と同じ。全員ぶんの行を並べるとスマホで溢れた）
+    // 場のスピリット・ネクサスは、カードを押して1個ずつ置く（支払い画面と同じ。全員ぶんの行を並べるとスマホで溢れた）。
+    // 置いた数はカードのバッジに出るので、スマホではこの一覧を出さない（戻すのは「やり直す」）
     const list = el("div", "pay-fields")
     for (const dest of othersOf(d)) {
         const n = alloc[dest] ?? 0
@@ -64,15 +66,12 @@ export function renderCoreAllocSheet(pc: PendingChoice, alloc: CoreAlloc, host: 
     }
     sheet.append(list)
 
-    const tools = el("div", "pay-tools")
+    const nav = el("div", "pay-nav")
     const reset = el("button", "", "やり直す")
     reset.dataset.allocReset = "1"
-    tools.append(reset)
-    sheet.append(tools)
-    const nav = el("div", "pay-nav")
     const ok = el("button", "", "この配分で召喚する")
     ok.dataset.allocSubmit = "1"
-    nav.append(ok)
+    nav.append(reset, ok)
     sheet.append(nav)
     host.append(sheet)
 }
