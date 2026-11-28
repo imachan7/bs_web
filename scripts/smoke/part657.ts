@@ -848,6 +848,26 @@ scenario({
     ],
 })
 
+// 「自分は〜相手のスピリットのコア2個を相手のトラッシュに置く」：外すコアを選ぶのはバーストの使用者（#738）
+scenario({
+    name: "mark-chooser-is-user",
+    start: markStart(3),
+    steps(t) {
+        oppAttackBlock(t, "相手.攻撃者", "自分.ブロッカー")
+        for (let i = 0; t.state.pendingChoice && t.state.pendingChoice.kind === "option" && i < 4; i++) {
+            const opt = t.state.pendingChoice
+            t.act(opt.pid === t.me ? "me" : "opp", { type: "resolveChoice", option: opt.options![0]! })
+        }
+        const pc = t.state.pendingChoice
+        assert(pc?.kind === "target" && pc.pid === t.me, `外すコアを選ぶのは使用者（実際: ${String(pc?.pid)}・${String(pc?.kind)}）`)
+        go(t, [{ pick: ["相手.攻撃者"] }, {}])
+    },
+    expect: [
+        ...markCommon, "自分.リザーブ: 3 → 4", "自分.トラッシュ: なし → " + sorted("ヘルスコルピオ", "マーク・オブ・ゾロ"),
+        "相手.攻撃者.コア: 4 → 2", "相手.攻撃者.Lv: 2 → 1", "相手.攻撃者.BP: 6000 → 4000",
+    ],
+})
+
 // ============ BS18-076 クリスタルクラック ============
 console.log("=== 076. フラッシュ：相手のスピリット1体のコアを1個だけになるよう相手のトラッシュへ ===")
 const crySpent = ["自分.手札: クリスタルクラック → なし", "自分.トラッシュ: なし → クリスタルクラック", "自分.リザーブ: 10 → 5", "自分.トラッシュのコア: 0 → 5"]
