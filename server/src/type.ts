@@ -421,6 +421,7 @@ export interface GameView {
     magicUsedThisTurn: Record<PlayerId, number> // このターンの各プレイヤーのマジック使用回数（隠匿情報なし。クライアントのmagicRestriction判定に必要＝作戦参謀フォクシン）
     pendingChoice: PendingChoice | null // 相手視点では candidates を空配列・prompt をマスクして配信（viewFor）
     events: GameEvent[] // クライアント演出用の一時イベント列（隠匿情報なし。viewForがそのまま渡す）
+    costSpendable?: Record<string, number> // 自分の場の各カードから支払いに使えるコアの数（コアの下限・[ソウルコア]を除く。coreGate.ts costSpendableOn。#743）
     revealedCards?: { pid: PlayerId; cardIds: string[] } // 公開ゾーン（オープンされたカードは両者に見えるためマスクしない）
 }
 

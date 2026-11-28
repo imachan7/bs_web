@@ -1,5 +1,6 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
 import { takeFromTrash } from "./zones/trash"
+import { costSpendableField } from "./coreGate"
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { braveCombinableWithHost } from "../../../shared/summon"
 import { noteCoverage } from "../../../shared/coverage"
@@ -557,7 +558,7 @@ export function summonFromHandFreeCandidateMatches(
     // **リザーブだけでなくフィールドのコアも支払いに使える**（通常の召喚と同じ。paySources）。
     // 2026-08-23 まではリザーブだけで判定しており、盤面のコアでなら払えるカードが
     // 候補にすら出なかった（利用者報告。BS08空帝竜騎プラチナム等の帝竜騎サイクル6枚）
-    if (action.payCost && !handSummonCostPayable(state, owner, candidate, action.costPaidAsIfCounter === undefined ? 0 : countEffectCounter(state, owner, self, action.costPaidAsIfCounter))) return false
+    if (action.payCost && !handSummonCostPayable(state, owner, candidate, action.costPaidAsIfCounter === undefined ? 0 : countEffectCounter(state, owner, self, action.costPaidAsIfCounter), costSpendableField(state, owner))) return false
     return true
 }
 

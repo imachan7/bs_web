@@ -2,7 +2,7 @@
 import type { GameView, PaySource } from "../../../server/src/type"
 import { effectiveCost, master } from "../renderer"
 import { ownHandKeyword } from "../../../shared/rules"
-import { payingAltPay } from "./paying"
+import { payingAltPay, spendableNormals } from "./paying"
 import { flashSummonFromHandNow, placedCoresForSummon, summonLevelCostBonus, summonMinCores, minLevelCores, sokuPayableInstanceIds } from "../../../shared/rules"
 import { view, ui, send, rerender } from "../main"
 import { sendPlay } from "./play"
@@ -226,12 +226,12 @@ export function assignPayCore(instanceId: string): void {
     if (!inst) return
     // 残すブレイヴに置くコア（BRAVE.md §6.3）。起点は場のどこにも無いので必要数は選択待ちから来る
     if (pay.forBraveKeep !== undefined) {
-        assignOneCore(pay, instanceId, inst.cores, pay.forBraveKeep.need, player.reserve)
+        assignOneCore(pay, instanceId, spendableNormals(view, inst), pay.forBraveKeep.need, player.reserve)
         return
     }
     if (pay.forAttack !== undefined) {
         const soulLoc = player.soulCore
-        const normals = inst.cores - (soulLoc?.zone === "instance" && soulLoc.instanceId === inst.instanceId ? 1 : 0)
+        const normals = spendableNormals(view, inst)
         const usable = instanceId === pay.forAttack.instanceId ? Math.min(normals, inst.cores - minLevelCores(master(inst.cardId))) : normals
         assignOneCore(pay, instanceId, usable, pay.forAttack.need, player.reserve - (soulLoc?.zone === "reserve" ? 1 : 0))
         return
@@ -239,14 +239,14 @@ export function assignPayCore(instanceId: string): void {
     if (pay.forBlock !== undefined) {
         // ブロックするスピリット自身は維持コア（Lv1）を残す（割ると宣言と同時に消滅する。サーバーも弾く）
         const soulLoc = player.soulCore
-        const normals = inst.cores - (soulLoc?.zone === "instance" && soulLoc.instanceId === inst.instanceId ? 1 : 0)
+        const normals = spendableNormals(view, inst)
         const usable = instanceId === pay.forBlock.instanceId ? Math.min(normals, inst.cores - minLevelCores(master(inst.cardId))) : normals
         assignOneCore(pay, instanceId, usable, pay.forBlock.need, player.reserve - (soulLoc?.zone === "reserve" ? 1 : 0))
         return
     }
     if (pay.forMeisai !== undefined) {
         const soulLoc = player.soulCore
-        const normals = inst.cores - (soulLoc?.zone === "instance" && soulLoc.instanceId === inst.instanceId ? 1 : 0)
+        const normals = spendableNormals(view, inst)
         assignOneCore(pay, instanceId, normals, pay.forMeisai.need, player.reserve - (soulLoc?.zone === "reserve" ? 1 : 0))
         return
     }
@@ -262,7 +262,7 @@ export function assignPayCore(instanceId: string): void {
         // 案B-inside: coresには[ソウルコア]が含まれる。[ソウルコア]は専用ボタンで支払うため上限は通常コア
         const soulLoc = view.players[view.you].soulCore
         const soulOnDetachSrc = soulLoc !== null && soulLoc.zone === "instance" && soulLoc.instanceId === inst.instanceId
-        assignOneCore(pay, instanceId, inst.cores - (soulOnDetachSrc ? 1 : 0), minLevelCores(master(brave.cardId)), player.reserve)
+        assignOneCore(pay, instanceId, Math.min(inst.cores - (soulOnDetachSrc ? 1 : 0), spendableNormals(view, inst)), minLevelCores(master(brave.cardId)), player.reserve)
         return
     }
     const cardId = pay.fromTegamoto === true ? player.tegamoto[pay.handIndex] : player.hand?.[pay.handIndex]
@@ -297,7 +297,7 @@ export function assignPayCore(instanceId: string): void {
     // 案B-inside: coresには[ソウルコア]が含まれる。[ソウルコア]は専用ボタンで支払うため上限は通常コア
     const soulLoc2 = player.soulCore
     const soulOnPayingSrc = soulLoc2 !== null && soulLoc2.zone === "instance" && soulLoc2.instanceId === inst.instanceId
-    assignOneCore(pay, instanceId, inst.cores - (soulOnPayingSrc ? 1 : 0), need, soulUsable ? player.reserve : player.reserve - 1)
+    assignOneCore(pay, instanceId, Math.min(inst.cores - (soulOnPayingSrc ? 1 : 0), spendableNormals(view, inst)), need, soulUsable ? player.reserve : player.reserve - 1)
 }
 
 // 支払い元1つにコアを1個割り当て、必要数に達したら送信する。

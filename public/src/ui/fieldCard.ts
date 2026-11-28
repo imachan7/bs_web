@@ -5,7 +5,7 @@ import { COLOR_LABELS } from "../../../data/constants"
 import { braveCombineCandidates, braveExchangeTargets } from "../../../shared/summon"
 import { attachCardArt, cardImageUrl } from "../cardArt"
 import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors, instBaseCost } from "../../../shared/rules"
-import { payingCardId } from "./paying"
+import { payingCardId, spendableNormals } from "./paying"
 import { coreAllocCanMove } from "./coreAllocSheet"
 import { master, COLOR_SYMBOLS, levelOf, canBlockAttacker, canAwaken, activatableAbility, UiState, matchesDirectedAttackFilter, $ } from "../renderer"
 
@@ -454,7 +454,7 @@ export function fieldCardEl(
             const soulPayHere = ui.paying.soulPayInstanceId === inst.instanceId
             // 案B-inside: coresには[ソウルコア]が含まれる。[ソウルコア]は専用ボタンで支払うため、
             // クリック割り当ての上限は通常コア数にする（2026-10-06）
-            const normals = inst.cores - (soulOnThis ? 1 : 0)
+            const normals = spendableNormals(view, inst)
             if (assigned > 0 || soulPayHere) {
                 const badge = document.createElement("div")
                 badge.className = "pay-badge"
@@ -541,7 +541,7 @@ export function fieldCardEl(
             const soulPayHere = ui.paying.soulPayInstanceId === inst.instanceId
             // 案B-inside: coresには[ソウルコア]が含まれる。[ソウルコア]は専用ボタンで支払うため、
             // クリック割り当ての上限は通常コア数にする（2026-10-06）
-            const normals = inst.cores - (soulOnThis ? 1 : 0)
+            const normals = spendableNormals(view, inst)
             if (assigned > 0 || soulPayHere) {
                 const badge = document.createElement("div")
                 badge.className = "pay-badge"
