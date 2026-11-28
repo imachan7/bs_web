@@ -2950,3 +2950,7 @@ body:has(#notice-banner:not(.hidden)) {
     #action-buttons-container { right: 196px; }
     .burst-zone::before { content: "バースト"; right: auto; width: max-content; padding: 0 4px; background: var(--bg-main); }
 }
+
+/* 【烈神速】の配分画面のたたむ／広げる（ui/coreAllocSheet.ts） */
+#choice-options .core-alloc .pay-meter { display: flex; align-items: center; gap: 8px; }
+#choice-options .core-alloc .core-alloc-toggle { margin-left: auto; flex: none; min-height: 36px; padding: 0 10px; }

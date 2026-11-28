@@ -1,5 +1,5 @@
 // 【烈神速】でトラッシュのコアを置く場所を、1画面でまとめて配分する（#740）。
-// 最初は全部を「このスピリット」に置いた状態から始め、リザーブの ＋ や場のカードを押してそこから移す。
+// 最初は全部を「このスピリット」に置いた状態から始め、場のカードを押すか、広げて −／＋ でそこから移す。
 // このスピリットが維持コアを割る ＋ は押せないので、Lv0 の配分は作れない
 import type { PendingChoice } from "../../../server/src/type"
 import { master } from "../renderer"
@@ -38,41 +38,39 @@ export function coreAllocCanMove(pc: PendingChoice, alloc: CoreAlloc): boolean {
     return d !== undefined && d.selfCores + selfCount(d, alloc) - 1 >= d.selfMin
 }
 
-export function renderCoreAllocSheet(pc: PendingChoice, alloc: CoreAlloc, host: HTMLElement): void {
+// open：広げているか。たたむと「移すコア n / m」と召喚のボタンだけになり、自分の場のカードを隠さない（スマホ。2026-11-28 ユーザー案）。
+// 広げると置き先ごとの −／＋ で数を直せる（押して +1 したのを戻しにくかった）。どちらも画面の下に置く（片手で押すため）
+export function renderCoreAllocSheet(pc: PendingChoice, alloc: CoreAlloc, open: boolean, host: HTMLElement): void {
     const d = pc.distributeCores
     if (!d) return
     const options = pc.options ?? []
     const self = d.selfCores + selfCount(d, alloc)
     const canMove = self - 1 >= d.selfMin
-    // 自分の場のカードを押して置くので、スマホではシートを低く保つ（場の下半分を隠していた。2026-11-28 ユーザー指摘）：
-    // 見出しと召喚するスピリットのコアを1行、リザーブの −／＋ を1行、やり直す・召喚を1行にする
     const sheet = el("div", "pay-sheet core-alloc")
     // 「移したコア n / 移せる数」。移せる数は、召喚するスピリットの維持コアを除いた分（2026-11-28 ユーザー指示）
     const moved = sumOf(alloc)
     const movable = d.selfCores + d.remaining - d.selfMin
     const meter = el("div", "pay-meter")
-    meter.append(el("span", "pay-stage-title", `移すコア ${moved} / ${movable}`), el("span", "pay-boxes", "■".repeat(moved) + "□".repeat(Math.max(movable - moved, 0))))
+    const toggle = el("button", "core-alloc-toggle", open ? "▾ たたむ" : "▴ 広げる")
+    toggle.dataset.allocToggle = "1"
+    meter.append(el("span", "pay-stage-title", `移すコア ${moved} / ${movable}`), el("span", "pay-boxes", "■".repeat(moved) + "□".repeat(Math.max(movable - moved, 0))), toggle)
     sheet.append(meter)
     sheet.append(el("div", "pay-warn", `${master(d.cardId).name} ${self}個（Lv${levelAt(d.cardId, self)}）・維持コア${d.selfMin}個は残す`))
 
-    if (d.destinations.includes("reserve")) {
-        const n = alloc["reserve"] ?? 0
-        const row = el("div", "stepper-row")
-        row.append(stepBtn("−", "reserve", -1, n <= 0), el("span", "stepper-value", `リザーブ +${n}`), stepBtn("＋", "reserve", 1, !canMove))
-        sheet.append(row)
+    if (open) {
+        // リザーブはいつも出し、場のスピリット・ネクサスは置いたものだけ出す（全員ぶん並べるとスマホで溢れた）。場のカードを押すと +1 で行が増える
+        const list = el("div", "pay-fields")
+        for (const dest of othersOf(d)) {
+            const n = alloc[dest] ?? 0
+            if (dest !== "reserve" && n === 0) continue
+            const label = dest === "reserve" ? "リザーブ" : (options[d.destinations.indexOf(dest)] ?? dest).replace(/に置く$/, "")
+            const row = el("div", "stepper-row")
+            row.append(stepBtn("−", dest, -1, n <= 0), el("span", "stepper-value", `${label} +${n}`), stepBtn("＋", dest, 1, !canMove))
+            list.append(row)
+        }
+        if (canMove && othersOf(d).some((x) => x !== "reserve")) list.append(el("div", "pay-hint", "場のスピリット／ネクサスを押すと、そこに1個置けます"))
+        sheet.append(list)
     }
-    // 場のスピリット・ネクサスは、カードを押して1個ずつ置く（支払い画面と同じ。全員ぶんの行を並べるとスマホで溢れた）。
-    // 置いた数はカードのバッジに出るので、スマホではこの一覧を出さない（戻すのは「やり直す」）
-    const list = el("div", "pay-fields")
-    for (const dest of othersOf(d)) {
-        const n = alloc[dest] ?? 0
-        if (dest === "reserve" || n === 0) continue
-        const row = el("div", "pay-field-row")
-        row.append(el("span", "", `${(options[d.destinations.indexOf(dest)] ?? dest).replace(/に置く$/, "")}　+${n}`), stepBtn("−", dest, -1, false))
-        list.append(row)
-    }
-    if (canMove && othersOf(d).some((x) => x !== "reserve")) list.append(el("div", "pay-hint", "場のスピリット／ネクサスを押すと、そこに1個置けます"))
-    sheet.append(list)
 
     const nav = el("div", "pay-nav")
     const reset = el("button", "", "やり直す")

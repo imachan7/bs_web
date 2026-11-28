@@ -247,6 +247,7 @@ export interface UiState {
     stepper: number | null
     // 【烈神速】の配分画面で、このスピリット以外の置き先に移した数（ui/coreAllocSheet.ts）
     coreAlloc: CoreAlloc | null
+    coreAllocOpen: boolean // 配分画面を広げているか（たたむと場のカードを隠さない）
     // バーストを再セットするときの確認待ち（既存のバーストはトラッシュへ送られるため確認をはさむ）
     burstResetConfirm: { handIndex: number } | null
 }
@@ -762,7 +763,7 @@ export function render(view: GameView, ui: UiState): void {
         renderPayStageSheet(view, ui.paying, choiceOptionsEl)
         show("choice-options", true)
     } else if (myPendingChoice?.distributeCores) {
-        renderCoreAllocSheet(myPendingChoice, ui.coreAlloc ?? {}, choiceOptionsEl)
+        renderCoreAllocSheet(myPendingChoice, ui.coreAlloc ?? {}, ui.coreAllocOpen, choiceOptionsEl)
         show("choice-options", true)
     } else if (myPendingChoice && myPendingChoice.kind === "option" && myPendingChoice.stepper) {
         // 増減式（PendingChoice.stepper）：ボタンを options の数だけ並べる代わりに −／＋ で数を決める。

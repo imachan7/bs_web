@@ -118,16 +118,29 @@ const SCENES = [
       await press(c.B, "アタックステップへ")
     },
   },
-  // 【烈神速】のコアの配分（ui/coreAllocSheet.ts。#740）。相手のアタック中に手札のセイリュービを押し、リザーブへ2個・場のスピリットへ1個移す
+  // 【烈神速】のコアの配分（ui/coreAllocSheet.ts。#740）。相手のアタック中に手札のセイリュービを押す。
+  // たたんだまま場のスピリットへ2個置く（10b）／広げて、その1個を戻しリザーブへ2個（10c）
   {
-    id: "resshinsoku", name: "10b 【烈神速】のコアの配分", turn: "opp", phase: "attack",
+    id: "resshinsoku", name: "10b 【烈神速】のコアの配分（たたんだまま場へ）", turn: "opp", phase: "attack",
     board: () => ({ me: base({ hand: ["BS16-X03", GRIP], trashCores: 7 }), opp: base() }),
     run: async (c) => {
       await clickSel(c.B, "#my-spirits .card.clickable", 1500)
       await play(c, "BS16-X03", "召喚")
-      await waitSel(c.A, "#choice-options .pay-sheet")
+      await waitSel(c.A, "#choice-options .core-alloc")
+      for (let i = 0; i < 2; i++) await clickSel(c.A, "#my-spirits .card.targetable", 400)
+    },
+  },
+  {
+    id: "resshinsokuOpen", name: "10c 【烈神速】のコアの配分（広げて直す）", turn: "opp", phase: "attack",
+    board: () => ({ me: base({ hand: ["BS16-X03", GRIP], trashCores: 7 }), opp: base() }),
+    run: async (c) => {
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      await play(c, "BS16-X03", "召喚")
+      await waitSel(c.A, "#choice-options .core-alloc")
+      for (let i = 0; i < 2; i++) await clickSel(c.A, "#my-spirits .card.targetable", 400)
+      await clickSel(c.A, "#choice-options [data-alloc-toggle]", 400)
+      await clickSel(c.A, '#choice-options [data-alloc]:not([data-alloc="reserve"])[data-delta="-1"]', 300)
       for (let i = 0; i < 2; i++) await clickSel(c.A, '#choice-options [data-alloc="reserve"][data-delta="1"]', 300)
-      await clickSel(c.A, "#my-spirits .card.targetable", 400) // 場のスピリットにも1個
     },
   },
   {

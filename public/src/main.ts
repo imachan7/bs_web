@@ -121,7 +121,7 @@ function connectAndRun(button: HTMLElement, action: () => void): void {
 
 
 export let view: GameView | null = null
-export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, coreAlloc: null, burstResetConfirm: null }
+export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, coreAlloc: null, coreAllocOpen: false, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -1055,6 +1055,11 @@ async function init(): Promise<void> {
                 rerender()
                 return
             }
+            if (closestData(e, "data-alloc-toggle")) {
+                ui.coreAllocOpen = !ui.coreAllocOpen
+                rerender()
+                return
+            }
             if (closestData(e, "data-alloc-reset")) {
                 ui.coreAlloc = null
                 rerender()
@@ -1063,6 +1068,7 @@ async function init(): Promise<void> {
             if (closestData(e, "data-alloc-submit")) {
                 const allocation = coreAllocAnswer(pcNow, ui.coreAlloc ?? {})
                 ui.coreAlloc = null
+                ui.coreAllocOpen = false
                 send({ type: "resolveChoice", allocation })
                 return
             }
