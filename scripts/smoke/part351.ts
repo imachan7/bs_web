@@ -154,4 +154,28 @@ console.log("=== 5. 「残り全部をリザーブに置く」は維持コアに
     assert(s.players.p1.reserve === 4, `リザーブに4個（実際: ${String(s.players.p1.reserve)}）`)
 }
 
+console.log("=== 6. 配分画面：置き先ごとの数をまとめて送る（#740） ===")
+{
+    const s = game("case6", false)
+    s.interactiveTargets = true
+    s.players.p1.hand[0] = TARGET
+    s.players.p1.trashCores = 5
+    s.phase = "attack"
+    s.isFlashTiming = true
+    s.priorityPlayer = "p1"
+    const other = put(s, "p1", VANILLA, 1)
+    assert(handleAction(s, "p1", { type: "resshinsokuSummon", handIndex: 0 }) === null, "resshinsokuSummon が通る")
+    assert(s.pendingChoice?.distributeCores?.selfMin === 1, "配分の下限（維持コア）は1")
+    const send = (allocation: Record<string, number>) => handleAction(s, "p1", { type: "resolveChoice", allocation })
+    assert(send({ self: 0, reserve: 5 }) !== null, "このスピリットに0個の配分は受け付けない")
+    assert(send({ self: 1, reserve: 3 }) !== null, "合計が5個に足りない配分は受け付けない")
+    assert(send({ self: 1, reserve: 3, nowhere: 1 }) !== null, "置き先にない場所は受け付けない")
+    assert(s.pendingChoice?.distributeCores !== undefined, "拒否された後も配分待ちのまま")
+    assert(send({ self: 2, reserve: 2, [other.instanceId]: 1 }) === null, "正しい配分は通る")
+    const summoned = s.players.p1.field.spirits.find((sp) => sp.cardId === TARGET)
+    assert(summoned !== undefined && summoned.cores === 2, `セイリュービはコア2個（実際: ${String(summoned?.cores)}）`)
+    assert(s.players.p1.reserve === 2 && other.cores === 2, `リザーブ2・既存スピリット+1（実際: ${String(s.players.p1.reserve)}・${String(other.cores)}）`)
+    assert(s.players.p1.trashCores === 0, "トラッシュのコアは使い切った")
+}
+
 console.log("すべてのチェックに合格しました 🎉（part351）")

@@ -256,6 +256,7 @@ export interface PendingChoice {
         // 自分のスピリット・ネクサスの instanceId／一括用の "reserve_all"/"self_all"
         remaining: number // まだ置いていないコアの残数
         selfCores: number // ここまでに「このスピリット」へ置いた数（召喚時にそのままコアになる）
+        selfMin: number // 「このスピリット」に最低限置く数（Lv1 の維持コア）。配分画面の下限
         destinations: string[]
         handIndex: number
         cardId: string

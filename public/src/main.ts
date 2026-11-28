@@ -3,6 +3,7 @@ import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
 import { attachCardArt, installSecretCardArt, preloadCardArt } from "./cardArt"
 import { onPayStageClick, openBravePay, openEffectSummonPay, openEffectSummonScreen, installPayStages } from "./ui/payStages"
+import { coreAllocAnswer, stepCoreAlloc } from "./ui/coreAllocSheet"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -120,7 +121,7 @@ function connectAndRun(button: HTMLElement, action: () => void): void {
 
 
 export let view: GameView | null = null
-export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, burstResetConfirm: null }
+export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, coreAlloc: null, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -1044,6 +1045,27 @@ async function init(): Promise<void> {
             if (answer === "yes") send({ type: "setBurst", handIndex })
             rerender()
             return
+        }
+        // 【烈神速】の配分画面。−／＋ は表示だけ動かし、送るのは「この配分で召喚する」のときだけ
+        const pcNow = view?.pendingChoice
+        if (pcNow?.distributeCores) {
+            const stepAlloc = closestData(e, "data-alloc")
+            if (stepAlloc) {
+                ui.coreAlloc = stepCoreAlloc(pcNow, ui.coreAlloc ?? {}, String(stepAlloc.dataset.alloc), Number(stepAlloc.dataset.delta))
+                rerender()
+                return
+            }
+            if (closestData(e, "data-alloc-reset")) {
+                ui.coreAlloc = null
+                rerender()
+                return
+            }
+            if (closestData(e, "data-alloc-submit")) {
+                const allocation = coreAllocAnswer(pcNow, ui.coreAlloc ?? {})
+                ui.coreAlloc = null
+                send({ type: "resolveChoice", allocation })
+                return
+            }
         }
         // 増減式の選択（PendingChoice.stepper）の −／＋。表示を1つ動かして描き直すだけで、
         // サーバーへ送るのは「決定」を押したとき（data-option）だけ

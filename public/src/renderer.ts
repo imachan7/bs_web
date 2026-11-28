@@ -35,6 +35,7 @@ import {
 } from "../../shared/rules"
 import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui/tooltip"
 import { renderPayStageSheet, payStageHeading } from "./ui/payStages"
+import { renderCoreAllocSheet, type CoreAlloc } from "./ui/coreAllocSheet"
 import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
 import { renderField } from "./ui/fieldCard"
 import { renderCardDock } from "./ui/cardDock"
@@ -244,6 +245,8 @@ export interface UiState {
     combineBrave: { braveInstanceId: string; candidateIds: string[]; exchange?: true } | null // exchange＝合体中のブレイヴの交換（§6.4.1）
     // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
     stepper: number | null
+    // 【烈神速】の配分画面で、このスピリット以外の置き先に移した数（ui/coreAllocSheet.ts）
+    coreAlloc: CoreAlloc | null
     // バーストを再セットするときの確認待ち（既存のバーストはトラッシュへ送られるため確認をはさむ）
     burstResetConfirm: { handIndex: number } | null
 }
@@ -757,6 +760,9 @@ export function render(view: GameView, ui: UiState): void {
     if (ui.paying?.step !== undefined) {
         // 召喚・配置の支払い（2段）。選択肢の列に、①コスト／②置くコアの画面を組む
         renderPayStageSheet(view, ui.paying, choiceOptionsEl)
+        show("choice-options", true)
+    } else if (myPendingChoice?.distributeCores) {
+        renderCoreAllocSheet(myPendingChoice, ui.coreAlloc ?? {}, choiceOptionsEl)
         show("choice-options", true)
     } else if (myPendingChoice && myPendingChoice.kind === "option" && myPendingChoice.stepper) {
         // 増減式（PendingChoice.stepper）：ボタンを options の数だけ並べる代わりに −／＋ で数を決める。

@@ -51,7 +51,7 @@ import { doCastMagic } from "./magic/cast"
 import { resumeBraveDestroy } from "./brave"
 import { tryBraveFreeSummon } from "./braveFreeSummon"
 import { doSummonFromTegamoto } from "./tegamotoSummon"
-import { applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, payBlockDestroyTolls, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
+import { applyResshinsokuAllocation, applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, payBlockDestroyTolls, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
 import { newRecordScope } from "./record"
 import { levelStillMet } from "./levelRecheck"
@@ -108,6 +108,7 @@ function resolveChoiceInner(
     paySources?: PaySource[],
     // リザーブの[ソウルコア]を支払いに使うか（【迷彩】の支払い。2026-10-08 ユーザー確定: 払うかを選ばせる）
     paySoulCoreFromReserve?: boolean,
+    allocation?: Record<string, number>,
 ): string | null {
     const pending = state.pendingChoice
     if (!pending) return "選択待ちの効果がありません"
@@ -490,6 +491,11 @@ function resolveChoiceInner(
     // 【烈神速】：トラッシュのコアの置き先を1個ぶん選ぶ（BS16-X03）。action は解決せず、
     // 選んだ置き先へ1個（一括なら残り全部）置いてから、残っていればまた同じ選択を出す
     if (pending.distributeCores) {
+        if (allocation !== undefined) {
+            const err = applyResshinsokuAllocation(state, pid, pending.distributeCores, allocation)
+            if (err !== null || state.winner) return err
+            return finishChoiceResolution(state, pid)
+        }
         const options = pending.options ?? []
         if (option === undefined) return "コアの置き先を選んでください"
         const index = options.indexOf(option)

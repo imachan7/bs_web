@@ -553,6 +553,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `placeSummonedSpirit`（fn）：【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す（docs/design/RESUME_STACK.md §6）。転召の対象選択で中断した場合は Res…
 - `doSummon`（fn）
 - `ResshinsokuInfo`（型）
+- `applyResshinsokuAllocation`（fn）：置き先ごとの数をまとめて受け取る（配分画面。#740）。合計が残り全部で、このスピリットが維持コアに届くときだけ受け付ける
 - `applyResshinsokuDestination`（fn）
 - `finishResshinsokuSummon`（fn）：コアの配置がすべて終わったところで実際にスピリットを場に出す。コストも維持コアの支払いも無い（維持コアぶんは「このスピリット」に置かれたコアが兼ねる）。
 - `MAGIC_FREE_OPTIONS`（const）：無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
@@ -1781,6 +1782,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `renderCardDock`（fn）：盤面を描き直すたびに呼ぶ。描き直しでカードもボタンも作り直されるので、欄の中身も作り直す。
 - `installCardDock`（fn）
+
+## public/src/ui/coreAllocSheet.ts
+
+- `CoreAlloc`（型）：置き先ごとの数（このスピリット以外）。選択が変わったら null に戻す
+- `renderCoreAllocSheet`（fn）
+- `stepCoreAlloc`（fn）：−／＋ を押したときの次の配分。押せない操作（下限割れ・0未満）は今のまま返す
+- `coreAllocAnswer`（fn）：サーバーへ送る形（このスピリットのぶんも入れる）
 
 ## public/src/ui/coreIcon.ts
 

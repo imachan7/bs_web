@@ -395,6 +395,17 @@ export function fieldCardEl(
     // 選択の待ちの間に支払っているのは、どれも選択の解決のための支払い（起動効果の召喚・効果のコスト・効果による召喚・ブレイヴを残す）。ブレイヴを残すが抜けていて光っていなかった（2026-11-25）
     const payingForChoice = ui.paying !== null
     if (view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice) {
+        const dist = view.pendingChoice.distributeCores
+        if (dist?.destinations.includes(inst.instanceId)) {
+            el.classList.add("targetable", "clickable")
+            const n = ui.coreAlloc?.[inst.instanceId] ?? 0
+            if (n > 0) {
+                const badge = document.createElement("div")
+                badge.className = "pay-badge"
+                badge.textContent = `+${n}`
+                cardActions(el).appendChild(badge)
+            }
+        }
         if (view.pendingChoice.candidates.includes(inst.instanceId)) {
             el.classList.add("targetable", "clickable")
             // トグル選択（予算内で好きなだけ破壊する）で、いま選ばれているもの。

@@ -118,6 +118,18 @@ const SCENES = [
       await press(c.B, "アタックステップへ")
     },
   },
+  // 【烈神速】のコアの配分（ui/coreAllocSheet.ts。#740）。相手のアタック中に手札のセイリュービを押し、リザーブへ2個・場のスピリットへ1個移す
+  {
+    id: "resshinsoku", name: "10b 【烈神速】のコアの配分", turn: "opp", phase: "attack",
+    board: () => ({ me: base({ hand: ["BS16-X03", GRIP], trashCores: 7 }), opp: base() }),
+    run: async (c) => {
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      await play(c, "BS16-X03", "召喚")
+      await waitSel(c.A, "#choice-options .pay-sheet")
+      for (let i = 0; i < 2; i++) await clickSel(c.A, '#choice-options [data-alloc="reserve"][data-delta="1"]', 300)
+      await clickSel(c.A, "#my-spirits .card.targetable", 400) // 場のスピリットにも1個
+    },
+  },
   {
     id: "notice", name: "10 効果の通知（召喚直後）",
     board: () => ({ me: base({ reserve: 6, hand: [GRIP] }), opp: base() }),
