@@ -126,7 +126,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
             return self !== null && bravesOf(state.players[owner], self).some((b) => b.cardId === action.cardId)
         }
         const oppPlayer = state.players[opponentOf(owner)]
-        return oppPlayer.field.spirits.some((sp) => bravesOf(oppPlayer, sp).length > 0)
+        return battlers(oppPlayer).some((sp) => bravesOf(oppPlayer, sp).length > 0)
     },
     // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
     sequence: (state, owner, self, action, srcColors, srcType, eventTarget) => {

@@ -10,7 +10,7 @@ import type { Board } from "./board"
 import { card } from "./cardDb"
 import { effectiveCost } from "./cost"
 import { braveSlotsUsed, extraCombineAllowed } from "./rules/braveExtraCombine"
-import { activeConstraints, timedContentsOn, zoneSpiritEffectsDisabled, isFlashLockedFor, matchesBraveCondition, summonMinCores } from "./rules"
+import { activeConstraints, timedContentsOn, zoneSpiritEffectsDisabled, isFlashLockedFor, matchesBraveCondition, summonMinCores, battlers } from "./rules"
 
 // 召喚（type:"summon"）で場に出せるカードか。
 // **ブレイヴは単体で場に出すとスピリットとして扱われる**ので、こちらも true になる（BRAVE.md §1.1）。
@@ -30,7 +30,7 @@ export function isSummonableCardType(type: CardData["type"]): type is "spirit" |
 // 空配列なら合体先が無い（＝スピリット状態でしか召喚できない）
 export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId: string): string[] {
     if (card(braveCardId).type !== "brave") return []
-    return board.players[pid].field.spirits
+    return battlers(board.players[pid])
         // スピリット状態のブレイヴにはブレイヴを合体できない（2026-10-03 ユーザー指摘。例外はイリテバン自身の効果＝combineOwnBrave hostSelf）
         .filter((host) => card(host.cardId).type !== "brave")
         .filter((host) => canCombineBraveCount(board, pid, host, braveCardId))
@@ -48,8 +48,8 @@ export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId:
 export function braveExchangeMode(board: Board, pid: PlayerId, braveInstanceId: string, toInstanceId: string): "move" | "swap" | null {
     const field = board.players[pid].field
     const refsOf = (sp: CardInstance) => sp.braveRefs ?? []
-    const from = field.spirits.find((sp) => refsOf(sp).some((r) => r.instanceId === braveInstanceId))
-    const to = field.spirits.find((sp) => sp.instanceId === toInstanceId)
+    const from = battlers(board.players[pid]).find((sp) => refsOf(sp).some((r) => r.instanceId === braveInstanceId))
+    const to = battlers(board.players[pid]).find((sp) => sp.instanceId === toInstanceId)
     const brave = field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
     if (!from || !to || !brave || from.instanceId === to.instanceId) return null
     if (refsOf(from).some((r) => r.slot !== "single") || refsOf(to).some((r) => r.slot !== "single")) return null
@@ -64,7 +64,7 @@ export function braveExchangeMode(board: Board, pid: PlayerId, braveInstanceId: 
 }
 
 export function braveExchangeTargets(board: Board, pid: PlayerId, braveInstanceId: string): string[] {
-    return board.players[pid].field.spirits.filter((to) => braveExchangeMode(board, pid, braveInstanceId, to.instanceId) !== null).map((to) => to.instanceId)
+    return battlers(board.players[pid]).filter((to) => braveExchangeMode(board, pid, braveInstanceId, to.instanceId) !== null).map((to) => to.instanceId)
 }
 
 // 【抜刀】の「このスピリットと合体可能な」（公式 Q800・Q802）：合体条件だけを見る（合体禁止中でも true＝Q798）。

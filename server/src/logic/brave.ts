@@ -289,7 +289,7 @@ export function detachBravesOnLeaveFree(state: GameState, ownerPid: PlayerId, ho
     if (braves.length === 0) return
     delete host.braveRefs
     for (const brave of braves) {
-        if (player.field.spirits.some((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId))) {
+        if (battlers(player).some((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId))) {
             continue // まだ別のホストと合体している
         }
         const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
@@ -316,7 +316,7 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
     const wasAttacker = state.battle?.attackerInstanceId === host.instanceId
     const wasBlocker = state.battle?.blockerInstanceId === host.instanceId
     for (const brave of braves) {
-        if (player.field.spirits.some((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId))) {
+        if (battlers(player).some((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId))) {
             continue // まだ別のホストと合体している
         }
         const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)

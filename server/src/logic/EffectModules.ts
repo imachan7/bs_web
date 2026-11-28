@@ -1067,7 +1067,7 @@ export function countEffectCounter(
         // ホスト側が発生源のときは instanceSymbolCount がブレイヴぶんを含んでいるので変わらない
         if (self.braveCombined) {
             for (const p of ["p1", "p2"] as const) {
-                const host = state.players[p].field.spirits.find((sp) =>
+                const host = battlers(state.players[p]).find((sp) =>
                     (sp.braveRefs ?? []).some((r) => r.instanceId === self.instanceId),
                 )
                 if (host) return instanceSymbolCount(host)
@@ -1081,7 +1081,7 @@ export function countEffectCounter(
         if (!self) return 0
         if (self.braveCombined) {
             for (const p of ["p1", "p2"] as const) {
-                const host = state.players[p].field.spirits.find((sp) =>
+                const host = battlers(state.players[p]).find((sp) =>
                     (sp.braveRefs ?? []).some((r) => r.instanceId === self.instanceId),
                 )
                 if (host) return instBaseCost(host)
@@ -1146,6 +1146,7 @@ export function countEffectCounter(
         return state.players[owner].field.spirits.filter((s) => instIsCombined(s)).length
     }
     if (counter === "ownCombinedBraves") {
+        // 効果文は「合体スピリットのブレイヴ」（P047）。合体アルティメットのブレイヴは入らない（B13）
         return state.players[owner].field.spirits.reduce((n, s) => n + (s.braveRefs?.length ?? 0), 0)
     }
     if (counter === "ownBraveSpirits") {

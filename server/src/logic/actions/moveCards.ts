@@ -625,7 +625,7 @@ function moveCombineToEach(ctx: ActionCtx, action: MoveCards): void {
         }
         if (state.interactiveTargets) {
             const { asked: _a, ...rest } = action
-            const hostName = getCard(state.players[owner].field.spirits.find((s) => s.instanceId === host.hostId)!.cardId).name
+            const hostName = getCard(battlers(state.players[owner]).find((s) => s.instanceId === host.hostId)!.cardId).name
             suspend(state, {
                 pid: owner,
                 kind: "card",

@@ -8,6 +8,7 @@ import type {
 } from "../../server/src/type"
 import type { Board, BoardPlayer } from "../board"
 import { card } from "../cardDb"
+import { battlers } from "./level"
 
 // ---- シンボル ----
 
@@ -72,7 +73,7 @@ export function instanceSymbolUnits(inst: CardInstance): Color[][] {
 export function combinedSpiritSymbolColors(board: Board, ownerPid: PlayerId, inst: CardInstance): Color[] {
     const colors = instanceSymbolColors(inst)
     if (inst.braveCombined === true) {
-        const host = board.players[ownerPid].field.spirits.find((s) => (s.braveRefs ?? []).some((r) => r.instanceId === inst.instanceId))
+        const host = battlers(board.players[ownerPid]).find((s) => (s.braveRefs ?? []).some((r) => r.instanceId === inst.instanceId))
         if (host !== undefined) return combinedSpiritSymbolColors(board, ownerPid, host)
         return colors
     }

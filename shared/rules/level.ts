@@ -3,6 +3,8 @@ import { isTrashWaiting } from "./waiting"
 import { noteCoverage, noteGrantedFrom } from "../coverage"
 
 import type {
+    BraveCondition,
+    BraveConditionTerm,
     CardData,
     CardInstance,
     Color,
@@ -623,7 +625,7 @@ export function bravesOf(player: BoardPlayer, host: CardInstance): CardInstance[
 
 // ブレイヴが合体しているホスト。**異魔神ブレイヴは2体returnsする**（実体1つ・参照2本）
 export function hostsOf(player: BoardPlayer, brave: CardInstance): CardInstance[] {
-    return player.field.spirits.filter((s) =>
+    return battlers(player).filter((s) =>
         (s.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId),
     )
 }
@@ -678,6 +680,14 @@ export function braveKeepCores(brave: CardInstance): number {
     return minLevelCoresOf(card(brave.cardId).levels)
 }
 
+// 合体条件の項が受け付けるホストの種類。kind の省略はスピリットだけ（B13）
+function braveTermKinds(t: BraveConditionTerm): ("spirit" | "ultimate")[] {
+    return t.kind === undefined ? ["spirit"] : Array.isArray(t.kind) ? t.kind : [t.kind]
+}
+function braveKindTerms(cond: BraveCondition | undefined): BraveConditionTerm[] {
+    return cond === undefined ? [] : Array.isArray(cond) ? cond : [cond]
+}
+
 // このブレイヴが対象のスピリットに合体できるか（合体条件。§1.2）。
 // 条件の配列は OR（効果文の読点区切り）。ホスト側の「既にブレイヴが付いている」判定は
 // 呼び出し側（RuleValidator）が見る
@@ -690,6 +700,9 @@ export function matchesBraveCondition(
     ignoreExtraMinCost = false,
 ): boolean {
     if (host.bunshinOf !== undefined) return false // 分身スピリットは合体できない（Q785）
+    // B13：アルティメットには、合体条件に kind:"ultimate" を持つブレイヴだけが合体できる（ignoreBraveCondition・extraCombine でも通さない）
+    const hostIsUltimate = board.players[hostOwnerPid].field.ultimates.includes(host)
+    if (hostIsUltimate && !braveKindTerms(card(braveCardId).braveCondition).some((t) => braveTermKinds(t).includes("ultimate"))) return false
     // 器BI：「合体条件を無視して合体できる」（BS13-X05麒麟星獣リーン）
     if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition" && (c.braveColor === undefined || cardHasColor(card(braveCardId), c.braveColor)))) return true
     if (extraCombineAllowed(board, hostOwnerPid, host, braveCardId)) return true
@@ -701,6 +714,7 @@ export function matchesBraveCondition(
     if (terms.length === 0) return false
     const hostCost = excludeBraveCost ? instCostWithoutBraves(host) : instBaseCost(host)
     return terms.some((t) => {
+        if (!braveTermKinds(t).includes(hostIsUltimate ? "ultimate" : "spirit")) return false
         if (t.family !== undefined && !spiritHasFamily(board, hostOwnerPid, host, t.family)) return false
         if (t.minCost !== undefined && hostCost < t.minCost) return false
         if (t.maxCost !== undefined && hostCost > t.maxCost) return false

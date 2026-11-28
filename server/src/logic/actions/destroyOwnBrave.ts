@@ -6,6 +6,7 @@ import { requestChoice } from "../EffectModules"
 import { destroySpirit } from "../removal"
 import { destroyCombinedBrave } from "../brave"
 import { currentRecordScope, recordMoved } from "../record"
+import { battlers } from "../../../../shared/rules"
 
 // 自分のブレイヴ1つ＝合体スピリットに合体しているブレイヴか、スピリット状態のブレイヴ（BS23-075）
 export function ownBraveCandidates(state: GameState, pid: PlayerId): CardInstance[] {
@@ -30,7 +31,7 @@ const destroyOwnBraveHandler: ActionHandler<"destroyOwnBrave"> = (ctx, action) =
         return
     }
     const scope = currentRecordScope(state)
-    const host = state.players[owner].field.spirits.find((s) => (s.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
+    const host = battlers(state.players[owner]).find((s) => (s.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
     if (host) destroyCombinedBrave(state, owner, host, chosen, destroyContext)
     else destroySpirit(state, owner, chosen.instanceId, "destroy", destroyContext)
     recordMoved(state, [chosen.cardId], scope)

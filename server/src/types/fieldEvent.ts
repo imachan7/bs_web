@@ -29,6 +29,9 @@ export type FieldEvent =
     | "anySpiritSummoned" // 両陣営どちらかのスピリットが召喚されたとき、両者のフィールド発生源から発火（ownSpiritSummoned と同じ地点・同じ eventInfo。self には召喚されたスピリットが渡る。subjectSide で召喚された側を絞る）
     | "opponentDeckMilled" // 相手のデッキがトラッシュへ送られたとき（millDeckから発火。eventCount=実破棄枚数。minEventCountで「一度に◯枚以上」を表現。BS04アリゲイド。bySelfEffectOnlyで「このスピリットの効果で破棄したとき」に絞れる）
     | "ownChimeiMilled" // 自分のスピリットの【地鳴】が相手のデッキをトラッシュへ送ったとき（mill ハンドラが発火。**self には【地鳴】の持ち主のスピリットが渡る**ので subjectFilter.excludeSelf で「このスピリット以外の」を表す。condition {lastMilledHasEx} で「EXシンボルを持つカードを破棄した」）
+    | "ownUTriggerHit" // 自分のアルティメットのUトリガーがヒットし、ヒット効果の段に進んだとき（uTriggerAfter から発火。self＝そのアルティメット。ヒット効果の対象がいなくても出る。ダブルヒットでも1回。C12）
+    | "ownUTriggerGuarded" // 自分のアルティメットのUトリガーで、置かれた札が1枚でもガードしたか全体がガードされたとき。ヒット効果が出たかは問わない（Q871）。アルティメットが場にいないときは出ない
+    | "ownUTriggered" // 自分のアルティメットのUトリガーが発揮された後（デッキ0枚・ミス・場を離れていても常に。Q836）
     | "ownDeckMilled" // 自分のデッキが破棄されたとき（eventCount＝破棄枚数）
     | "ownDeckMillPrevented" // 自分の効果による相手のデッキ破棄が、相手の効果で1枚も破棄できなかったとき（破棄を起こした側のフィールドから発火。self＝破棄を起こした発生源のスピリット。デッキ切れの0枚は含まない。BS19-X06）
     | "ownNexusDeployed" // 自分のフィールドにネクサスが配置されたとき（通常の配置・効果による配置・復活のいずれからも発火。BS04栄光の表彰台）

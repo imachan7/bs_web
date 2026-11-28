@@ -49,7 +49,7 @@ export type CardPick = { declared?: "match"; cardType?: CardType | CardType[]; f
 // lastBuffed＝直前に BP を上げた個体（state.lastBpBuffTargetId）がいまもフィールドにいて filter に合う
 // lastEmptied＝直前の removeCores の解決でスピリットのコアが0個になった（lastEmptiedSpirits が1以上）
 // removeCores.emptiedSoFar＝1体ずつ選ぶ再入までに0個にした体数（入口で記録をこの値から数え直す。以前は入口で0に戻して過少に数えた。#437 R8-4）
-export type IfCond = { allOf: IfCond[] } | { anyOf: IfCond[] } | { last: CardPick } | { lastAll: CardPick } | { lastEmptied: true } | { opponentAttackStepNow: true } | { opponentMainStepNow: true } | { count: EffectCounter; atLeast?: number; atMost?: number } | { event: { destroyedColor: Color } | { targetBpAtLeast: number } } | { ownAllHaveTeam: string } | { ownAllHaveFamily: string } | { ownTeamAtLeast: { team: string; count: number; restedOnly?: true } } | { soulCoreInReserve: true } | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } | { ownAttackStepNow: true } | { magicUsedVia: string } | { firstBattleOfTurn: true } | { firstBlockOfTurn: true } | { selfSummonedBy: string } | { lastBuffed: TargetFilter } | { ownMagicUsedThisTurn: CardPick } | { ownLifeLostThisTurn: true } | { opponentLifeNotLostThisTurn: true } | { keishoUsedForSummon: true } | { selfBpAtLeast: number } | { summonPaidWithSoulCore: true } | { soulCoreInTrash: true } | { ownAllSpiritsHaveFamily: string; costIn?: number[] } | { ownSpiritDestroyedThisTurn: true } | { ownSpiritDestroyedByBattleThisTurn: true } | { ownAllNexusesHaveFamily: string } | { selfBlocked: true } | { opponentTurn: true } | { ownEffectDestroyedOwnSpirit: { color: Color } } | { ownEffectRemovedOpponentSpirit: { kinds: ("destroy" | "vanish")[]; spiritMagicOnly?: true } } | { selfRested: boolean } | { blockedAttacker: TargetFilter } | { ownEffectDestroyedOwnOnDestroySpirit: true } | { ownBurstSet: boolean } | { selfNameIs: string } | { self: TargetFilter } | { selfSymbolColor: Color } // このスピリット（合体スピリットならブレイヴ込み）がその色のシンボルを持つとき
+export type IfCond = { allOf: IfCond[] } | { anyOf: IfCond[] } | { last: CardPick } | { lastAll: CardPick } | { lastEmptied: true } | { opponentAttackStepNow: true } | { opponentMainStepNow: true } | { count: EffectCounter; atLeast?: number; atMost?: number } | { event: { destroyedColor: Color } | { targetBpAtLeast: number } } | { ownAllHaveTeam: string } | { ownAllHaveFamily: string } | { ownTeamAtLeast: { team: string; count: number; restedOnly?: true } } | { soulCoreInReserve: true } | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } | { ownAttackStepNow: true } | { magicUsedVia: string } | { firstBattleOfTurn: true } | { firstBlockOfTurn: true } | { selfSummonedBy: string } | { lastBuffed: TargetFilter } | { ownMagicUsedThisTurn: CardPick } | { ownLifeLostThisTurn: true } | { opponentLifeNotLostThisTurn: true } | { keishoUsedForSummon: true } | { selfBpAtLeast: number } | { summonPaidWithSoulCore: true } | { soulCoreInTrash: true } | { ownAllSpiritsHaveFamily: string; costIn?: number[] } | { ownSpiritDestroyedThisTurn: true } | { ownSpiritDestroyedByBattleThisTurn: true } | { ownAllNexusesHaveFamily: string } | { selfBlocked: true } | { opponentTurn: true } | { ownEffectDestroyedOwnSpirit: { color: Color } } | { ownEffectRemovedOpponentSpirit: { kinds: ("destroy" | "vanish")[]; spiritMagicOnly?: true } } | { selfRested: boolean } | { blockedAttacker: TargetFilter } | { ownEffectDestroyedOwnOnDestroySpirit: true } | { ownBurstSet: boolean } | { selfNameIs: string } | { self: TargetFilter } | { uTriggerHitting: TargetFilter } | { selfSymbolColor: Color } // このスピリット（合体スピリットならブレイヴ込み）がその色のシンボルを持つとき
 
 // 複数の対象を選び終えた後の、耐性の確認の途中経過（logic/pickTargets.ts）
 export type PickedTargets = { ids: string[]; passed: string[]; failed: string[]; settled?: true }
@@ -57,6 +57,15 @@ export type PickedTargets = { ids: string[]; passed: string[]; failed: string[];
 // 召喚の後半（ブレイヴの召喚の誘発・トラッシュの同名召喚・同名で手札へ戻る・天使長ファニムの疲労）の続き。stage＝次に行う段。
 // paidCost＝コストを支払った召喚か（state.summoningPaid の写し。後半で読む前に state の印は消えるので、続きに持たせる。#437 F5）
 export type SummonTail = { stage: number; paidCost: boolean; end?: number } // end＝この段の手前で止める（効果の後へ回した段2〜3だけを出口で解くフレーム。DERIVED_AFTER_EFFECT §11）
+
+// 【Uトリガー】の途中経過。カードデータには書かない（再開フレームの action に載って中断をまたぐ。ULTIMATE_STAGE6.md）
+export type UTriggerProgress = {
+    stage: "after"
+    ultimateInstanceId: string
+    placed: { cardId: string; verdict: "hit" | "miss" | "guard" }[]
+    guardedAll?: true
+    hitFired?: boolean
+}
 
 export type EffectAction =
  | { type: "draw"; count: number; side?: "own" | "both"; fillTo?: number; costSkipCoreStep?: true; countCounter?: EffectCounter; countMax?: number; costSacrificeChosen?: true; nth?: number } // 自分がデッキから引く。nth＝デッキの上から nth 枚目を引く（上の nth-1 枚はそのまま残す）。デッキが nth 枚未満なら引かない（2026-11-20）。countMaxはmill.countMaxと同義。side:"both"は自分→相手の順の両者、省略時は自分のみ。costSkipCoreStep＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）。fillTo＝手札がその枚数になるまで引く（count は見ない。0〜N の upTo とは別の意味）
@@ -120,6 +129,7 @@ export type EffectAction =
 
  // 自分のトラッシュのスピリットカードを手札に戻す。costBudget＝countを無視し、コスト合計がbudget以下で好きなだけ（コスト最大から貪欲に選ぶ決定的簡略化）。anyCardType＝カード種別を問わない。vanillaFilter＝効果の記述を持たないカードのみ（isVanillaCard）。bravesOnly＝ブレイヴカードだけ（includeBravesの「両方」とは別軸）。colorFilter は静的なcolorsで判定。costSkipDraw＝そのドローステップのドローを支払いに使う（実際に戻せたときだけ GameState.drawStepSkipped を立てる）。keywordFilter は静的に持つエントリで判定、keywordFilterAny は OR。thenDestroyIfFamily＝戻したカードがその系統（配列＝OR）を持つときだけ続けて maxBp以下の相手スピリット1体を破壊。自動選択は末尾＝新しい方から（本来は選択の簡略化）。all＝countを無視しfamilyFilter該当カードすべて
  | { type: "settleDerived" } // その時点までに効果の中で待機に入った破壊・消滅の列を解決して確定する（「この効果発揮後」の区切り）。通常は効果の出口が自動で行うので、データには「この効果発揮後」の位置にだけ書く
+ | { type: "uTrigger"; count: number; hit: EffectAction[]; hitBonus?: { need: number | "all"; actions: EffectAction[] }[]; xu?: EffectAction[]; progress?: UTriggerProgress } // 【Uトリガー】。相手のデッキ上 count 枚をトラッシュへ置き、置いた札ごとにヒット／ガード／ミスを決める（デッキ破棄ではない。C2）。hit はヒットあり、hitBonus の need はヒット枚数（"all"＝count 枚すべて）で発揮。xu は段6b
  | { type: "loseGame"; side: "opponent" | "own" } // 効果で敗北させる（相手は負けたことになる）。side は効果の持ち主から見た負ける側
  | { type: "restartGame" } // お互いのカードすべてをデッキへ戻して切り直し、1ターン目からゲームを再開する（PB13-05）。ゲーム中に1回だけで、2回目以降は何もしない。除外ゾーンとライフは残る
  | { type: "noop" } // 何もしない。magicNegate の確認など、アクション解決以外の pendingChoice のプレースホルダ。カードデータには書かない

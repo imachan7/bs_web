@@ -40,6 +40,7 @@ import surchargePay from "./surchargePay"
 import moveCards from "./moveCards"
 import designate from "./designate"
 import token from "./token"
+import uTrigger from "./uTrigger"
 import { settleDerivedHandler } from "../derivedSettle"
 import bunshin from "../keywords/bunshin"
 import declare from "./declare"
@@ -90,6 +91,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...moveCards,
     ...designate,
     ...token,
+    ...uTrigger,
     ...bunshin,
     ...declare,
     ...fireEffect,

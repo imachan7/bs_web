@@ -93,7 +93,7 @@ const VALID_KINDS = new Set([
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "freeSummonFromHandOnOwnNexusDeployed", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "targetRedirect", "sokuPaySourceGrant", "payAssistByExhaust", "summonPayOff", "burstSetCost",
     "destroyedCoresToTrash", "destroyedCoresToSelf", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
-    "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
+    "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus", "uTriggerGuard",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard", "exhaustPreventByPay",
     "kyoshuSelfExhaustGrant", "coresAs", "colorlessGrant",
@@ -667,6 +667,10 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             if (!e.kind || !VALID_KINDS.has(e.kind)) {
                 add(id, `未知の effect kind: ${String(e.kind)}`)
             }
+            // 「Uトリガーがヒットしている」の絞り込みは kinds を省くとスピリットだけになり、決して成り立たない
+            for (const m of JSON.stringify(e).matchAll(/"uTriggerHitting":(\{[^{}]*\})/g)) {
+                if (!/"kinds":\[[^\]]*"ultimate"/.test(m[1]!)) add(id, `uTriggerHitting の絞り込みに kinds:["ultimate"] が無い（${String(e.id)}）`)
+            }
             if (e.kind === "keyword" && (!e.keyword || !VALID_KEYWORDS.has(e.keyword))) {
                 add(id, `未知の keyword: ${String(e.keyword)}`)
             }
@@ -802,7 +806,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
 const SYMBOLLESS_VERIFIED = new Set<string>(["PB13-05"])
-const AWAITING_MIGRATION = new Set<string>([])
+const AWAITING_MIGRATION = new Set<string>(["uTrigger"]) // アルティメットのカードを取り込むときに使う（ULTIMATE_STAGE6）
 // standard 版（26系カード）から持ち込んだエンジンの語彙で、旧カードからは呼ばれないもの（2026-10-15 に bs_web_standard から持ち込み）
 const STANDARD_POOL_ONLY = new Set<string>([
     "bpBuffAll", "bpMinus", "designate", "exhaustOwnNexuses", "fireSoryoSelf", "grantKeywordThisTurn", "heavyExhaust",

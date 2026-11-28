@@ -193,7 +193,7 @@ function handMoves(state: GameState, pid: PlayerId): AiMove[] {
                 })
             }
             for (const hostId of braveCombineCandidates(state, pid, cardId)) {
-                const hostName = getCard(player.field.spirits.find((sp) => sp.instanceId === hostId)!.cardId).name
+                const hostName = getCard(battlers(player).find((sp) => sp.instanceId === hostId)!.cardId).name
                 for (const o of payLevels(state, pid, levelsDesc, false, (lv, ps) => validateSummon(state, pid, handIndex, ps, lv, undefined, undefined, hostId))) {
                     moves.push({
                         action: { type: "summon", handIndex, level: o.level, braveTargetInstanceId: hostId, ...(o.paySources ? { paySources: o.paySources } : {}) },
