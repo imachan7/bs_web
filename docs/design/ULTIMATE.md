@@ -351,8 +351,8 @@ export interface BraveConditionTerm {
 | 1 | `SymbolMark` の導入（§5）。データは全て色のままなので挙動不変。**済み**（2026-11-27。色を見る所は `onlyColors`（shared/rules/symbols.ts）で極を除く。極の軽減の枠は極シンボルだけで埋まる。smoke part1066） | 既存が無変更で通る |
 | 2 | `CardType` に `"ultimate"`／`field.ultimates`／`battlers()` の新設。**まだ召喚できない**。**済み**（2026-11-27。`battlers` は shared/rules/level.ts。smoke part1067）。段3 の走査は 2026-11-27 時点で `field.spirits` 566か所・97ファイル（§2 の159か所から増えた） | 既存が無変更で通る |
 | 3 | §2.1 の分類表にもとづく 159箇所の仕分け（`battlers()` への置換） | アタック・ブロック・維持コア割れの smoke |
-| 4 | 召喚条件（§6）＋召喚経路2つ | 条件未達で召喚不可・効果召喚でも不可 |
-| 5 | `TargetFilter.kinds`（§2.2）＝「スピリット指定効果が当たらない」 | **アルティメットが破壊されないこと**の smoke |
+| 4 | 召喚条件（§6）＋召喚経路2つ。**段5 の後に行う**（2026-11-27。召喚条件に「自分のアルティメット1体以上」があり kinds が先に要る。§6.1 の専用の型は作らず、既存の `{ count: { ownSpirits: TargetFilter }, atLeast }` と kinds で書く） | 条件未達で召喚不可・効果召喚でも不可 |
+| 5 | `TargetFilter.kinds`（§2.2）＝「スピリット指定効果が当たらない」。**済み**（2026-11-27。既定は ["spirit"]。候補の列挙は `fieldCandidates`（shared/rules/targetFilter.ts）、`matchesTarget` は全経路で kinds を見る。kinds:["…","ultimate"] で候補にアルティメットが出るのは破壊・疲労・counter の ownSpirits／opponentSpirits だけ。ほかのアクション（手札に戻す・BP・コア・付与・指定 など約120か所）は、そのアクションを「スピリット/アルティメット」で使うカードを入れるときに `fieldCandidates` へ寄せる。smoke part1075。変異：既定を ["spirit","ultimate"] にすると5件落ちる） | **アルティメットが破壊されないこと**の smoke |
 | 6 | 【Uトリガー】（§7） | ヒット/ミス/ダブルヒット・`opponentDeckMilled` が発火しないこと |
 | 7 | 実カードの構造化（まずアポロドラゴン1枚を通す） | カードごとの smoke |
 | 8 | クライアント（極シンボル表示・アルティメット枠）※ Gemini 担当 | 目視 |

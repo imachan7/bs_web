@@ -32,6 +32,7 @@ export interface TargetFilter {
     minSymbols?: number // シンボル数がこれ以上
     symbolCount?: number // シンボル数が**これと完全一致**（minSymbols＝以上とは別軸。「シンボル1つを持つ相手のスピリット」「シンボル2つを持つ相手の合体スピリット」。instanceSymbolCountで判定＝合体しているブレイヴのシンボルも数える。BS12初出）
     excludeSelf?: boolean // 発生源自身を対象から外す
+    kinds?: ("spirit" | "ultimate")[] // 対象にする場の個体の種別。省略時は ["spirit"]（「スピリット」と書いた効果はアルティメットに当たらない。ULTIMATE_PLAN B1）。印刷が「スピリット/アルティメット」「アルティメット」のときだけ書く
     soulCore?: "present" | "absent" // [ソウルコア]が載っている/載っていない（26系。「[ソウルコア]が置かれている相手のスピリット」等。ソウルコアもコアとして数えるため、有効コア数の軸とは独立）
     shinkaiho?: boolean // 真界放状態/真界放していない（26系《真界放》。true=《真界放》のLv（常にLv2）に現在いる個体、false=いない個体。《真界放》マーカー自体が無いカードは常にfalse側。instInShinkaihoStateで判定。コアの内訳は問わない 2026-10-07 ユーザー裁定）
     summonedBy?: string // 召喚経路が一致するものだけ（26系「【Fチェンジ】で召喚されているか」等。CardInstance.summonedByと突合）

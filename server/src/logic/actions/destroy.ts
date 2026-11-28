@@ -43,7 +43,7 @@ import {
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { battlers, displayLevel, effectiveBp, instBaseCost, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { battlers, displayLevel, effectiveBp, fieldCandidates, instBaseCost, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -102,7 +102,7 @@ export function destroyCandidateCountForPay(
     if (filter.maxBp !== undefined && typeof action.filter?.maxBp === "number") filter.maxBp += kyokaBonus(state, owner, "bpDestroy") * 1000
     const matches = (s: CardInstance) => matchesTarget(state, opp, s, filter, selfInstanceId)
     if (action.anySide) return pickAnySideCandidates(state, owner, matches, srcColors, srcType).length
-    return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType).length
+    return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "other", filter).length
 }
 
 // コストの破壊（asCost）では、破壊されないネクサスは候補にならない。効果の破壊では候補に残す（Q1711）
@@ -240,7 +240,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         // highestBp（BS19-X01「最もBPの高い相手のスピリット1体を破壊する」）：候補の実効BPの最大値を
         // maxBp へ解決する。同値が複数残れば候補全員が maxBp に一致するので、対話時は対象選択に回る
         if (filter !== SELF_REQUIRED && action.filter?.highestBp) {
-            const pool = pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType)
+            const pool = pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType, "other", filter)
             if (pool.length > 0) filter.maxBp = pool.reduce((m, s) => Math.max(m, effectiveBp(state, opp, s)), 0)
         }
         if (filter === SELF_REQUIRED) {
@@ -267,7 +267,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                 return
             }
             // 付け替えの答えで再入すると picked が立つので、この分岐には来ない（汎用の選択経路が picked を読む）
-            const moved = settleOne(ctx, action, found0.inst, pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType, "destroy").map((s) => s.instanceId), attemptOf(ctx, "destroy", "targeted"))
+            const moved = settleOne(ctx, action, found0.inst, pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType, "destroy", filter).map((s) => s.instanceId), attemptOf(ctx, "destroy", "targeted"))
             if (moved === null) return
             const found = findSpiritAny(state, moved.instanceId) ?? found0
             // クライアントが先に選んだ対象（castMagic の targetInstanceId）も通るので、陣営もここで見る
@@ -340,7 +340,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             : action.anySide
               ? pickAnySideCandidates(state, owner, matchesFilter, srcColors, srcType)
               : (() => {
-                    const c = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
+                    const c = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType, "other", filter)
                     // lowestCost：最低コストの同点だけが候補（同点なら使用者が選ぶ。BS19_PLAN §2.2）
                     if (!action.lowestCost || c.length === 0) return c
                     const low = Math.min(...c.map((x) => getCard(x.cardId).cost))
@@ -371,8 +371,8 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                       : action.lowestCost
                         ? pickEnemyLowestCost(state, opp, fresh, srcColors, srcType)
                         : action.chooserIsTarget
-                          ? pickEnemyCandidates(state, opp, limitBp, fresh, srcColors, srcType).reduce<CardInstance | null>((b, sp) => (b === null || effectiveBp(state, opp, sp) < effectiveBp(state, opp, b) ? sp : b), null)
-                          : pickEnemyByBp(state, opp, limitBp, fresh, srcColors, srcType)
+                          ? pickEnemyCandidates(state, opp, limitBp, fresh, srcColors, srcType, "other", filter).reduce<CardInstance | null>((b, sp) => (b === null || effectiveBp(state, opp, sp) < effectiveBp(state, opp, b) ? sp : b), null)
+                          : pickEnemyByBp(state, opp, limitBp, fresh, srcColors, srcType, "other", filter)
                 if (!target) break
                 picked.add(target.instanceId)
                 ids.push(target.instanceId)
@@ -424,7 +424,7 @@ export function destroyAllTargetList(ctx: ActionCtx, action: AllTargetsSpec): { 
             const kyoka = kyokaBonus(state, owner, "bpDestroy") * 1000
             if (kyoka > 0) areaFilter.maxBp += kyoka
         }
-        const oppTargets = action.side === "own" ? [] : state.players[opp].field.spirits
+        const oppTargets = action.side === "own" ? [] : fieldCandidates(state.players[opp], areaFilter)
             .filter(
                 (s) =>
                     matchesTarget(state, opp, s, areaFilter, self?.instanceId) &&
@@ -434,7 +434,7 @@ export function destroyAllTargetList(ctx: ActionCtx, action: AllTargetsSpec): { 
         // anySide 指定時は自分側も対象に含める（装甲・マジック効果耐性は既存のanySide系アクションと
         // 同様に自分側には適用しない非対称ルール。BS04魔龍帝ジークフリードLv3）
         const ownTargets = action.anySide || action.side === "own"
-            ? state.players[owner].field.spirits
+            ? fieldCandidates(state.players[owner], areaFilter)
                   .filter(
                       (s) =>
                           matchesTarget(state, owner, s, areaFilter, self?.instanceId) &&

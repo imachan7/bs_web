@@ -18,7 +18,7 @@ import { bofuCountFor, matchesFamilyFilter, spiritHasFamily, spiritHasKeywordOrL
 import { entryActive } from "./effectStop"
 import { braveBpBonus, instColors, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllNexusesHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast, battlerOwnerOf } from "./level"
 import { countSymbols, handSizeOf, instanceSymbolCount } from "./symbols"
-import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
+import { cardNameContains, fieldCandidates, instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
 // ---- 常時BP修正（オーラ）と実効BP ----
 
@@ -77,9 +77,10 @@ export function countSpiritsWeighted(
     ownerPid: PlayerId,
     predicate: (inst: CardInstance) => boolean = () => true,
     countingSourceType?: CardType,
+    filter?: { kinds?: ("spirit" | "ultimate")[] },
 ): number {
     let total = 0
-    for (const s of board.players[ownerPid].field.spirits) {
+    for (const s of fieldCandidates(board.players[ownerPid], filter)) {
         if (!predicate(s)) continue
         total += spiritCountWeight(board, countingPid, ownerPid, s, countingSourceType)
     }

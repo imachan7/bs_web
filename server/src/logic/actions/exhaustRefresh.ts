@@ -36,7 +36,7 @@ import {
     continuousKeywordGrantCount,
     recordTimed,
 } from "../EffectModules"
-import { battlerOwnerOf, KEYWORDS, timedContentsOn, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
+import { battlerOwnerOf, fieldCandidates, KEYWORDS, timedContentsOn, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { detachBraveByEffect } from "../brave"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -291,7 +291,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
         // highestLevel（SD13-005 連鎖「最もLvの高い相手のスピリット1体を疲労させる」）：候補の最大Lvへ
         // 絞る。同Lvが複数残れば候補全員が level に一致するので、対話時は対象選択に回る
         if (action.filter?.highestLevel) {
-            const pool = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
+            const pool = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust", filter)
             if (pool.length > 0) filter.level = [pool.reduce((m, s) => Math.max(m, currentLevel(s).level), 0)]
         }
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
@@ -303,7 +303,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             }
             const exhaustAttempt = attemptOf(ctx, "exhaust", "targeted")
             // 付け替えの答えで再入すると picked が立つので、この分岐には来ない（汎用の選択経路が picked を読む）
-            const moved = settleOne(ctx, action, found0.inst, pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust").map((s) => s.instanceId), exhaustAttempt)
+            const moved = settleOne(ctx, action, found0.inst, pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust", filter).map((s) => s.instanceId), exhaustAttempt)
             if (moved === null) return
             const found = findSpiritAny(state, moved.instanceId) ?? found0
             // excludeIds 付き＝count 体を1体ずつ選んでいる途中。この1体の処理が済んだら（受けなかった場合も含め）残りを選び直す
@@ -348,7 +348,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
                     const nextCandidates = (
                         action.anySide
                             ? pickAnySideCandidates(state, owner, (sp) => !sp.isRested && matchesLevel(sp), srcColors, srcType, "exhaust")
-                            : pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
+                            : pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust", filter)
                     ).map((s) => s.instanceId)
                     requestUpToChoice(
                         state,
@@ -375,7 +375,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
         // chooserIsTarget（【暴風】）は疲労させられる側が選び、解決は発生源の持ち主の効果として行う
         const pool = action.anySide
             ? pickAnySideCandidates(state, owner, (sp) => !sp.isRested && matchesLevel(sp), srcColors, srcType, "exhaust")
-            : pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
+            : pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust", filter)
         let ids: string[] | null
         if (state.interactiveTargets) {
             ids = pickTargets(ctx, actionForChoice, {
@@ -397,7 +397,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             for (let i = 0; i < action.count; i++) {
                 const target = action.anySide
                     ? pool.filter((sp) => !ids!.includes(sp.instanceId)).reduce<CardInstance | undefined>((b, sp) => (!b || effectiveBp(state, owner, sp) > effectiveBp(state, owner, b) ? sp : b), undefined)
-                    : pickEnemyByBp(state, opp, Infinity, (s) => matchesCandidate(s) && !ids!.includes(s.instanceId), srcColors, srcType, "exhaust") ?? undefined
+                    : pickEnemyByBp(state, opp, Infinity, (s) => matchesCandidate(s) && !ids!.includes(s.instanceId), srcColors, srcType, "exhaust", filter) ?? undefined
                 if (!target) break
                 ids.push(target.instanceId)
             }
@@ -443,7 +443,7 @@ function exhaustAllTargets(ctx: ActionCtx, action: ExhaustNum): void {
     const sides: PlayerId[] = action.anySide ? bothSidesPids(state, srcType) : [opp]
     const list: { pid: PlayerId; inst: CardInstance; instanceId: string }[] = []
     for (const pid of sides) {
-        for (const s of state.players[pid].field.spirits) {
+        for (const s of fieldCandidates(state.players[pid], filter)) {
             if (s.isRested) continue
             if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
             if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue

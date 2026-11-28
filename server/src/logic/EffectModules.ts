@@ -1186,7 +1186,7 @@ export function countEffectCounter(
     }
     if ("opponentSpirits" in counter) {
         const filter = counter.opponentSpirits as unknown as ResolvedTargetFilter
-        return countSpiritsWeighted(state, owner, opp, (s) => matchesTarget(state, opp, s, filter), sourceType)
+        return countSpiritsWeighted(state, owner, opp, (s) => matchesTarget(state, opp, s, filter), sourceType, filter)
     }
     if ("ownTrashCards" in counter) {
         const pick = counter.ownTrashCards
@@ -1199,7 +1199,7 @@ export function countEffectCounter(
     }
     if ("ownSpirits" in counter) {
         const filter = counter.ownSpirits as unknown as ResolvedTargetFilter
-        return countSpiritsWeighted(state, owner, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId), sourceType)
+        return countSpiritsWeighted(state, owner, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId), sourceType, filter)
     }
     if ("ownNameIncludes" in counter) {
         return countSpiritsWeighted(
