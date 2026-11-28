@@ -3,6 +3,7 @@
 //
 // index.ts は import しない（policy.ts → lookahead.ts → index.ts → policy.ts の循環になるため、列挙と選択をここで直接呼ぶ）。
 import type { GameState, GameView, PlayerId } from "../type"
+import { battlers } from "../../../shared/rules/level"
 import { handleAction } from "../logic/GameEngine"
 import { getCard, viewFor } from "../logic/GameState"
 import { currentLevel } from "../../../shared/rules"
@@ -87,7 +88,7 @@ function summarize(view: GameView, me: PlayerId): unknown {
             life: p.life,
             reserve: p.reserve,
             hand: p.handCount,
-            spirits: p.field.spirits.map((s) => `${getCard(s.cardId).name}/Lv${currentLevel(s).level}${s.isRested ? "(疲)" : ""}`),
+            spirits: battlers(p).map((s) => `${getCard(s.cardId).name}/Lv${currentLevel(s).level}${s.isRested ? "(疲)" : ""}`),
             nexuses: p.field.nexuses.map((s) => getCard(s.cardId).name),
         }
     }

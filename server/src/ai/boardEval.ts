@@ -3,6 +3,7 @@
 // 重みは置き値。実測前の一般的な勝ち筋からの仮置きで、ai:bench の新旧対戦で調整する。
 // 重みを変えるときは BOARD_WEIGHTS だけを書き換え、式はいじらない。
 import type { GameView, PlayerId } from "../type"
+import { battlers } from "../../../shared/rules/level"
 import { currentLevel, instanceSymbolCount } from "../../../shared/rules"
 import { bpScore } from "./evaluate"
 import { fieldEffectTags } from "./moveTags"
@@ -46,7 +47,7 @@ function opponentOf(pid: PlayerId): PlayerId {
 // 1人ぶんの盤面の価値を項目ごとに返す（合計が価値）。ai:bench の分析記録が内訳を見るために分けてある
 function sideParts(view: GameView, pid: PlayerId): Record<string, number> {
     const player = view.players[pid]
-    const spirits = player.field.spirits
+    const spirits = battlers(player)
     const nexuses = player.field.nexuses
     const parts: Record<string, number> = { life: 0, bp: 0, symbol: 0, untapped: 0, nexus: 0, fieldFx: 0, fieldCore: 0, reserve: 0, hand: 0, deck: 0 }
 
@@ -65,7 +66,7 @@ function sideParts(view: GameView, pid: PlayerId): Record<string, number> {
             untapped++
         }
     }
-    if (untapped === 0 && view.players[opponentOf(pid)].field.spirits.length > 0) {
+    if (untapped === 0 && battlers(view.players[opponentOf(pid)]).length > 0) {
         parts.untapped! += W.NO_UNTAPPED_THREAT
     }
 
