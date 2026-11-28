@@ -12,6 +12,7 @@ import { collectBraveDestroyItems, resumeBraveDestroy } from "./brave"
 import { currentRecordScope, newRecordScope, recordDestroyedCount } from "./record"
 import { isTrashWaiting } from "../../../shared/rules/waiting"
 import { randomId } from "../../../shared/randomId"
+import { battlers } from "../../../shared/rules"
 
 type DestroyBatchFrame = Extract<ResumeFrame, { kind: "destroyBatch" }>
 const PIDS: PlayerId[] = ["p1", "p2"]
@@ -153,7 +154,7 @@ function collectSpiritEntries(state: GameState, effectId: string): { list: Destr
     const list: DestroyEntry[] = []
     const pickMany: Record<string, string[]> = {}
     for (const pid of PIDS) {
-        for (const inst of state.players[pid].field.spirits) {
+        for (const inst of battlers(state.players[pid])) {
             const w = inst.waiting
             if ((w?.kind !== "destroy" && w?.kind !== "vanish") || w.effectId !== effectId || w.derived === undefined) continue
             const d = w.derived

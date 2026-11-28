@@ -43,7 +43,7 @@ import {
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { displayLevel, effectiveBp, instBaseCost, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { battlers, displayLevel, effectiveBp, instBaseCost, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -1083,7 +1083,7 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
         )
         if (fromFieldOrReserve) {
             // 場から取った結果、維持コア割れになったスピリットを消滅させる
-            for (const sp of [...player.field.spirits]) {
+            for (const sp of battlers(player)) {
                 if (wouldDeplete(state, owner, sp)) destroySpirit(state, owner, sp.instanceId, "deplete")
             }
         } else if (self && wouldDeplete(state, owner, self)) {

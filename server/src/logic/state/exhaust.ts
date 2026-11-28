@@ -268,7 +268,7 @@ export function exhaustedEvents(
 // スクルディア：相手のスピリットから「回復できない」と指定されていて、
 // その指定元が**疲労状態で持ち主のフィールドにいる**間は回復しない
 export function isRefreshBlockedByMark(state: GameState, pid: PlayerId, inst: CardInstance): boolean {
-    return state.players[opponentOf(pid)].field.spirits.some(
+    return battlers(state.players[opponentOf(pid)]).some(
         (s) => s.isRested && s.noRefreshTargetInstanceId === inst.instanceId,
     )
 }

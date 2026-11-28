@@ -266,7 +266,7 @@ export function autoPayPlan(state: GameState, pid: PlayerId, need: number, keepL
     const player = state.players[pid]
     let rest = need - Math.max(0, normalReserveOf(player))
     const paySources: PaySource[] = []
-    const fieldInsts = [...player.field.nexuses, ...[...player.field.spirits].sort((a, b) => b.cores - a.cores)]
+    const fieldInsts = [...player.field.nexuses, ...battlers(player).sort((a, b) => b.cores - a.cores)]
     for (const inst of fieldInsts) {
         if (rest <= 0) break
         const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: inst.cores, cause: "cost", actorPid: pid })
@@ -830,7 +830,7 @@ export function sweepLevelCostDepletion(state: GameState): void {
         if (state.winner || state.pendingChoice) return
         let destroyed = false
         for (const pid of ["p1", "p2"] as PlayerId[]) {
-            for (const inst of [...state.players[pid].field.spirits]) {
+            for (const inst of battlers(state.players[pid])) {
                 if ((inst.levelCostBonusContinuous ?? 0) === 0) continue
                 if (!wouldDeplete(state, pid, inst)) continue
                 destroySpirit(state, pid, inst.instanceId, "deplete")

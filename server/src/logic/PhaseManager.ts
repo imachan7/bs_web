@@ -205,9 +205,9 @@ function turnStartSegments(state: GameState): (() => void)[] {
             // リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）
             const limits = refreshRestrictionsFor(state)
             // ループ中の回復で場が変わっても、ステップ開始時点の判定を使う
-            const stepBlocked = new Set([...player.field.spirits, ...player.field.nexuses].filter((i) => refreshBlockedByRule(state, pid, i, { by: "step" })).map((i) => i.instanceId))
+            const stepBlocked = new Set([...battlers(player), ...player.field.nexuses].filter((i) => refreshBlockedByRule(state, pid, i, { by: "step" })).map((i) => i.instanceId))
             let firstRefreshed: CardInstance | undefined
-            for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+            for (const inst of [...battlers(player), ...player.field.nexuses]) {
                 // noRefresh（スクルディア Lv1-2 の自分自身）を持つスピリットはこのステップで回復しない
                 if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
                 // 「次のリフレッシュステップで回復できない」（BS11-055）
@@ -452,7 +452,7 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
         }
 
         // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：持ち主のエンドステップごとに1減らす
-        for (const inst of state.players[state.turnPlayer].field.spirits) {
+        for (const inst of battlers(state.players[state.turnPlayer])) {
             if ((inst.noRefreshUntilOwnEndSteps ?? 0) <= 0) continue
             inst.noRefreshUntilOwnEndSteps = (inst.noRefreshUntilOwnEndSteps ?? 0) - 1
         }
@@ -479,7 +479,7 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
         // エンドステップの誘発効果からは見えている状態にしたいので、fireStepTriggers の**後**に処理する。
         // 戻す処理中に配列が変わるのでスナップショットを取ってから回す
         for (const pid of ["p1", "p2"] as const) {
-            for (const inst of [...state.players[pid].field.spirits]) {
+            for (const inst of battlers(state.players[pid])) {
                 if (inst.returnToDeckBottomAtEndStep) returnSpiritToDeckBottom(state, pid, inst)
             }
         }
@@ -498,7 +498,7 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
             // 「このバトルの間」の貸与は clearBattle で切れるのが本筋だが、バトルが成立しないまま
             // ターンが終わる経路のために念のためここでも空にする（lendSelfThisBattle）
             state.players[pid].battleVirtualInstances = []
-            for (const inst of state.players[pid].field.spirits) {
+            for (const inst of battlers(state.players[pid])) {
                 // バトル終了で消えるはずのBP増減も、バトルが成立しないまま終わる経路のために念のため消す
                 delete inst.attackedThisTurn
                 inst.blockConstraintNegatedThisTurn = false
@@ -605,8 +605,8 @@ export function endTurn(state: GameState, from: EndTurnStage = "start"): void {
 // 対象はそのプレイヤー自身か、そのプレイヤーのフィールドにいる個体。場を離れた個体への記録もここで捨てる
 function consumeNextRefreshRecords(state: GameState, pid: PlayerId): TimedRecord[] {
     const field = state.players[pid].field
-    const onField = new Set([...field.spirits, ...field.nexuses].map((i) => i.instanceId))
-    const anyField = new Set((["p1", "p2"] as PlayerId[]).flatMap((p) => [...state.players[p].field.spirits, ...state.players[p].field.nexuses].map((i) => i.instanceId)))
+    const onField = new Set([...battlers(state.players[pid]), ...field.nexuses].map((i) => i.instanceId))
+    const anyField = new Set((["p1", "p2"] as PlayerId[]).flatMap((p) => [...battlers(state.players[p]), ...state.players[p].field.nexuses].map((i) => i.instanceId)))
     const mine = (r: TimedRecord): boolean =>
         r.until === "nextRefresh" &&
         ((r.target.kind === "player" && r.target.pid === pid) || (r.target.kind === "rule" && r.target.pid === pid) || (r.target.kind === "instance" && (onField.has(r.target.instanceId) || !anyField.has(r.target.instanceId))))

@@ -24,6 +24,7 @@ import {
     minLevelCores, summonMinCores,
     opponentOf,
     placedCoresForSummon,
+    findBattler,
 } from "./GameState"
 import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, timedCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, summonLevelCostBonus, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst, battlers } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
@@ -1235,14 +1236,14 @@ export function validateAttack(
     if (state.phase !== "attack") return "アタックステップではありません"
     if (state.turn === 1) return "先攻1ターン目はアタックできません"
     if (state.battle) return "バトルの解決中です"
-    const inst = findSpirit(state.players[pid], instanceId)
+    const inst = findBattler(state.players[pid], instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
     if (inst.isRested) return "疲労しているためアタックできません"
     if (cantActByTimed(state, inst)) return "このターンの間、このスピリットはアタックできません"
     if (currentLevel(inst).level < 1) return "レベル1未満のためアタックできません"
     const first = ignoreAttackOrder
         ? undefined
-        : state.players[pid].field.spirits.find((s) => s.instanceId !== instanceId && mustAttackFirst(state, s) && mustAttackNow(state, pid, s))
+        : battlers(state.players[pid]).find((s) => s.instanceId !== instanceId && mustAttackFirst(state, s) && mustAttackNow(state, pid, s))
     if (first) return `${getCard(first.cardId).name}がこのステップの最初にアタックしなければなりません`
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはアタックできません"
@@ -1333,9 +1334,9 @@ export function validateAttack(
 function forcedBlockers(state: GameState, pid: PlayerId): CardInstance[] {
     if (!state.battle) return []
     const attackerPid = opponentOf(pid)
-    const attacker = findSpirit(state.players[attackerPid], state.battle.attackerInstanceId)
+    const attacker = findBattler(state.players[attackerPid], state.battle.attackerInstanceId)
     if (blockPayCost(state, attackerPid, attacker) > 0 || blockReserveToTrashCount(state, attackerPid, attacker) > 0 || blockExhaustSpiritRequired(state, attackerPid, attacker)) return []
-    return state.players[pid].field.spirits.filter(
+    return battlers(state.players[pid]).filter(
         (s) => timedContentsOn(state, s).some((c) => c.type === "mustBlock") && currentLevel(s).level >= 1 && !instCostCantAct(state, s) && canBlock(state, pid, s, attackerPid, attacker) === null,
     )
 }
@@ -1354,7 +1355,7 @@ export function validateBlock(
         return "フラッシュタイミング中はブロックを宣言できません"
     }
     if (state.battle.blockerInstanceId) return "すでにブロックしています"
-    const inst = findSpirit(state.players[pid], instanceId)
+    const inst = findBattler(state.players[pid], instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
     // 複数体ブロック（blockRequiresCount）：必要数がそろうまで宣言を貯めるので同じ個体を二度は選べない
     if ((state.battle.pendingBlockerIds ?? []).includes(instanceId)) {
@@ -1368,7 +1369,7 @@ export function validateBlock(
     if (instCostCantAct(state, inst)) {
         return "コストが低いためブロックできません"
     }
-    const costAttacker = state.battle ? findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId) : undefined
+    const costAttacker = state.battle ? findBattler(state.players[opponentOf(pid)], state.battle.attackerInstanceId) : undefined
     for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
         if (c.cost === "destroyOwnSpirit") continue
@@ -1410,7 +1411,7 @@ export function validateBlock(
     }
 
     const attackerPid = opponentOf(pid)
-    const attacker = findSpirit(
+    const attacker = findBattler(
         state.players[attackerPid],
         state.battle.attackerInstanceId,
     )
@@ -1424,7 +1425,7 @@ export function validateBlock(
     const required = blockRequiredCount(state, attackerPid, attacker)
     if (required > 1) {
         const declared = state.battle.pendingBlockerIds ?? []
-        const available = state.players[pid].field.spirits.filter(
+        const available = battlers(state.players[pid]).filter(
             (sp) =>
                 sp.instanceId === instanceId ||
                 declared.includes(sp.instanceId) ||
@@ -1470,7 +1471,7 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
     // 先攻1ターン目はアタック自体が禁止のため、mustAttack はターン終了を妨げない
     if (state.turn === 1) return null
 
-    for (const inst of state.players[pid].field.spirits) {
+    for (const inst of battlers(state.players[pid])) {
         if (mustAttackNow(state, pid, inst)) return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
     }
     // メインからの終了でもアタックステップは来るので、phase だけ attack にした写しで宣言可否を見る
@@ -1526,12 +1527,12 @@ function hasLegalBlocker(
     //  2026-08-16 ユーザー指摘で判明。それまでブロック可否しか見ておらず耐性を素通りしていた）
     forcedBy?: { pid: PlayerId; inst: CardInstance },
 ): boolean {
-    return state.players[pid].field.spirits.some((s) => {
+    return battlers(state.players[pid]).some((s) => {
         if (maxBp !== undefined && effectiveBp(state, pid, s) > maxBp) return false
         if (validateBlock(state, pid, s.instanceId) !== null) return false
         // コストの支払いは任意なので、支払いが要るブロックは強制できない
         if (state.battle) {
-            const atk = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
+            const atk = findBattler(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
             if (blockPayCost(state, opponentOf(pid), atk) > 0 || blockReserveToTrashCount(state, opponentOf(pid), atk) > 0 || blockExhaustSpiritRequired(state, opponentOf(pid), atk)) return false
         }
         if (forcedBy && blockForceResisted(state, pid, s, forcedBy)) return false
@@ -1572,7 +1573,7 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
     if (state.isFlashTiming) {
         return "フラッシュタイミング中はライフで受けられません"
     }
-    const attacker = findSpirit(
+    const attacker = findBattler(
         state.players[state.turnPlayer],
         state.battle.attackerInstanceId,
     )

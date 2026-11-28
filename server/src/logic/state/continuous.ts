@@ -59,7 +59,7 @@ function applyTimedCopies(state: GameState): void {
     const all: CardInstance[] = []
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const field = state.players[pid].field
-        for (const inst of [...field.spirits, ...field.nexuses, ...field.combinedBraves]) {
+        for (const inst of [...battlers(state.players[pid]), ...field.nexuses, ...field.combinedBraves]) {
             inst.timedColors = []
             inst.tempBpBuff = 0
             delete inst.battleBpBuff
@@ -83,7 +83,7 @@ function applyTimedCopies(state: GameState): void {
             delete inst.timedAttackStepEffectsDisabled
         }
         // 合体中のブレイヴにも写す。スピリット状態で与えた色は合体しても残る（#507。2026-11-14 ユーザー確認）
-        all.push(...field.spirits, ...field.nexuses, ...field.combinedBraves)
+        all.push(...battlers(state.players[pid]), ...field.nexuses, ...field.combinedBraves)
     }
     // 照合は写しを空にした状態で全員ぶん先に済ませる（写しを書きながら照合すると処理順で結果が変わるため）
     const hits = all.map((inst) => [inst, timedContentsOn(state, inst)] as const)
@@ -200,7 +200,7 @@ export function braveCompositeOf(state: GameState, pid: PlayerId, braves: CardIn
 export function refreshLevelAsOverrides(state: GameState): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of [
-            ...state.players[pid].field.spirits,
+            ...battlers(state.players[pid]),
             ...state.players[pid].field.nexuses,
             ...state.players[pid].field.combinedBraves,
         ]) {
@@ -984,7 +984,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
     const attackerId = state.battle?.attackerInstanceId
     if (attackerId !== undefined) {
         for (const pid of ["p1", "p2"] as PlayerId[]) {
-            for (const inst of state.players[pid].field.spirits) {
+            for (const inst of battlers(state.players[pid])) {
                 if (inst.instanceId === attackerId && colorlessWhenAttacking(state, pid, inst)) inst.colorless = true
             }
         }

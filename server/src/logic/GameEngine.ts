@@ -233,8 +233,8 @@ function endBattleIfAttackerLeftField(state: GameState): void {
     // 「場にいるか」は両者のフィールドで判定する（盤面を手で組んだテストはアタッカーを相手側に置くことがある）
     const attackerPid = state.turnPlayer
     const attackerAlive =
-        findSpirit(state.players.p1, battle.attackerInstanceId) ??
-        findSpirit(state.players.p2, battle.attackerInstanceId)
+        findBattler(state.players.p1, battle.attackerInstanceId) ??
+        findBattler(state.players.p2, battle.attackerInstanceId)
     if (attackerAlive) return
 
     log(state, "アタックしていたスピリットが場を離れたため、バトルは終了した。")
@@ -1282,7 +1282,7 @@ function doAttack(
     if (error) return error
 
     const player = state.players[pid]
-    const inst = findSpirit(player, instanceId)
+    const inst = findBattler(player, instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
     const card = getCard(inst.cardId)
 
@@ -1366,14 +1366,14 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string, paySources
     const error = validateBlock(state, pid, instanceId, paySources, paySoulCoreFromReserve)
     if (error) return error
     if (!state.battle) return "バトルが発生していません"
-    const payNeed = blockPayCost(state, opponentOf(pid), findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId))
+    const payNeed = blockPayCost(state, opponentOf(pid), findBattler(state.players[opponentOf(pid)], state.battle.attackerInstanceId))
     if (payNeed > 0) {
         payCost(state, pid, payNeed, paySources, 0, paySoulCoreFromReserve)
         log(state, `${state.players[pid].name}はブロックのため${String(payNeed)}コストを支払った。`)
     }
 
     // 制約 blockExhaustSpirit：ブロックするスピリット以外の回復状態のスピリット1体を疲労させる（validateBlock 確認済み）。対話時は候補が2体以上ならブロックする側が選び、非対話は先頭
-    if (blockExhaustSpiritRequired(state, opponentOf(pid), findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId))) {
+    if (blockExhaustSpiritRequired(state, opponentOf(pid), findBattler(state.players[opponentOf(pid)], state.battle.attackerInstanceId))) {
         const candidates = state.players[pid].field.spirits.filter((sp) => sp.instanceId !== instanceId && !sp.isRested)
         if (state.interactiveTargets && candidates.length > 1) {
             state.pendingChoice = {
@@ -1397,7 +1397,7 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string, paySources
 // 払い終えたらブロック宣言の続きへ。対話時は候補が2体以上ならブロックする側が選び、選択からは次の番号で戻ってくる（#700）
 export function payBlockDestroyTolls(state: GameState, pid: PlayerId, blockerInstanceId: string, from: number): string | null {
     if (!state.battle) return "バトルが発生していません"
-    const tolls = blockDestroyTolls(state, findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId))
+    const tolls = blockDestroyTolls(state, findBattler(state.players[opponentOf(pid)], state.battle.attackerInstanceId))
     for (let i = from; i < tolls.length; i++) {
         const rec = tolls[i]!
         const candidates = blockDestroyCandidates(state, pid, blockerInstanceId, rec)
@@ -1441,14 +1441,14 @@ export function continueBlockDeclaration(state: GameState, pid: PlayerId, instan
     if (!state.battle) return "バトルが発生していません"
     // 複数体ブロック（blockRequiresCount）：必要数がそろうまでは宣言を貯めるだけで、誘発もフラッシュの再オープンもしない
     const attackerPidForCount = opponentOf(pid)
-    const attackerForCount = findSpirit(state.players[attackerPidForCount], state.battle.attackerInstanceId)
+    const attackerForCount = findBattler(state.players[attackerPidForCount], state.battle.attackerInstanceId)
     const required = blockRequiredCount(state, attackerPidForCount, attackerForCount)
     if (required > 1) {
         const declared = [...(state.battle.pendingBlockerIds ?? []), instanceId]
         // 強制ブロックの個体はアタッカー側の場にいる
         const ownerOf = (id: string): PlayerId => (id === state.battle?.forcedBlockerInstanceId ? attackerPidForCount : pid)
         const name = (id: string) => {
-            const sp = findSpirit(state.players[ownerOf(id)], id)
+            const sp = findBattler(state.players[ownerOf(id)], id)
             return sp ? getCard(sp.cardId).name : "スピリット"
         }
         if (declared.length < required) {
@@ -1474,7 +1474,7 @@ export function continueBlockDeclaration(state: GameState, pid: PlayerId, instan
             return null
         }
         const picked = [...declared]
-            .map((id) => ({ id, inst: findSpirit(state.players[ownerOf(id)], id), owner: ownerOf(id) }))
+            .map((id) => ({ id, inst: findBattler(state.players[ownerOf(id)], id), owner: ownerOf(id) }))
             .filter((x) => x.inst !== undefined)
             .sort((a, b) => effectiveBp(state, a.owner, a.inst!) - effectiveBp(state, b.owner, b.inst!))[0]
         const battlingId = picked?.id ?? declared[0]!
@@ -1536,11 +1536,11 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     delete state.battle.forcedBlockerInstanceId
     if (forced) state.battle.blockerPid = blockerPid
     state.battle.blockerInstanceId = instanceId
-    const blocker = findSpirit(state.players[blockerPid], instanceId)
+    const blocker = findBattler(state.players[blockerPid], instanceId)
     // 26系【地鳴】の減算材料：ブロックを宣言したスピリットのカードを宣言時点で記録する（スワップで複数回宣言されたら最後のブロッカーで上書き）
     if (blocker) state.lastBattleBlockerCardId = blocker.cardId
     // ブロックの追加コスト（アタッカーに掛かっている blockCost）。validateBlock で払えることは確認済み。マジックの破棄は自動選択（最初に見つかったマジック）
-    const costAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
+    const costAttacker = findBattler(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
     const reserveToll = forced ? 0 : blockReserveToTrashCount(state, opponentOf(pid), costAttacker)
     if (reserveToll > 0) {
         state.players[pid].reserve -= reserveToll
@@ -1566,12 +1566,12 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
             log(state, `${blockerPlayer.name}はブロックのため手札の${getCard(cardId).name}を破棄した。`)
         }
     }
-    const declaredAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
+    const declaredAttacker = findBattler(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
     const exhaustedBlockers: CardInstance[] = []
     if (declaredAttacker) {
         if (blocker && !forced && exhaustDeclaredBlocker(state, pid, blocker, declaredAttacker, true)) exhaustedBlockers.push(blocker)
         for (const extraId of state.battle.extraBlockerIds ?? []) {
-            const extra = findSpirit(state.players[pid], extraId)
+            const extra = findBattler(state.players[pid], extraId)
             if (extra && exhaustDeclaredBlocker(state, pid, extra, declaredAttacker, false)) exhaustedBlockers.push(extra)
         }
     }

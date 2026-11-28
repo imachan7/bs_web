@@ -85,6 +85,6 @@ export function frameWaitingEvent(related: boolean, subject: MaybeInst): { waiti
 }
 
 // 待機状態のカードが場にいるか（＝場を離れる誘発の列をまだ解決しきっていない）
-export function anyWaiting(board: { players: Record<string, { field: { spirits: MaybeInst[]; nexuses: MaybeInst[] } }> }): boolean {
-    return Object.values(board.players).some((p) => p.field.spirits.some(isWaiting) || p.field.nexuses.some(isWaiting))
+export function anyWaiting(board: { players: Record<string, { field: { spirits: MaybeInst[]; ultimates: MaybeInst[]; nexuses: MaybeInst[] } }> }): boolean {
+    return Object.values(board.players).some((p) => [...p.field.spirits, ...p.field.ultimates].some(isWaiting) || p.field.nexuses.some(isWaiting))
 }

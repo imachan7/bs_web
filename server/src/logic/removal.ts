@@ -207,7 +207,7 @@ function enterDestroyWaiting(
         (s) => s.instanceId === instanceId,
     )
     if (index === -1) return null
-    const inst = player.field.spirits[index]
+    const inst = battlers(player)[index]
     if (!inst) return null
     // 破壊待機状態のカードは、**そこからさらに破壊されることはない**（TIMING_CHART.md §1.5）。
     // ただし skipRevive（復活を断ったあとの同じ破壊の続き）は通す
@@ -754,7 +754,7 @@ export function commitPendingDestruction(
     const winnerSurvives = (): boolean => {
         const b = state.battle
         if (!b) return false
-        const mine = state.players[opponentOf(ownerPid)].field.spirits.find((s) => s.instanceId === b.attackerInstanceId || s.instanceId === b.blockerInstanceId)
+        const mine = battlers(state.players[opponentOf(ownerPid)]).find((s) => s.instanceId === b.attackerInstanceId || s.instanceId === b.blockerInstanceId)
         return mine !== undefined && !isTrashWaiting(mine) && !state.destroyGroup?.memberIds.includes(mine.instanceId)
     }
     const redirect = redirectEntry && "soleOnly" in redirectEntry && redirectEntry.soleOnly && !winnerSurvives() ? undefined : redirectEntry?.to
@@ -1468,7 +1468,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
     }
     const fresh: { pid: PlayerId; inst: CardInstance }[] = []
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const inst of state.players[pid].field.spirits) {
+        for (const inst of battlers(state.players[pid])) {
             if (inst.waiting?.kind === "return" && inst.waiting.resolving !== true) fresh.push({ pid, inst })
         }
     }
@@ -1516,7 +1516,7 @@ export function moveReturned(state: GameState, event: string, order?: string[]):
     }
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
-        for (const inst of [...player.field.spirits].sort((a, b) => rank(a) - rank(b))) {
+        for (const inst of battlers(player).sort((a, b) => rank(a) - rank(b))) {
             const pb = inst.waiting?.kind === "return" && inst.waiting.event === event ? inst.waiting : undefined
             if (!pb) continue
 

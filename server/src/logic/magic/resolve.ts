@@ -3,7 +3,7 @@ import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, PendingChoice, EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import type { MagicUsedDecision } from "../../types/choice"
-import { currentLevel, findInstanceAnywhere, findSpirit, getCard, log, pushResumeFrames, suspend } from "../GameState"
+import { currentLevel, findInstanceAnywhere, findSpirit, findBattler, getCard, log, pushResumeFrames, suspend } from "../GameState"
 import { isSelfInBattle, magicEffectiveColors } from "../../../../shared/cost"
 import { magicConditionFailure } from "../../../../shared/magicCondition"
 import { effectSources } from "../../../../shared/rules"
@@ -120,7 +120,7 @@ export function findMagicRepeatGrantSource(state: GameState, pid: PlayerId): Car
     // 【魔光芒】：発生源が見つからないときだけ、バトル中のアタッカー自身を発生源にする
     // （「このスピリットのアタック時」＝pid側のアタッカーである間だけ。ブロッカー側では発揮しない）
     if (state.battle) {
-        const attacker = findSpirit(state.players[pid], state.battle.attackerInstanceId)
+        const attacker = findBattler(state.players[pid], state.battle.attackerInstanceId)
         if (attacker && hasKeywordAtLevel(state, pid, attacker, "makobo")) return attacker
     }
     return null
