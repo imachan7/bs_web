@@ -6,6 +6,7 @@ import { braveCombineCandidates, braveExchangeTargets } from "../../../shared/su
 import { attachCardArt, cardImageUrl } from "../cardArt"
 import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolUnits, instColors, instBaseCost } from "../../../shared/rules"
 import { payingCardId } from "./paying"
+import { coreAllocCanMove } from "./coreAllocSheet"
 import { master, COLOR_SYMBOLS, levelOf, canBlockAttacker, canAwaken, activatableAbility, UiState, matchesDirectedAttackFilter, $ } from "../renderer"
 
 // スマホはカードの操作ボタンをカードに付けず、下の欄（ui/cardDock.ts）がここから読んで出す。カードに付けて CSS で隠すと、
@@ -397,7 +398,7 @@ export function fieldCardEl(
     if (view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice) {
         const dist = view.pendingChoice.distributeCores
         if (dist?.destinations.includes(inst.instanceId)) {
-            el.classList.add("targetable", "clickable")
+            if (coreAllocCanMove(view.pendingChoice, ui.coreAlloc ?? {})) el.classList.add("targetable", "clickable")
             const n = ui.coreAlloc?.[inst.instanceId] ?? 0
             if (n > 0) {
                 const badge = document.createElement("div")

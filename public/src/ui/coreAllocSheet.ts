@@ -32,6 +32,12 @@ function stepBtn(label: string, dest: string, delta: 1 | -1, disabled: boolean):
     return b
 }
 
+// 場のカードを押して、もう1個移せるか（維持コアちょうどなら光らせない）
+export function coreAllocCanMove(pc: PendingChoice, alloc: CoreAlloc): boolean {
+    const d = pc.distributeCores
+    return d !== undefined && d.selfCores + selfCount(d, alloc) - 1 >= d.selfMin
+}
+
 export function renderCoreAllocSheet(pc: PendingChoice, alloc: CoreAlloc, host: HTMLElement): void {
     const d = pc.distributeCores
     if (!d) return
@@ -41,9 +47,13 @@ export function renderCoreAllocSheet(pc: PendingChoice, alloc: CoreAlloc, host: 
     // 自分の場のカードを押して置くので、スマホではシートを低く保つ（場の下半分を隠していた。2026-11-28 ユーザー指摘）：
     // 見出しと召喚するスピリットのコアを1行、リザーブの −／＋ を1行、やり直す・召喚を1行にする
     const sheet = el("div", "pay-sheet core-alloc")
+    // 「移したコア n / 移せる数」。移せる数は、召喚するスピリットの維持コアを除いた分（2026-11-28 ユーザー指示）
+    const moved = sumOf(alloc)
+    const movable = d.selfCores + d.remaining - d.selfMin
     const meter = el("div", "pay-meter")
-    meter.append(el("span", "pay-stage-title", `コア${d.remaining}個を置く`), el("span", "pay-boxes", `${master(d.cardId).name} ${self}個（Lv${levelAt(d.cardId, self)}）`))
+    meter.append(el("span", "pay-stage-title", `移すコア ${moved} / ${movable}`), el("span", "pay-boxes", "■".repeat(moved) + "□".repeat(Math.max(movable - moved, 0))))
     sheet.append(meter)
+    sheet.append(el("div", "pay-warn", `${master(d.cardId).name} ${self}個（Lv${levelAt(d.cardId, self)}）・維持コア${d.selfMin}個は残す`))
 
     if (d.destinations.includes("reserve")) {
         const n = alloc["reserve"] ?? 0
@@ -61,9 +71,7 @@ export function renderCoreAllocSheet(pc: PendingChoice, alloc: CoreAlloc, host: 
         row.append(el("span", "", `${(options[d.destinations.indexOf(dest)] ?? dest).replace(/に置く$/, "")}　+${n}`), stepBtn("−", dest, -1, false))
         list.append(row)
     }
-    if (othersOf(d).some((x) => x !== "reserve")) {
-        list.append(el("div", "pay-hint", canMove ? "場のスピリット／ネクサスを押すと、そこに1個置けます" : `召喚するスピリットには最低 ${d.selfMin}個 置きます`))
-    }
+    if (canMove && othersOf(d).some((x) => x !== "reserve")) list.append(el("div", "pay-hint", "場のスピリット／ネクサスを押すと、そこに1個置けます"))
     sheet.append(list)
 
     const nav = el("div", "pay-nav")

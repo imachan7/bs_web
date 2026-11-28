@@ -1786,6 +1786,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/ui/coreAllocSheet.ts
 
 - `CoreAlloc`（型）：置き先ごとの数（このスピリット以外）。選択が変わったら null に戻す
+- `coreAllocCanMove`（fn）：場のカードを押して、もう1個移せるか（維持コアちょうどなら光らせない）
 - `renderCoreAllocSheet`（fn）
 - `stepCoreAlloc`（fn）：−／＋ を押したときの次の配分。押せない操作（下限割れ・0未満）は今のまま返す
 - `coreAllocAnswer`（fn）：サーバーへ送る形（このスピリットのぶんも入れる）
