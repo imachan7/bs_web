@@ -35,6 +35,7 @@ import {
 } from "../../shared/rules"
 import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui/tooltip"
 import { renderPayStageSheet, payStageHeading, effectSummonSheet } from "./ui/payStages"
+import { declineLabelOf } from "./ui/declineLabel"
 import { renderCoreAllocSheet, type CoreAlloc } from "./ui/coreAllocSheet"
 import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
 import { renderField } from "./ui/fieldCard"
@@ -751,7 +752,7 @@ export function render(view: GameView, ui: UiState): void {
     // シートの中に断るボタンを出すときは、外の「選ばない」は出さない（二重になる）
     show("btn-skip-choice", skippable?.optional === true && !inEffectSummonSheet)
     // トグル選択では、スキップは「中止」ではなく「これで確定」を意味する（PendingChoice.skipLabel）
-    $("btn-skip-choice").textContent = skippable?.skipLabel ?? "選ばない"
+    $("btn-skip-choice").textContent = skippable?.skipLabel ?? declineLabelOf(skippable)
     const counterView = myPendingChoice?.counter ? choiceCounterView(myPendingChoice.counter) : null
     show("choice-counter", counterView !== null)
     if (counterView) {

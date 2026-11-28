@@ -169,6 +169,18 @@ const SCENES = [
       await pressOpt(c.A, "この支払いで確定", 300)
     },
   },
+  // 任意の効果の断るボタンの文言（2026-11-28）：天守閣Lv2の「発動しますか」→「発動しない」、オープンしたカードを選ぶ→「召喚しない」
+  {
+    id: "declineLabels", name: "11d 任意の効果の断るボタン（天守閣）", turn: "opp", phase: "attack",
+    board: () => ({
+      me: base({ reserve: 5, deck: Array.from({ length: 10 }, () => "BS01-050"), field: { spirits: spirits(3), nexuses: [{ cardId: "BS12-065", cores: 3 }] } }),
+      opp: base(),
+    }),
+    run: async (c) => {
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      await find(c.A, "発動しない")
+    },
+  },
   {
     id: "oppAtk", name: "11 相手のアタック", turn: "opp", phase: "attack",
     board: () => ({ me: base(), opp: base() }),
