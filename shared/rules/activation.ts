@@ -538,10 +538,18 @@ export function directAttackFilter(
 // 旧名 lv1Cores（2026-07-26 改名。挙動は不変）。
 // サーバー側は server/src/logic/GameState.ts の re-export 経由で使う
 // 効果で手札から召喚するとき、通常の召喚コスト（維持コア・ボイドの通行料込み）をリザーブとフィールドのコアで払えるか。paid＝払ったものとして扱うコスト
-export function handSummonCostPayable(board: Board, pid: PlayerId, cardData: CardData, paid = 0): boolean {
+// fieldCores：払いに使える場のコアの数（コアの下限を除く。#743）。サーバーは coreGate.ts の costSpendableField を渡す。省略時は GameView.costSpendable で数える
+export function handSummonCostPayable(board: Board, pid: PlayerId, cardData: CardData, paid = 0, fieldCores = viewCostSpendableField(board, pid)): boolean {
     const p = board.players[pid]
-    const fieldCores = [...p.field.spirits, ...p.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
     return p.reserve + fieldCores >= summonMinCores(board, pid, cardData) + Math.max(0, effectiveCost(board, pid, cardData) - paid) + summonVoidToll(board, cardData)
+}
+
+// 画面側の「払いに使える場のコアの数」。サーバーが GameView.costSpendable で渡す（下限の判定はサーバーにしか無い）。無ければ全部を数える
+export function viewCostSpendableField(board: Board, pid: PlayerId): number {
+    const p = board.players[pid]
+    const view = board as { you?: PlayerId; costSpendable?: Record<string, number> }
+    const spendable = view.you === pid ? view.costSpendable : undefined
+    return [...p.field.spirits, ...p.field.nexuses].reduce((sum, i) => sum + (spendable?.[i.instanceId] ?? i.cores), 0)
 }
 
 export function minLevelCores(cardData: CardData): number {

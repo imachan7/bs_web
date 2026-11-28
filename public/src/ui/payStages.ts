@@ -45,7 +45,8 @@ function usableOn(v: GameView, pay: PayingState, inst: Inst): number {
         const soku = (t === "spirit" || t === "brave") && (ownHandKeyword(v, cardId, "soku") || flashSummonFromHandNow(v, v.you, cardId))
         if (soku && !sokuPayableInstanceIds(v, v.you).has(inst.instanceId)) return 0
     }
-    return inst.cores - soulHere
+    // コアの下限で取れないぶんは除く（GameView.costSpendable。#743）
+    return Math.min(inst.cores - soulHere, v.costSpendable?.[inst.instanceId] ?? Infinity)
 }
 
 function stageField(pay: PayingState, stage: Stage): Record<string, number> {
