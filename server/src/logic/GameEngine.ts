@@ -831,8 +831,13 @@ function requestResshinsokuDestination(state: GameState, pid: PlayerId, info: Re
               `${card.name}（このスピリット）に置く`,
           ]
     if (!forceSelf && info.remaining > 1) {
-        destinations.push("reserve_all", "self_all")
-        options.push("残り全部をリザーブに置く", "残り全部をこのスピリットに置く")
+        // 維持コアに届いていないうちは「残り全部をリザーブ」を出さない（Lv0 で場に出てしまう。#740）
+        if (need <= 0) {
+            destinations.push("reserve_all")
+            options.push("残り全部をリザーブに置く")
+        }
+        destinations.push("self_all")
+        options.push("残り全部をこのスピリットに置く")
     }
     suspend(state, {
         pid,

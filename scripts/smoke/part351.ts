@@ -63,8 +63,8 @@ console.log("=== 1. 成立する場面：コア5個、置き先を分けて召�
     assert(err === null, `resshinsokuSummon が通る（実際: ${String(err)}）`)
     assert(s.pendingChoice !== null && s.pendingChoice.distributeCores !== undefined, "コアの置き先の選択待ちが立つ")
     assert(
-        (s.pendingChoice!.options ?? []).length === 5,
-        `残り5個・候補2体+一括2つで選択肢5つ（実際: ${String((s.pendingChoice!.options ?? []).length)}）`,
+        (s.pendingChoice!.options ?? []).length === 4,
+        `残り5個・候補2体+一括1つ（維持コア前なので「残り全部をリザーブ」は出ない。#740）で選択肢4つ（実際: ${String((s.pendingChoice!.options ?? []).length)}）`,
     )
 
     assert(answer(s, "p1", "リザーブに置く") === null, "1個目：リザーブへ")
@@ -132,6 +132,26 @@ console.log("=== 5. 非対話（AI・自動応答）は全部このスピリッ�
     assert(summoned !== undefined && summoned.cores === 5, `全部このスピリットに乗る（実際: ${String(summoned?.cores)}）`)
     assert(s.players.p1.reserve === 0, "リザーブには置かれない")
     assert(s.players.p1.trashCores === 0, "トラッシュのコアは使い切った")
+}
+
+console.log("=== 5. 「残り全部をリザーブに置く」は維持コアに届いてから出る（#740） ===")
+{
+    const s = game("case5", false)
+    s.interactiveTargets = true
+    s.players.p1.hand[0] = TARGET
+    s.players.p1.trashCores = 5
+    s.phase = "attack"
+    s.isFlashTiming = true
+    s.priorityPlayer = "p1"
+    assert(handleAction(s, "p1", { type: "resshinsokuSummon", handIndex: 0 }) === null, "resshinsokuSummon が通る")
+    const opts = () => s.pendingChoice?.options ?? []
+    assert(!opts().some((o) => o.includes("残り全部をリザーブ")), "自分に0個のうちは「残り全部をリザーブに置く」が無い")
+    assert(answer(s, "p1", "このスピリット）に置く") === null, "1個目：このスピリットへ")
+    assert(opts().some((o) => o.includes("残り全部をリザーブ")), "維持コア1個に届いたら「残り全部をリザーブに置く」が出る")
+    assert(answer(s, "p1", "残り全部をリザーブ") === null, "残り4個をリザーブへ")
+    const summoned = s.players.p1.field.spirits.find((sp) => sp.cardId === TARGET)
+    assert(summoned !== undefined && summoned.cores === 1, `セイリュービはコア1個で出る（実際: ${String(summoned?.cores)}）`)
+    assert(s.players.p1.reserve === 4, `リザーブに4個（実際: ${String(s.players.p1.reserve)}）`)
 }
 
 console.log("すべてのチェックに合格しました 🎉（part351）")
