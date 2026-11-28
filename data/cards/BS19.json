@@ -1968,6 +1968,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "familyFilter": [
       "華兵",
@@ -6337,6 +6338,7 @@
     "optional": true,
     "action": {
      "type": "moveCards",
+     "declinable": true,
      "from": "hand",
      "dest": "summon",
      "pick": {

@@ -2264,6 +2264,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "skipOnSummon": true
@@ -5899,6 +5900,7 @@
     "optional": true,
     "action": {
      "type": "moveCards",
+     "declinable": true,
      "from": "trash",
      "dest": "summon",
      "count": 1,
@@ -6241,6 +6243,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "familyFilter": "雄将"
     }

@@ -92,6 +92,7 @@
        "optional": true,
        "action": {
         "type": "moveCards",
+        "declinable": true,
         "from": "trash",
         "dest": "summon",
         "pick": {
@@ -156,6 +157,7 @@
        "optional": true,
        "action": {
         "type": "moveCards",
+        "declinable": true,
         "from": "trash",
         "dest": "summon",
         "pick": {

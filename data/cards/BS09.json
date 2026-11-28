@@ -4558,6 +4558,7 @@
         "optional": true,
         "action": {
           "type": "summon",
+          "declinable": true,
           "from": "hand",
           "skipOnSummon": true,
           "colorFilter": "blue",

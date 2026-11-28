@@ -1,5 +1,6 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
 import { takeFromTrash } from "./zones/trash"
+import { costSpendableField } from "./coreGate"
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { braveCombinableWithHost } from "../../../shared/summon"
 import { noteCoverage } from "../../../shared/coverage"
@@ -302,6 +303,7 @@ export function summonFreeFromHandIndex(
         placeCores?: number // 置くコアの選択待ちで選ばれた数（summonCores.ts）
         costPaid?: true // payCost のコストは置くコアの待ちで払い済み
         reserveOnly?: true // payCost のコストと置くコアをリザーブだけで払う（BS12-075）
+        declinable?: true // 任意の召喚：支払いの選択待ちで「召喚しない」を選べる
     },
 ): void {
     const player = state.players[owner]
@@ -349,13 +351,14 @@ export function summonFreeFromHandIndex(
         ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
         ...(opts?.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: opts.braveTargetInstanceId } : {}),
         ...(opts?.payCost ? { payCost: true as const, costPaid: true as const } : {}),
+        ...(opts?.declinable ? { declinable: true as const } : {}),
     }
-    if (askCores && askSummonCores(state, owner, card, cost, resume, false, opts?.reserveOnly === true)) return
+    if (askCores && askSummonCores(state, owner, card, cost, resume, false, opts?.reserveOnly === true, opts?.declinable === true)) return
     if (!opts?.payCost && opts?.placeCores === undefined && opts?.braveTargetInstanceId === undefined && voidToll === 0) {
         const owed = surchargeOwed(state, owner, card, opts?.surchargeBatch === true)
-        if (askSummonCores(state, owner, card, owed, resume, owed > 0)) return
+        if (askSummonCores(state, owner, card, owed, resume, owed > 0, false, opts?.declinable === true)) return
     }
-    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, resume)) return
+    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, resume, opts?.declinable === true)) return
     player.hand.splice(handIndex, 1)
     if (voidToll > 0) payVoidToll(state, owner, card)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る。
@@ -414,7 +417,7 @@ export function summonFreeFromTrashIndex(
     owner: PlayerId,
     sourceName: string,
     trashIndex: number,
-    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string; surchargeBatch?: true; placeCores?: number; costPaid?: true; reserveOnly?: true; braveTargetInstanceId?: string },
+    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string; surchargeBatch?: true; placeCores?: number; costPaid?: true; reserveOnly?: true; braveTargetInstanceId?: string; declinable?: true },
 ): void {
     const player = state.players[owner]
     const cardId = player.trashCards[trashIndex]
@@ -451,13 +454,14 @@ export function summonFreeFromTrashIndex(
         ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
         ...(opts?.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
         ...(opts?.payCost ? { payCost: true as const, costPaid: true as const } : {}),
+        ...(opts?.declinable ? { declinable: true as const } : {}),
     }
-    if (askCores && askSummonCores(state, owner, card, cost, resume, false, opts?.reserveOnly === true)) return
+    if (askCores && askSummonCores(state, owner, card, cost, resume, false, opts?.reserveOnly === true, opts?.declinable === true)) return
     if (!opts?.payCost && opts?.placeCores === undefined && opts?.braveTargetInstanceId === undefined && voidToll === 0) {
         const owed = surchargeOwed(state, owner, card, opts?.surchargeBatch === true)
-        if (askSummonCores(state, owner, card, owed, resume, owed > 0)) return
+        if (askSummonCores(state, owner, card, owed, resume, owed > 0, false, opts?.declinable === true)) return
     }
-    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, resume)) return
+    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, resume, opts?.declinable === true)) return
     if (takeFromTrash(state, owner, trashIndex, "effect") === null) return
     if (voidToll > 0) payVoidToll(state, owner, card)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）。無償のときは余分をここで払う
@@ -554,7 +558,7 @@ export function summonFromHandFreeCandidateMatches(
     // **リザーブだけでなくフィールドのコアも支払いに使える**（通常の召喚と同じ。paySources）。
     // 2026-08-23 まではリザーブだけで判定しており、盤面のコアでなら払えるカードが
     // 候補にすら出なかった（利用者報告。BS08空帝竜騎プラチナム等の帝竜騎サイクル6枚）
-    if (action.payCost && !handSummonCostPayable(state, owner, candidate, action.costPaidAsIfCounter === undefined ? 0 : countEffectCounter(state, owner, self, action.costPaidAsIfCounter))) return false
+    if (action.payCost && !handSummonCostPayable(state, owner, candidate, action.costPaidAsIfCounter === undefined ? 0 : countEffectCounter(state, owner, self, action.costPaidAsIfCounter), costSpendableField(state, owner))) return false
     return true
 }
 

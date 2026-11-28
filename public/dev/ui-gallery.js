@@ -143,6 +143,23 @@ const SCENES = [
       for (let i = 0; i < 2; i++) await clickSel(c.A, '#choice-options [data-alloc="reserve"][data-delta="1"]', 300)
     },
   },
+  // コアの下限（#743）：相手のアタックで天守閣Lv2が誘発し、オープンした殻虫を召喚する支払い。リザーブ0で、緑のスピリット（コア1）は下限で取れず光らない。赤のスピリットとネクサスだけ光る
+  {
+    id: "coreFloor", name: "10d コアの下限（天守閣）で取れないスピリットは光らない", turn: "opp", phase: "attack",
+    board: () => ({
+      me: base({ reserve: 0, deck: Array.from({ length: 10 }, () => "BS01-050"), field: { spirits: [...Array.from({ length: 3 }, () => ({ cardId: "BS01-060", cores: 1 })), { cardId: "BS01-002", cores: 2 }], nexuses: [{ cardId: "BS12-065", cores: 3 }] } }),
+      opp: base(),
+    }),
+    run: async (c) => {
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      for (let i = 0; i < 6 && !c.A.querySelector("#choice-options .pay-sheet"); i++) {
+        const b = [...c.A.querySelectorAll("#choice-options button, #btn-skip-choice")].find((e) => vis(e) && !/しない|選ばない|使わない/.test(e.textContent || ""))
+        if (!b) break
+        b.click(); await sleep(700)
+      }
+      await waitSel(c.A, "#choice-options .pay-sheet")
+    },
+  },
   {
     id: "notice", name: "10 効果の通知（召喚直後）",
     board: () => ({ me: base({ reserve: 6, hand: [GRIP] }), opp: base() }),
@@ -272,6 +289,23 @@ const SCENES = [
       return { me: side(), opp: side() }
     },
     run: async () => {},
+  },
+  // 任意の召喚をやめる（#743）：相手のアタックで天守閣Lv2 → オープンした殻虫を召喚する置くコアの待ちに「召喚しない」が出る
+  {
+    id: "declineSummon", name: "17 任意の召喚の支払いで「召喚しない」（天守閣）", turn: "opp", phase: "attack",
+    board: () => ({
+      me: base({ reserve: 5, deck: Array.from({ length: 10 }, () => "BS01-050"), field: { spirits: spirits(3), nexuses: [{ cardId: "BS12-065", cores: 3 }] } }),
+      opp: base(),
+    }),
+    run: async (c) => {
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      for (let i = 0; i < 6 && !c.A.querySelector("#btn-skip-choice:not(.hidden)")?.textContent?.includes("召喚しない"); i++) {
+        const b = [...c.A.querySelectorAll("#choice-options button")].find((e) => vis(e) && !/しない|選ばない|使わない/.test(e.textContent || ""))
+        if (!b) break
+        b.click(); await sleep(700)
+      }
+      await find(c.A, "召喚しない")
+    },
   },
   {
     id: "braveRested", name: "16b 合体して疲労（1体／2体）・疲労4体",

@@ -3143,6 +3143,7 @@
         "optional": true,
         "action": {
           "type": "summon",
+          "declinable": true,
           "from": "hand",
           "colorFilter": "red",
           "bravesOnly": true
@@ -4215,6 +4216,7 @@
         "optional": true,
         "action": {
           "type": "summon",
+          "declinable": true,
           "from": "hand",
           "skipOnSummon": true,
           "colorFilter": "white"

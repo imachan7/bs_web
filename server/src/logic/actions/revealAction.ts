@@ -123,7 +123,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
     }
     const askCores = (cost: number, resume: typeof action, surcharge = false): boolean => {
         putBack()
-        if (askSummonCores(state, owner, card, cost, resume, surcharge)) return true
+        if (askSummonCores(state, owner, card, cost, resume, surcharge, false, action.declinable === true)) return true
         takeOut()
         return false
     }
@@ -242,7 +242,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 failDest(ctx, action.orHand, cardId, action.fromDeck)
                 return
             }
-            if (action.pay !== "cost" && action.placeCores === undefined && hostId === undefined && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
+            if (action.pay !== "cost" && action.placeCores === undefined && hostId === undefined && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true }, action.declinable === true)) return
             if (action.pay === "cost") payVoidToll(state, owner, card)
             const placedFromField =
                 action.pay !== "cost"
