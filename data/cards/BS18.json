@@ -5202,8 +5202,7 @@
        "type": "removeCores",
        "target": "spread",
        "count": 2,
-       "to": "trash",
-       "chooser": "owner"
+       "to": "trash"
       }
      ]
     },
