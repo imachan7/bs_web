@@ -2721,8 +2721,7 @@
     "action": {
      "type": "removeCores",
      "from": [
-      "spirit",
-      "nexus",
+      "field",
       "reserve"
      ],
      "to": "trash",
@@ -2743,8 +2742,7 @@
     "action": {
      "type": "removeCores",
      "from": [
-      "spirit",
-      "nexus",
+      "field",
       "reserve"
      ],
      "to": "trash",

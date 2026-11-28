@@ -29,7 +29,13 @@ import { kyokaBonus } from "../keywords/kyoka"
 import { isTrashWaiting } from "../../../../shared/rules/waiting"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
-type Zone = "spirit" | "nexus" | "reserve" | "trash" | "life"
+type Zone = "spirit" | "nexus" | "field" | "reserve" | "trash" | "life"
+
+// "field" はスピリット・アルティメット・ネクサスのコア。"spirit" はスピリットだけ（B1）
+const takesSpirits = (from: Zone[]): boolean => from.includes("spirit") || from.includes("field")
+const takesNexuses = (from: Zone[]): boolean => from.includes("nexus") || from.includes("field")
+const spiritsIn = (player: GameState["players"][PlayerId], from: Zone[]): CardInstance[] =>
+    from.includes("field") ? battlers(player) : from.includes("spirit") ? player.field.spirits : []
 type Dest = "reserve" | "trash" | "void" | "life"
 type CountSpec = number | "all" | "toLowerLevel"
 
@@ -46,7 +52,7 @@ export function removeCoresKyokaBonus(state: GameState, owner: PlayerId, action:
     // ponytail: すべてのスピリットから取る除去は Q760（追加の1個は1体からだけ）の分け方が要る。該当カードが出たら足す
     if (action.target === "all") return 0
     if (action.side === "own") return 0 // 自分のスピリットのコアを置くのは「相手へのコアシュート」ではない
-    if (!from.includes("spirit") || from.includes("life")) return 0
+    if (!takesSpirits(from) || from.includes("life")) return 0
     // Q761 が除くのは「1個残して残りすべて」（count:"all"）だけ。数値の count に「0個にはできない」が付いた除去には足す（2026-11-08）
     if (action.downTo !== undefined || (action.leaveAtLeast !== undefined && action.count === "all")) return 0
     return kyokaBonus(state, owner, "coreRemove")
@@ -168,7 +174,7 @@ function pidsFor(side: RemoveCoresAction["side"], owner: PlayerId, opp: PlayerId
 function defaultTarget(action: RemoveCoresAction): NonNullable<RemoveCoresAction["target"]> {
     if (action.target !== undefined) return action.target
     const from = action.from ?? ["spirit"]
-    return from.includes("spirit") || from.includes("nexus") ? "one" : "spread"
+    return takesSpirits(from) || takesNexuses(from) ? "one" : "spread"
 }
 
 // pay の判定表（removeCores）が使う、取れる最大数。filter は self相対軸を解決せずに比べる
@@ -211,15 +217,15 @@ export function removeCoresAchievableCountForPay(
         const player = state.players[pid]
         if (from.includes("reserve")) zones += player.reserve
         if (from.includes("trash")) zones += player.trashCores
-        if (from.includes("spirit")) {
-            for (const s of player.field.spirits) {
+        if (takesSpirits(from)) {
+            for (const s of spiritsIn(player, from)) {
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
                 if (!canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
                 const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: s, amount: s.cores, cause: "effect", actorPid: owner, sourceType: srcType, ...(action.to === "trash" || action.to === "void" || action.to === "life" ? {} : { toReserve: true as const }) })
                 perInst.push(Math.max(0, Math.min(allowed, s.cores - (action.leaveAtLeast ?? 0))))
             }
         }
-        if (from.includes("nexus")) {
+        if (takesNexuses(from)) {
             for (const n of player.field.nexuses) {
                 if (!matchesTarget(state, pid, n, filter, self?.instanceId)) continue
                 perInst.push(n.cores)
@@ -299,8 +305,8 @@ const resolveAllTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     const pids = pidsFor(action.side ?? "opponent", owner, ctx.opp)
     const list: { pid: PlayerId; inst: CardInstance }[] = []
     for (const pid of pids) {
-        if (from.includes("spirit")) {
-            for (const s of state.players[pid].field.spirits) {
+        if (takesSpirits(from)) {
+            for (const s of spiritsIn(state.players[pid], from)) {
                 if (s.cores <= 0) continue
                 if (action.leaveAtLeast !== undefined && s.cores <= action.leaveAtLeast) continue
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
@@ -308,7 +314,7 @@ const resolveAllTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
                 list.push({ pid, inst: s })
             }
         }
-        if (from.includes("nexus")) {
+        if (takesNexuses(from)) {
             for (const n of state.players[pid].field.nexuses) {
                 if (n.cores <= 0) continue
                 if (!matchesTarget(state, pid, n, filter, self?.instanceId)) continue
@@ -371,13 +377,13 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         return
     }
     const pids = pidsFor(action.side ?? "opponent", owner, ctx.opp)
-    const wantsNexus = from.includes("nexus")
+    const wantsNexus = takesNexuses(from)
     const excludeIds = action.excludeIds ?? []
 
     const candidatesFor = (): { pid: PlayerId; inst: CardInstance }[] => {
         const list: { pid: PlayerId; inst: CardInstance }[] = []
         for (const pid of pids) {
-            for (const s of from.includes("spirit") ? state.players[pid].field.spirits : []) {
+            for (const s of spiritsIn(state.players[pid], from)) {
                 if (excludeIds.includes(s.instanceId)) continue
                 if (action.leaveAtLeast !== undefined && s.cores <= action.leaveAtLeast) continue
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
@@ -540,15 +546,16 @@ function spreadCandidatesFor(
         const player = state.players[pid]
         // 候補は from に書いた順に並ぶ（先頭が既定の選択になるので、リザーブから先に取りたいカードは reserve を先頭に書く）
         for (const zone of from) {
-            if (zone === "spirit") {
+            if (zone === "spirit" || zone === "field") {
                 const floor = leaveAtLeast ?? 0
-                for (const s of player.field.spirits) {
+                for (const s of spiritsIn(player, [zone])) {
                     if (s.cores <= floor) continue
                     if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
                     if (!canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
                     out.push({ pid, kind: "spirit", inst: s })
                 }
-            } else if (zone === "nexus") {
+            }
+            if (zone === "nexus" || zone === "field") {
                 for (const n of player.field.nexuses) {
                     if (n.cores <= 0) continue
                     if (!matchesTarget(state, pid, n, filter, self?.instanceId)) continue
@@ -702,8 +709,8 @@ const resolveSpread = (ctx: ActionCtx, action: RemoveCoresAction): void => {
 function totalCoresAcross(state: GameState, pid: PlayerId, from: Zone[]): number {
     const player = state.players[pid]
     let total = 0
-    if (from.includes("spirit")) total += player.field.spirits.reduce((sum, s) => sum + s.cores, 0)
-    if (from.includes("nexus")) total += player.field.nexuses.reduce((sum, n) => sum + n.cores, 0)
+    if (takesSpirits(from)) total += spiritsIn(player, from).reduce((sum, s) => sum + s.cores, 0)
+    if (takesNexuses(from)) total += player.field.nexuses.reduce((sum, n) => sum + n.cores, 0)
     if (from.includes("reserve")) total += player.reserve
     if (from.includes("trash")) total += player.trashCores
     return total

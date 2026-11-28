@@ -314,8 +314,7 @@
      "type": "removeCores",
      "side": "own",
      "from": [
-      "spirit",
-      "nexus",
+      "field",
       "trash"
      ],
      "to": "void",

@@ -65,7 +65,7 @@ export function availableFromSource(state: GameState, owner: PlayerId, from: Pla
         case "field":
             return (
                 player.field.nexuses.reduce((sum, n) => sum + n.cores, 0) +
-                player.field.spirits.reduce((sum, s) => sum + s.cores, 0)
+                battlers(player).reduce((sum, s) => sum + s.cores, 0)
             )
     }
 }
@@ -126,7 +126,7 @@ function takeFromSource(
                     taken += got
                     continue
                 }
-                const spirits = player.field.spirits.filter((s) => s.cores > 0 && !exhausted.has(s.instanceId))
+                const spirits = battlers(player).filter((s) => s.cores > 0 && !exhausted.has(s.instanceId))
                 if (spirits.length === 0) break
                 const t = spirits.reduce((worst, s) => (effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst))
                 const got = takeCoresFromSpirit(state, owner, t, remaining)
@@ -160,7 +160,7 @@ export function placeCoresPoolCandidates(
 ): CardInstance[] | typeof SELF_REQUIRED {
     const { state, owner, self } = ctx
     const player = state.players[owner]
-    const pool = action.anyField ? [...player.field.spirits, ...player.field.nexuses] : action.anySide ? [...player.field.spirits, ...state.players[opponentOf(owner)].field.spirits] : action.to === "spirit" ? player.field.spirits : player.field.nexuses
+    const pool = action.anyField ? [...battlers(player), ...player.field.nexuses] : action.anySide ? [...player.field.spirits, ...state.players[opponentOf(owner)].field.spirits] : action.to === "spirit" ? player.field.spirits : player.field.nexuses
     const resolvedFilter = normalizeFilter(ctx, action)
     if (resolvedFilter === SELF_REQUIRED) return SELF_REQUIRED
     return pool.filter((inst) => matchesTarget(state, owner, inst, resolvedFilter, self?.instanceId) && !coreIntakeRefused(inst, self?.instanceId))
@@ -300,7 +300,7 @@ function placeCoresLegacy(ctx: ActionCtx, inAction: PlaceCoresAction): void {
             // 自身のコアを動かす（from:"self"）ときは、自身への移動は何も起こらないので候補から外す
             const open = candidates.filter((c) => !action.excludeIds?.includes(c.instanceId) && !(action.from === "self" && c === self))
             // バースト等が渡すきっかけの対象（相手のアタッカー・破壊済みの個体）は自分の置き先の指定ではないので無視する
-            const givenTarget = targetInstanceId && [...player.field.spirits, ...player.field.nexuses, ...(action.anySide ? state.players[opponentOf(owner)].field.spirits : [])].some((c) => c.instanceId === targetInstanceId) ? targetInstanceId : undefined
+            const givenTarget = targetInstanceId && [...(action.anyField ? battlers(player) : player.field.spirits), ...player.field.nexuses, ...(action.anySide ? state.players[opponentOf(owner)].field.spirits : [])].some((c) => c.instanceId === targetInstanceId) ? targetInstanceId : undefined
             if (givenTarget) {
                 const found = open.find((c) => c.instanceId === givenTarget)
                 if (!found) {

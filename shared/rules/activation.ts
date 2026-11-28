@@ -52,7 +52,7 @@ export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string>
                 continue
             }
             const player = board.players[pid]
-            for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+            for (const inst of [...battlers(player), ...player.field.nexuses]) {
                 allowed.add(inst.instanceId)
             }
         }
@@ -550,7 +550,7 @@ export function viewCostSpendableField(board: Board, pid: PlayerId): number {
     const p = board.players[pid]
     const view = board as { you?: PlayerId; costSpendable?: Record<string, number> }
     const spendable = view.you === pid ? view.costSpendable : undefined
-    return [...p.field.spirits, ...p.field.nexuses].reduce((sum, i) => sum + (spendable?.[i.instanceId] ?? i.cores), 0)
+    return [...battlers(p), ...p.field.nexuses].reduce((sum, i) => sum + (spendable?.[i.instanceId] ?? i.cores), 0)
 }
 
 export function minLevelCores(cardData: CardData): number {

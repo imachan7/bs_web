@@ -2,7 +2,7 @@
 //
 // 「取り除けない」は対象に取られることを防がない（10-30 ユーザー確認）。効果の候補には出し、取り除く時点で止める。
 // コストと【転召】だけは、全部動かせるときだけ払える／対象にできるので、呼び出し側が amount に払う数を渡して比べる
-import { activeConstraints, currentLevel, effectSources, hasGlobalConstraint, matchesTarget, timedBattleContents } from "../../../shared/rules"
+import { activeConstraints, battlers, currentLevel, effectSources, hasGlobalConstraint, matchesTarget, timedBattleContents } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import type { CoresProtectedRule } from "../types/coresProtected"
 import { entryActive } from "../../../shared/rules/effectStop"
@@ -86,5 +86,5 @@ export function costSpendableOn(state: GameState, pid: PlayerId, inst: CardInsta
 
 export function costSpendableField(state: GameState, pid: PlayerId): number {
     const f = state.players[pid].field
-    return [...f.spirits, ...f.nexuses].reduce((sum, i) => sum + costSpendableOn(state, pid, i), 0)
+    return [...battlers(state.players[pid]), ...f.nexuses].reduce((sum, i) => sum + costSpendableOn(state, pid, i), 0)
 }

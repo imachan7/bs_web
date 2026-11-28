@@ -5336,8 +5336,7 @@
     "action": {
      "type": "removeCores",
      "from": [
-      "spirit",
-      "nexus",
+      "field",
       "reserve",
       "trash"
      ],
@@ -6014,8 +6013,7 @@
      "type": "removeCores",
      "side": "opponent",
      "from": [
-      "spirit",
-      "nexus"
+      "field"
      ],
      "to": "trash",
      "target": "spread",

@@ -4155,8 +4155,7 @@
     "action": {
      "type": "removeCores",
      "from": [
-      "spirit",
-      "nexus",
+      "field",
       "reserve"
      ],
      "to": "trash",

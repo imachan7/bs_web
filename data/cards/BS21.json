@@ -1324,8 +1324,7 @@
      "type": "removeCores",
      "side": "opponent",
      "from": [
-      "spirit",
-      "nexus"
+      "field"
      ],
      "count": 1,
      "target": "spread"
@@ -4213,8 +4212,7 @@
      "type": "removeCores",
      "side": "opponent",
      "from": [
-      "spirit",
-      "nexus"
+      "field"
      ],
      "to": "reserve",
      "target": "spread",
@@ -4481,8 +4479,7 @@
         "type": "removeCores",
         "side": "opponent",
         "from": [
-         "spirit",
-         "nexus"
+         "field"
         ],
         "count": 1,
         "target": "spread"

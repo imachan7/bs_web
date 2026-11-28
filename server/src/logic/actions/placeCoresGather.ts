@@ -40,7 +40,7 @@ function sourcesOf(ctx: ActionCtx, action: WidePlaceCores): Src[] {
         else if (f === "life" && player.life > 0 && canPayLife(state, lifeCostQuery(owner, 1, self))) out.push({ key: "life", label: "ライフ", cap: player.life, spare: 0 })
         else if (f === "self" && self) addInst(self, `${getCard(self.cardId).name}`)
         else if (f === "ownSpirits") for (const s of player.field.spirits) addInst(s, getCard(s.cardId).name)
-        else if (f === "field") for (const i of [...player.field.nexuses, ...player.field.spirits]) addInst(i, getCard(i.cardId).name)
+        else if (f === "field") for (const i of [...player.field.nexuses, ...battlers(player)]) addInst(i, getCard(i.cardId).name)
     }
     // 同名が並ぶと選べないので番号を振る（並びは毎回同じ順なので、答えの文字列から引き直せる）
     const seen = new Map<string, number>()

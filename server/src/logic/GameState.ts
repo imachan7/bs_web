@@ -856,7 +856,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         ...(state.turnPlayer === viewer && !state.winner && validateEndTurn(state, viewer) !== null ? { endTurnBlocked: true as const } : {}),
         endStepLocks: state.endStepLocks.map((l) => ({ ...l, locks: [...l.locks] })),
         attacksThisTurn: state.attacksThisTurn,
-        costSpendable: Object.fromEntries([...state.players[viewer].field.spirits, ...state.players[viewer].field.nexuses].map((i) => [i.instanceId, costSpendableOn(state, viewer, i)])),
+        costSpendable: Object.fromEntries([...battlers(state.players[viewer]), ...state.players[viewer].field.nexuses].map((i) => [i.instanceId, costSpendableOn(state, viewer, i)])),
         magicUsedThisTurn: { ...state.magicUsedThisTurn },
         ...(state.lifeLostThisTurn ? { lifeLostThisTurn: state.lifeLostThisTurn } : {}),
         ...(state.spiritVanishedThisTurn ? { spiritVanishedThisTurn: state.spiritVanishedThisTurn } : {}),
