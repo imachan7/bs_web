@@ -3,7 +3,6 @@
     "GameEngine.ts:doActivateAbility": "コスト支払い・条件の判定（効果の対象ではない）",
     "GameEngine.ts:doBlock": "ルール処理（ブロック・攻撃・継続効果・誘発の走査）で、効果の対象選択ではない（ブロック時のコスト）",
     "PhaseManager.ts:applyAttackStepNexusAsSpirit": "ルール処理（ブロック・攻撃・継続効果・誘発の走査）で、効果の対象選択ではない",
-    "RuleValidator.ts:validateDetachBrave": "ルール処理（ブロック・攻撃・継続効果・誘発の走査）で、効果の対象選択ではない",
     "actions/battleFlow.ts:summonFromHandFreeHandler": "コスト支払い・条件の判定（効果の対象ではない）（手札のブレイヴと同コストの自分のスピリットを破壊するコスト）",
     "actions/destroy.ts:destroyNexusCandidateCountForPay": "述語 matchesIn が canBeTargeted を含む",
     "actions/destroy.ts:destroyNexusHandler": "述語 matchesIn が canBeTargeted を含む",
