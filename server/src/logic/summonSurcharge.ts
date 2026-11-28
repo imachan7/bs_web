@@ -6,7 +6,7 @@ import { summonVoidToll } from "../../../shared/rules/summonToll"
 import type { CardData, EffectAction, GameState, PlayerId } from "../type"
 import { payCost } from "./EffectModules"
 import { summonPayPlan } from "./summonCores"
-import { log, suspend } from "./GameState"
+import { getCard, log, suspend } from "./GameState"
 import { normalReserveOf } from "./soulCore"
 import { fieldCoresSpendable } from "./actions/moveCards"
 
@@ -80,7 +80,7 @@ export function payFreeSummonSurcharge(state: GameState, pid: PlayerId, cardData
 // 対話中で支払い元を選べる場面なら、コストの支払い待ち（effectCostPay）を立てて true を返す。
 // resume は払ったあとに解決する続き。立てる条件は効果のコストの支払い（pay.ts）と同じ。
 // 後で置くコア（keep）も支払い元から選べる（フィールドから選んだぶんはリザーブ経由で置く。choice.ts）
-export function askCostPay(state: GameState, pid: PlayerId, need: number, keep: number, prompt: string, sourceCardId: string, resume: EffectAction, surcharge = false): boolean {
+export function askCostPay(state: GameState, pid: PlayerId, need: number, keep: number, prompt: string, sourceCardId: string, resume: EffectAction, surcharge = false, declinable = false): boolean {
     if (need <= 0 || !state.interactiveTargets) return false
     const player = state.players[pid]
     const soulSelectable = player.soulCore != null && player.soulCore.zone !== "trash"
@@ -91,7 +91,8 @@ export function askCostPay(state: GameState, pid: PlayerId, need: number, keep: 
         candidates: [],
         prompt,
         options: ["支払う"],
-        optional: false,
+        optional: declinable,
+        ...(declinable ? { skipLabel: sourceCardId !== "" && getCard(sourceCardId).type === "nexus" ? "配置しない" : "召喚しない" } : {}),
         action: resume,
         selfInstanceId: null,
         effectCostPay: { pid, need, sourceCardId, keep, ...(surcharge ? { surcharge: true as const } : {}) },
@@ -100,7 +101,7 @@ export function askCostPay(state: GameState, pid: PlayerId, need: number, keep: 
 }
 
 // 無償召喚の余分の支払い待ち。resume には余分を払い済みとして扱う続きを渡す
-export function askSurchargePay(state: GameState, pid: PlayerId, cardData: CardData, batch: boolean, keep: number, resume: EffectAction): boolean {
+export function askSurchargePay(state: GameState, pid: PlayerId, cardData: CardData, batch: boolean, keep: number, resume: EffectAction, declinable = false): boolean {
     const n = surchargeOwed(state, pid, cardData, batch)
-    return n > 0 && askCostPay(state, pid, n, keep, `${cardData.name}の召喚に${n}コスト余分に支払ってください`, cardData.cardId, resume, true)
+    return n > 0 && askCostPay(state, pid, n, keep, `${cardData.name}の召喚に${n}コスト余分に支払ってください`, cardData.cardId, resume, true, declinable)
 }

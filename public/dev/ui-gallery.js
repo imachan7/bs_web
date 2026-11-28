@@ -278,6 +278,23 @@ const SCENES = [
     },
     run: async () => {},
   },
+  // 任意の召喚をやめる（#743）：相手のアタックで天守閣Lv2 → オープンした殻虫を召喚する置くコアの待ちに「召喚しない」が出る
+  {
+    id: "declineSummon", name: "17 任意の召喚の支払いで「召喚しない」（天守閣）", turn: "opp", phase: "attack",
+    board: () => ({
+      me: base({ reserve: 5, deck: Array.from({ length: 10 }, () => "BS01-050"), field: { spirits: spirits(3), nexuses: [{ cardId: "BS12-065", cores: 3 }] } }),
+      opp: base(),
+    }),
+    run: async (c) => {
+      await clickSel(c.B, "#my-spirits .card.clickable", 1500)
+      for (let i = 0; i < 6 && !c.A.querySelector("#btn-skip-choice:not(.hidden)")?.textContent?.includes("召喚しない"); i++) {
+        const b = [...c.A.querySelectorAll("#choice-options button")].find((e) => vis(e) && !/しない|選ばない|使わない/.test(e.textContent || ""))
+        if (!b) break
+        b.click(); await sleep(700)
+      }
+      await find(c.A, "召喚しない")
+    },
+  },
   {
     id: "braveRested", name: "16b 合体して疲労（1体／2体）・疲労4体",
     board: () => {

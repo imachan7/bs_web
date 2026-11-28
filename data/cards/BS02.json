@@ -1932,6 +1932,7 @@
     ],
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "skipOnSummon": true,
      "colorFilter": "green"
@@ -2744,6 +2745,7 @@
     ],
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "skipOnSummon": true,
      "sameFamilyAsSelf": true

@@ -19,6 +19,7 @@ const summonFreeIndexInternalHandler: ActionHandler<"summonFreeIndexInternal"> =
         ...(action.placeCores !== undefined ? { placeCores: action.placeCores } : {}),
         ...(action.skipOnSummon ? { skipOnSummon: true as const } : {}),
         ...(action.summonedBy !== undefined ? { summonedBy: action.summonedBy } : {}),
+        ...(action.declinable ? { declinable: true as const } : {}),
     }
     if (action.zone === "hand") {
         summonFreeFromHandIndex(state, owner, sourceName, action.index, action.skipTensho, {

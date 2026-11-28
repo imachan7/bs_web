@@ -35,7 +35,7 @@ export function summonCoreLabel(o: { level: number; cores: number }): string {
 
 // Lv が2つ以上選べる、またはリザーブだけでは足りないとき、支払い待ち（effectCostPay）を立てて true。
 // 答えを受けた choice.ts が、選ばれた Lv のコア数を resume の placeCores に入れて再開する。非対話は立てない（維持コアだけ置く）
-export function askSummonCores(state: GameState, pid: PlayerId, card: CardData, cost: number, resume: EffectAction, surcharge = false, reserveOnly = false): boolean {
+export function askSummonCores(state: GameState, pid: PlayerId, card: CardData, cost: number, resume: EffectAction, surcharge = false, reserveOnly = false, declinable = false): boolean {
     if (!state.interactiveTargets) return false
     const options = summonCoreOptions(state, pid, card, cost, reserveOnly)
     const first = options[0]
@@ -49,7 +49,8 @@ export function askSummonCores(state: GameState, pid: PlayerId, card: CardData, 
         prompt: `${card.name}：置くコアの数を選んでください`,
         options: options.map(summonCoreLabel),
         stepper: true,
-        optional: false,
+        optional: declinable,
+        ...(declinable ? { skipLabel: card.type === "nexus" ? "配置しない" : "召喚しない" } : {}),
         action: resume,
         // 再開後も「この効果で召喚された」を判定できるよう、発生源を引き継ぐ
         selfInstanceId: state.currentEffectSource?.pid === pid ? state.currentEffectSource.instanceId ?? null : null,

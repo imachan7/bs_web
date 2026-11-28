@@ -127,6 +127,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "familyFilter": "剣刃",
@@ -365,6 +366,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "familyFilter": "剣刃",
@@ -1200,6 +1202,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "familyFilter": "剣刃",
@@ -1218,6 +1221,7 @@
     "optional": true,
     "action": {
      "type": "moveCards",
+     "declinable": true,
      "from": "trash",
      "dest": "summon",
      "pick": {
@@ -1899,6 +1903,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "nameIncludes": "蝶",
      "count": 1
@@ -1956,6 +1961,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "familyFilter": "剣刃",
@@ -2108,6 +2114,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "familyFilter": "剣刃",
@@ -2697,6 +2704,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "familyFilter": "剣刃",
@@ -3703,6 +3711,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "familyFilter": "剣刃",
@@ -4220,6 +4229,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "familyFilter": "剣刃",
@@ -4377,6 +4387,7 @@
     "optional": true,
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "bravesOnly": true,
      "familyFilter": "剣刃",
@@ -5292,6 +5303,7 @@
      },
      "then": {
       "type": "summon",
+      "declinable": true,
       "from": "hand",
       "keywordFilter": "batto",
       "skipOnSummon": true
@@ -5390,6 +5402,7 @@
      },
      "then": {
       "type": "summon",
+      "declinable": true,
       "from": "hand",
       "keywordFilter": "batto",
       "skipOnSummon": true
@@ -6151,6 +6164,7 @@
     },
     "action": {
      "type": "summon",
+     "declinable": true,
      "from": "hand",
      "familyFilter": "異合"
     }

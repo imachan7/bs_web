@@ -1871,7 +1871,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/ui/payStages.ts
 
 - `installPayStages`（fn）
-- `openEffectSummonPay`（fn）：効果による召喚・配置の支払いを2段の画面で開く。②の置く数は index 番目から始める
+- `effectSummonSheet`（fn）：効果による召喚・配置の支払いを2段の画面で開く。②の置く数は index 番目から始める
+- `openEffectSummonPay`（fn）
 - `openEffectSummonScreen`（fn）：効果による召喚・配置で置く数を聞かれたら、−／＋ だけの画面でなく、手札からの召喚と同じ支払いの画面で開く
 - `summonLevelChoosable`（fn）：通常の召喚・配置：②で Lv／置く数を選べるか
 - `openBravePay`（fn）：ブレイヴを残す（BRAVE.md §6.3）・分離（§6.4）の置くコアも、召喚と同じ支払いの画面で払う（コストが無いので②だけ）。
