@@ -1,0 +1,1275 @@
+[
+ {
+  "cardId": "BS10-062",
+  "name": "砲凰竜フェニック・キャノン",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "white",
+   "white"
+  ],
+  "family": [
+   "機竜",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\nBP4000以下の相手のスピリット2体を破壊する。\nまたは、BP4000以下の相手のスピリット1体と相手のネクサス1つを破壊する。\n合体条件：コスト3以上\n【合体時】【激突】『このスピリットのアタック時』\n相手は可能ならスピリットでブロックする。\nただし、アルティメットでブロックしてもよい。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト3以上"
+ },
+ {
+  "cardId": "BS10-066",
+  "name": "騎士王蛇ペンドラゴン",
+  "type": "brave",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "red",
+   "red"
+  ],
+  "family": [
+   "妖蛇",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n相手のスピリット1体のコア2個を相手のリザーブに置く。\nこの効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする。\n合体条件：コスト3以上\n【合体時】『このスピリットのアタック時』\n相手の合体していないスピリットのコア1個を相手のリザーブに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト3以上"
+ },
+ {
+  "cardId": "BS10-X02",
+  "name": "双魚賊神ピスケガレオン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "光導",
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nこのスピリット以外の、スピリットすべてのコア1個ずつを持ち主のリザーブに置く。\nこの効果で消滅したスピリット1体につき、自分はデッキから1枚ドローする。\nLv2『このスピリットの破壊時』\n系統：「光導」/「星魂」を持つ自分のスピリット1体につき手札1枚を、お互いに破棄する。"
+ },
+ {
+  "cardId": "BS10-X03",
+  "name": "巨蟹武神キャンサード",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "光導",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「光導」/「星魂」を持つ自分のスピリットがアタックしたとき、相手はブロックするならスピリット2体か、アルティメット1体でないとブロックできない。\nそのスピリットがブロックされたとき、どれか1体とだけバトルする。\nLv2『このスピリットのアタック時』\n自分の合体スピリットがいる間、このスピリットのアタックによって相手のライフを減らしたとき、相手のライフのコア1個を相手のリザーブに置く。"
+ },
+ {
+  "cardId": "BS10-X06",
+  "name": "天蠍神騎スコル・スピア",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "光導",
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n自分のスピリット状態のブレイヴすべてを“コスト5/系統：「光導・異合」/<1>Lv1 BP7000”のスピリット状態のブレイヴとして扱う。\nLv2･Lv3\n系統：「光導」/「星魂」を持つ自分のスピリットすべてに“『このスピリットのアタック時』このスピリットのコスト以下の相手の合体していないスピリット1体を破壊する”を与える。"
+ },
+ {
+  "cardId": "BS11-019",
+  "name": "ダンデラビット",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "遊精",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個を自分のリザーブに置く。\nさらに、ボイドからコア1個を、このスピリット以外の系統：「星魂」を持つ自分のスピリット1体に置く。"
+ },
+ {
+  "cardId": "BS11-X04",
+  "name": "宝瓶神機アクア・エリシオン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "光導",
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『お互いのリフレッシュステップ』\n合体していないスピリットは1体しか回復できない。\nさらに、ネクサスすべては回復できない。\nLv2･Lv3\n系統：「神星」/「光導」/「星魂」を持つ自分のスピリットすべてに“【装甲：赤/紫/青】このスピリットは、相手の赤/紫/青のスピリット/ネクサス/マジックの効果を受けない”を与える。\n【合体中】Lv3『相手のリフレッシュステップ』\n相手の合体スピリットすべては回復できない。"
+ },
+ {
+  "cardId": "BS11-X05",
+  "name": "魔導双神ジェミナイズ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "光導",
+   "導魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n系統：「神星」/「光導」/「星魂」を持つ自分のスピリットが手札から召喚されたとき、自分のデッキを上から1枚オープンする。\nそのカードがスピリットカード/ブレイヴカードのとき、コストを支払わずに召喚する。\n残ったカードは手札に加える。\nLv2･Lv3\n自分がコストを支払ってマジックカードを使用したとき、その効果発揮後、自分の手札/手元にあるマジックカード1枚を、コストを支払わずに使用できる。\nこの効果はターンに2回しか使えない。"
+ },
+ {
+  "cardId": "BS11-X06",
+  "name": "天秤造神リブラ・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "光導",
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv3『このスピリットのアタック時』\nこのスピリットの【粉砕】で相手のデッキからスピリットカードが破棄されたとき、このスピリットは回復する。\nLv3『このスピリットのアタック時』\nこのスピリットが回復状態の間、相手のライフを減らせない。"
+ },
+ {
+  "cardId": "BS12-051",
+  "name": "鎧骨殻ボーン・ローダー",
+  "type": "brave",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "red"
+  ],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n自分のトラッシュにある系統：「神星」/「光導」/「星魂」を持つスピリットカード1枚を手札に戻す。\n合体条件：神星/光導/星魂",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "神星/光導/星魂"
+ },
+ {
+  "cardId": "BS12-074",
+  "name": "スターリードロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "メイン：\n自分のデッキを上から3枚オープンする。\nその中の系統：「光導」/「星魂」/「星竜」を持つスピリットカード/ブレイヴカードすべてを手札に加える。\n残ったカードは破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。"
+ },
+ {
+  "cardId": "BS12-X01",
+  "name": "金牛龍神ドラゴニック・タウラス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "光導",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手のスピリットは、可能ならブロックする。\nLv2･Lv3『このスピリットのアタック時』\nブロックされたとき、ブロックした相手のスピリットとシンボルの数を比べ、多かった自分のシンボル1つにつき、相手のライフのコア1個を相手のリザーブに置く。\nLv3『このスピリットのアタック時』\nこのスピリットの効果でシンボルの数を比べるとき、系統：「神星」/「光導」を持つ自分のスピリット1体につき、このスピリットに赤のシンボル1つを追加する。"
+ },
+ {
+  "cardId": "BS12-X02",
+  "name": "魔羯邪神シュタイン・ボルグ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "光導",
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": true,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「光導」/「星魂」を持つ自分のスピリット1体につき、自分のトラッシュにある紫のカード1枚を手札に戻す。\nLv1･Lv2･Lv3『自分のアタックステップ』\n系統：「光導」/「星魂」を持つ自分のスピリットがアタックしたとき、相手のスピリットのコア1個を相手のリザーブに置く。\nLv2･Lv3\nスピリット/ブレイヴ/マジックの効果で相手のリザーブに置かれるコアすべては相手のトラッシュに置かれる。"
+ },
+ {
+  "cardId": "BS12-X05",
+  "name": "戦神乙女ヴィエルジェ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "光導",
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のライフが5以下のとき、ボイドからコア1個を自分のライフに置く。\nLv1･Lv2･Lv3『相手のアタックステップ』\nコスト2/3/5/7/11の相手のスピリットはアタックできない。\nLv2･Lv3\n系統：「光導」/「天霊」を持つ自分のスピリットすべては、相手によって破壊されたとき手札に戻る。"
+ },
+ {
+  "cardId": "BS13-060",
+  "name": "トレス・ベルーガ",
+  "type": "brave",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "red",
+   "red"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "合体条件：光導\n【合体時】『このスピリットの合体アタック時』\n自分のデッキを上から6枚破棄することで、このスピリットをBP+6000する。\nこの効果で自分のトラッシュに系統：「光導」を持つスピリットカードが1枚以上置かれたとき、このスピリットは回復する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 6000
+   }
+  ],
+  "braveConditionText": "光導"
+ },
+ {
+  "cardId": "BS13-062",
+  "name": "光り輝く大銀河",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n自分の手札にある系統：「光導」を持つスピリットカードすべてをコスト5にする。\nLv2：フラッシュ『お互いのアタックステップ』\n自分の手札にある系統：「神星」/「光導」を持つスピリットカード1枚を破棄することで、このバトルの間、自分のスピリット1体をBP+6000し、赤のシンボル1つを追加する。\nこの効果はターンに1回しか使えない。",
+  "limitCount": 1
+ },
+ {
+  "cardId": "BS13-074",
+  "name": "ゾディアックコンダクト",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分のデッキを上から4枚オープンする。\nその中の系統：「光導」を持つスピリットカード1枚を、コストを支払わずに召喚する。\n残ったカードは破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。"
+ },
+ {
+  "cardId": "BS13-X01",
+  "name": "光龍騎神サジット・アポロドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 8,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "光導",
+   "神星"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットはブレイヴ2つまでと合体できる。\nLv1･Lv2･Lv3\n系統：「光導」/「星魂」を持つ自分のスピリットすべては、相手のスピリット1体を指定してアタックできる。\n【合体中】Lv3『このスピリットのアタック時』\nこのスピリットのブレイヴ1つにつき、BP10000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS13-X03",
+  "name": "白羊樹神セフィロ・アリエス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "光導",
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『お互いのメインステップ』\nお互い、系統：「遊精」を持たないスピリットカード/ブレイヴカードを召喚するとき、疲労状態で召喚する。\nLv2･Lv3『このスピリットのアタック/ブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、系統：「光導」/「星魂」を持つ自分のスピリット1体を回復させる。\nLv3\nスピリットすべてのコアは、【転召】以外で取り除けない。"
+ },
+ {
+  "cardId": "BS13-X04",
+  "name": "獅機龍神ストライクヴルム・レオ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 8,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "光導",
+   "神星"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【重装甲：紫/緑/白/黄】\nこのスピリットは、相手の紫/緑/白/黄のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv1･Lv2･Lv3\nこのスピリット以外の系統：「光導」/「星魂」を持つ自分のスピリットが疲労したとき、このスピリットは回復する。\n【合体中】Lv3\n系統：「光導」/「星魂」を持つ自分のスピリットすべてに白のシンボル1つを追加する。"
+ },
+ {
+  "cardId": "BS14-026",
+  "name": "タマムッシュ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドから、このスピリットのLvと同じ数のコアをこのスピリットに置く。"
+ },
+ {
+  "cardId": "P066",
+  "name": "プリズモルフォ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "C,P",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットの色とシンボルは赤/紫/白/黄/青としても扱う。"
+ },
+ {
+  "cardId": "SD06-013",
+  "name": "双翼乱舞",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n自分はデッキから2枚ドローする。\nその後コストを支払うことで、このカードのメイン効果を発揮する。\nメイン：\n自分はデッキから2枚ドローする。"
+ },
+ {
+  "cardId": "SD06-014",
+  "name": "爆烈十紋刃",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nBP6000以下の相手のスピリット1体と、相手の合体スピリットのブレイヴ1つと、相手のネクサス1つを破壊する。\nその後コストを支払うことで、このカードのメイン効果を発揮する。\nメイン：\n自分のトラッシュにあるバースト効果を持つカード1枚を手札に戻す。"
+ },
+ {
+  "cardId": "SD06-016",
+  "name": "絶甲氷盾",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nボイドからコア1個を自分のライフに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのバトルが終了したとき、アタックステップを終了する。"
+ },
+ {
+  "cardId": "SD19-013",
+  "name": "ネオ・ダブルドロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分はデッキから2枚ドローする。\nさらに、自分のアルティメットがいるとき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+1000する。"
+ },
+ {
+  "cardId": "SD19-015",
+  "name": "フレイムスパーク",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\nBP合計5000まで相手のスピリットを好きなだけ破壊する。\nこの効果でスピリットを破壊したとき、自分のトラッシュにあるスピリットカード1枚を手札に戻す。"
+ },
+ {
+  "cardId": "SD27-001",
+  "name": "ピクシスリザード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "爬獣",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": true,
+  "effect": "Lv1･Lv2･Lv3【スピリットソウル：赤】\n自分がアルティメットカードを召喚するとき、このスピリットに[赤](赤のシンボル1つ)を追加する。\nLv2･Lv3『自分のメインステップ』\n自分の手札にある/手元に置いてある系統：「光導」を持つスピリットカードすべてをコスト5にする。"
+ },
+ {
+  "cardId": "SD27-002",
+  "name": "ワイバーン・ベラ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "翼竜",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある系統：「光導」を持つスピリットカード/系統：「神星」を持つアルティメットカードを好きなだけオープンして手元に置くことで、オープンしたカード1枚につき、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "SD27-003",
+  "name": "エリダヌス・ドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "翼竜",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nコスト3以下の自分のスピリットすべては、相手の効果で破壊されたとき、疲労状態でフィールドに残ることができる。\nLv2『自分のメインステップ』\n系統：「光導」を持つ自分のスピリットカードを召喚するとき、このスピリットを疲労させることで、そのスピリットカードの軽減すべてを満たしたものとして扱う。"
+ },
+ {
+  "cardId": "SD27-004",
+  "name": "時の監視者ホロロ・ギウム",
+  "type": "spirit",
+  "colors": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [],
+  "family": [
+   "星将",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "手札にあるこのスピリットカードのコストを、自分のライフと同じ数にする。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある系統：「光導」を持つブレイヴカードを、コストを支払わずに好きなだけ召喚できる。\nLv1･Lv2･Lv3\nこのスピリットのシンボルは紫/緑/白/黄/青としても扱う。"
+ },
+ {
+  "cardId": "SD27-005",
+  "name": "創星龍バイアー",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "次代",
+   "神星"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【召喚条件：コスト1以上の自分のスピリット1体以上】\nLv3･Lv4･Lv5『自分のターン』\n系統：「光導」を持つ自分のスピリットの効果で、相手のスピリットを対象にするとき、相手のアルティメットも対象にできる。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、自分のトラッシュにあるスピリットカード1枚を手札に戻す。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "コスト1以上の自分のスピリット1体以上"
+ },
+ {
+  "cardId": "SD27-006",
+  "name": "光導星剣ゾディアックソード",
+  "type": "brave",
+  "colors": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "ultimate"
+  ],
+  "family": [
+   "剣刃",
+   "光導"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n相手の合体スピリットのブレイヴ1つを破壊する。\n合体条件：光導\n合体条件：コスト6以上のアルティメット\n【合体中】『このスピリット/アルティメットのアタック時』\n相手のバースト1つを破棄することで、ボイドからコア2個をこのスピリット/アルティメットに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 5000
+   }
+  ],
+  "braveConditionText": "光導"
+ },
+ {
+  "cardId": "SD27-X01",
+  "name": "創星龍トレミー",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "次代",
+   "神星"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 15000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：コスト3以上の自分のスピリット1体以上】\n【バースト：自分のライフ減少後】\nこのアルティメットカードをコストを支払わずに召喚する。\nその後、自分のライフが3以下のとき、BP12000以下の相手のスピリット/アルティメット1体を破壊する。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手のネクサスすべてを破壊し、自分はデッキから2枚ドローする。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "コスト3以上の自分のスピリット1体以上"
+ },
+ {
+  "cardId": "SD27-X02",
+  "name": "究極星アルティメット・ゾディアック",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 9,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red",
+   "ultimate",
+   "ultimate"
+  ],
+  "family": [
+   "新生",
+   "神星"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 16000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 26000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 33000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット/アルティメット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、自分のデッキを上から12枚まで好きなだけオープンする。\nその中の系統：「光導」を持つスピリットカードを、コストを支払わずに好きなだけ召喚する。\n残ったカードは破棄する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5\n系統：「光導」を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱い、BP+5000する。",
+  "summonConditionText": "自分の赤スピリット/アルティメット1体以上"
+ }
+]

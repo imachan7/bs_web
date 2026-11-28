@@ -1,0 +1,164 @@
+[
+ {
+  "cardId": "LM14-01",
+  "name": "エクス・ムゲンドラ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "新生",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "LM",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【スピリットソウル：赤】\n自分がアルティメットカードを召喚するとき、このスピリットに[赤](赤のシンボル1つ)を追加する。\nLv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "LM14-02",
+  "name": "エクス・ショコドラ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "新生",
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "LM",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【スピリットソウル：黄】\n自分がアルティメットカードを召喚するとき、このスピリットに[黄](黄のシンボル1つ)を追加する。\nLv2･Lv3『お互いのアタックステップ』\nコスト2の自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "LM14-03",
+  "name": "エクス・ドライアン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "新生",
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "LM",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【スピリットソウル：青】\n自分がアルティメットカードを召喚するとき、このスピリットに[青](青のシンボル1つ)を追加する。\nLv2･Lv3『このスピリットのアタック時』\n自分はデッキから2枚ドローする。その後、自分は手札2枚を破棄する。"
+ },
+ {
+  "cardId": "PX14-03",
+  "name": "［お嬢様アイドル］グリーフィア・ダルク",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "詩姫",
+   "衣装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "PX",
+  "limited": false,
+  "effect": "【チーム：シャイニーハーツ】\nLv1･Lv2･Lv3『このスピリットの召喚時』\n【オンステージ】で召喚されたとき、自分はデッキから2枚ドローする。\nLv2･Lv3『このスピリットのアタック時』\n自分のデッキを上から1枚オープンし、そのカードが系統：「詩姫」を持つスピリットカードなら手元に置く。他のカードのときは手札にする。\nオープンしたスピリットカードは、ゲーム終了時まで、手札にあるときと同様に使用できる。"
+ }
+]

@@ -1,0 +1,597 @@
+[
+ {
+  "cardId": "SD26-001",
+  "name": "スラスト・シェパード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\nこのスピリットをBP+3000する。"
+ },
+ {
+  "cardId": "SD26-002",
+  "name": "リューマン・チャージャー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。\nLv2･Lv3\nカード名に「リューマン」と入っている自分のスピリット/アルティメットすべてをBP+1000する。"
+ },
+ {
+  "cardId": "SD26-003",
+  "name": "リューマン・ウィソード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "ultimate"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のデッキを上から4枚オープンする。その中の系統：「剣刃」を持つブレイヴカード1枚を手札に加える。残ったカードは破棄する。\n【合体時】Lv2\nこのスピリットをBP+5000する。"
+ },
+ {
+  "cardId": "SD26-004",
+  "name": "リューマン・リベリオン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "ultimate"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットのBP以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "SD26-005",
+  "name": "テスタロッサ・ドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "ultimate",
+   "ultimate"
+  ],
+  "family": [
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのカードをコストを支払わずに召喚する。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nこのターンの間、このスピリットをBP+10000する。\nLv2･Lv3【真・激突】『このスピリットのアタック時』\n相手のスピリット/アルティメットは、可能ならブロックする。"
+ },
+ {
+  "cardId": "SD26-006",
+  "name": "アルティメット・ブロンズ・ヴルム",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "ultimate"
+  ],
+  "family": [
+   "新生",
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\n【Uトリガー】Lv3･Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は可能ならブロックする。ただし、アルティメットはブロックしなくてもよい。\n相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4\n自分のアルティメットの「BP破壊効果」の上限を+2000する。",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ },
+ {
+  "cardId": "SD26-007",
+  "name": "リューマン・スカイハイ",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "次代",
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【召喚条件：コスト1以上の自分のスピリット1体以上】\n【Uトリガー】Lv3･Lv4『このアルティメットのバトル時』\nUトリガーがヒットしたとき、このアルティメットをBP+10000する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4『自分のアタックステップ』\nカード名に「リューマン」と入っている自分のスピリット/アルティメットがアタックしたとき、自分はデッキから1枚ドローする。\nこの効果は重複しない。",
+  "summonConditionText": "コスト1以上の自分のスピリット1体以上"
+ },
+ {
+  "cardId": "SD26-008",
+  "name": "アルティメット・ドラコレックス",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "ultimate"
+  ],
+  "family": [
+   "新生",
+   "剣使",
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 11000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 15000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\nLv3･Lv4･Lv5『このアルティメットの召喚時』\n自分のトラッシュにある系統：「剣刃」を持つブレイヴカード1枚を手札に戻す。\n【合体時】【Uトリガー】Lv4･Lv5『このアルティメットの合体アタック時』\nUトリガーがヒットしたとき、BP10000以下の相手のスピリット/アルティメット1体を破壊する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ },
+ {
+  "cardId": "SD26-009",
+  "name": "火槍アルタイル",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『自分のメインステップ』\nこのブレイヴがスピリット状態の間、このスピリットに赤のシンボル1つを追加する。\n合体条件：コスト3以上のアルティメット\n【合体時】『自分のメインステップ』\nこのアルティメットに赤のシンボル1つを追加する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 1000
+   }
+  ],
+  "braveConditionText": "コスト3以上のアルティメット"
+ },
+ {
+  "cardId": "SD26-010",
+  "name": "炎星斧エルナト",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "ultimate"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n自分のトラッシュにあるコスト5以下の赤のアルティメットカード1枚を手札に戻す。\n合体条件：コスト3以上のスピリット/アルティメット\n【合体時】『このスピリット/アルティメットの合体アタック時』\n相手のネクサス1つを破壊する。\n【合体時】『このアルティメットの合体アタック時』\nUトリガーがヒットしたとき、このアルティメットをBP+7000する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト3以上のスピリット/アルティメット"
+ },
+ {
+  "cardId": "SD26-011",
+  "name": "燃える竜人の聖地",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nカード名に「リューマン」と入っている自分のスピリット/アルティメットすべては、相手の効果で破壊されたとき、疲労状態でフィールドに残ることができる。\nLv2『自分のアタックステップ』\n自分の赤のスピリット/アルティメットすべてをBP+3000する。"
+ },
+ {
+  "cardId": "SD26-012",
+  "name": "大旗艦ドラグニック",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n相手によって自分のライフが減ったとき、BP5000以下の相手のスピリット1体を破壊する。\nLv2『自分のドローステップ』\nドローの枚数を+1枚する。"
+ },
+ {
+  "cardId": "SD26-013",
+  "name": "フェイタルドロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分はデッキから2枚ドローする。\n自分のライフが2以下のとき、さらに、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+2000する。"
+ },
+ {
+  "cardId": "SD26-014",
+  "name": "ドラゴニックウォール",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "ultimate"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手のスピリット/アルティメットのアタック後】\nこのターンの間、自分のスピリット/アルティメット1体をBP+5000する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n自分の赤のスピリット1体を破壊することで、このバトルが終了したとき、アタックステップを終了する。\nこの効果は、『相手のアタックステップ』でしか使えない。"
+ },
+ {
+  "cardId": "SD26-015",
+  "name": "サンブレイカー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "ultimate"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【トリガーカウンター】\n手札にあるこのマジックカードは、相手のUトリガーがヒットしたとき、ヒット効果発揮前に次の効果を使用できる。\n■自分はデッキから2枚ドローする。さらに、ヒットしたカードが赤のカードならガードとする。\nフラッシュ：\nこのターンの間、自分の合体スピリット/合体アルティメットがBPを比べ相手のスピリット/アルティメットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。"
+ },
+ {
+  "cardId": "SD26-X01",
+  "name": "アルティメット・アーク",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red",
+   "ultimate"
+  ],
+  "family": [
+   "新生",
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 11000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 15000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 21000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\n【合体時】Lv3･Lv4･Lv5\nこのアルティメットに赤のシンボル1つを追加する。\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、BP7000以下の相手のスピリット1体を破壊する。\nこのアルティメットの合体時、かわりに、BP15000以下の相手のスピリット/アルティメット1体を破壊する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ },
+ {
+  "cardId": "SD26-X02",
+  "name": "太陽神剣ソルキャリバー",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "ultimate"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "合体条件：コスト4以上のアルティメット\n【合体時】\nこのブレイヴをコスト0として扱う。\n【合体時】『このアルティメットの合体アタック時』\nBP4000以下の相手のスピリット1体を破壊する。\n【合体時】『このアルティメットの合体アタック時』\nUトリガーがヒットしたとき、ヒットしたカードがアルティメットカードなら、相手の合体していないアルティメット1体を破壊する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト4以上のアルティメット"
+ }
+]

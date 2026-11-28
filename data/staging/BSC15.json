@@ -1,0 +1,1539 @@
+[
+ {
+  "cardId": "BS14-010",
+  "name": "皇牙獣キンタローグ・ベアー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇",
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nBP4000以下の相手のスピリット2体を破壊する。\nその後、自分はデッキから1枚ドローする。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nBP4000以下の相手のスピリット2体を破壊する。\nLv2･Lv3『自分のアタックステップ』\n系統：「皇獣」を持つ自分のスピリットがアタックしたとき、そのスピリットのBP以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS14-095",
+  "name": "紫魂葬",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n自分のスピリットのコア3個を自分のトラッシュに置くことで、相手は、相手のスピリットのコア3個を相手のトラッシュに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のネクサス1つのコアすべてを相手のトラッシュに置く。"
+ },
+ {
+  "cardId": "BS14-103",
+  "name": "幻影氷結晶",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\nこのバースト発動時に破壊された、自分のトラッシュにあるスピリットカード1枚を手札に戻す。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のスピリット1体を指定する。\nこのターンの間、ブロックされなかったそのスピリットのアタックでは、自分のライフは減らない。"
+ },
+ {
+  "cardId": "BS14-107",
+  "name": "夢幻祈祷",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\nボイドからコア1個を自分のライフに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nアタックしている回復状態の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS14-112",
+  "name": "封渦斬",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nこのターンの間、相手はマジックカードを使用できない。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、自分のスピリット1体のLvを1つ上のものとして扱う。"
+ },
+ {
+  "cardId": "BS14-113",
+  "name": "退魔絶刀角",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n相手のデッキを上から5枚破棄する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のトラッシュにあるカード1枚を相手のデッキの下に戻す。"
+ },
+ {
+  "cardId": "BS14-X02",
+  "name": "呪の覇王カオティック・セイメイ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 8,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "覇皇",
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n相手のスピリットのコア1個を相手のトラッシュに置く。\nさらに、このバースト発動時に紫のスピリットが破壊されていたら、自分はデッキから1枚ドローする。\nその後、このカードを手札に戻す。\nLv3【呪滅撃】『相手によるこのスピリットの破壊時』\n相手のライフのコア1個を相手のトラッシュに置くことで、このスピリットは回復状態でフィールドに残る。"
+ },
+ {
+  "cardId": "BS14-X03",
+  "name": "風の覇王ドルクス・ウシワカ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "覇皇",
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n相手のスピリット2体を疲労させる。\nその後、自分のフィールド/リザーブ/トラッシュのコアが合計8個以上のとき、このスピリットカードを召喚する。\nフラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1･Lv2･Lv3『このスピリットのバトル時』\nバトル終了時、このスピリットを手札に戻すことで、このターンの間、自分のスピリット1体をBP+3000する。"
+ },
+ {
+  "cardId": "BS14-X04",
+  "name": "氷の覇王ミブロック・バラガン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "覇皇",
+   "機人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのスピリットカードを召喚する。\nLv1･Lv2･Lv3『自分のバースト発動後』\n自分のバーストをセットしていないとき、自分の手札にあるバースト効果を持つカード1枚をセットできる。\nLv2･Lv3『相手のアタックステップ』\nステップ開始時、自分のスピリット1体を手札に戻すことで、コスト合計(戻したスピリットのコスト)まで、相手のスピリットを好きなだけ手札に戻す。"
+ },
+ {
+  "cardId": "BS15-074",
+  "name": "三札之術",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nBP4000以下の相手のスピリット1体を破壊する。\nその後コストを支払うことで、このカードのメイン効果を発揮する。\nメイン：\n自分はデッキから2枚ドローする。\nその後、自分のデッキを上から1枚オープンし、そのカードが赤のスピリットカードのとき手札に加える。\n他のカードのときはデッキの上に戻す。"
+ },
+ {
+  "cardId": "BS15-076",
+  "name": "妖華吸血爪",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分はデッキから2枚ドローする。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n自分の手札を好きなだけ破棄する。\nその破棄したカード1枚につき、相手のスピリット1体のコア1個を相手のトラッシュに置く。"
+ },
+ {
+  "cardId": "BS15-078",
+  "name": "飛雷震之計",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：相手のスピリットのアタック後】\n自分のスピリット1体を回復させる。\nその後コストを支払うことで、このカードのメイン効果を発揮する。\nメイン：\n相手のフィールドにスピリット/ネクサスの色が2色以上のとき、色1色を指定する。\n指定した色の相手のスピリットすべてを疲労させる。"
+ },
+ {
+  "cardId": "BS15-082",
+  "name": "神閃月下",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n自分のトラッシュにあるマジックカード1枚をデッキの上に戻し、自分のトラッシュの他のカード10枚までを好きな順番でデッキの下に戻す。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のフィールドにスピリット/ネクサスの色が2色以上のとき、このターンの間、黄以外のスピリットすべてはアタック/ブロックできない。"
+ },
+ {
+  "cardId": "BS15-083",
+  "name": "秘剣燕返",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n相手の手札が5枚以上のとき、相手は、相手の手札を2枚になるように破棄する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手の合体スピリットのブレイヴ1つを破壊する。\nこの効果発揮後、コスト3以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS15-X01",
+  "name": "刀の覇王ムサシード・アシュライガー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇",
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：相手のスピリットのアタック後】\nこのバースト発動時にアタックしたスピリットがBP5000以上なら、このスピリットカードをコストを支払わずに召喚する。\nその後、このターンの間、このスピリットをBP+3000する。\nLv2･Lv3『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、相手の合体スピリットのブレイヴ1つか、相手のネクサス1つを破壊する。\nLv3『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、相手のライフのコア1個を相手のリザーブに置く。"
+ },
+ {
+  "cardId": "BS15-X06",
+  "name": "鉄の覇王サイゴード・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "覇皇",
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 8,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n相手のデッキを上から、召喚時効果を発揮したスピリットのコストと同じ枚数破棄し、バースト効果を持つカードが破棄されたとき、このスピリットカードをコストを支払わずに召喚する。\nLv1･Lv2･Lv3【大粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLv1につき5枚破棄し、バースト効果を持つカードが破棄されたとき、相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS16-042",
+  "name": "グリムの天使シンデレラ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "覇皇",
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n系統：「天霊」を持つ自分のスピリットがいるとき、このスピリットカードを召喚する。\nLv2･Lv3『自分のアタックステップ』\n相手のライフが減ったとき、自分のトラッシュにあるマジックカード1枚を手札に戻す。\nLv3『このスピリットのアタック時』\n自分のバースト1つを破棄することで、このバトルの間、このスピリットはブロックされない。"
+ },
+ {
+  "cardId": "BS16-076",
+  "name": "打神鞭",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n相手のスピリット1体のコアを、1個だけになるように相手のリザーブに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手の合体スピリット1体を破壊する。\nまたは、相手の合体スピリットのブレイヴ1つを破壊する。"
+ },
+ {
+  "cardId": "BS16-078",
+  "name": "翔烈降臨",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分のライフが2以下のとき、自分の手札にある緑のスピリットカード1枚を召喚する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、自分のスピリットすべてをBP+2000する。"
+ },
+ {
+  "cardId": "BS17-022",
+  "name": "ターザニア・グレート",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "覇皇",
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 8,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\nこのスピリットカードをコストを支払わずに召喚する。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n自分のデッキを上から1枚オープンできる。\nそのカードがコスト3以下のスピリットカードのとき、コストを支払わずに召喚できる。\n召喚しない、または、他のカードのときは破棄する。"
+ },
+ {
+  "cardId": "BS17-X05",
+  "name": "魅惑の覇王クレオパトラス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "覇皇",
+   "導魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分のライフが3以下のとき、このカードをコストを支払わずに召喚する。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにあるマジックカード1枚を手札に戻す。\nLv2･Lv3【魔光芒】『このスピリットのアタック時』\n自分がマジックカードを使用したとき、その効果発揮後、同じ効果をもう1度だけ発揮できる。\nバトル終了時、自分のトラッシュにある、このバトルで使用したマジックカードすべては手札に戻る。"
+ },
+ {
+  "cardId": "BS18-045",
+  "name": "ドクトル・ファウスト",
+  "type": "spirit",
+  "colors": [
+   "yellow",
+   "white"
+  ],
+  "cost": 12,
+  "reduction": [
+   "white",
+   "white",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "覇皇",
+   "導魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "yellow",
+   "white"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\nこのバースト発動時にコスト5以上の白/黄のスピリットが破壊されていたら、このスピリットカードを召喚する。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nバースト効果で召喚されたとき、自分のデッキを上から5枚オープンできる。\nその中のスピリットカード1枚を、コストを支払わずに召喚できる。\n召喚しない、または、残ったカードは好きな順番でデッキの下に戻す。"
+ },
+ {
+  "cardId": "BS18-054",
+  "name": "ディクタトール・シーザー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "覇皇",
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分のライフが2以下のとき、このスピリットカードを召喚する。\nLv1･Lv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復できる。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手は、次のターンの『相手のメインステップ』を行えない。"
+ },
+ {
+  "cardId": "BS18-074",
+  "name": "救世神撃覇",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nBP合計6000まで相手のスピリットを好きなだけ破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n自分はデッキから1枚ドローする。\nその後、自分の手札にあるバーストカード1枚をセットできる。"
+ },
+ {
+  "cardId": "BS18-075",
+  "name": "マーク・オブ・ゾロ",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n自分はデッキから1枚ドローし、相手のスピリットのコア2個を相手のトラッシュに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nコスト5以下の相手のスピリットすべてのコア1個ずつを相手のリザーブに置く。"
+ },
+ {
+  "cardId": "BS18-081",
+  "name": "フェアヴァイレ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nバースト発動時に発揮した『このスピリット/ブレイヴの召喚時』効果を、自分のスピリットが発揮したものとして、同じ効果をもう1度だけ発揮できる。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のスピリット1体を指定する。このターンの間、指定されたスピリットはアタック/ブロックできない。"
+ },
+ {
+  "cardId": "BSC15-001",
+  "name": "リューマン・ハマー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nBP4000以下の相手のスピリット3体を破壊する。\nこの効果発揮後、自分の赤のアルティメットがいるとき、このスピリットカードを召喚する。\nLv2･Lv3『このスピリットの破壊時』\n相手の合体スピリットのブレイヴ1つを破壊する。"
+ },
+ {
+  "cardId": "BSC15-002",
+  "name": "ゴズデーモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n自分のトラッシュにある系統：「呪鬼」を持つスピリットカード1枚を手札に戻すことで、このスピリットカードを召喚する。\nLv2【呪撃】『このスピリットのアタック時』\nバトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する。"
+ },
+ {
+  "cardId": "BSC15-003",
+  "name": "サトリデーモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "トラッシュにあるこのスピリットカードは、自分のバースト発動後に手札に戻る。\n【バースト：自分のライフ減少後】\n相手のスピリットすべてのコアを、それぞれ1個だけになるように相手のリザーブに置く。\nこの効果発揮後、自分のアルティメットがいるとき、このスピリットカードを召喚する。"
+ },
+ {
+  "cardId": "BSC15-004",
+  "name": "ハナノマンティス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "刃虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nコスト3以下のスピリットすべてを疲労させる。\nこの効果発揮後、このスピリットカードを召喚する。\nLv2『このスピリットのアタック時』\n自分のアルティメットがいるとき、相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "BSC15-005",
+  "name": "ソーグリズリー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 8,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット消滅/破壊後】\n相手のスピリット2体を疲労させる。\nこの効果発揮後、自分のアルティメットがいるとき、このスピリットカードを召喚する。\nLv2『このスピリットのバトル時』\n相手はバーストを発動できない。"
+ },
+ {
+  "cardId": "BSC15-006",
+  "name": "ヘヴィ・タンクモービルT-35",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "動器",
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\nこのスピリットカードを召喚する。\nLv2『相手のアタックステップ』\nこのスピリットは疲労状態でブロックできる。\n自分のアルティメットがいる間、さらに、このスピリットをBP+3000する。"
+ },
+ {
+  "cardId": "BSC15-007",
+  "name": "トルマリンドラグーン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "甲竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n相手のバースト1つを手札に戻す。\nこの効果発揮後、自分のアルティメットがいるとき、このスピリットカードを召喚する。\nLv1･Lv2『相手によるこのスピリットの消滅時』\nボイドからコア1個をこのスピリットに置くことで、このスピリットは疲労状態でフィールドに残る。\nLv2\nこのスピリットが相手の効果で破壊されたとき、このスピリットは疲労状態でフィールドに残る。"
+ },
+ {
+  "cardId": "BSC15-008",
+  "name": "ネメアーリオン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのターンの間、コスト4以下の相手のスピリットはアタックできない。\nこの効果発揮後、このスピリットカードを召喚する。\nLv2･Lv3『相手によるこのスピリットの破壊時』\n自分はデッキから1枚ドローする。\n自分の黄のアルティメットがいるとき、さらに、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BSC15-009",
+  "name": "天使デルエル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手のスピリットのアタック後】\nこのターンの間、相手のスピリット1体をBP-3000する。\nこの効果発揮後、自分の黄のアルティメットがいるとき、このスピリットカードを召喚し、自分の手札にあるバースト効果を持つカード1枚をセットできる。\nLv3\n自分のバーストをセットしている間、このスピリットは相手のスピリットの効果を受けない。"
+ },
+ {
+  "cardId": "BSC15-010",
+  "name": "ブリガン・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "white",
+   "white"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\nこのスピリットカードを召喚する。\nLv1･Lv2：フラッシュ『相手のアタックステップ』\n自分のスピリット/アルティメット1体を疲労させることで、「ブロックされない」効果を持つ相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BSC15-011",
+  "name": "フリゲート・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 10,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 11000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 15000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分の青のアルティメットがいるとき、このスピリットカードを召喚する。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n相手の合体スピリットのブレイヴすべてをコスト0として扱い、コスト8以下の相手のスピリット1体を破壊する。\nLv2･Lv3『相手のターン』\n系統：「造兵」を持つ自分のスピリット/アルティメットすべてをBP+2000する。"
+ },
+ {
+  "cardId": "BSC15-012",
+  "name": "フレイムバースト",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\nBP3000以下のスピリットすべてを破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+2000する。"
+ },
+ {
+  "cardId": "BSC15-013",
+  "name": "デスバースト",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n疲労状態の相手のスピリット1体を破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+2000する。"
+ },
+ {
+  "cardId": "BSC15-014",
+  "name": "バーストバリア",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのターンの間、コスト3以下の相手のスピリットのアタックでは、自分のライフは減らない。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のネクサス1つを手札に戻す。"
+ },
+ {
+  "cardId": "BSC15-015",
+  "name": "レゾナンスバースト",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nこのターンの間、相手はマジックカードを使用できない。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n『このスピリットの召喚時』効果を持つコスト4以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BSC15-X01",
+  "name": "リューマン・ゴッドブレイカー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 8,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nBP10000以下の相手のスピリット1体を破壊する。\nこの効果発揮後、自分のアルティメットがいるとき、自分はデッキから1枚ドローし、このスピリットカードを召喚する。\nLv2･Lv3『このスピリットのアタック時』\n自分の手札にある、アルティメットカード1枚か、系統：「竜人」を持つスピリットカード2枚を破棄することで、このスピリットは回復する。"
+ },
+ {
+  "cardId": "P069",
+  "name": "ロード・ブレイバン",
+  "type": "brave",
+  "colors": [
+   "red",
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "white"
+  ],
+  "family": [
+   "機竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "C,P",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのブレイヴカードを召喚する。\n合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、相手のライフのコア1個を相手のリザーブに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 5000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "P070",
+  "name": "カオティック・リクゴー",
+  "type": "brave",
+  "colors": [
+   "purple",
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "yellow"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "C,P",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのブレイヴカードを召喚する。\n合体条件：コスト3以上\n【合体時】『このスピリットのバトル時』\nバトル解決時、BPの低いスピリットではなく、BPの高いスピリットが破壊される。\nBPが同じとき、お互いのスピリットが破壊される。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   }
+  ],
+  "braveConditionText": "コスト3以上"
+ },
+ {
+  "cardId": "P071",
+  "name": "サイゴード・アームズ",
+  "type": "brave",
+  "colors": [
+   "green",
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "C,P",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのブレイヴカードを召喚する。\n合体条件：コスト3以上\n【合体時】『このスピリットの合体アタック時』\n相手のデッキを上から2枚破棄し、バースト効果を持つカードが破棄されたとき、ボイドからコア1個を自分のスピリットに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト3以上"
+ },
+ {
+  "cardId": "SD06-010",
+  "name": "海皇龍シーマ・クリーク",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "覇皇",
+   "甲竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nこのスピリットカードを召喚する。\nLv1･Lv2\nこのスピリットとコスト2以下のスピリットはアタックできない。\nLv1･Lv2･Lv3『相手のターン』\n自分のライフは、ターンごとに相手のスピリット1体から1までしか減らされない。"
+ },
+ {
+  "cardId": "SD06-013",
+  "name": "双翼乱舞",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n自分はデッキから2枚ドローする。\nその後コストを支払うことで、このカードのメイン効果を発揮する。\nメイン：\n自分はデッキから2枚ドローする。"
+ },
+ {
+  "cardId": "SD06-015",
+  "name": "覇王爆炎撃",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nBP4000以下の相手のスピリット3体を破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手の合体スピリット1体を破壊する。"
+ },
+ {
+  "cardId": "SD06-016",
+  "name": "絶甲氷盾",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nボイドからコア1個を自分のライフに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのバトルが終了したとき、アタックステップを終了する。"
+ },
+ {
+  "cardId": "SD06-017",
+  "name": "甲竜封絶破",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n相手のスピリット/ブレイヴ/ネクサス、どれか1つをデッキの下に戻す。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n自分のスピリット1体を回復させる。"
+ }
+]

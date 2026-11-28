@@ -1,0 +1,305 @@
+[
+ {
+  "cardId": "BS09-005",
+  "name": "銀河竜アンドロメテオス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "blue"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n自分のデッキを上から2枚オープンできる。\nその中に系統：「星竜」を持つスピリットカードがあれば1枚手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2･Lv3\nこのスピリットは青のスピリットとしても扱う。"
+ },
+ {
+  "cardId": "BS09-006",
+  "name": "蛇竜キング・ゴルゴー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "皇獣",
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n系統：「星竜」を持つ自分のスピリットすべてをBP+3000する。\nLv2『自分のメインステップ』\n自分の青のスピリットが召喚されたとき、BP3000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS09-056",
+  "name": "星創られし場所",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nBP8000以上の自分のスピリットすべてに“【激突】『このスピリットのアタック時』相手は可能ならば必ずブロックする”という効果を与える。\nLv2『お互いのアタックステップ』\n系統：「星竜」を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、自分のトラッシュにあるスピリットカード1枚を手札に戻す。"
+ },
+ {
+  "cardId": "BS09-067",
+  "name": "ビッグバンエナジー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分の手札にある系統：「星竜」を持つスピリットカードすべてのコストを、自分のライフと同じ数にする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。"
+ },
+ {
+  "cardId": "BS10-X01",
+  "name": "幻羅星龍ガイ・アスラ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 10,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "神星",
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 8000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 13000
+   },
+   {
+    "level": 4,
+    "cores": 10,
+    "bp": 30000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3･Lv4\nお互い、このスピリットのコアを取り除けない。\nLv1･Lv2･Lv3･Lv4：フラッシュ【超覚醒】\n自分のスピリットのコアを、好きなだけこのスピリットに置ける。\nこの効果でコアを置いたとき、このスピリットは回復する。\nLv4『このスピリットのアタック時』\nこのバトルの間、破壊された相手のスピリットのコアすべては、リザーブではなくボイドに置かれる。"
+ },
+ {
+  "cardId": "SD01-006",
+  "name": "晴天竜ウィンドレイク",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜",
+   "翼竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリットから、コアを好きなだけこのスピリットに置くことができる。"
+ },
+ {
+  "cardId": "SD03-011",
+  "name": "鎧殻竜グラウン・ギラス",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n相手のネクサス1つを破壊する。\n合体条件：コスト3以上\n【合体中】『このスピリットのアタック時』\n相手のネクサス1つを破壊する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト3以上"
+ },
+ {
+  "cardId": "X007",
+  "name": "天地神龍ガイ・アスラ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 8,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "神星",
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 8000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 12000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 16000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nお互い、このスピリット上に置いてあるコアは取り除くことはできない。\n【合体時】Lv1･Lv2･Lv3：フラッシュ【超覚醒】\n自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。\nこの効果でコア1個以上を置かれるたび、このスピリットは回復する。"
+ }
+]

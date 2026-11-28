@@ -1,0 +1,567 @@
+[
+ {
+  "cardId": "SD22-001",
+  "name": "スピアント",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "刃虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": ""
+ },
+ {
+  "cardId": "SD22-002",
+  "name": "レディバド",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "刃虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。"
+ },
+ {
+  "cardId": "SD22-003",
+  "name": "クローフォックス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個を系統：「新生」/「刃虫」を持つ自分のスピリット/アルティメットに置く。\nLv2『このスピリットのアタック時』\nボイドからコア1個を自分のリザーブに置く。"
+ },
+ {
+  "cardId": "SD22-004",
+  "name": "ノコギールクワガタ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "刃虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv2『このスピリットの破壊時』\n自分のアルティメットがいるとき、ボイドからコア1個を自分のリザーブに置く。"
+ },
+ {
+  "cardId": "SD22-005",
+  "name": "ヴァルト・イエーガー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1･Lv2『このスピリットの召喚時』\n『お互いのアタックステップ』で召喚されたとき、ボイドからコア1個を自分のリザーブに置く。"
+ },
+ {
+  "cardId": "SD22-006",
+  "name": "ムゲンドラゴン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "新生"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1\nこのスピリットの色とシンボルは紫としても扱う。\nLv2\nこのスピリットの色とシンボルは赤としても扱う。\nLv3\nこのスピリットの色とシンボルは白としても扱う。"
+ },
+ {
+  "cardId": "SD22-007",
+  "name": "グラディタイガー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n【神速】を持つ自分のスピリット/アルティメットすべてをBP+3000する。\nLv2･Lv3『このスピリットのアタック時』\nボイドからコア1個ずつを、【神速】を持つ自分のスピリット/アルティメット2体に置く。"
+ },
+ {
+  "cardId": "SD22-008",
+  "name": "アルティメット・ティガルド",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "新生",
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【召喚条件：自分の緑スピリット1体以上】\nフラッシュ【神速】\n手札にあるこのアルティメットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\n【Uトリガー】Lv4『このアルティメットのバトル時』\nUトリガーがヒットしたとき、BPを比べ相手のスピリットだけを破壊したら、このアルティメットは回復する。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の緑スピリット1体以上"
+ },
+ {
+  "cardId": "SD22-009",
+  "name": "アルティメット・モノケイロス",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "新生",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 8000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 12000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 14000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【召喚条件：自分の緑スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、自分の手札にある【神速】を持つスピリットカード/アルティメットカード1枚を、コストを支払わずに召喚できる。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の緑スピリット1体以上"
+ },
+ {
+  "cardId": "SD22-010",
+  "name": "アルティメット・ジェン・フー",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "新生",
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 2,
+    "bp": 13000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 16000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【召喚条件：自分の緑スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は、相手のスピリット2体を疲労させる。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『このアルティメットのバトル時』\n相手はバーストを発動できない。",
+  "summonConditionText": "自分の緑スピリット1体以上"
+ },
+ {
+  "cardId": "SD22-011",
+  "name": "クラウデッド高地",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n【神速】を持つ自分のスピリット/アルティメットが召喚されたとき、このターンの間、そのスピリット/アルティメットをBP+4000する。\nLv2『お互いのアタックステップ』\n【神速】を持つ自分のスピリット/アルティメットが召喚されたとき、ボイドからコア1個をそのスピリット/アルティメットに置く。\nこの効果はターンに1回しか使えない。"
+ },
+ {
+  "cardId": "SD22-012",
+  "name": "大地茂る大樹",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n相手のスピリット/アルティメットによって自分のライフが減ったとき、自分はデッキから1枚ドローする。\nLv2\n自分のアルティメットが召喚されたとき、相手のスピリット1体を疲労させる。"
+ },
+ {
+  "cardId": "SD22-013",
+  "name": "トライアングルバースト",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手のスピリットのアタック後】\n自分の手札にあるコスト4以下のスピリットカード/アルティメットカード1枚を召喚する。\nただし、『このスピリット/アルティメットの召喚時』効果は発揮されない。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のスピリット1体を疲労させる。\nまたは、コスト4以下の相手のスピリット3体を疲労させる。"
+ },
+ {
+  "cardId": "SD22-014",
+  "name": "ハイスタンピード",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、【神速】を持つ自分のスピリット/アルティメットすべてをBP+5000する。\nフラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+5000する。"
+ },
+ {
+  "cardId": "SD22-015",
+  "name": "ネオ・ハンドリバース",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分の手札すべてを破棄することで(最低1枚)、自分はデッキから3枚ドローする。\nフラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+5000する。"
+ },
+ {
+  "cardId": "SD22-016",
+  "name": "ネオ・バインディングソーン",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n相手のスピリット1体を疲労させる。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のスピリット/アルティメット1体を疲労させる。"
+ },
+ {
+  "cardId": "SD22-X01",
+  "name": "アルティメット・キングタウロス",
+  "type": "ultimate",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "新生",
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 11000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 14000
+   },
+   {
+    "level": 5,
+    "cores": 4,
+    "bp": 18000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の緑スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は、相手のスピリット2体を疲労させる。\n【クリティカルヒット】：ヒットしたカードのコストが3以下なら、さらに、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5『このアルティメットのアタック時』\nこのアルティメットのコア1個につき、このアルティメットをBP+1000する。",
+  "summonConditionText": "自分の緑スピリット1体以上"
+ }
+]

@@ -1,0 +1,580 @@
+[
+ {
+  "cardId": "SD19-001",
+  "name": "ファイザード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "翼竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": ""
+ },
+ {
+  "cardId": "SD19-002",
+  "name": "ムゲンドラ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red",
+   "white"
+  ],
+  "family": [
+   "新生"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットの色とシンボルは白としても扱う。"
+ },
+ {
+  "cardId": "SD19-003",
+  "name": "ルーキー・リューマン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "SD19-004",
+  "name": "バズ・リューマン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\nBP4000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "SD19-005",
+  "name": "エッジ・ウルフ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+3000する。\n自分のアルティメットがいる間、さらに、このスピリットをBP+3000する。"
+ },
+ {
+  "cardId": "SD19-006",
+  "name": "ドラゴナイト",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のアルティメットがいるとき、相手のネクサス1つを破壊する。\nLv1･Lv2『このスピリットのアタック時』\n自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "SD19-007",
+  "name": "アイゼンドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\nBP3000以下の相手のスピリット1体を破壊する。\n自分のアルティメットがいるとき、さらに、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "SD19-008",
+  "name": "アルティメット・ゴラドン",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "新生",
+   "爬獣"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 9000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\n【Uトリガー】Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手のスピリットは可能ならブロックする。\n相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ },
+ {
+  "cardId": "SD19-009",
+  "name": "ドラグノ究極兵",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "新生",
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 8000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\n【Uトリガー】Lv3･Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手のスピリットは可能ならブロックする。\n相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ },
+ {
+  "cardId": "SD19-010",
+  "name": "アルティメット・マ・グー",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "新生",
+   "竜人",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 9000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\nLv3･Lv4『このアルティメットの召喚時』\nBP6000以下の相手のスピリット1体を破壊する。\n【Uトリガー】Lv4『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は可能ならブロックする。ただし、アルティメットはブロックしなくてもよい。\n相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ },
+ {
+  "cardId": "SD19-011",
+  "name": "狩る者の集落",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分の赤のスピリット/アルティメットすべてをBP+2000する。\nLv2『相手のアタックステップ』\n相手によって自分のライフが減ったとき、BP4000以下の相手のスピリット1体を破壊する。\n自分のアルティメットがいるとき、かわりに、BP5000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "SD19-012",
+  "name": "赤き黎明の空",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\nターンの最初にアタックしたのが自分のアルティメットのとき、自分はデッキから1枚ドローする。\nLv2『自分のアタックステップ』\n相手のスピリットがBPを比べ破壊されたとき、相手のネクサス1つを破壊する。"
+ },
+ {
+  "cardId": "SD19-013",
+  "name": "ネオ・ダブルドロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分はデッキから2枚ドローする。\nさらに、自分のアルティメットがいるとき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット/アルティメット1体をBP+1000する。"
+ },
+ {
+  "cardId": "SD19-014",
+  "name": "ブレイジングバースト",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nBP5000以下の相手のスピリット1体を破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n自分の赤のスピリット1体を破壊することで、このターンの間、相手のスピリットのアタックでは、自分のライフは1しか減らない。"
+ },
+ {
+  "cardId": "SD19-015",
+  "name": "フレイムスパーク",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\nBP合計5000まで相手のスピリットを好きなだけ破壊する。\nこの効果でスピリットを破壊したとき、自分のトラッシュにあるスピリットカード1枚を手札に戻す。"
+ },
+ {
+  "cardId": "SD19-016",
+  "name": "ネオ・フレイムテンペスト",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nBP8000以下の相手のスピリット1体を破壊する。\nまたは、BP4000以下のスピリットすべてを破壊する。"
+ },
+ {
+  "cardId": "SD19-X01",
+  "name": "アルティメット・ジークフリード",
+  "type": "ultimate",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "新生",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 3,
+    "cores": 1,
+    "bp": 10000
+   },
+   {
+    "level": 4,
+    "cores": 3,
+    "bp": 14000
+   },
+   {
+    "level": 5,
+    "cores": 5,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "ultimate"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【召喚条件：自分の赤スピリット1体以上】\n【Uトリガー】Lv3･Lv4･Lv5『このアルティメットのアタック時』\nUトリガーがヒットしたとき、相手は可能ならブロックする。\nただし、アルティメットはブロックしなくてもよい。\n相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。\n(Uトリガー：相手のデッキの1枚目をトラッシュに置く。そのカードのコストが、このアルティメットより低ければヒットとする)\nLv4･Lv5：フラッシュ【真・覚醒】『このアルティメットのアタック時』\n自分のスピリットのコア1個をこのアルティメットに置くことで、このアルティメットをBP+3000する。",
+  "summonConditionText": "自分の赤スピリット1体以上"
+ }
+]
