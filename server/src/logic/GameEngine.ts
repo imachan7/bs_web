@@ -130,6 +130,7 @@ import { separateBravesLostCondition, separateBravesOverLimit, trashSpiritStateB
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 import { resolveForcedBlock } from "./forcedBlock"
 import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed, markUsedOnceThisTurn, markNameUsedOnceThisTurn } from "./oncePerTurn"
+import { placeSummonedOnField } from "./summonPlacement"
 
 // 指定アタックのブロック確定（TIMING_CHART §1.10。2026-11-10 ユーザー確認）。
 // アタック時効果と【バースト】の解決がすべて終わった時点で、指定先が有効ならフラッシュ①を行わずブロック宣言へ移る。
@@ -530,7 +531,7 @@ export function placeSummonedSpirit(
     if (host !== undefined) {
         attachBrave(state, pid, host, inst)
     } else {
-        player.field.spirits.push(inst)
+        placeSummonedOnField(state, pid, inst)
     }
     delete state.summoningInstanceId
     log(state, logText)

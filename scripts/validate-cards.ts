@@ -559,6 +559,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                 if (!VALID_COLORS.has(col)) add(id, `colors に未知の色: ${String(col)}`)
             }
         }
+        if (c.type === "ultimate" && c.summonCondition === undefined) add(id, "アルティメットに summonCondition が無い（ULTIMATE.md §10）")
         for (const col of c.reduction ?? []) {
             if (col !== "ultimate" && !VALID_COLORS.has(col)) add(id, `reduction に未知の色: ${String(col)}`)
         }

@@ -19,8 +19,8 @@ import { activeConstraints, timedContentsOn, zoneSpiritEffectsDisabled, isFlashL
 // 「クリックできるのにサーバーが弾く」／「出せるはずのカードが押せない」のズレが出る）
 // 戻り値を型述語にしてあるのは、呼び出し側（クライアントの sendPlay）で
 // **カード種別の網羅漏れをコンパイル時に検出する**ため（種別が増えたら never チェックが落ちる）
-export function isSummonableCardType(type: CardData["type"]): type is "spirit" | "brave" {
-    return type === "spirit" || type === "brave"
+export function isSummonableCardType(type: CardData["type"]): type is "spirit" | "brave" | "ultimate" {
+    return type === "spirit" || type === "brave" || type === "ultimate"
 }
 
 // 合体先（ダイレクトブレイヴ）に選べる自分のスピリットの instanceId 一覧。

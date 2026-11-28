@@ -25,6 +25,7 @@ import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "./summonSurcharge"
 import { askSummonCores, summonCoreOptions, summonPayPlan } from "./summonCores"
+import { placeSummonedOnField } from "./summonPlacement"
 
 // 召喚が済んだ後にまとめて走る処理：『このスピリットの召喚時』効果 →「自分のスピリットが
 // 召喚されたとき」のフィールド誘発 → 天使長ファニムの疲労付与、の順。
@@ -379,7 +380,7 @@ export function summonFreeFromHandIndex(
     if (braveHost !== undefined) {
         attachBrave(state, owner, braveHost, inst)
     } else {
-        player.field.spirits.push(inst)
+        placeSummonedOnField(state, owner, inst)
     }
     const braveNote =
         braveHost !== undefined ? `${getCard(braveHost.cardId).name}に合体させて` : ""
@@ -472,7 +473,7 @@ export function summonFreeFromTrashIndex(
     if (opts?.skipOnSummon) inst.noOnSummon = true
     const braveHost = opts?.braveTargetInstanceId === undefined ? undefined : player.field.spirits.find((sp) => sp.instanceId === opts.braveTargetInstanceId)
     if (braveHost !== undefined) attachBrave(state, owner, braveHost, inst)
-    else player.field.spirits.push(inst)
+    else placeSummonedOnField(state, owner, inst)
     // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
     if (opts?.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
     log(

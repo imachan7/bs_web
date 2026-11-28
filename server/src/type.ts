@@ -5,7 +5,7 @@ export * from "./types/effectDef"
 export * from "./types/choice"
 // re-export は利用側に届くが、このファイル自身のスコープには入らないので明示的に読む
 import type { EffectDef } from "./types/effectDef"
-import type { EffectAction } from "./types/effectAction"
+import type { EffectAction, IfCond } from "./types/effectAction"
 import type { PendingChoice } from "./types/choice"
 import { TargetFilter } from "./types/targetFilter"
 import { CardInstance } from "./types/cardInstance"
@@ -249,6 +249,8 @@ export interface CardData {
     braveLevels?: LevelDef[] // 合体状態のレベル表。bp は「合体時BP+」の加算値、cores は**合体スピリット上の**コア数で判定する。
     // Lv1 の cores は 0（合体中のブレイヴはコアを持たないため。これで currentLevel が Lv0 に落ちない）
     braveCondition?: BraveCondition // 合体条件（満たすスピリットにのみ合体できる）
+    // ---- type === "ultimate" のときだけ持つ（ULTIMATE.md §6）----
+    summonCondition?: IfCond // 召喚の宣言時と効果による召喚の前に判定する。条件の数え方は IfCond の count と allOf／anyOf
 }
 
 // ソウルコアの居場所（docs/design/SOULCORE.md）。**コアの数値（reserve/trashCores/inst.cores）には含めない**
